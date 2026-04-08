@@ -58,6 +58,7 @@ export const useUserRoles = () => {
 export const usePrimaryRole = (): AppRole => {
   const { data: roles } = useUserRoles();
   if (!roles || roles.length === 0) return "employee";
+  if (roles.includes("superadmin")) return "superadmin";
   if (roles.includes("hrd")) return "hrd";
   if (roles.includes("manager")) return "manager";
   return "employee";
