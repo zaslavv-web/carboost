@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-export type AppRole = "employee" | "manager" | "hrd";
+export type AppRole = "employee" | "manager" | "hrd" | "superadmin";
 
 export interface UserProfile {
   id: string;
@@ -14,6 +14,8 @@ export interface UserProfile {
   hire_date: string | null;
   overall_score: number;
   role_readiness: number;
+  is_verified: boolean;
+  requested_role: string;
 }
 
 export const useUserProfile = () => {
@@ -56,6 +58,7 @@ export const useUserRoles = () => {
 export const usePrimaryRole = (): AppRole => {
   const { data: roles } = useUserRoles();
   if (!roles || roles.length === 0) return "employee";
+  if (roles.includes("superadmin")) return "superadmin";
   if (roles.includes("hrd")) return "hrd";
   if (roles.includes("manager")) return "manager";
   return "employee";

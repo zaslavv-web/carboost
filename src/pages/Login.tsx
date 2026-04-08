@@ -5,12 +5,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 
+const ROLE_OPTIONS = [
+  { value: "employee", label: "Сотрудник" },
+  { value: "manager", label: "Руководитель" },
+  { value: "hrd", label: "HRD" },
+];
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState("employee");
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,10 +29,14 @@ const Login = () => {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { requested_role: selectedRole },
+          },
         });
         if (error) throw error;
         if (data.session) {
+          toast.success("Регистрация прошла успешно. Ожидайте подтверждения суперадмина.");
           navigate("/");
         } else {
           toast.success("Проверьте почту для подтверждения регистрации");
@@ -131,6 +142,22 @@ const Login = () => {
                 </button>
               </div>
             </div>
+
+            {isSignUp && (
+              <div>
+                <label className="text-sm font-medium text-foreground">Желаемая роль</label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
+                >
+                  {ROLE_OPTIONS.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">После регистрации роль должна быть подтверждена суперадмином</p>
+              </div>
+            )}
 
             <button
               type="submit"

@@ -13,6 +13,7 @@ import CareerTrack from "@/pages/CareerTrack";
 import Notifications from "@/pages/Notifications";
 import ManagerDashboard from "@/pages/ManagerDashboard";
 import HRDDashboard from "@/pages/HRDDashboard";
+import SuperadminDashboard from "@/pages/SuperadminDashboard";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/NotFound";
 
@@ -36,6 +37,7 @@ const App = () => (
               <Route path="/team" element={<ManagerDashboard />} />
               <Route path="/employees" element={<HRDDashboard />} />
               <Route path="/roles" element={<HRDDashboard />} />
+              <Route path="/superadmin" element={<SuperadminDashboard />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

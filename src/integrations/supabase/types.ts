@@ -210,8 +210,10 @@ export type Database = {
           full_name: string
           hire_date: string | null
           id: string
+          is_verified: boolean
           overall_score: number | null
           position: string | null
+          requested_role: string
           role_readiness: number | null
           updated_at: string
           user_id: string
@@ -223,8 +225,10 @@ export type Database = {
           full_name?: string
           hire_date?: string | null
           id?: string
+          is_verified?: boolean
           overall_score?: number | null
           position?: string | null
+          requested_role?: string
           role_readiness?: number | null
           updated_at?: string
           user_id: string
@@ -236,8 +240,10 @@ export type Database = {
           full_name?: string
           hire_date?: string | null
           id?: string
+          is_verified?: boolean
           overall_score?: number | null
           position?: string | null
+          requested_role?: string
           role_readiness?: number | null
           updated_at?: string
           user_id?: string
@@ -281,9 +287,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      reject_user: { Args: { _target_user_id: string }; Returns: undefined }
+      verify_user: { Args: { _target_user_id: string }; Returns: undefined }
     }
     Enums: {
-      app_role: "employee" | "manager" | "hrd"
+      app_role: "employee" | "manager" | "hrd" | "superadmin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -411,7 +419,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["employee", "manager", "hrd"],
+      app_role: ["employee", "manager", "hrd", "superadmin"],
     },
   },
 } as const
