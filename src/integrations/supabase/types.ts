@@ -319,6 +319,27 @@ export type Database = {
         }
         Relationships: []
       }
+      team_members: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          manager_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          manager_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          manager_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
