@@ -220,10 +220,10 @@ const Positions = () => {
   const saveMutation = useMutation({
     mutationFn: async (pos: Partial<Position> & { id?: string }) => {
       if (pos.id) {
-        const { error } = await supabase.from("positions").update(pos).eq("id", pos.id);
+        const { error } = await supabase.from("positions").update(pos as any).eq("id", pos.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("positions").insert({ ...pos, created_by: user!.id });
+        const { error } = await supabase.from("positions").insert({ ...pos, created_by: user!.id } as any);
         if (error) throw error;
       }
     },
