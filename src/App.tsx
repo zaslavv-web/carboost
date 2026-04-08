@@ -13,6 +13,7 @@ import CareerTrack from "@/pages/CareerTrack";
 import Notifications from "@/pages/Notifications";
 import ManagerDashboard from "@/pages/ManagerDashboard";
 import HRDDashboard from "@/pages/HRDDashboard";
+import SuperadminDashboard from "@/pages/SuperadminDashboard";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/NotFound";
 
