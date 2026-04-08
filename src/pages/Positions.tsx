@@ -1,25 +1,19 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
-  ReactFlow,
-  Background,
-  Controls,
-  MiniMap,
-  addEdge,
-  useNodesState,
-  useEdgesState,
-  type Connection,
-  type Node,
-  type Edge,
-  MarkerType,
-  Panel,
+  ReactFlow, Background, Controls, MiniMap, addEdge,
+  useNodesState, useEdgesState,
+  type Connection, type Node, type Edge, MarkerType, Panel,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
-import { Plus, Save, Trash2, Loader2, X } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Plus, Save, Trash2, Loader2, X, Upload, FileUp, Brain, Target,
+} from "lucide-react";
 
 interface Position {
   id: string;
@@ -39,26 +33,230 @@ interface CareerPath {
   estimated_months: number | null;
 }
 
+interface CompetencyItem {
+  name: string;
+  required_level: number;
+}
+
+interface PsychItem {
+  trait: string;
+  level: string;
+}
+
+// ── Structured Competency Editor ──
+const CompetencyProfileEditor = ({
+  value,
+  onChange,
+}: {
+  value: CompetencyItem[];
+  onChange: (v: CompetencyItem[]) => void;
+}) => {
+  const add = () => onChange([...value, { name: "", required_level: 5 }]);
+  const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
+  const update = (i: number, field: keyof CompetencyItem, val: any) =>
+    onChange(value.map((item, idx) => (idx === i ? { ...item, [field]: val } : item)));
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+          <Target className="w-4 h-4 text-primary" /> Профиль компетенций
+        </label>
+        <Button variant="ghost" size="sm" onClick={add} type="button">
+          <Plus className="w-3 h-3" /> Добавить
+        </Button>
+      </div>
+      {value.length === 0 && (
+        <p className="text-xs text-muted-foreground py-2">Нет компетенций. Добавьте вручную или загрузите из файла.</p>
+      )}
+      {value.map((item, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <input
+            value={item.name}
+            onChange={(e) => update(i, "name", e.target.value)}
+            placeholder="Название компетенции"
+            className="flex-1 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+          />
+          <div className="flex items-center gap-1.5">
+            <input
+              type="range"
+              min={1}
+              max={10}
+              value={item.required_level}
+              onChange={(e) => update(i, "required_level", Number(e.target.value))}
+              className="w-20 accent-primary"
+            />
+            <span className="text-xs font-semibold text-foreground w-5 text-center">{item.required_level}</span>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => remove(i)} className="text-destructive h-7 w-7">
+            <X className="w-3 h-3" />
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ── Structured Psychological Profile Editor ──
+const PsychProfileEditor = ({
+  value,
+  onChange,
+}: {
+  value: PsychItem[];
+  onChange: (v: PsychItem[]) => void;
+}) => {
+  const levels = ["низкое", "ниже среднего", "среднее", "выше среднего", "высокое"];
+  const add = () => onChange([...value, { trait: "", level: "среднее" }]);
+  const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
+  const update = (i: number, field: keyof PsychItem, val: string) =>
+    onChange(value.map((item, idx) => (idx === i ? { ...item, [field]: val } : item)));
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+          <Brain className="w-4 h-4 text-primary" /> Психологический портрет-эталон
+        </label>
+        <Button variant="ghost" size="sm" onClick={add} type="button">
+          <Plus className="w-3 h-3" /> Добавить
+        </Button>
+      </div>
+      {value.length === 0 && (
+        <p className="text-xs text-muted-foreground py-2">Нет характеристик. Добавьте вручную или загрузите из файла.</p>
+      )}
+      {value.map((item, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <input
+            value={item.trait}
+            onChange={(e) => update(i, "trait", e.target.value)}
+            placeholder="Черта (напр. Лидерство)"
+            className="flex-1 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+          />
+          <select
+            value={item.level}
+            onChange={(e) => update(i, "level", e.target.value)}
+            className="px-3 py-1.5 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+          >
+            {levels.map((l) => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+          <Button variant="ghost" size="icon" onClick={() => remove(i)} className="text-destructive h-7 w-7">
+            <X className="w-3 h-3" />
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ── Parse helpers for profiles ──
+const parseCompetencyProfile = (raw: any): CompetencyItem[] => {
+  if (Array.isArray(raw)) return raw.filter((r: any) => r.name);
+  return [];
+};
+
+const parsePsychProfile = (raw: any): PsychItem[] => {
+  if (Array.isArray(raw)) return raw.filter((r: any) => r.trait);
+  if (typeof raw === "object" && raw !== null) {
+    return Object.entries(raw).map(([trait, level]) => ({ trait, level: String(level) }));
+  }
+  return [];
+};
+
+// ── Position Editor Modal ──
 const PositionEditor = ({
   position,
   onClose,
   onSave,
+  isSaving,
 }: {
   position: Position | null;
   onClose: () => void;
   onSave: (data: Partial<Position>) => void;
+  isSaving: boolean;
 }) => {
-  const [form, setForm] = useState({
-    title: position?.title || "",
-    description: position?.description || "",
-    department: position?.department || "",
-    psychological_profile: JSON.stringify(position?.psychological_profile || {}, null, 2),
-    competency_profile: JSON.stringify(position?.competency_profile || [], null, 2),
-  });
+  const [title, setTitle] = useState(position?.title || "");
+  const [description, setDescription] = useState(position?.description || "");
+  const [department, setDepartment] = useState(position?.department || "");
+  const [competencies, setCompetencies] = useState<CompetencyItem[]>(
+    parseCompetencyProfile(position?.competency_profile)
+  );
+  const [psychTraits, setPsychTraits] = useState<PsychItem[]>(
+    parsePsychProfile(position?.psychological_profile)
+  );
+  const [parsing, setParsing] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async () => {
+    const file = fileRef.current?.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+    if (![".doc", ".docx", ".pdf", ".csv", ".json"].includes(ext)) {
+      toast.error("Поддерживаются DOC, DOCX, PDF, CSV и JSON");
+      return;
+    }
+
+    setParsing(true);
+    try {
+      if (ext === ".json") {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if (parsed.competencies) setCompetencies(parsed.competencies);
+        if (parsed.psychological_profile) setPsychTraits(
+          Array.isArray(parsed.psychological_profile)
+            ? parsed.psychological_profile
+            : Object.entries(parsed.psychological_profile).map(([trait, level]) => ({ trait, level: String(level) }))
+        );
+        toast.success("Эталон загружен из JSON");
+      } else if (ext === ".csv") {
+        const text = await file.text();
+        const lines = text.split("\n").filter(Boolean);
+        const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+        const nameIdx = headers.findIndex((h) => h.includes("name") || h.includes("компетенц") || h.includes("навык"));
+        const levelIdx = headers.findIndex((h) => h.includes("level") || h.includes("уровень"));
+        if (nameIdx >= 0) {
+          const items = lines.slice(1).map((line) => {
+            const vals = line.split(",").map((v) => v.trim());
+            return { name: vals[nameIdx] || "", required_level: parseInt(vals[levelIdx] || "5") || 5 };
+          }).filter((c) => c.name);
+          setCompetencies(items);
+          toast.success(`Загружено ${items.length} компетенций из CSV`);
+        } else {
+          toast.error("CSV должен содержать столбец с названием компетенции");
+        }
+      } else {
+        // For doc/docx/pdf — upload and parse with AI
+        const filePath = `standards/${Date.now()}_${file.name}`;
+        const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from("hr-documents").getPublicUrl(filePath);
+
+        const { data: result, error: fnError } = await supabase.functions.invoke("parse-position-standards", {
+          body: { fileUrl: urlData.publicUrl, fileName: file.name },
+        });
+        if (fnError) throw fnError;
+
+        if (result?.competencies?.length) {
+          setCompetencies(result.competencies);
+        }
+        if (result?.psychological_profile?.length) {
+          setPsychTraits(result.psychological_profile);
+        }
+        toast.success("Эталон извлечён из документа с помощью AI");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Ошибка обработки файла");
+    } finally {
+      setParsing(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card rounded-xl border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-card rounded-xl border border-border w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">
             {position ? "Редактирование должности" : "Новая должность"}
@@ -66,70 +264,66 @@ const PositionEditor = ({
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
 
-        <div className="space-y-3">
+        {/* Basic info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="text-sm font-medium text-foreground">Название</label>
-            <input
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            <input value={title} onChange={(e) => setTitle(e.target.value)}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-              placeholder="Например: Frontend разработчик"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground">Описание</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[60px]"
-            />
+              placeholder="Frontend разработчик" />
           </div>
           <div>
             <label className="text-sm font-medium text-foreground">Отдел</label>
-            <input
-              value={form.department}
-              onChange={(e) => setForm({ ...form, department: e.target.value })}
-              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground">Психологический портрет-эталон (JSON)</label>
-            <textarea
-              value={form.psychological_profile}
-              onChange={(e) => setForm({ ...form, psychological_profile: e.target.value })}
-              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[100px]"
-              placeholder='{"лидерство": "высокое", "стрессоустойчивость": "средняя"}'
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground">Профиль компетенций (JSON)</label>
-            <textarea
-              value={form.competency_profile}
-              onChange={(e) => setForm({ ...form, competency_profile: e.target.value })}
-              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[100px]"
-              placeholder='[{"name": "JavaScript", "required_level": 8}]'
-            />
+            <input value={department} onChange={(e) => setDepartment(e.target.value)}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
           </div>
         </div>
+        <div>
+          <label className="text-sm font-medium text-foreground">Описание</label>
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+            className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[50px]" />
+        </div>
+
+        {/* File upload for standards */}
+        <div className="bg-secondary/30 rounded-lg p-4 space-y-2">
+          <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
+            <FileUp className="w-4 h-4 text-primary" /> Загрузить эталон из файла
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Загрузите DOC, DOCX, PDF — AI извлечёт компетенции и психопортрет. Или CSV/JSON для прямого импорта.
+          </p>
+          <div className="flex items-center gap-3">
+            <input ref={fileRef} type="file" accept=".doc,.docx,.pdf,.csv,.json"
+              className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
+            <Button size="sm" onClick={handleFileUpload} disabled={parsing}>
+              {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              Распознать
+            </Button>
+          </div>
+        </div>
+
+        {/* Competency editor */}
+        <CompetencyProfileEditor value={competencies} onChange={setCompetencies} />
+
+        {/* Psych profile editor */}
+        <PsychProfileEditor value={psychTraits} onChange={setPsychTraits} />
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={onClose}>Отмена</Button>
           <Button
             onClick={() => {
-              let psych = {};
-              let comp = [];
-              try { psych = JSON.parse(form.psychological_profile); } catch {}
-              try { comp = JSON.parse(form.competency_profile); } catch {}
+              const psychObj = psychTraits.length > 0 ? psychTraits : {};
               onSave({
-                title: form.title,
-                description: form.description || null,
-                department: form.department || null,
-                psychological_profile: psych,
-                competency_profile: comp,
+                title,
+                description: description || null,
+                department: department || null,
+                competency_profile: competencies,
+                psychological_profile: psychObj,
               });
             }}
-            disabled={!form.title}
+            disabled={!title || isSaving}
           >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Сохранить
           </Button>
         </div>
@@ -138,6 +332,165 @@ const PositionEditor = ({
   );
 };
 
+// ── Org Structure Upload ──
+const OrgStructureUpload = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const { data: departments = [], isLoading } = useQuery({
+    queryKey: ["departments"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("departments").select("*").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async () => {
+      const file = fileRef.current?.files?.[0];
+      if (!file) throw new Error("Выберите файл");
+      setUploading(true);
+
+      const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+      const text = await file.text();
+
+      let deptRows: { name: string; description?: string; parent?: string }[] = [];
+
+      if (ext === ".csv") {
+        const lines = text.split("\n").filter(Boolean);
+        const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+        const nameIdx = headers.findIndex((h) => h.includes("name") || h.includes("название") || h.includes("отдел"));
+        const descIdx = headers.findIndex((h) => h.includes("desc") || h.includes("описание"));
+        const parentIdx = headers.findIndex((h) => h.includes("parent") || h.includes("родител"));
+
+        if (nameIdx < 0) throw new Error("CSV должен содержать столбец с названием отдела");
+
+        deptRows = lines.slice(1).map((line) => {
+          const vals = line.split(",").map((v) => v.trim());
+          return {
+            name: vals[nameIdx] || "",
+            description: descIdx >= 0 ? vals[descIdx] : undefined,
+            parent: parentIdx >= 0 ? vals[parentIdx] : undefined,
+          };
+        }).filter((d) => d.name);
+      } else if (ext === ".json") {
+        const parsed = JSON.parse(text);
+        deptRows = Array.isArray(parsed) ? parsed : parsed.departments || [];
+      } else {
+        throw new Error("Поддерживаются CSV и JSON файлы");
+      }
+
+      // Insert departments (first pass — no parents)
+      const nameToId = new Map<string, string>();
+
+      for (const dept of deptRows) {
+        const { data, error } = await supabase
+          .from("departments")
+          .insert({ name: dept.name, description: dept.description || null } as any)
+          .select("id")
+          .single();
+        if (error) throw error;
+        nameToId.set(dept.name, data.id);
+      }
+
+      // Second pass — set parents
+      for (const dept of deptRows) {
+        if (dept.parent && nameToId.has(dept.parent) && nameToId.has(dept.name)) {
+          await supabase
+            .from("departments")
+            .update({ parent_id: nameToId.get(dept.parent) } as any)
+            .eq("id", nameToId.get(dept.name)!);
+        }
+      }
+
+      return deptRows.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+      toast.success(`Загружено ${count} отделов`);
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    },
+    onError: (e: any) => {
+      toast.error(e.message);
+      setUploading(false);
+    },
+  });
+
+  const deleteDeptMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("departments").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+      toast.success("Отдел удалён");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Build tree
+  const buildTree = (items: any[], parentId: string | null = null): any[] => {
+    return items
+      .filter((d) => d.parent_id === parentId)
+      .map((d) => ({ ...d, children: buildTree(items, d.id) }));
+  };
+
+  const tree = buildTree(departments);
+
+  const renderTree = (nodes: any[], depth = 0) =>
+    nodes.map((node) => (
+      <div key={node.id}>
+        <div className={`flex items-center justify-between py-2 px-4 hover:bg-secondary/20 transition-colors`}
+          style={{ paddingLeft: `${16 + depth * 24}px` }}>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{depth > 0 ? "└" : "■"}</span>
+            <span className="text-sm font-medium text-foreground">{node.name}</span>
+            {node.description && <span className="text-xs text-muted-foreground">— {node.description}</span>}
+          </div>
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive"
+            onClick={() => deleteDeptMutation.mutate(node.id)}>
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
+        {node.children?.length > 0 && renderTree(node.children, depth + 1)}
+      </div>
+    ));
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-secondary/30 rounded-lg p-4 space-y-3">
+        <p className="text-sm font-medium text-foreground">Загрузить оргструктуру из файла</p>
+        <p className="text-xs text-muted-foreground">
+          CSV с колонками: название, описание (опц.), родительский_отдел (опц.) или JSON массив.
+        </p>
+        <div className="flex items-center gap-3">
+          <input ref={fileRef} type="file" accept=".csv,.json"
+            className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
+          <Button size="sm" onClick={() => uploadMutation.mutate()} disabled={uploading}>
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            Загрузить
+          </Button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+      ) : departments.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">Оргструктура не загружена</p>
+      ) : (
+        <div className="bg-card rounded-xl border border-border overflow-hidden divide-y divide-border/50">
+          {renderTree(tree)}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Main Page ──
 const Positions = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -164,12 +517,10 @@ const Positions = () => {
     },
   });
 
-  // Build graph from data
   useMemo(() => {
     if (posLoading || pathsLoading) return;
-
     const cols = 3;
-    const newNodes: Node[] = positions.map((p, i) => ({
+    setNodes(positions.map((p, i) => ({
       id: p.id,
       position: { x: (i % cols) * 280 + 50, y: Math.floor(i / cols) * 160 + 50 },
       data: {
@@ -181,41 +532,23 @@ const Positions = () => {
         ),
       },
       style: {
-        background: "hsl(var(--card))",
-        border: "2px solid hsl(var(--primary))",
-        borderRadius: "12px",
-        padding: "12px 16px",
-        color: "hsl(var(--card-foreground))",
-        minWidth: "180px",
+        background: "hsl(var(--card))", border: "2px solid hsl(var(--primary))",
+        borderRadius: "12px", padding: "12px 16px", color: "hsl(var(--card-foreground))", minWidth: "180px",
       },
-    }));
-
-    const newEdges: Edge[] = careerPaths.map((cp) => ({
-      id: cp.id,
-      source: cp.from_position_id,
-      target: cp.to_position_id,
+    })));
+    setEdges(careerPaths.map((cp) => ({
+      id: cp.id, source: cp.from_position_id, target: cp.to_position_id,
       label: cp.estimated_months ? `~${cp.estimated_months} мес.` : undefined,
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: "hsl(var(--primary))" },
       labelStyle: { fontSize: 11, fill: "hsl(var(--muted-foreground))" },
-    }));
-
-    setNodes(newNodes);
-    setEdges(newEdges);
+    })));
   }, [positions, careerPaths, posLoading, pathsLoading]);
 
-  const onConnect = useCallback(
-    (params: Connection) => {
-      setEdges((eds) => addEdge({
-        ...params,
-        markerEnd: { type: MarkerType.ArrowClosed },
-        style: { stroke: "hsl(var(--primary))" },
-        id: `temp-${Date.now()}`,
-      }, eds));
-      setHasUnsavedPaths(true);
-    },
-    [setEdges]
-  );
+  const onConnect = useCallback((params: Connection) => {
+    setEdges((eds) => addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: "hsl(var(--primary))" }, id: `temp-${Date.now()}` }, eds));
+    setHasUnsavedPaths(true);
+  }, [setEdges]);
 
   const saveMutation = useMutation({
     mutationFn: async (pos: Partial<Position> & { id?: string }) => {
@@ -250,23 +583,15 @@ const Positions = () => {
 
   const savePathsMutation = useMutation({
     mutationFn: async () => {
-      // Delete all existing paths
       const { data: existing } = await supabase.from("position_career_paths").select("id");
-      if (existing && existing.length > 0) {
+      if (existing?.length) {
         for (const row of existing) {
           await supabase.from("position_career_paths").delete().eq("id", row.id);
         }
       }
-
-      // Insert current edges
-      const pathsToInsert = edges
-        .filter((e) => e.source && e.target)
-        .map((e) => ({
-          from_position_id: e.source,
-          to_position_id: e.target,
-          created_by: user!.id,
-        }));
-
+      const pathsToInsert = edges.filter((e) => e.source && e.target).map((e) => ({
+        from_position_id: e.source, to_position_id: e.target, created_by: user!.id,
+      }));
       if (pathsToInsert.length > 0) {
         const { error } = await supabase.from("position_career_paths").insert(pathsToInsert as any);
         if (error) throw error;
@@ -286,100 +611,92 @@ const Positions = () => {
   }, [positions]);
 
   if (posLoading || pathsLoading) {
-    return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Должности и карьерные пути</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Управляйте должностями и стройте карьерные стратегии. Дважды кликните на узел для редактирования.
-          </p>
-        </div>
-        <Button onClick={() => setEditingPosition("new")}>
-          <Plus className="w-4 h-4" /> Добавить должность
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Должности и оргструктура</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Управление должностями, эталонами компетенций и организационной структурой
+        </p>
       </div>
 
-      {/* Graph editor */}
-      <div className="bg-card rounded-xl border border-border" style={{ height: "600px" }}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={(changes) => {
-            onEdgesChange(changes);
-            if (changes.some((c) => c.type === "remove")) setHasUnsavedPaths(true);
-          }}
-          onConnect={onConnect}
-          onNodeDoubleClick={onNodeDoubleClick}
-          fitView
-          deleteKeyCode="Delete"
-        >
-          <Background />
-          <Controls />
-          <MiniMap
-            style={{ background: "hsl(var(--card))" }}
-            maskColor="hsl(var(--muted) / 0.5)"
-          />
-          <Panel position="top-right">
-            <div className="flex gap-2">
-              {hasUnsavedPaths && (
-                <Button size="sm" onClick={() => savePathsMutation.mutate()} disabled={savePathsMutation.isPending}>
-                  <Save className="w-4 h-4" /> Сохранить связи
-                </Button>
-              )}
+      <Tabs defaultValue="positions">
+        <TabsList>
+          <TabsTrigger value="positions">Должности и карьерные пути</TabsTrigger>
+          <TabsTrigger value="orgstructure">Оргструктура</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="positions" className="space-y-6 mt-4">
+          <div className="flex justify-end">
+            <Button onClick={() => setEditingPosition("new")}>
+              <Plus className="w-4 h-4" /> Добавить должность
+            </Button>
+          </div>
+
+          {/* Graph */}
+          <div className="bg-card rounded-xl border border-border" style={{ height: "500px" }}>
+            <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange}
+              onEdgesChange={(changes) => { onEdgesChange(changes); if (changes.some((c) => c.type === "remove")) setHasUnsavedPaths(true); }}
+              onConnect={onConnect} onNodeDoubleClick={onNodeDoubleClick} fitView deleteKeyCode="Delete">
+              <Background /><Controls />
+              <MiniMap style={{ background: "hsl(var(--card))" }} maskColor="hsl(var(--muted) / 0.5)" />
+              <Panel position="top-right">
+                {hasUnsavedPaths && (
+                  <Button size="sm" onClick={() => savePathsMutation.mutate()} disabled={savePathsMutation.isPending}>
+                    <Save className="w-4 h-4" /> Сохранить связи
+                  </Button>
+                )}
+              </Panel>
+            </ReactFlow>
+          </div>
+
+          {/* Positions list */}
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
+            <div className="p-4 border-b border-border">
+              <h3 className="font-semibold text-foreground">Список должностей</h3>
             </div>
-          </Panel>
-        </ReactFlow>
-      </div>
-
-      {/* Positions table */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <div className="p-4 border-b border-border">
-          <h3 className="font-semibold text-foreground">Список должностей</h3>
-        </div>
-        <div className="divide-y divide-border">
-          {positions.map((p) => (
-            <div key={p.id} className="p-4 flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground">{p.title}</p>
-                <p className="text-sm text-muted-foreground truncate">
-                  {p.department || "Без отдела"} {p.description ? `· ${p.description}` : ""}
-                </p>
-              </div>
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={() => setEditingPosition(p)}>
-                  Редактировать
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive"
-                  onClick={() => deleteMutation.mutate(p.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
+            <div className="divide-y divide-border">
+              {positions.map((p) => {
+                const compCount = Array.isArray(p.competency_profile) ? p.competency_profile.length : 0;
+                const psychCount = Array.isArray(p.psychological_profile) ? p.psychological_profile.length :
+                  (typeof p.psychological_profile === "object" && p.psychological_profile ? Object.keys(p.psychological_profile).length : 0);
+                return (
+                  <div key={p.id} className="p-4 flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground">{p.title}</p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                        <span>{p.department || "Без отдела"}</span>
+                        {compCount > 0 && <span className="flex items-center gap-0.5"><Target className="w-3 h-3" />{compCount} компетенций</span>}
+                        {psychCount > 0 && <span className="flex items-center gap-0.5"><Brain className="w-3 h-3" />{psychCount} черт</span>}
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="outline" size="sm" onClick={() => setEditingPosition(p)}>Редактировать</Button>
+                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteMutation.mutate(p.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              {positions.length === 0 && <p className="p-8 text-center text-muted-foreground">Должности ещё не созданы</p>}
             </div>
-          ))}
-          {positions.length === 0 && (
-            <p className="p-8 text-center text-muted-foreground">Должности ещё не созданы</p>
-          )}
-        </div>
-      </div>
+          </div>
+        </TabsContent>
 
-      {/* Editor modal */}
+        <TabsContent value="orgstructure" className="mt-4">
+          <OrgStructureUpload />
+        </TabsContent>
+      </Tabs>
+
       {editingPosition && (
         <PositionEditor
           position={editingPosition === "new" ? null : editingPosition}
           onClose={() => setEditingPosition(null)}
+          isSaving={saveMutation.isPending}
           onSave={(data) => {
             if (editingPosition !== "new" && editingPosition) {
               saveMutation.mutate({ ...data, id: editingPosition.id });
