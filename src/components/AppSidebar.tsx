@@ -27,8 +27,9 @@ const AppSidebar = () => {
 
   const navItems = [
     { icon: LayoutDashboard, label: "Дашборд", path: "/" },
+    ...(role === "superadmin" ? [{ icon: Shield, label: "Верификация", path: "/superadmin" }] : []),
     ...(role === "manager" ? [{ icon: Users, label: "Моя команда", path: "/team" }] : []),
-    ...(role === "hrd" ? [
+    ...(role === "hrd" || role === "superadmin" ? [
       { icon: Users, label: "Сотрудники", path: "/employees" },
       { icon: Shield, label: "Управление ролями", path: "/roles" },
     ] : []),
