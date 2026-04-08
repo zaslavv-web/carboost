@@ -19,13 +19,17 @@ const Login = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: window.location.origin },
         });
         if (error) throw error;
-        toast.success("Проверьте почту для подтверждения регистрации");
+        if (data.session) {
+          navigate("/");
+        } else {
+          toast.success("Проверьте почту для подтверждения регистрации");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
