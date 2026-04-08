@@ -1,13 +1,13 @@
 import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
+import { useUserProfile, useRealPrimaryRole } from "@/hooks/useUserProfile";
 import { ShieldAlert } from "lucide-react";
 
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { session, loading } = useAuth();
   const { data: profile, isLoading: profileLoading } = useUserProfile();
-  const role = usePrimaryRole();
+  const realRole = useRealPrimaryRole();
 
   if (loading || profileLoading) {
     return (
@@ -21,8 +21,8 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Superadmins always pass through
-  if (role === "superadmin") {
+  // Superadmins always pass through (use real role, not impersonated)
+  if (realRole === "superadmin") {
     return <>{children}</>;
   }
 
