@@ -6,11 +6,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
-import Dashboard from "@/pages/Dashboard";
+import RoleDashboard from "@/pages/RoleDashboard";
 import Assessment from "@/pages/Assessment";
 import Passport from "@/pages/Passport";
 import CareerTrack from "@/pages/CareerTrack";
 import Notifications from "@/pages/Notifications";
+import ManagerDashboard from "@/pages/ManagerDashboard";
+import HRDDashboard from "@/pages/HRDDashboard";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/NotFound";
 
@@ -26,11 +28,14 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<RoleDashboard />} />
               <Route path="/assessment" element={<Assessment />} />
               <Route path="/passport" element={<Passport />} />
               <Route path="/career-track" element={<CareerTrack />} />
               <Route path="/notifications" element={<Notifications />} />
+              <Route path="/team" element={<ManagerDashboard />} />
+              <Route path="/employees" element={<HRDDashboard />} />
+              <Route path="/roles" element={<HRDDashboard />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

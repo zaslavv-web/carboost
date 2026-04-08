@@ -1,13 +1,20 @@
 import { Outlet } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import { Bell, Search } from "lucide-react";
+import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
 
 const AppLayout = () => {
+  const { data: profile } = useUserProfile();
+  const role = usePrimaryRole();
+  const roleLabels = { employee: "Сотрудник", manager: "Руководитель", hrd: "Администратор HRD" };
+  const initials = profile?.full_name
+    ? profile.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+    : "??";
+
   return (
     <div className="min-h-screen bg-background">
       <AppSidebar />
       <div className="ml-[260px] transition-all duration-300">
-        {/* Header */}
         <header className="sticky top-0 z-40 h-16 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-8">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -24,16 +31,15 @@ const AppLayout = () => {
             </button>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full gradient-primary flex items-center justify-center text-primary-foreground text-sm font-semibold">
-                АИ
+                {initials}
               </div>
               <div className="text-sm">
-                <p className="font-medium text-foreground">Алексей Иванов</p>
-                <p className="text-muted-foreground text-xs">Старший инженер</p>
+                <p className="font-medium text-foreground">{profile?.full_name || "Загрузка..."}</p>
+                <p className="text-muted-foreground text-xs">{profile?.position || roleLabels[role]}</p>
               </div>
             </div>
           </div>
         </header>
-        {/* Content */}
         <main className="p-8">
           <Outlet />
         </main>
