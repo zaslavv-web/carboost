@@ -31,16 +31,16 @@ const Dashboard = () => {
   });
 
   const { data: goals = [] } = useQuery({
-    queryKey: ["career_goals", user?.id],
+    queryKey: ["career_goals", effectiveUserId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("career_goals")
         .select("*")
-        .eq("user_id", user!.id);
+        .eq("user_id", effectiveUserId!);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   const { data: achievements = [] } = useQuery({
