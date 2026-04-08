@@ -39,7 +39,7 @@ const AppSidebar = () => {
     { icon: Bell, label: "Уведомления", path: "/notifications", badge: 3 },
   ];
 
-  const roleLabels = { employee: "Сотрудник", manager: "Руководитель", hrd: "HRD" };
+  const roleLabels: Record<string, string> = { employee: "Сотрудник", manager: "Руководитель", hrd: "HRD", superadmin: "Суперадмин" };
 
   return (
     <aside
