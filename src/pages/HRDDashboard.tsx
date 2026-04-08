@@ -1,20 +1,35 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, TrendingUp, Shield, BarChart3, Search, UserPlus, Eye, Edit, ChevronDown, Loader2 } from "lucide-react";
+import { Users, TrendingUp, Shield, BarChart3, Search, ChevronDown, Loader2, GitCompareArrows, X } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import type { AppRole } from "@/hooks/useUserProfile";
 
 interface EmployeeWithRole {
   user_id: string;
   full_name: string;
   position: string | null;
+  position_id: string | null;
   department: string | null;
   overall_score: number | null;
   role_readiness: number | null;
   role: AppRole;
+}
+
+interface Position {
+  id: string;
+  title: string;
+  department: string | null;
+  competency_profile: any;
+  psychological_profile: any;
+}
+
+interface Competency {
+  skill_name: string;
+  skill_value: number;
 }
 
 const roleBadge: Record<AppRole, { label: string; cls: string }> = {
@@ -31,7 +46,7 @@ const useEmployeesWithRoles = () =>
     queryKey: ["hrd_employees"],
     queryFn: async () => {
       const [profilesRes, rolesRes] = await Promise.all([
-        supabase.from("profiles").select("user_id, full_name, position, department, overall_score, role_readiness"),
+        supabase.from("profiles").select("user_id, full_name, position, position_id, department, overall_score, role_readiness"),
         supabase.from("user_roles").select("user_id, role"),
       ]);
       if (profilesRes.error) throw profilesRes.error;
@@ -46,19 +61,185 @@ const useEmployeesWithRoles = () =>
         }
       }
 
-      return (profilesRes.data || []).map((p) => ({
+      return (profilesRes.data || []).map((p: any) => ({
         ...p,
         role: roleMap.get(p.user_id) || ("employee" as AppRole),
       })) as EmployeeWithRole[];
     },
   });
 
+const usePositions = () =>
+  useQuery({
+    queryKey: ["positions"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("positions").select("*").order("title");
+      if (error) throw error;
+      return (data || []) as Position[];
+    },
+  });
+
+// Competency comparison modal
+const CompetencyComparisonModal = ({
+  employee,
+  position,
+  onClose,
+}: {
+  employee: EmployeeWithRole;
+  position: Position;
+  onClose: () => void;
+}) => {
+  const { data: competencies = [], isLoading } = useQuery({
+    queryKey: ["competencies", employee.user_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("competencies")
+        .select("skill_name, skill_value")
+        .eq("user_id", employee.user_id);
+      if (error) throw error;
+      return (data || []) as Competency[];
+    },
+  });
+
+  const posProfile: { name: string; required_level: number }[] = Array.isArray(position.competency_profile)
+    ? position.competency_profile
+    : [];
+
+  // Build comparison data
+  const allSkills = new Set<string>();
+  posProfile.forEach((p) => allSkills.add(p.name));
+  competencies.forEach((c) => allSkills.add(c.skill_name));
+
+  const radarData = Array.from(allSkills).map((skill) => {
+    const required = posProfile.find((p) => p.name === skill)?.required_level || 0;
+    const actual = competencies.find((c) => c.skill_name === skill)?.skill_value || 0;
+    return { skill, required, actual };
+  });
+
+  const totalRequired = radarData.reduce((s, d) => s + d.required, 0);
+  const totalActual = radarData.reduce((s, d) => s + d.actual, 0);
+  const matchPercent = totalRequired > 0 ? Math.round((totalActual / totalRequired) * 100) : 0;
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-card rounded-xl border border-border w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">Сравнение компетенций</h2>
+            <p className="text-sm text-muted-foreground">
+              {employee.full_name} → {position.title}
+            </p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Match score */}
+        <div className="flex items-center gap-4">
+          <div
+            className={`text-3xl font-bold ${
+              matchPercent >= 80 ? "text-success" : matchPercent >= 50 ? "text-warning" : "text-destructive"
+            }`}
+          >
+            {matchPercent}%
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground">Соответствие должности</p>
+            <p className="text-xs text-muted-foreground">
+              {matchPercent >= 80
+                ? "Высокое соответствие — сотрудник готов к должности"
+                : matchPercent >= 50
+                ? "Среднее соответствие — требуется развитие отдельных компетенций"
+                : "Низкое соответствие — необходима серьёзная подготовка"}
+            </p>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : radarData.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            Нет данных для сравнения. Убедитесь, что у должности задан профиль компетенций.
+          </p>
+        ) : (
+          <>
+            {/* Radar chart */}
+            <div className="bg-secondary/30 rounded-xl p-4">
+              <ResponsiveContainer width="100%" height={350}>
+                <RadarChart data={radarData}>
+                  <PolarGrid stroke="hsl(var(--border))" />
+                  <PolarAngleAxis dataKey="skill" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                  <PolarRadiusAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} domain={[0, 10]} />
+                  <Radar name="Эталон должности" dataKey="required" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} strokeWidth={2} />
+                  <Radar name="Сотрудник" dataKey="actual" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.2} strokeWidth={2} />
+                  <Legend />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Detail table */}
+            <div className="border border-border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-secondary/30 border-b border-border">
+                    <th className="text-left py-2 px-4 text-muted-foreground font-medium">Компетенция</th>
+                    <th className="text-center py-2 px-4 text-muted-foreground font-medium">Эталон</th>
+                    <th className="text-center py-2 px-4 text-muted-foreground font-medium">Сотрудник</th>
+                    <th className="text-center py-2 px-4 text-muted-foreground font-medium">Разница</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {radarData.map((d) => {
+                    const diff = d.actual - d.required;
+                    return (
+                      <tr key={d.skill} className="border-b border-border/50">
+                        <td className="py-2 px-4 font-medium text-foreground">{d.skill}</td>
+                        <td className="py-2 px-4 text-center text-muted-foreground">{d.required}</td>
+                        <td className="py-2 px-4 text-center text-foreground">{d.actual}</td>
+                        <td className="py-2 px-4 text-center">
+                          <span
+                            className={`font-semibold ${
+                              diff >= 0 ? "text-success" : "text-destructive"
+                            }`}
+                          >
+                            {diff > 0 ? "+" : ""}
+                            {diff}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const HRDDashboard = () => {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [showRoleMenu, setShowRoleMenu] = useState<string | null>(null);
+  const [showPositionMenu, setShowPositionMenu] = useState<string | null>(null);
+  const [comparisonTarget, setComparisonTarget] = useState<{ emp: EmployeeWithRole; pos: Position } | null>(null);
   const queryClient = useQueryClient();
   const { data: employees = [], isLoading } = useEmployeesWithRoles();
+  const { data: positions = [] } = usePositions();
 
   const assignRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
@@ -73,9 +254,23 @@ const HRDDashboard = () => {
       queryClient.invalidateQueries({ queryKey: ["user_roles"] });
       toast.success("Роль успешно обновлена");
     },
-    onError: (err: any) => {
-      toast.error(err.message || "Ошибка при назначении роли");
+    onError: (err: any) => toast.error(err.message || "Ошибка при назначении роли"),
+  });
+
+  const assignPositionMutation = useMutation({
+    mutationFn: async ({ userId, positionId }: { userId: string; positionId: string | null }) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ position_id: positionId } as any)
+        .eq("user_id", userId);
+      if (error) throw error;
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hrd_employees"] });
+      setShowPositionMenu(null);
+      toast.success("Должность назначена");
+    },
+    onError: (err: any) => toast.error(err.message),
   });
 
   const handleRoleChange = (userId: string, newRole: AppRole) => {
@@ -103,7 +298,6 @@ const HRDDashboard = () => {
     { name: "HRD", value: roleCounts.hrd, color: "hsl(var(--warning))" },
   ];
 
-  // Group by department
   const deptMap = new Map<string, { count: number; totalScore: number }>();
   employees.forEach((e) => {
     const dept = e.department || "Без отдела";
@@ -118,7 +312,13 @@ const HRDDashboard = () => {
     avgScore: d.count > 0 ? Math.round(d.totalScore / d.count) : 0,
   }));
 
-  const avgScore = employees.length > 0 ? Math.round(employees.reduce((s, e) => s + (e.overall_score || 0), 0) / employees.length) : 0;
+  const avgScore =
+    employees.length > 0
+      ? Math.round(employees.reduce((s, e) => s + (e.overall_score || 0), 0) / employees.length)
+      : 0;
+
+  const getPositionForEmployee = (emp: EmployeeWithRole) =>
+    positions.find((p) => p.id === emp.position_id);
 
   if (isLoading) {
     return (
@@ -236,16 +436,19 @@ const HRDDashboard = () => {
             <thead>
               <tr className="border-b border-border bg-secondary/30">
                 <th className="text-left py-3 px-4 text-muted-foreground font-medium">Сотрудник</th>
+                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Должность</th>
                 <th className="text-left py-3 px-4 text-muted-foreground font-medium">Отдел</th>
                 <th className="text-left py-3 px-4 text-muted-foreground font-medium">Роль</th>
                 <th className="text-left py-3 px-4 text-muted-foreground font-medium">Балл</th>
-                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Готовность</th>
+                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Соответствие</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((emp) => {
                 const rBadge = roleBadge[emp.role];
                 const initials = emp.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2);
+                const empPosition = getPositionForEmployee(emp);
+
                 return (
                   <tr key={emp.user_id} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
                     <td className="py-3 px-4">
@@ -257,6 +460,46 @@ const HRDDashboard = () => {
                           <p className="font-medium text-foreground">{emp.full_name}</p>
                           <p className="text-xs text-muted-foreground">{emp.position || "—"}</p>
                         </div>
+                      </div>
+                    </td>
+                    {/* Position assignment */}
+                    <td className="py-3 px-4">
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowPositionMenu(showPositionMenu === emp.user_id ? null : emp.user_id)}
+                          className="text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity bg-secondary text-secondary-foreground"
+                        >
+                          {empPosition ? empPosition.title : "Не назначена"} <ChevronDown className="w-3 h-3" />
+                        </button>
+                        {showPositionMenu === emp.user_id && (
+                          <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-elevated z-10 py-1 min-w-[200px] max-h-[200px] overflow-y-auto">
+                            <button
+                              onClick={() => {
+                                assignPositionMutation.mutate({ userId: emp.user_id, positionId: null });
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs hover:bg-secondary transition-colors text-muted-foreground"
+                            >
+                              — Снять должность
+                            </button>
+                            {positions.map((pos) => (
+                              <button
+                                key={pos.id}
+                                onClick={() => {
+                                  assignPositionMutation.mutate({ userId: emp.user_id, positionId: pos.id });
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs hover:bg-secondary transition-colors flex items-center justify-between ${
+                                  emp.position_id === pos.id ? "text-primary font-semibold" : "text-foreground"
+                                }`}
+                              >
+                                <span>{pos.title}</span>
+                                {emp.position_id === pos.id && <span className="text-primary">✓</span>}
+                              </button>
+                            ))}
+                            {positions.length === 0 && (
+                              <p className="px-3 py-2 text-xs text-muted-foreground">Нет должностей. Создайте в разделе «Должности».</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="py-3 px-4 text-foreground">{emp.department || "—"}</td>
@@ -296,19 +539,26 @@ const HRDDashboard = () => {
                       <span className="text-muted-foreground">/100</span>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 bg-muted rounded-full h-1.5">
-                          <div className="bg-primary h-1.5 rounded-full" style={{ width: `${emp.role_readiness || 0}%` }} />
-                        </div>
-                        <span className="text-xs font-medium text-foreground">{emp.role_readiness || 0}%</span>
-                      </div>
+                      {empPosition ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setComparisonTarget({ emp, pos: empPosition })}
+                          className="text-xs gap-1"
+                        >
+                          <GitCompareArrows className="w-3.5 h-3.5" />
+                          Сравнить
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </td>
                   </tr>
                 );
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-muted-foreground">
+                  <td colSpan={6} className="py-12 text-center text-muted-foreground">
                     {employees.length === 0 ? "Нет сотрудников в системе" : "Ничего не найдено"}
                   </td>
                 </tr>
@@ -320,6 +570,15 @@ const HRDDashboard = () => {
           Показано {filtered.length} из {employees.length} сотрудников
         </div>
       </div>
+
+      {/* Comparison modal */}
+      {comparisonTarget && (
+        <CompetencyComparisonModal
+          employee={comparisonTarget.emp}
+          position={comparisonTarget.pos}
+          onClose={() => setComparisonTarget(null)}
+        />
+      )}
     </div>
   );
 };
