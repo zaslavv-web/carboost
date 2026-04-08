@@ -44,6 +44,42 @@ export type Database = {
         }
         Relationships: []
       }
+      assessment_scenarios: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          file_url: string | null
+          id: string
+          is_active: boolean
+          scenario_data: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          file_url?: string | null
+          id?: string
+          is_active?: boolean
+          scenario_data?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          file_url?: string | null
+          id?: string
+          is_active?: boolean
+          scenario_data?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       assessments: {
         Row: {
           assessment_data: Json | null
@@ -245,6 +281,39 @@ export type Database = {
           position?: string | null
           requested_role?: string
           role_readiness?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      support_tickets: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          priority: string
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          subject?: string
           updated_at?: string
           user_id?: string
         }
