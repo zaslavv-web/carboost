@@ -208,6 +208,59 @@ export type Database = {
           },
         ]
       }
+      hr_documents: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          document_type: string
+          extracted_data: Json | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          processing_status: string
+          scenario_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          document_type: string
+          extracted_data?: Json | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          processing_status?: string
+          scenario_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          document_type?: string
+          extracted_data?: Json | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          processing_status?: string
+          scenario_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_documents_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -238,6 +291,93 @@ export type Database = {
         }
         Relationships: []
       }
+      position_career_paths: {
+        Row: {
+          created_at: string
+          created_by: string
+          estimated_months: number | null
+          from_position_id: string
+          id: string
+          requirements: Json | null
+          strategy_description: string | null
+          to_position_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          estimated_months?: number | null
+          from_position_id: string
+          id?: string
+          requirements?: Json | null
+          strategy_description?: string | null
+          to_position_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          estimated_months?: number | null
+          from_position_id?: string
+          id?: string
+          requirements?: Json | null
+          strategy_description?: string | null
+          to_position_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "position_career_paths_from_position_id_fkey"
+            columns: ["from_position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "position_career_paths_to_position_id_fkey"
+            columns: ["to_position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      positions: {
+        Row: {
+          competency_profile: Json | null
+          created_at: string
+          created_by: string
+          department: string | null
+          description: string | null
+          id: string
+          psychological_profile: Json | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          competency_profile?: Json | null
+          created_at?: string
+          created_by: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          psychological_profile?: Json | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          competency_profile?: Json | null
+          created_at?: string
+          created_by?: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          psychological_profile?: Json | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -249,6 +389,7 @@ export type Database = {
           is_verified: boolean
           overall_score: number | null
           position: string | null
+          position_id: string | null
           requested_role: string
           role_readiness: number | null
           updated_at: string
@@ -264,6 +405,7 @@ export type Database = {
           is_verified?: boolean
           overall_score?: number | null
           position?: string | null
+          position_id?: string | null
           requested_role?: string
           role_readiness?: number | null
           updated_at?: string
@@ -279,12 +421,21 @@ export type Database = {
           is_verified?: boolean
           overall_score?: number | null
           position?: string | null
+          position_id?: string | null
           requested_role?: string
           role_readiness?: number | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       support_tickets: {
         Row: {
