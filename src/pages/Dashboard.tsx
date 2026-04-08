@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
 import { useNavigate } from "react-router-dom";
 import { Target, Award, TrendingUp, Clock, MessageSquare, Loader2 } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
