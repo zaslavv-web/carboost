@@ -56,7 +56,7 @@ const AppSidebar = () => {
       return [
         ...common,
         { icon: Users, label: "Сотрудники", path: "/employees" },
-        { icon: BarChart3, label: "Аналитика", path: "/employees" },
+        { icon: BarChart3, label: "Аналитика", path: "/analytics" },
         { icon: FileJson, label: "Сценарии оценки", path: "/scenarios" },
         { icon: LifeBuoy, label: "Техподдержка", path: "/support" },
         { icon: Settings, label: "Настройки", path: "/settings" },

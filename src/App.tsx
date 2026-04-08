@@ -20,6 +20,7 @@ import Support from "@/pages/Support";
 import Scenarios from "@/pages/Scenarios";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
+import Analytics from "@/pages/Analytics";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/team" element={<ManagerDashboard />} />
                 <Route path="/employees" element={<HRDDashboard />} />
+                <Route path="/analytics" element={<Analytics />} />
                 <Route path="/superadmin" element={<SuperadminDashboard />} />
                 <Route path="/users" element={<UsersManagement />} />
                 <Route path="/support" element={<Support />} />
