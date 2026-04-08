@@ -27,7 +27,7 @@ const Dashboard = () => {
       if (error) throw error;
       return (data || []).map((c) => ({ skill: c.skill_name, value: c.skill_value }));
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   const { data: goals = [] } = useQuery({
