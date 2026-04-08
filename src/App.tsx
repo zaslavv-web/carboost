@@ -18,6 +18,8 @@ import SuperadminDashboard from "@/pages/SuperadminDashboard";
 import UsersManagement from "@/pages/UsersManagement";
 import Support from "@/pages/Support";
 import Scenarios from "@/pages/Scenarios";
+import HRPolicies from "@/pages/HRPolicies";
+import Positions from "@/pages/Positions";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 import Analytics from "@/pages/Analytics";
@@ -48,6 +50,8 @@ const App = () => (
                 <Route path="/users" element={<UsersManagement />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/scenarios" element={<Scenarios />} />
+                <Route path="/hr-policies" element={<HRPolicies />} />
+                <Route path="/positions" element={<Positions />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
