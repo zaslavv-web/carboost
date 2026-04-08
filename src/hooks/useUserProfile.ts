@@ -14,6 +14,8 @@ export interface UserProfile {
   hire_date: string | null;
   overall_score: number;
   role_readiness: number;
+  is_verified: boolean;
+  requested_role: string;
 }
 
 export const useUserProfile = () => {
