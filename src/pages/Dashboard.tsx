@@ -13,6 +13,7 @@ import { ru } from "date-fns/locale";
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const effectiveUserId = useEffectiveUserId();
   const { data: profile } = useUserProfile();
   const navigate = useNavigate();
 
