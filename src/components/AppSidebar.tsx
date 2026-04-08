@@ -15,7 +15,19 @@ import {
   Briefcase,
   Users,
   Shield,
+  LifeBuoy,
+  FileJson,
+  BarChart3,
+  UserCog,
+  AlertTriangle,
 } from "lucide-react";
+
+interface NavItem {
+  icon: any;
+  label: string;
+  path: string;
+  badge?: number;
+}
 
 const AppSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -25,21 +37,61 @@ const AppSidebar = () => {
   const role = usePrimaryRole();
   const { data: profile } = useUserProfile();
 
-  const navItems = [
-    { icon: LayoutDashboard, label: "Дашборд", path: "/" },
-    ...(role === "superadmin" ? [{ icon: Shield, label: "Верификация", path: "/superadmin" }] : []),
-    ...(role === "manager" ? [{ icon: Users, label: "Моя команда", path: "/team" }] : []),
-    ...(role === "hrd" || role === "superadmin" ? [
-      { icon: Users, label: "Сотрудники", path: "/employees" },
-      { icon: Shield, label: "Управление ролями", path: "/roles" },
-    ] : []),
-    { icon: MessageSquare, label: "AI Оценка", path: "/assessment" },
-    { icon: User, label: "Цифровой паспорт", path: "/passport" },
-    { icon: Target, label: "Карьерный трек", path: "/career-track" },
-    { icon: Bell, label: "Уведомления", path: "/notifications", badge: 3 },
-  ];
+  const getNavItems = (): NavItem[] => {
+    const common: NavItem[] = [
+      { icon: LayoutDashboard, label: "Дашборд", path: "/" },
+    ];
 
-  const roleLabels: Record<string, string> = { employee: "Сотрудник", manager: "Руководитель", hrd: "HRD", superadmin: "Суперадмин" };
+    if (role === "superadmin") {
+      return [
+        ...common,
+        { icon: Shield, label: "Верификация", path: "/superadmin" },
+        { icon: UserCog, label: "Пользователи", path: "/users" },
+        { icon: LifeBuoy, label: "Обращения", path: "/support" },
+        { icon: Settings, label: "Настройки", path: "/settings" },
+      ];
+    }
+
+    if (role === "hrd") {
+      return [
+        ...common,
+        { icon: Users, label: "Сотрудники", path: "/employees" },
+        { icon: BarChart3, label: "Аналитика", path: "/employees" },
+        { icon: FileJson, label: "Сценарии оценки", path: "/scenarios" },
+        { icon: LifeBuoy, label: "Техподдержка", path: "/support" },
+        { icon: Settings, label: "Настройки", path: "/settings" },
+      ];
+    }
+
+    if (role === "manager") {
+      return [
+        ...common,
+        { icon: Users, label: "Моя команда", path: "/team" },
+        { icon: LifeBuoy, label: "Техподдержка", path: "/support" },
+        { icon: Settings, label: "Настройки", path: "/settings" },
+      ];
+    }
+
+    // Employee
+    return [
+      ...common,
+      { icon: MessageSquare, label: "AI Оценка", path: "/assessment" },
+      { icon: User, label: "Цифровой паспорт", path: "/passport" },
+      { icon: Target, label: "Карьерный трек", path: "/career-track" },
+      { icon: Bell, label: "Уведомления", path: "/notifications" },
+      { icon: AlertTriangle, label: "Инциденты", path: "/support" },
+      { icon: Settings, label: "Настройки", path: "/settings" },
+    ];
+  };
+
+  const navItems = getNavItems();
+
+  const roleLabels: Record<string, string> = {
+    employee: "Сотрудник",
+    manager: "Руководитель",
+    hrd: "HRD",
+    superadmin: "Суперадмин",
+  };
 
   return (
     <aside
@@ -71,7 +123,7 @@ const AppSidebar = () => {
           const isActive = location.pathname === item.path;
           return (
             <button
-              key={item.path}
+              key={item.path + item.label}
               onClick={() => navigate(item.path)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${
                 isActive
@@ -99,10 +151,6 @@ const AppSidebar = () => {
             <p className="text-xs text-sidebar-foreground/50 truncate">{profile.position || "Не указана"}</p>
           </div>
         )}
-        <button onClick={() => navigate("/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors">
-          <Settings className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span>Настройки</span>}
-        </button>
         <button onClick={() => { signOut(); navigate("/login"); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors">
           <LogOut className="w-5 h-5 flex-shrink-0" />
           {!collapsed && <span>Выйти</span>}

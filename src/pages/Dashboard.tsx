@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
 import { useNavigate } from "react-router-dom";
 import { Target, Award, TrendingUp, Clock, MessageSquare, Loader2 } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
@@ -12,61 +13,62 @@ import { ru } from "date-fns/locale";
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const effectiveUserId = useEffectiveUserId();
   const { data: profile } = useUserProfile();
   const navigate = useNavigate();
 
   const { data: competencies = [] } = useQuery({
-    queryKey: ["competencies", user?.id],
+    queryKey: ["competencies", effectiveUserId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("competencies")
         .select("skill_name, skill_value")
-        .eq("user_id", user!.id);
+        .eq("user_id", effectiveUserId!);
       if (error) throw error;
       return (data || []).map((c) => ({ skill: c.skill_name, value: c.skill_value }));
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   const { data: goals = [] } = useQuery({
-    queryKey: ["career_goals", user?.id],
+    queryKey: ["career_goals", effectiveUserId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("career_goals")
         .select("*")
-        .eq("user_id", user!.id);
+        .eq("user_id", effectiveUserId!);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   const { data: achievements = [] } = useQuery({
-    queryKey: ["achievements", user?.id],
+    queryKey: ["achievements", effectiveUserId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("achievements")
         .select("*")
-        .eq("user_id", user!.id);
+        .eq("user_id", effectiveUserId!);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   const { data: notifications = [] } = useQuery({
-    queryKey: ["recent_notifications", user?.id],
+    queryKey: ["recent_notifications", effectiveUserId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
-        .eq("user_id", user!.id)
+        .eq("user_id", effectiveUserId!)
         .order("created_at", { ascending: false })
         .limit(4);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   const completedGoals = goals.filter((g) => g.status === "completed").length;
