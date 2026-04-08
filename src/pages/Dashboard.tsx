@@ -44,16 +44,16 @@ const Dashboard = () => {
   });
 
   const { data: achievements = [] } = useQuery({
-    queryKey: ["achievements", user?.id],
+    queryKey: ["achievements", effectiveUserId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("achievements")
         .select("*")
-        .eq("user_id", user!.id);
+        .eq("user_id", effectiveUserId!);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   const { data: notifications = [] } = useQuery({
