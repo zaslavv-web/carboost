@@ -1,32 +1,72 @@
-import { Award, Briefcase, GraduationCap, Star, Calendar, Edit } from "lucide-react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { Award, Calendar, Edit, Loader2, Plus, X } from "lucide-react";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
-
-const competencies = [
-  { skill: "Лидерство", value: 78, max: 100 },
-  { skill: "Технические", value: 92, max: 100 },
-  { skill: "Коммуникация", value: 65, max: 100 },
-  { skill: "Аналитика", value: 88, max: 100 },
-  { skill: "Управление", value: 70, max: 100 },
-  { skill: "Инновации", value: 75, max: 100 },
-  { skill: "Стратегия", value: 60, max: 100 },
-  { skill: "Менторство", value: 82, max: 100 },
-];
-
-const achievements = [
-  { title: "Лучший сотрудник Q3 2025", date: "Сентябрь 2025", icon: Star, color: "text-warning" },
-  { title: "Сертификация AWS Solutions Architect", date: "Июль 2025", icon: GraduationCap, color: "text-info" },
-  { title: "Наставник месяца", date: "Май 2025", icon: Award, color: "text-primary" },
-  { title: "Успешный запуск проекта «Альфа»", date: "Март 2025", icon: Briefcase, color: "text-success" },
-];
-
-const assessmentHistory = [
-  { date: "15.01.2026", type: "AI-оценка", score: 82, change: "+5" },
-  { date: "10.10.2025", type: "360° Обратная связь", score: 77, change: "+3" },
-  { date: "05.07.2025", type: "AI-оценка", score: 74, change: "+8" },
-  { date: "20.04.2025", type: "Ежеквартальная оценка", score: 66, change: "—" },
-];
+import { toast } from "sonner";
+import { format } from "date-fns";
 
 const Passport = () => {
+  const { user } = useAuth();
+  const { data: profile } = useUserProfile();
+  const queryClient = useQueryClient();
+  const [showAddAchievement, setShowAddAchievement] = useState(false);
+  const [newAchievement, setNewAchievement] = useState({ title: "", description: "" });
+
+  const { data: competencies = [] } = useQuery({
+    queryKey: ["competencies", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("competencies").select("*").eq("user_id", user!.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const { data: achievements = [] } = useQuery({
+    queryKey: ["achievements", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("achievements").select("*").eq("user_id", user!.id).order("achievement_date", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const { data: assessments = [] } = useQuery({
+    queryKey: ["assessments", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("assessments").select("*").eq("user_id", user!.id).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const addAchievementMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("achievements").insert({
+        user_id: user!.id,
+        title: newAchievement.title,
+        description: newAchievement.description,
+        achievement_date: new Date().toISOString().split("T")[0],
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["achievements"] });
+      setShowAddAchievement(false);
+      setNewAchievement({ title: "", description: "" });
+      toast.success("Достижение добавлено");
+    },
+    onError: () => toast.error("Ошибка при добавлении"),
+  });
+
+  const radarData = competencies.map((c) => ({ skill: c.skill_name, value: c.skill_value }));
+  const initials = profile?.full_name ? profile.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -34,9 +74,6 @@ const Passport = () => {
           <h1 className="text-2xl font-bold text-foreground">Цифровой паспорт</h1>
           <p className="text-muted-foreground text-sm mt-1">Полный профиль компетенций и достижений</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm">
-          <Edit className="w-4 h-4" /> Редактировать
-        </button>
       </div>
 
       {/* Profile header */}
@@ -45,26 +82,29 @@ const Passport = () => {
         <div className="px-6 pb-6 -mt-10">
           <div className="flex items-end gap-5">
             <div className="w-20 h-20 rounded-xl gradient-primary flex items-center justify-center text-primary-foreground text-2xl font-bold border-4 border-card">
-              АИ
+              {initials}
             </div>
             <div className="pb-1">
-              <h2 className="text-xl font-bold text-foreground">Алексей Иванов</h2>
-              <p className="text-muted-foreground text-sm">Старший инженер · Отдел разработки · 3 года в компании</p>
+              <h2 className="text-xl font-bold text-foreground">{profile?.full_name || "—"}</h2>
+              <p className="text-muted-foreground text-sm">
+                {profile?.position || "Должность не указана"} · {profile?.department || "Отдел не указан"}
+                {profile?.hire_date && ` · с ${format(new Date(profile.hire_date), "yyyy")}`}
+              </p>
             </div>
           </div>
           <div className="mt-4 flex gap-6">
             <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">82</p>
+              <p className="text-2xl font-bold text-foreground">{profile?.overall_score || 0}</p>
               <p className="text-xs text-muted-foreground">Общий скор</p>
             </div>
             <div className="w-px bg-border" />
             <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">74%</p>
+              <p className="text-2xl font-bold text-foreground">{profile?.role_readiness || 0}%</p>
               <p className="text-xs text-muted-foreground">Готовность к роли</p>
             </div>
             <div className="w-px bg-border" />
             <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">8</p>
+              <p className="text-2xl font-bold text-foreground">{achievements.length}</p>
               <p className="text-xs text-muted-foreground">Достижений</p>
             </div>
           </div>
@@ -75,50 +115,95 @@ const Passport = () => {
         {/* Radar */}
         <div className="bg-card rounded-xl p-6 shadow-card border border-border">
           <h3 className="font-semibold text-foreground mb-4">Навыки и компетенции</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <RadarChart data={competencies}>
-              <PolarGrid stroke="hsl(var(--border))" />
-              <PolarAngleAxis dataKey="skill" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
-              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-              <Radar dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} strokeWidth={2} />
-            </RadarChart>
-          </ResponsiveContainer>
-          {/* Skill bars */}
-          <div className="space-y-3 mt-4">
-            {competencies.slice(0, 4).map((c) => (
-              <div key={c.skill}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">{c.skill}</span>
-                  <span className="font-medium text-foreground">{c.value}%</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-1.5">
-                  <div className="bg-primary h-1.5 rounded-full" style={{ width: `${c.value}%` }} />
-                </div>
+          {radarData.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={300}>
+                <RadarChart data={radarData}>
+                  <PolarGrid stroke="hsl(var(--border))" />
+                  <PolarAngleAxis dataKey="skill" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                  <Radar dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} strokeWidth={2} />
+                </RadarChart>
+              </ResponsiveContainer>
+              <div className="space-y-3 mt-4">
+                {competencies.slice(0, 4).map((c) => (
+                  <div key={c.id}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-muted-foreground">{c.skill_name}</span>
+                      <span className="font-medium text-foreground">{c.skill_value}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-1.5">
+                      <div className="bg-primary h-1.5 rounded-full" style={{ width: `${c.skill_value}%` }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-sm text-muted-foreground">
+              Пройдите AI-оценку для формирования профиля компетенций
+            </div>
+          )}
         </div>
 
         {/* Achievements */}
         <div className="bg-card rounded-xl p-6 shadow-card border border-border">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground">Достижения и проекты</h3>
-            <button className="text-sm text-primary hover:underline">+ Добавить</button>
+            <button onClick={() => setShowAddAchievement(true)} className="text-sm text-primary hover:underline flex items-center gap-1">
+              <Plus className="w-3 h-3" /> Добавить
+            </button>
           </div>
+
+          {showAddAchievement && (
+            <div className="mb-4 p-4 rounded-lg border border-primary/20 bg-accent/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-foreground">Новое достижение</h4>
+                <button onClick={() => setShowAddAchievement(false)}><X className="w-4 h-4 text-muted-foreground" /></button>
+              </div>
+              <input
+                type="text"
+                placeholder="Название достижения"
+                value={newAchievement.title}
+                onChange={(e) => setNewAchievement({ ...newAchievement, title: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+              />
+              <input
+                type="text"
+                placeholder="Описание (необязательно)"
+                value={newAchievement.description}
+                onChange={(e) => setNewAchievement({ ...newAchievement, description: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+              />
+              <button
+                onClick={() => addAchievementMutation.mutate()}
+                disabled={!newAchievement.title || addAchievementMutation.isPending}
+                className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm disabled:opacity-50"
+              >
+                {addAchievementMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Сохранить"}
+              </button>
+            </div>
+          )}
+
           <div className="space-y-4">
-            {achievements.map((a, i) => (
-              <div key={i} className="flex items-start gap-4 p-3 rounded-lg hover:bg-secondary/50 transition-colors animate-slide-in" style={{ animationDelay: `${i * 80}ms` }}>
-                <div className={`w-10 h-10 rounded-lg bg-accent flex items-center justify-center ${a.color}`}>
-                  <a.icon className="w-5 h-5" />
+            {achievements.length > 0 ? achievements.map((a) => (
+              <div key={a.id} className="flex items-start gap-4 p-3 rounded-lg hover:bg-secondary/50 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center text-primary">
+                  <Award className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-foreground">{a.title}</p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                    <Calendar className="w-3 h-3" /> {a.date}
-                  </p>
+                  {a.description && <p className="text-xs text-muted-foreground mt-0.5">{a.description}</p>}
+                  {a.achievement_date && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                      <Calendar className="w-3 h-3" /> {format(new Date(a.achievement_date), "MMMM yyyy")}
+                    </p>
+                  )}
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-sm text-muted-foreground text-center py-8">Нет достижений. Добавьте первое!</p>
+            )}
           </div>
         </div>
       </div>
@@ -126,35 +211,39 @@ const Passport = () => {
       {/* Assessment history */}
       <div className="bg-card rounded-xl p-6 shadow-card border border-border">
         <h3 className="font-semibold text-foreground mb-4">История оценок</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Дата</th>
-                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Тип</th>
-                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Балл</th>
-                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Изменение</th>
-              </tr>
-            </thead>
-            <tbody>
-              {assessmentHistory.map((row, i) => (
-                <tr key={i} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-                  <td className="py-3 px-4 text-foreground">{row.date}</td>
-                  <td className="py-3 px-4 text-foreground">{row.type}</td>
-                  <td className="py-3 px-4">
-                    <span className="font-semibold text-foreground">{row.score}</span>
-                    <span className="text-muted-foreground">/100</span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={row.change.startsWith("+") ? "text-success font-medium" : "text-muted-foreground"}>
-                      {row.change}
-                    </span>
-                  </td>
+        {assessments.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Дата</th>
+                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Тип</th>
+                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Балл</th>
+                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Изменение</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {assessments.map((row) => (
+                  <tr key={row.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
+                    <td className="py-3 px-4 text-foreground">{format(new Date(row.created_at), "dd.MM.yyyy")}</td>
+                    <td className="py-3 px-4 text-foreground">{row.assessment_type === "ai" ? "AI-оценка" : row.assessment_type}</td>
+                    <td className="py-3 px-4">
+                      <span className="font-semibold text-foreground">{row.score || 0}</span>
+                      <span className="text-muted-foreground">/100</span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={row.change_value?.startsWith("+") ? "text-success font-medium" : "text-muted-foreground"}>
+                        {row.change_value || "—"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-8">Нет истории оценок. Пройдите AI-оценку!</p>
+        )}
       </div>
     </div>
   );

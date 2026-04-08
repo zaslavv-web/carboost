@@ -1,85 +1,136 @@
-import { Target, BookOpen, Award, TrendingUp, Clock, MessageSquare } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useNavigate } from "react-router-dom";
+import { Target, Award, TrendingUp, Clock, MessageSquare, Loader2 } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import ProgressRing from "@/components/ProgressRing";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
-
-const radarData = [
-  { skill: "Лидерство", value: 78 },
-  { skill: "Технические", value: 92 },
-  { skill: "Коммуникация", value: 65 },
-  { skill: "Аналитика", value: 88 },
-  { skill: "Управление", value: 70 },
-  { skill: "Инновации", value: 75 },
-];
-
-const recentActivities = [
-  { text: "Завершён модуль «Управление проектами»", time: "2 часа назад", type: "success" as const },
-  { text: "Новая карьерная цель назначена", time: "Вчера", type: "info" as const },
-  { text: "Оценка компетенций обновлена", time: "3 дня назад", type: "warning" as const },
-  { text: "Достижение «Наставник месяца» получено", time: "Неделю назад", type: "success" as const },
-];
+import { formatDistanceToNow } from "date-fns";
+import { ru } from "date-fns/locale";
 
 const Dashboard = () => {
+  const { user } = useAuth();
+  const { data: profile } = useUserProfile();
+  const navigate = useNavigate();
+
+  const { data: competencies = [] } = useQuery({
+    queryKey: ["competencies", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("competencies")
+        .select("skill_name, skill_value")
+        .eq("user_id", user!.id);
+      if (error) throw error;
+      return (data || []).map((c) => ({ skill: c.skill_name, value: c.skill_value }));
+    },
+    enabled: !!user,
+  });
+
+  const { data: goals = [] } = useQuery({
+    queryKey: ["career_goals", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("career_goals")
+        .select("*")
+        .eq("user_id", user!.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const { data: achievements = [] } = useQuery({
+    queryKey: ["achievements", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("achievements")
+        .select("*")
+        .eq("user_id", user!.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["recent_notifications", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false })
+        .limit(4);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const completedGoals = goals.filter((g) => g.status === "completed").length;
+  const totalGoals = goals.length;
+  const overallProgress = totalGoals > 0 ? Math.round(goals.reduce((s, g) => s + g.progress, 0) / totalGoals) : 0;
+  const avgCompetency = competencies.length > 0 ? Math.round(competencies.reduce((s, c) => s + c.value, 0) / competencies.length) : 0;
+  const firstName = profile?.full_name?.split(" ")[0] || "пользователь";
+
+  const topSkills = [...competencies].sort((a, b) => b.value - a.value).slice(0, 2);
+
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Welcome */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Добро пожаловать, Алексей! 👋</h1>
+        <h1 className="text-2xl font-bold text-foreground">Добро пожаловать, {firstName}! 👋</h1>
         <p className="text-muted-foreground mt-1">Вот обзор вашего карьерного развития</p>
       </div>
 
-      {/* Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <MetricCard
           title="Прогресс трека"
-          value="67%"
-          subtitle="5 из 8 целей"
+          value={`${overallProgress}%`}
+          subtitle={`${completedGoals} из ${totalGoals} целей`}
           icon={Target}
-          trend={{ value: "+12% за месяц", positive: true }}
         />
         <MetricCard
-          title="Пройдено курсов"
-          value="12"
-          subtitle="3 в процессе"
-          icon={BookOpen}
-          trend={{ value: "+2 за неделю", positive: true }}
+          title="Компетенции"
+          value={String(competencies.length)}
+          subtitle={`Средний балл: ${avgCompetency}`}
+          icon={TrendingUp}
         />
         <MetricCard
           title="Достижения"
-          value="8"
-          subtitle="2 новых"
+          value={String(achievements.length)}
           icon={Award}
         />
         <MetricCard
           title="Готовность к роли"
-          value="74%"
-          subtitle="Senior Engineer"
+          value={`${profile?.role_readiness || 0}%`}
+          subtitle={profile?.position || "—"}
           icon={TrendingUp}
-          trend={{ value: "+5%", positive: true }}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Progress ring + quick actions */}
+        {/* Progress ring */}
         <div className="bg-card rounded-xl p-6 shadow-card border border-border">
           <h3 className="font-semibold text-foreground mb-6">Общий прогресс</h3>
           <div className="flex flex-col items-center">
-            <ProgressRing progress={67} size={140} label="завершено" />
+            <ProgressRing progress={overallProgress} size={140} label="завершено" />
             <div className="mt-6 w-full space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Технические навыки</span>
-                <span className="font-medium text-foreground">92%</span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full transition-all" style={{ width: "92%" }} />
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Soft Skills</span>
-                <span className="font-medium text-foreground">65%</span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div className="bg-info h-2 rounded-full transition-all" style={{ width: "65%" }} />
-              </div>
+              {topSkills.map((s) => (
+                <div key={s.skill}>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{s.skill}</span>
+                    <span className="font-medium text-foreground">{s.value}%</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${s.value}%` }} />
+                  </div>
+                </div>
+              ))}
+              {topSkills.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Компетенции пока не добавлены</p>
+              )}
             </div>
           </div>
         </div>
@@ -87,41 +138,52 @@ const Dashboard = () => {
         {/* Radar chart */}
         <div className="bg-card rounded-xl p-6 shadow-card border border-border">
           <h3 className="font-semibold text-foreground mb-4">Профиль компетенций</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <RadarChart data={radarData}>
-              <PolarGrid stroke="hsl(var(--border))" />
-              <PolarAngleAxis dataKey="skill" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
-              <Radar dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} strokeWidth={2} />
-            </RadarChart>
-          </ResponsiveContainer>
+          {competencies.length > 0 ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <RadarChart data={competencies}>
+                <PolarGrid stroke="hsl(var(--border))" />
+                <PolarAngleAxis dataKey="skill" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                <Radar dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} strokeWidth={2} />
+              </RadarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[240px] text-sm text-muted-foreground">
+              Пройдите AI-оценку для формирования профиля
+            </div>
+          )}
         </div>
 
         {/* Activity feed */}
         <div className="bg-card rounded-xl p-6 shadow-card border border-border">
           <h3 className="font-semibold text-foreground mb-4">Последняя активность</h3>
           <div className="space-y-4">
-            {recentActivities.map((activity, i) => (
-              <div key={i} className="flex gap-3 animate-slide-in" style={{ animationDelay: `${i * 100}ms` }}>
+            {notifications.length > 0 ? notifications.map((n) => (
+              <div key={n.id} className="flex gap-3 animate-slide-in">
                 <div
                   className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                    activity.type === "success" ? "bg-success" : activity.type === "info" ? "bg-info" : "bg-warning"
+                    n.notification_type === "success" ? "bg-success" :
+                    n.notification_type === "warning" ? "bg-warning" :
+                    n.notification_type === "achievement" ? "bg-primary" : "bg-info"
                   }`}
                 />
                 <div>
-                  <p className="text-sm text-foreground">{activity.text}</p>
+                  <p className="text-sm text-foreground">{n.title}</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                    <Clock className="w-3 h-3" /> {activity.time}
+                    <Clock className="w-3 h-3" />
+                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ru })}
                   </p>
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-sm text-muted-foreground text-center py-4">Нет уведомлений</p>
+            )}
           </div>
         </div>
       </div>
 
       {/* Quick actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <button className="bg-card rounded-xl p-6 shadow-card border border-border hover:shadow-elevated transition-shadow text-left group">
+        <button onClick={() => navigate("/assessment")} className="bg-card rounded-xl p-6 shadow-card border border-border hover:shadow-elevated transition-shadow text-left group">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
               <MessageSquare className="w-6 h-6 text-primary-foreground" />
@@ -132,7 +194,7 @@ const Dashboard = () => {
             </div>
           </div>
         </button>
-        <button className="bg-card rounded-xl p-6 shadow-card border border-border hover:shadow-elevated transition-shadow text-left group">
+        <button onClick={() => navigate("/career-track")} className="bg-card rounded-xl p-6 shadow-card border border-border hover:shadow-elevated transition-shadow text-left group">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-info/10 flex items-center justify-center">
               <Target className="w-6 h-6 text-info" />

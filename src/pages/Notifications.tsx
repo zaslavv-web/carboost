@@ -1,22 +1,10 @@
-import { Bell, Check, Info, AlertTriangle, Award, Target, MessageSquare } from "lucide-react";
-
-interface Notification {
-  id: number;
-  title: string;
-  description: string;
-  time: string;
-  read: boolean;
-  type: "info" | "success" | "warning" | "achievement";
-}
-
-const notifications: Notification[] = [
-  { id: 1, title: "Дедлайн через 3 дня", description: "Задача «Сдать пробный экзамен» должна быть выполнена до 15.04.2026", time: "1 час назад", read: false, type: "warning" },
-  { id: 2, title: "Новое достижение!", description: "Вы получили значок «Активный ученик» за прохождение 10 курсов", time: "3 часа назад", read: false, type: "achievement" },
-  { id: 3, title: "Обновление карьерного трека", description: "Ваш руководитель добавил новую цель в ваш карьерный трек", time: "Вчера", read: false, type: "info" },
-  { id: 4, title: "AI-оценка доступна", description: "Вы можете пройти повторную оценку компетенций", time: "2 дня назад", read: true, type: "info" },
-  { id: 5, title: "Цель завершена!", description: "Поздравляем! Вы успешно завершили цель «Освоить System Design»", time: "3 дня назад", read: true, type: "success" },
-  { id: 6, title: "Напоминание от наставника", description: "Запланируйте встречу с ментором на следующей неделе", time: "5 дней назад", read: true, type: "info" },
-];
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Check, Info, AlertTriangle, Award, Loader2 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ru } from "date-fns/locale";
+import { toast } from "sonner";
 
 const typeConfig = {
   info: { icon: Info, color: "bg-info/10 text-info" },
@@ -26,7 +14,52 @@ const typeConfig = {
 };
 
 const Notifications = () => {
-  const unread = notifications.filter((n) => !n.read).length;
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: notifications = [], isLoading } = useQuery({
+    queryKey: ["notifications", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      const unreadIds = notifications.filter((n) => !n.is_read).map((n) => n.id);
+      if (unreadIds.length === 0) return;
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .in("id", unreadIds);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success("Все уведомления отмечены как прочитанные");
+    },
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
+  const unread = notifications.filter((n) => !n.is_read).length;
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
@@ -35,17 +68,26 @@ const Notifications = () => {
           <h1 className="text-2xl font-bold text-foreground">Уведомления</h1>
           <p className="text-muted-foreground text-sm mt-1">{unread} непрочитанных</p>
         </div>
-        <button className="text-sm text-primary hover:underline">Отметить все как прочитанные</button>
+        {unread > 0 && (
+          <button
+            onClick={() => markAllReadMutation.mutate()}
+            disabled={markAllReadMutation.isPending}
+            className="text-sm text-primary hover:underline"
+          >
+            Отметить все как прочитанные
+          </button>
+        )}
       </div>
 
       <div className="space-y-3">
-        {notifications.map((n) => {
-          const config = typeConfig[n.type];
+        {notifications.length > 0 ? notifications.map((n) => {
+          const config = typeConfig[n.notification_type as keyof typeof typeConfig] || typeConfig.info;
           return (
             <div
               key={n.id}
-              className={`bg-card rounded-xl p-4 shadow-card border transition-colors animate-fade-in ${
-                n.read ? "border-border opacity-70" : "border-primary/20"
+              onClick={() => !n.is_read && markReadMutation.mutate(n.id)}
+              className={`bg-card rounded-xl p-4 shadow-card border transition-colors cursor-pointer ${
+                n.is_read ? "border-border opacity-70" : "border-primary/20 hover:border-primary/40"
               }`}
             >
               <div className="flex gap-4">
@@ -55,15 +97,23 @@ const Notifications = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="text-sm font-semibold text-foreground">{n.title}</h3>
-                    {!n.read && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5" />}
+                    {!n.is_read && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5" />}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">{n.description}</p>
-                  <p className="text-xs text-muted-foreground mt-2">{n.time}</p>
+                  {n.description && <p className="text-sm text-muted-foreground mt-0.5">{n.description}</p>}
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ru })}
+                  </p>
                 </div>
               </div>
             </div>
           );
-        })}
+        }) : (
+          <div className="bg-card rounded-xl p-12 shadow-card border border-border text-center">
+            <Info className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="font-semibold text-foreground mb-2">Нет уведомлений</h3>
+            <p className="text-sm text-muted-foreground">Новые уведомления появятся здесь</p>
+          </div>
+        )}
       </div>
     </div>
   );
