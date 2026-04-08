@@ -287,6 +287,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      reject_user: { Args: { _target_user_id: string }; Returns: undefined }
+      verify_user: { Args: { _target_user_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "employee" | "manager" | "hrd" | "superadmin"
