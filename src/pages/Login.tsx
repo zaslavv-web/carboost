@@ -1,15 +1,51 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Briefcase, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
+import { toast } from "sonner";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+
+    try {
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        });
+        if (error) throw error;
+        toast.success("Проверьте почту для подтверждения регистрации");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        navigate("/");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Ошибка авторизации");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) {
+      toast.error("Ошибка входа через Google");
+    }
+    if (result.redirected) return;
     navigate("/");
   };
 
@@ -52,10 +88,12 @@ const Login = () => {
             <span className="font-bold text-lg text-foreground">Карьерный трек</span>
           </div>
 
-          <h2 className="text-2xl font-bold text-foreground">Вход в систему</h2>
-          <p className="text-muted-foreground text-sm mt-2">Введите данные для входа в аккаунт</p>
+          <h2 className="text-2xl font-bold text-foreground">{isSignUp ? "Регистрация" : "Вход в систему"}</h2>
+          <p className="text-muted-foreground text-sm mt-2">
+            {isSignUp ? "Создайте аккаунт для начала работы" : "Введите данные для входа в аккаунт"}
+          </p>
 
-          <form onSubmit={handleLogin} className="mt-8 space-y-5">
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <div>
               <label className="text-sm font-medium text-foreground">Email</label>
               <div className="relative mt-1.5">
@@ -65,6 +103,7 @@ const Login = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com"
+                  required
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
                 />
               </div>
@@ -79,6 +118,8 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  required
+                  minLength={6}
                   className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -87,18 +128,12 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 text-muted-foreground">
-                <input type="checkbox" className="rounded border-input" /> Запомнить меня
-              </label>
-              <button type="button" className="text-primary hover:underline">Забыли пароль?</button>
-            </div>
-
             <button
               type="submit"
-              className="w-full py-2.5 rounded-lg gradient-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
+              disabled={loading}
+              className="w-full py-2.5 rounded-lg gradient-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              Войти
+              {loading ? "Загрузка..." : isSignUp ? "Зарегистрироваться" : "Войти"}
             </button>
 
             <div className="relative my-6">
@@ -108,10 +143,18 @@ const Login = () => {
 
             <button
               type="button"
+              onClick={handleGoogleLogin}
               className="w-full py-2.5 rounded-lg border border-border bg-card text-foreground font-medium text-sm hover:bg-secondary transition-colors"
             >
-              Войти через SSO
+              Войти через Google
             </button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              {isSignUp ? "Уже есть аккаунт?" : "Нет аккаунта?"}{" "}
+              <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-primary hover:underline">
+                {isSignUp ? "Войти" : "Зарегистрироваться"}
+              </button>
+            </p>
           </form>
         </div>
       </div>
