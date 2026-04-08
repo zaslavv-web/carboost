@@ -14,16 +14,269 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      achievements: {
+        Row: {
+          achievement_date: string | null
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          achievement_date?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          achievement_date?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      assessments: {
+        Row: {
+          assessment_data: Json | null
+          assessment_type: string
+          change_value: string | null
+          created_at: string
+          id: string
+          score: number | null
+          user_id: string
+        }
+        Insert: {
+          assessment_data?: Json | null
+          assessment_type?: string
+          change_value?: string | null
+          created_at?: string
+          id?: string
+          score?: number | null
+          user_id: string
+        }
+        Update: {
+          assessment_data?: Json | null
+          assessment_type?: string
+          change_value?: string | null
+          created_at?: string
+          id?: string
+          score?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      career_goals: {
+        Row: {
+          created_at: string
+          deadline: string | null
+          description: string | null
+          id: string
+          progress: number
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          progress?: number
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          progress?: number
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      competencies: {
+        Row: {
+          created_at: string
+          id: string
+          skill_name: string
+          skill_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          skill_name: string
+          skill_value?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          skill_name?: string
+          skill_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      goal_checklist_items: {
+        Row: {
+          created_at: string
+          deadline: string | null
+          goal_id: string
+          id: string
+          is_done: boolean
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          deadline?: string | null
+          goal_id: string
+          id?: string
+          is_done?: boolean
+          text: string
+        }
+        Update: {
+          created_at?: string
+          deadline?: string | null
+          goal_id?: string
+          id?: string
+          is_done?: boolean
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_checklist_items_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "career_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_read: boolean
+          notification_type: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_read?: boolean
+          notification_type?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_read?: boolean
+          notification_type?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          department: string | null
+          full_name: string
+          hire_date: string | null
+          id: string
+          overall_score: number | null
+          position: string | null
+          role_readiness: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          full_name?: string
+          hire_date?: string | null
+          id?: string
+          overall_score?: number | null
+          position?: string | null
+          role_readiness?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          full_name?: string
+          hire_date?: string | null
+          id?: string
+          overall_score?: number | null
+          position?: string | null
+          role_readiness?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "employee" | "manager" | "hrd"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +403,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["employee", "manager", "hrd"],
+    },
   },
 } as const

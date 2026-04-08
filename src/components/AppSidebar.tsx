@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -25,6 +26,7 @@ const AppSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { signOut } = useAuth();
 
   return (
     <aside
@@ -78,7 +80,7 @@ const AppSidebar = () => {
           <Settings className="w-5 h-5 flex-shrink-0" />
           {!collapsed && <span>Настройки</span>}
         </button>
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors">
+        <button onClick={() => { signOut(); navigate("/login"); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors">
           <LogOut className="w-5 h-5 flex-shrink-0" />
           {!collapsed && <span>Выйти</span>}
         </button>
