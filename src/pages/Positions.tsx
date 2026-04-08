@@ -268,7 +268,7 @@ const Positions = () => {
         }));
 
       if (pathsToInsert.length > 0) {
-        const { error } = await supabase.from("position_career_paths").insert(pathsToInsert);
+        const { error } = await supabase.from("position_career_paths").insert(pathsToInsert as any);
         if (error) throw error;
       }
     },
