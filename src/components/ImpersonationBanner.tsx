@@ -1,10 +1,17 @@
 import { useImpersonation } from "@/contexts/ImpersonationContext";
-import { Eye, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Eye, ArrowLeft } from "lucide-react";
 
 const ImpersonationBanner = () => {
   const { impersonatedName, stopImpersonation } = useImpersonation();
+  const navigate = useNavigate();
 
   if (!impersonatedName) return null;
+
+  const handleReturn = () => {
+    stopImpersonation();
+    navigate("/users");
+  };
 
   return (
     <div className="bg-warning/10 border-b border-warning/30 px-4 py-2 flex items-center justify-between">
@@ -13,10 +20,10 @@ const ImpersonationBanner = () => {
         <span>Вы просматриваете как: <strong>{impersonatedName}</strong></span>
       </div>
       <button
-        onClick={stopImpersonation}
-        className="flex items-center gap-1 px-3 py-1 rounded-lg bg-warning/20 text-warning text-xs font-medium hover:bg-warning/30 transition-colors"
+        onClick={handleReturn}
+        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
       >
-        <X className="w-3 h-3" /> Выйти из режима
+        <ArrowLeft className="w-3 h-3" /> Вернуться в суперадмин
       </button>
     </div>
   );
