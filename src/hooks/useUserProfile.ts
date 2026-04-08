@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 
 export type AppRole = "employee" | "manager" | "hrd" | "superadmin";
 
@@ -18,30 +19,65 @@ export interface UserProfile {
   requested_role: string;
 }
 
-export const useUserProfile = () => {
+/** Returns the effective user ID (impersonated or real) */
+const useEffectiveId = () => {
   const { user } = useAuth();
+  const { impersonatedUserId } = useImpersonation();
+  return impersonatedUserId || user?.id || null;
+};
+
+export const useUserProfile = () => {
+  const effectiveId = useEffectiveId();
 
   return useQuery({
-    queryKey: ["profile", user?.id],
+    queryKey: ["profile", effectiveId],
     queryFn: async () => {
-      if (!user) return null;
+      if (!effectiveId) return null;
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", effectiveId)
         .single();
       if (error) throw error;
       return data as UserProfile;
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 };
 
 export const useUserRoles = () => {
-  const { user } = useAuth();
+  const effectiveId = useEffectiveId();
 
   return useQuery({
-    queryKey: ["user_roles", user?.id],
+    queryKey: ["user_roles", effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", effectiveId);
+      if (error) throw error;
+      return (data || []).map((r) => r.role as AppRole);
+    },
+    enabled: !!effectiveId,
+  });
+};
+
+export const usePrimaryRole = (): AppRole => {
+  const { data: roles } = useUserRoles();
+  if (!roles || roles.length === 0) return "employee";
+  if (roles.includes("superadmin")) return "superadmin";
+  if (roles.includes("hrd")) return "hrd";
+  if (roles.includes("manager")) return "manager";
+  return "employee";
+};
+
+/** Returns the REAL authenticated user's role, ignoring impersonation */
+export const useRealPrimaryRole = (): AppRole => {
+  const { user } = useAuth();
+
+  const { data: roles } = useQuery({
+    queryKey: ["real_user_roles", user?.id],
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
@@ -53,10 +89,7 @@ export const useUserRoles = () => {
     },
     enabled: !!user,
   });
-};
 
-export const usePrimaryRole = (): AppRole => {
-  const { data: roles } = useUserRoles();
   if (!roles || roles.length === 0) return "employee";
   if (roles.includes("superadmin")) return "superadmin";
   if (roles.includes("hrd")) return "hrd";
