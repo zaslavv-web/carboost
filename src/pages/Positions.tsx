@@ -251,7 +251,12 @@ const Positions = () => {
   const savePathsMutation = useMutation({
     mutationFn: async () => {
       // Delete all existing paths
-      await supabase.from("position_career_paths").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      const { data: existing } = await supabase.from("position_career_paths").select("id");
+      if (existing && existing.length > 0) {
+        for (const row of existing) {
+          await supabase.from("position_career_paths").delete().eq("id", row.id);
+        }
+      }
 
       // Insert current edges
       const pathsToInsert = edges
