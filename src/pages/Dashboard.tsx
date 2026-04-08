@@ -18,12 +18,12 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const { data: competencies = [] } = useQuery({
-    queryKey: ["competencies", user?.id],
+    queryKey: ["competencies", effectiveUserId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("competencies")
         .select("skill_name, skill_value")
-        .eq("user_id", user!.id);
+        .eq("user_id", effectiveUserId!);
       if (error) throw error;
       return (data || []).map((c) => ({ skill: c.skill_name, value: c.skill_value }));
     },
