@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-export type AppRole = "employee" | "manager" | "hrd";
+export type AppRole = "employee" | "manager" | "hrd" | "superadmin";
 
 export interface UserProfile {
   id: string;
