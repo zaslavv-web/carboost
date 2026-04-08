@@ -57,18 +57,18 @@ const Dashboard = () => {
   });
 
   const { data: notifications = [] } = useQuery({
-    queryKey: ["recent_notifications", user?.id],
+    queryKey: ["recent_notifications", effectiveUserId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
-        .eq("user_id", user!.id)
+        .eq("user_id", effectiveUserId!)
         .order("created_at", { ascending: false })
         .limit(4);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   const completedGoals = goals.filter((g) => g.status === "completed").length;
