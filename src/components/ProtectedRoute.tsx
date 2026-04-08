@@ -21,8 +21,8 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Superadmins always pass through
-  if (role === "superadmin") {
+  // Superadmins always pass through (use real role, not impersonated)
+  if (realRole === "superadmin") {
     return <>{children}</>;
   }
 
