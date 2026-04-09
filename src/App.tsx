@@ -22,6 +22,7 @@ import HRPolicies from "@/pages/HRPolicies";
 import Positions from "@/pages/Positions";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
+import Companies from "@/pages/Companies";
 import ResetPassword from "@/pages/ResetPassword";
 import Analytics from "@/pages/Analytics";
 import NotFound from "@/pages/NotFound";
@@ -49,6 +50,7 @@ const App = () => (
                 <Route path="/employees" element={<HRDDashboard />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/superadmin" element={<SuperadminDashboard />} />
+                <Route path="/companies" element={<Companies />} />
                 <Route path="/users" element={<UsersManagement />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/scenarios" element={<Scenarios />} />
