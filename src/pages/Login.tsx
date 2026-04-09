@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -35,8 +36,19 @@ const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState("employee");
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
+
+  const { data: companies = [] } = useQuery({
+    queryKey: ["public_companies"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("companies").select("id, name");
+      if (error) return [];
+      return data || [];
+    },
+    enabled: isSignUp,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +62,7 @@ const Login = () => {
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { requested_role: selectedRole },
+            data: { requested_role: selectedRole, company_id: selectedCompanyId || undefined },
           },
         });
         if (error) throw error;
@@ -202,19 +214,35 @@ const Login = () => {
             </div>
 
             {isSignUp && (
-              <div>
-                <label className="text-sm font-medium text-foreground">Желаемая роль</label>
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
-                >
-                  {ROLE_OPTIONS.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground mt-1">После регистрации роль должна быть подтверждена суперадмином</p>
-              </div>
+              <>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Компания</label>
+                  <select
+                    value={selectedCompanyId}
+                    onChange={(e) => setSelectedCompanyId(e.target.value)}
+                    className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
+                  >
+                    <option value="">— Выберите компанию —</option>
+                    {companies.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">Выберите компанию, в которой вы работаете</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Желаемая роль</label>
+                  <select
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value)}
+                    className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
+                  >
+                    {ROLE_OPTIONS.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">После регистрации роль должна быть подтверждена администратором</p>
+                </div>
+              </>
             )}
 
             <button

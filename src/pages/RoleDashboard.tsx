@@ -8,6 +8,7 @@ const RoleDashboard = () => {
   const role = usePrimaryRole();
 
   if (role === "superadmin") return <SuperadminDashboard />;
+  if (role === "company_admin") return <HRDDashboard />;
   if (role === "hrd") return <HRDDashboard />;
   if (role === "manager") return <ManagerDashboard />;
   return <Dashboard />;

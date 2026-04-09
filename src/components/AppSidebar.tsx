@@ -45,7 +45,20 @@ const AppSidebar = () => {
     if (role === "superadmin") {
       return [
         ...common,
+        { icon: Shield, label: "Компании", path: "/companies" },
         { icon: UserCog, label: "Пользователи", path: "/users" },
+        { icon: LifeBuoy, label: "Обращения", path: "/support" },
+        { icon: Settings, label: "Настройки", path: "/settings" },
+      ];
+    }
+
+    if (role === "company_admin") {
+      return [
+        ...common,
+        { icon: UserCog, label: "Пользователи", path: "/users" },
+        { icon: Users, label: "Сотрудники", path: "/employees" },
+        { icon: BarChart3, label: "Аналитика", path: "/analytics" },
+        { icon: Briefcase, label: "Должности", path: "/positions" },
         { icon: LifeBuoy, label: "Обращения", path: "/support" },
         { icon: Settings, label: "Настройки", path: "/settings" },
       ];
@@ -91,6 +104,7 @@ const AppSidebar = () => {
     employee: "Сотрудник",
     manager: "Руководитель",
     hrd: "HRD",
+    company_admin: "Админ компании",
     superadmin: "Суперадмин",
   };
 

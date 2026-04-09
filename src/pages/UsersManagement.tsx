@@ -6,11 +6,13 @@ import { Eye, Loader2, Search, CheckCircle, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { AppRole } from "@/hooks/useUserProfile";
+import { useRealPrimaryRole } from "@/hooks/useUserProfile";
 
 const roleLabelMap: Record<string, string> = {
   employee: "Сотрудник",
   manager: "Руководитель",
   hrd: "HRD",
+  company_admin: "Админ компании",
   superadmin: "Суперадмин",
 };
 
@@ -18,6 +20,7 @@ const roleBadge: Record<string, { label: string; cls: string }> = {
   employee: { label: "Сотрудник", cls: "bg-secondary text-secondary-foreground" },
   manager: { label: "Руководитель", cls: "bg-info/10 text-info" },
   hrd: { label: "HRD", cls: "bg-warning/10 text-warning" },
+  company_admin: { label: "Админ компании", cls: "bg-primary/10 text-primary" },
   superadmin: { label: "Суперадмин", cls: "bg-destructive/10 text-destructive" },
 };
 
@@ -27,8 +30,22 @@ const UsersManagement = () => {
   const { startImpersonation } = useImpersonation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const realRole = useRealPrimaryRole();
+  const isSuperadmin = realRole === "superadmin";
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [companyFilter, setCompanyFilter] = useState<string>("all");
+
+  const { data: companies = [] } = useQuery({
+    queryKey: ["companies_list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("companies").select("id, name");
+      if (error) return [];
+      return data || [];
+    },
+    enabled: isSuperadmin,
+  });
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users_list"],
@@ -43,7 +60,7 @@ const UsersManagement = () => {
       const roleMap = new Map<string, AppRole>();
       for (const r of rolesRes.data) {
         const current = roleMap.get(r.user_id);
-        const priority: Record<string, number> = { superadmin: 4, hrd: 3, manager: 2, employee: 1 };
+        const priority: Record<string, number> = { superadmin: 5, company_admin: 4, hrd: 3, manager: 2, employee: 1 };
         if (!current || priority[r.role as string] > (priority[current] || 0)) {
           roleMap.set(r.user_id, r.role as AppRole);
         }
@@ -103,7 +120,11 @@ const UsersManagement = () => {
       statusFilter === "all" ||
       (statusFilter === "verified" && u.is_verified) ||
       (statusFilter === "pending" && !u.is_verified);
-    return matchesSearch && matchesStatus;
+    const matchesCompany =
+      companyFilter === "all" ||
+      (companyFilter === "none" && !u.company_id) ||
+      u.company_id === companyFilter;
+    return matchesSearch && matchesStatus && matchesCompany;
   });
 
   const pendingCount = users.filter((u: any) => !u.is_verified).length;
@@ -151,6 +172,19 @@ const UsersManagement = () => {
             </button>
           ))}
         </div>
+        {isSuperadmin && companies.length > 0 && (
+          <select
+            value={companyFilter}
+            onChange={(e) => setCompanyFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
+          >
+            <option value="all">Все компании</option>
+            <option value="none">Без компании</option>
+            {companies.map((c: any) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {isLoading ? (
@@ -161,6 +195,7 @@ const UsersManagement = () => {
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Пользователь</th>
+                {isSuperadmin && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Компания</th>}
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Отдел</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Роль</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Статус</th>
@@ -174,6 +209,11 @@ const UsersManagement = () => {
                     <p className="font-medium text-foreground">{u.full_name}</p>
                     <p className="text-xs text-muted-foreground">{u.position || "—"}</p>
                   </td>
+                  {isSuperadmin && (
+                    <td className="px-4 py-3 text-foreground text-xs">
+                      {companies.find((c: any) => c.id === u.company_id)?.name || <span className="text-muted-foreground">—</span>}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-foreground">{u.department || "—"}</td>
                   <td className="px-4 py-3">
                     <select

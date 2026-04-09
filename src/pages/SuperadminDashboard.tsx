@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Clock, UserCheck, ShieldCheck } from "lucide-react";
+import { Users, Clock, UserCheck, ShieldCheck, Building2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { AppRole } from "@/hooks/useUserProfile";
 
@@ -10,9 +10,10 @@ const SuperadminDashboard = () => {
   const { data: stats } = useQuery({
     queryKey: ["superadmin_profiles"],
     queryFn: async () => {
-      const [profilesRes, rolesRes] = await Promise.all([
+      const [profilesRes, rolesRes, companiesRes] = await Promise.all([
         supabase.from("profiles").select("user_id, is_verified"),
         supabase.from("user_roles").select("user_id, role"),
+        supabase.from("companies").select("id"),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (rolesRes.error) throw rolesRes.error;
@@ -20,15 +21,17 @@ const SuperadminDashboard = () => {
       const superadminCount = (rolesRes.data || []).filter((r: any) => r.role === "superadmin").length;
       const pending = profiles.filter((p: any) => !p.is_verified).length;
       const verified = profiles.filter((p: any) => p.is_verified).length;
-      return { total: profiles.length, pending, verified, superadmins: superadminCount };
+      const companiesCount = companiesRes.data?.length || 0;
+      return { total: profiles.length, pending, verified, superadmins: superadminCount, companies: companiesCount };
     },
   });
 
   const metrics = [
-    { icon: Users, label: "Всего", value: stats?.total ?? 0, color: "primary" },
-    { icon: Clock, label: "Ожидают", value: stats?.pending ?? 0, color: "warning" },
-    { icon: UserCheck, label: "Верифицированы", value: stats?.verified ?? 0, color: "success" },
-    { icon: ShieldCheck, label: "Суперадмины", value: stats?.superadmins ?? 0, color: "info" },
+    { icon: Building2, label: "Компании", value: stats?.companies ?? 0, color: "primary", link: "/companies" },
+    { icon: Users, label: "Всего", value: stats?.total ?? 0, color: "primary", link: "/users" },
+    { icon: Clock, label: "Ожидают", value: stats?.pending ?? 0, color: "warning", link: "/users" },
+    { icon: UserCheck, label: "Верифицированы", value: stats?.verified ?? 0, color: "success", link: "/users" },
+    { icon: ShieldCheck, label: "Суперадмины", value: stats?.superadmins ?? 0, color: "info", link: "/users" },
   ];
 
   return (
@@ -38,11 +41,11 @@ const SuperadminDashboard = () => {
         <p className="text-muted-foreground text-sm mt-1">Обзор системы</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
         {metrics.map((m) => (
           <div
             key={m.label}
-            onClick={() => navigate("/users")}
+            onClick={() => navigate(m.link)}
             className="bg-card rounded-xl border border-border p-4 cursor-pointer hover:border-primary/30 transition-colors overflow-hidden"
           >
             <div className="flex items-center gap-3 min-w-0">
