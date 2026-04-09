@@ -53,6 +53,22 @@ const Login = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.error("Введите email для восстановления пароля");
+      return;
+    }
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success("Письмо для сброса пароля отправлено на " + email);
+    } catch (error: any) {
+      toast.error(error.message || "Ошибка отправки письма");
+    }
+  };
+
   const handleGoogleLogin = async () => {
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
@@ -125,7 +141,18 @@ const Login = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-foreground">Пароль</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-foreground">Пароль</label>
+                {!isSignUp && (
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Забыли пароль?
+                  </button>
+                )}
+              </div>
               <div className="relative mt-1.5">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input

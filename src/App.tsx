@@ -22,6 +22,7 @@ import HRPolicies from "@/pages/HRPolicies";
 import Positions from "@/pages/Positions";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
+import ResetPassword from "@/pages/ResetPassword";
 import Analytics from "@/pages/Analytics";
 import NotFound from "@/pages/NotFound";
 
@@ -37,6 +38,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route path="/" element={<RoleDashboard />} />
                 <Route path="/assessment" element={<Assessment />} />
