@@ -6,6 +6,7 @@ import { Eye, Loader2, Search, CheckCircle, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { AppRole } from "@/hooks/useUserProfile";
+import { useRealPrimaryRole } from "@/hooks/useUserProfile";
 
 const roleLabelMap: Record<string, string> = {
   employee: "Сотрудник",
@@ -29,8 +30,22 @@ const UsersManagement = () => {
   const { startImpersonation } = useImpersonation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const realRole = useRealPrimaryRole();
+  const isSuperadmin = realRole === "superadmin";
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [companyFilter, setCompanyFilter] = useState<string>("all");
+
+  const { data: companies = [] } = useQuery({
+    queryKey: ["companies_list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("companies").select("id, name");
+      if (error) return [];
+      return data || [];
+    },
+    enabled: isSuperadmin,
+  });
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users_list"],
@@ -45,7 +60,7 @@ const UsersManagement = () => {
       const roleMap = new Map<string, AppRole>();
       for (const r of rolesRes.data) {
         const current = roleMap.get(r.user_id);
-        const priority: Record<string, number> = { superadmin: 4, hrd: 3, manager: 2, employee: 1 };
+        const priority: Record<string, number> = { superadmin: 5, company_admin: 4, hrd: 3, manager: 2, employee: 1 };
         if (!current || priority[r.role as string] > (priority[current] || 0)) {
           roleMap.set(r.user_id, r.role as AppRole);
         }
@@ -105,7 +120,11 @@ const UsersManagement = () => {
       statusFilter === "all" ||
       (statusFilter === "verified" && u.is_verified) ||
       (statusFilter === "pending" && !u.is_verified);
-    return matchesSearch && matchesStatus;
+    const matchesCompany =
+      companyFilter === "all" ||
+      (companyFilter === "none" && !u.company_id) ||
+      u.company_id === companyFilter;
+    return matchesSearch && matchesStatus && matchesCompany;
   });
 
   const pendingCount = users.filter((u: any) => !u.is_verified).length;
