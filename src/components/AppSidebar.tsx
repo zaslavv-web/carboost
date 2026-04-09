@@ -45,7 +45,6 @@ const AppSidebar = () => {
     if (role === "superadmin") {
       return [
         ...common,
-        { icon: Shield, label: "Верификация", path: "/superadmin" },
         { icon: UserCog, label: "Пользователи", path: "/users" },
         { icon: LifeBuoy, label: "Обращения", path: "/support" },
         { icon: Settings, label: "Настройки", path: "/settings" },
