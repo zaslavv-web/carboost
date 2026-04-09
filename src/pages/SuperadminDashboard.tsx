@@ -43,15 +43,15 @@ const SuperadminDashboard = () => {
           <div
             key={m.label}
             onClick={() => navigate("/users")}
-            className="bg-card rounded-xl border border-border p-4 cursor-pointer hover:border-primary/30 transition-colors"
+            className="bg-card rounded-xl border border-border p-4 cursor-pointer hover:border-primary/30 transition-colors overflow-hidden"
           >
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-lg bg-${m.color}/10 flex items-center justify-center`}>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`w-10 h-10 rounded-lg bg-${m.color}/10 flex items-center justify-center flex-shrink-0`}>
                 <m.icon className={`w-5 h-5 text-${m.color}`} />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{m.value}</p>
-                <p className="text-xs text-muted-foreground">{m.label}</p>
+              <div className="min-w-0">
+                <p className="text-2xl font-bold text-foreground truncate">{m.value}</p>
+                <p className="text-xs text-muted-foreground truncate">{m.label}</p>
               </div>
             </div>
           </div>
