@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Briefcase, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
@@ -11,6 +11,23 @@ const ROLE_OPTIONS = [
   { value: "hrd", label: "HRD" },
 ];
 
+const translateError = (msg: string): string => {
+  const map: Record<string, string> = {
+    "Invalid login credentials": "Неверный email или пароль. Проверьте данные и попробуйте снова.",
+    "Email not confirmed": "Email не подтверждён. Проверьте почту для подтверждения.",
+    "User already registered": "Пользователь с таким email уже зарегистрирован.",
+    "Password should be at least 6 characters": "Пароль должен содержать минимум 6 символов.",
+    "Signup requires a valid password": "Введите корректный пароль.",
+    "Unable to validate email address: invalid format": "Некорректный формат email.",
+    "For security purposes, you can only request this after": "Из соображений безопасности повторный запрос возможен через некоторое время.",
+    "Email rate limit exceeded": "Превышен лимит отправки писем. Попробуйте позже.",
+  };
+  for (const [key, value] of Object.entries(map)) {
+    if (msg.includes(key)) return value;
+  }
+  return msg;
+};
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,11 +35,13 @@ const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState("employee");
+  const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage("");
 
     try {
       if (isSignUp) {
@@ -47,7 +66,8 @@ const Login = () => {
         navigate("/");
       }
     } catch (error: any) {
-      toast.error(error.message || "Ошибка авторизации");
+      const translated = translateError(error.message || "Ошибка авторизации");
+      setErrorMessage(translated);
     } finally {
       setLoading(false);
     }
@@ -55,9 +75,10 @@ const Login = () => {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      toast.error("Введите email для восстановления пароля");
+      setErrorMessage("Введите email для восстановления пароля");
       return;
     }
+    setErrorMessage("");
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
@@ -65,7 +86,7 @@ const Login = () => {
       if (error) throw error;
       toast.success("Письмо для сброса пароля отправлено на " + email);
     } catch (error: any) {
-      toast.error(error.message || "Ошибка отправки письма");
+      setErrorMessage(translateError(error.message || "Ошибка отправки письма"));
     }
   };
 
@@ -74,7 +95,7 @@ const Login = () => {
       redirect_uri: window.location.origin,
     });
     if (result.error) {
-      toast.error("Ошибка входа через Google");
+      setErrorMessage("Ошибка входа через Google");
     }
     if (result.redirected) return;
     navigate("/");
@@ -124,7 +145,17 @@ const Login = () => {
             {isSignUp ? "Создайте аккаунт для начала работы" : "Введите данные для входа в аккаунт"}
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+          {errorMessage && (
+            <div className="mt-4 flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+              <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive flex-1">{errorMessage}</p>
+              <button type="button" onClick={() => setErrorMessage("")} className="shrink-0">
+                <X className="w-4 h-4 text-destructive/60 hover:text-destructive" />
+              </button>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
             <div>
               <label className="text-sm font-medium text-foreground">Email</label>
               <div className="relative mt-1.5">
@@ -132,7 +163,7 @@ const Login = () => {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setErrorMessage(""); }}
                   placeholder="name@company.com"
                   required
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
@@ -158,7 +189,7 @@ const Login = () => {
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setErrorMessage(""); }}
                   placeholder="••••••••"
                   required
                   minLength={6}
@@ -209,7 +240,7 @@ const Login = () => {
 
             <p className="text-center text-sm text-muted-foreground">
               {isSignUp ? "Уже есть аккаунт?" : "Нет аккаунта?"}{" "}
-              <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-primary hover:underline">
+              <button type="button" onClick={() => { setIsSignUp(!isSignUp); setErrorMessage(""); }} className="text-primary hover:underline">
                 {isSignUp ? "Войти" : "Зарегистрироваться"}
               </button>
             </p>
