@@ -570,7 +570,7 @@ export type Database = {
       verify_user: { Args: { _target_user_id: string }; Returns: undefined }
     }
     Enums: {
-      app_role: "employee" | "manager" | "hrd" | "superadmin"
+      app_role: "employee" | "manager" | "hrd" | "superadmin" | "company_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -698,7 +698,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["employee", "manager", "hrd", "superadmin"],
+      app_role: ["employee", "manager", "hrd", "superadmin", "company_admin"],
     },
   },
 } as const
