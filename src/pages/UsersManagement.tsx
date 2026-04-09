@@ -172,6 +172,19 @@ const UsersManagement = () => {
             </button>
           ))}
         </div>
+        {isSuperadmin && companies.length > 0 && (
+          <select
+            value={companyFilter}
+            onChange={(e) => setCompanyFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
+          >
+            <option value="all">Все компании</option>
+            <option value="none">Без компании</option>
+            {companies.map((c: any) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {isLoading ? (
@@ -182,6 +195,7 @@ const UsersManagement = () => {
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Пользователь</th>
+                {isSuperadmin && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Компания</th>}
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Отдел</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Роль</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Статус</th>
@@ -195,6 +209,11 @@ const UsersManagement = () => {
                     <p className="font-medium text-foreground">{u.full_name}</p>
                     <p className="text-xs text-muted-foreground">{u.position || "—"}</p>
                   </td>
+                  {isSuperadmin && (
+                    <td className="px-4 py-3 text-foreground text-xs">
+                      {companies.find((c: any) => c.id === u.company_id)?.name || <span className="text-muted-foreground">—</span>}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-foreground">{u.department || "—"}</td>
                   <td className="px-4 py-3">
                     <select
