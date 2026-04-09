@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -35,8 +36,19 @@ const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState("employee");
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
+
+  const { data: companies = [] } = useQuery({
+    queryKey: ["public_companies"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("companies").select("id, name");
+      if (error) return [];
+      return data || [];
+    },
+    enabled: isSignUp,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +62,7 @@ const Login = () => {
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { requested_role: selectedRole },
+            data: { requested_role: selectedRole, company_id: selectedCompanyId || undefined },
           },
         });
         if (error) throw error;

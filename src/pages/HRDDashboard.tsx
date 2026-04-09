@@ -36,6 +36,7 @@ const roleBadge: Record<AppRole, { label: string; cls: string }> = {
   employee: { label: "Сотрудник", cls: "bg-secondary text-secondary-foreground" },
   manager: { label: "Руководитель", cls: "bg-info/10 text-info" },
   hrd: { label: "HRD", cls: "bg-warning/10 text-warning" },
+  company_admin: { label: "Админ компании", cls: "bg-primary/10 text-primary" },
   superadmin: { label: "Суперадмин", cls: "bg-destructive/10 text-destructive" },
 };
 
