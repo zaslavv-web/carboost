@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 
-export type AppRole = "employee" | "manager" | "hrd" | "superadmin";
+export type AppRole = "employee" | "manager" | "hrd" | "company_admin" | "superadmin";
 
 export interface UserProfile {
   id: string;
@@ -17,6 +17,7 @@ export interface UserProfile {
   role_readiness: number;
   is_verified: boolean;
   requested_role: string;
+  company_id: string | null;
 }
 
 /** Returns the effective user ID (impersonated or real) */
@@ -67,6 +68,7 @@ export const usePrimaryRole = (): AppRole => {
   const { data: roles } = useUserRoles();
   if (!roles || roles.length === 0) return "employee";
   if (roles.includes("superadmin")) return "superadmin";
+  if (roles.includes("company_admin")) return "company_admin";
   if (roles.includes("hrd")) return "hrd";
   if (roles.includes("manager")) return "manager";
   return "employee";
@@ -92,6 +94,7 @@ export const useRealPrimaryRole = (): AppRole => {
 
   if (!roles || roles.length === 0) return "employee";
   if (roles.includes("superadmin")) return "superadmin";
+  if (roles.includes("company_admin")) return "company_admin";
   if (roles.includes("hrd")) return "hrd";
   if (roles.includes("manager")) return "manager";
   return "employee";
