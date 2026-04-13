@@ -19,6 +19,8 @@ import {
   BarChart3,
   UserCog,
   AlertTriangle,
+  Route,
+  Trophy,
 } from "lucide-react";
 
 interface NavItem {
@@ -74,6 +76,8 @@ const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
         { icon: BarChart3, label: "Аналитика", path: "/analytics" },
         { icon: FileJson, label: "Сценарии оценки", path: "/scenarios" },
         { icon: Briefcase, label: "Должности", path: "/positions" },
+        { icon: Route, label: "Карьерные треки", path: "/career-tracks-mgmt" },
+        { icon: Trophy, label: "Геймификация", path: "/gamification" },
         { icon: Shield, label: "Политики", path: "/hr-policies" },
         { icon: LifeBuoy, label: "Техподдержка", path: "/support" },
         { icon: Settings, label: "Настройки", path: "/settings" },
