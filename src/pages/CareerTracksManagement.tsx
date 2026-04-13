@@ -345,7 +345,7 @@ const CareerTracksManagement = () => {
             const tAssignments = assignments.filter(a => a.template_id === t.id);
             const fromPos = t.from_position_id ? posMap[t.from_position_id] : null;
             const toPos = t.to_position_id ? posMap[t.to_position_id] : null;
-            const steps = (t.steps as Step[]) || [];
+            const steps = (t.steps as unknown as Step[]) || [];
             return (
               <div key={t.id} className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
                 <div className="p-5 flex items-center gap-4 cursor-pointer hover:bg-secondary/30 transition-colors"
