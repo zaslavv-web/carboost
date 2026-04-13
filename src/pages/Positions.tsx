@@ -389,6 +389,7 @@ const OrgStructureUpload = () => {
         competency_profile: pos.competency_profile || [],
         psychological_profile: pos.psychological_profile || [],
         created_by: user!.id,
+        company_id: profile?.company_id || null,
       } as any);
       if (!error) created++;
     }
