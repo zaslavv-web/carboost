@@ -435,8 +435,23 @@ const OrgStructureUpload = () => {
         const text = await file.text();
         const parsed = JSON.parse(text);
         deptRows = Array.isArray(parsed) ? parsed : parsed.departments || [];
+      } else if (ext === ".docx" || ext === ".doc" || ext === ".pdf") {
+        // Upload and parse with AI
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `orgstructure/${Date.now()}_${safeName}`;
+        const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
+        if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
+
+        const { data: result, error: fnError } = await supabase.functions.invoke("parse-org-structure", {
+          body: { fileUrl: signedData.signedUrl, fileName: file.name },
+        });
+        if (fnError) throw fnError;
+        deptRows = result?.departments || [];
+        if (!deptRows.length) throw new Error("Не удалось извлечь оргструктуру из документа");
       } else {
-        throw new Error("Поддерживаются CSV, XLSX и JSON файлы");
+        throw new Error("Поддерживаются CSV, XLSX, JSON, DOCX и PDF файлы");
       }
 
       // Insert departments (first pass — no parents)
@@ -521,10 +536,10 @@ const OrgStructureUpload = () => {
       <div className="bg-secondary/30 rounded-lg p-4 space-y-3">
         <p className="text-sm font-medium text-foreground">Загрузить оргструктуру из файла</p>
         <p className="text-xs text-muted-foreground">
-          CSV/XLSX с колонками: название, описание (опц.), родительский_отдел (опц.) или JSON массив.
+          CSV/XLSX с колонками: название, описание (опц.), родительский_отдел (опц.), JSON массив, или DOCX/PDF для AI-распознавания.
         </p>
         <div className="flex items-center gap-3">
-          <input ref={fileRef} type="file" accept=".csv,.json,.xlsx,.xls"
+          <input ref={fileRef} type="file" accept=".csv,.json,.xlsx,.xls,.docx,.doc,.pdf"
             className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
           <Button size="sm" onClick={() => uploadMutation.mutate()} disabled={uploading}>
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
