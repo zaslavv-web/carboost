@@ -25,6 +25,8 @@ import Login from "@/pages/Login";
 import Companies from "@/pages/Companies";
 import ResetPassword from "@/pages/ResetPassword";
 import Analytics from "@/pages/Analytics";
+import CareerTracksManagement from "@/pages/CareerTracksManagement";
+import GamificationManagement from "@/pages/GamificationManagement";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +58,8 @@ const App = () => (
                 <Route path="/scenarios" element={<Scenarios />} />
                 <Route path="/hr-policies" element={<HRPolicies />} />
                 <Route path="/positions" element={<Positions />} />
+                <Route path="/career-tracks-mgmt" element={<CareerTracksManagement />} />
+                <Route path="/gamification" element={<GamificationManagement />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
