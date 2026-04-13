@@ -193,8 +193,8 @@ const PositionEditor = ({
     if (!file) return;
 
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-    if (![".doc", ".docx", ".pdf", ".csv", ".json"].includes(ext)) {
-      toast.error("Поддерживаются DOC, DOCX, PDF, CSV и JSON");
+    if (![".doc", ".docx", ".pdf", ".csv", ".json", ".xlsx", ".xls"].includes(ext)) {
+      toast.error("Поддерживаются DOC, DOCX, PDF, CSV, XLSX и JSON");
       return;
     }
 
@@ -225,6 +225,32 @@ const PositionEditor = ({
           toast.success(`Загружено ${items.length} компетенций из CSV`);
         } else {
           toast.error("CSV должен содержать столбец с названием компетенции");
+        }
+      } else if (ext === ".xlsx" || ext === ".xls") {
+        // Parse XLSX client-side
+        const XLSX = (await import("xlsx"));
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: any[] = XLSX.utils.sheet_to_json(firstSheet);
+        const headers = Object.keys(rows[0] || {}).map(h => h.toLowerCase());
+        const nameKey = Object.keys(rows[0] || {}).find(h => {
+          const lh = h.toLowerCase();
+          return lh.includes("name") || lh.includes("компетенц") || lh.includes("навык");
+        });
+        const levelKey = Object.keys(rows[0] || {}).find(h => {
+          const lh = h.toLowerCase();
+          return lh.includes("level") || lh.includes("уровень");
+        });
+        if (nameKey) {
+          const items = rows.map(r => ({
+            name: String(r[nameKey] || ""),
+            required_level: parseInt(String(r[levelKey!] || "5")) || 5,
+          })).filter(c => c.name);
+          setCompetencies(items);
+          toast.success(`Загружено ${items.length} компетенций из XLSX`);
+        } else {
+          toast.error("XLSX должен содержать столбец с названием компетенции");
         }
       } else {
         // For doc/docx/pdf — upload and parse with AI
@@ -289,12 +315,12 @@ const PositionEditor = ({
           <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
             <FileUp className="w-4 h-4 text-primary" /> Загрузить эталон из файла
           </p>
-          <p className="text-xs text-muted-foreground">
-            Загрузите DOC, DOCX, PDF — AI извлечёт компетенции и психопортрет. Или CSV/JSON для прямого импорта.
-          </p>
-          <div className="flex items-center gap-3">
-            <input ref={fileRef} type="file" accept=".doc,.docx,.pdf,.csv,.json"
-              className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
+           <p className="text-xs text-muted-foreground">
+             Загрузите DOC, DOCX, PDF, XLSX — AI извлечёт компетенции и психопортрет. Или CSV/JSON для прямого импорта.
+           </p>
+           <div className="flex items-center gap-3">
+             <input ref={fileRef} type="file" accept=".doc,.docx,.pdf,.csv,.json,.xlsx,.xls"
+               className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
             <Button size="sm" onClick={handleFileUpload} disabled={parsing}>
               {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               Распознать
@@ -355,11 +381,11 @@ const OrgStructureUpload = () => {
       setUploading(true);
 
       const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-      const text = await file.text();
 
       let deptRows: { name: string; description?: string; parent?: string }[] = [];
 
       if (ext === ".csv") {
+        const text = await file.text();
         const lines = text.split("\n").filter(Boolean);
         const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
         const nameIdx = headers.findIndex((h) => h.includes("name") || h.includes("название") || h.includes("отдел"));
@@ -376,11 +402,39 @@ const OrgStructureUpload = () => {
             parent: parentIdx >= 0 ? vals[parentIdx] : undefined,
           };
         }).filter((d) => d.name);
+      } else if (ext === ".xlsx" || ext === ".xls") {
+        const XLSX = (await import("xlsx"));
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: any[] = XLSX.utils.sheet_to_json(firstSheet);
+
+        const nameKey = Object.keys(rows[0] || {}).find(h => {
+          const lh = h.toLowerCase();
+          return lh.includes("name") || lh.includes("название") || lh.includes("отдел");
+        });
+        if (!nameKey) throw new Error("XLSX должен содержать столбец с названием отдела");
+
+        const descKey = Object.keys(rows[0] || {}).find(h => {
+          const lh = h.toLowerCase();
+          return lh.includes("desc") || lh.includes("описание");
+        });
+        const parentKey = Object.keys(rows[0] || {}).find(h => {
+          const lh = h.toLowerCase();
+          return lh.includes("parent") || lh.includes("родител");
+        });
+
+        deptRows = rows.map(r => ({
+          name: String(r[nameKey] || ""),
+          description: descKey ? String(r[descKey] || "") : undefined,
+          parent: parentKey ? String(r[parentKey] || "") : undefined,
+        })).filter(d => d.name);
       } else if (ext === ".json") {
+        const text = await file.text();
         const parsed = JSON.parse(text);
         deptRows = Array.isArray(parsed) ? parsed : parsed.departments || [];
       } else {
-        throw new Error("Поддерживаются CSV и JSON файлы");
+        throw new Error("Поддерживаются CSV, XLSX и JSON файлы");
       }
 
       // Insert departments (first pass — no parents)
@@ -465,10 +519,10 @@ const OrgStructureUpload = () => {
       <div className="bg-secondary/30 rounded-lg p-4 space-y-3">
         <p className="text-sm font-medium text-foreground">Загрузить оргструктуру из файла</p>
         <p className="text-xs text-muted-foreground">
-          CSV с колонками: название, описание (опц.), родительский_отдел (опц.) или JSON массив.
+          CSV/XLSX с колонками: название, описание (опц.), родительский_отдел (опц.) или JSON массив.
         </p>
         <div className="flex items-center gap-3">
-          <input ref={fileRef} type="file" accept=".csv,.json"
+          <input ref={fileRef} type="file" accept=".csv,.json,.xlsx,.xls"
             className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
           <Button size="sm" onClick={() => uploadMutation.mutate()} disabled={uploading}>
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}

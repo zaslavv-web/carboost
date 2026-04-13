@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Upload, FileJson, Trash2, Loader2, ToggleLeft, ToggleRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
+import * as XLSX from "xlsx";
 
 const Scenarios = () => {
   const { user } = useAuth();
@@ -31,19 +32,44 @@ const Scenarios = () => {
       const file = fileRef.current?.files?.[0];
       if (!file) throw new Error("Выберите файл");
 
-      const text = await file.text();
+      const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
       let parsed: any;
-      if (file.name.endsWith(".json")) {
+
+      if (ext === ".json") {
+        const text = await file.text();
         parsed = JSON.parse(text);
-      } else if (file.name.endsWith(".csv")) {
+      } else if (ext === ".csv") {
+        const text = await file.text();
         const lines = text.split("\n").filter(Boolean);
         const headers = lines[0].split(",").map((h) => h.trim());
         parsed = lines.slice(1).map((line) => {
           const vals = line.split(",").map((v) => v.trim());
           return Object.fromEntries(headers.map((h, i) => [h, vals[i] || ""]));
         });
+      } else if (ext === ".xlsx" || ext === ".xls") {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        parsed = XLSX.utils.sheet_to_json(firstSheet);
+      } else if (ext === ".docx" || ext === ".pdf") {
+        // Upload to storage and parse with AI
+        const filePath = `scenarios/${Date.now()}_${file.name}`;
+        const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from("hr-documents").getPublicUrl(filePath);
+
+        const { data: result, error: fnError } = await supabase.functions.invoke("parse-hr-document", {
+          body: {
+            documentId: null,
+            fileUrl: urlData.publicUrl,
+            fileName: file.name,
+            documentType: "scenario_upload",
+          },
+        });
+        if (fnError) throw fnError;
+        parsed = result?.data?.scenario || result?.data || result;
       } else {
-        throw new Error("Поддерживаются только JSON и CSV файлы");
+        throw new Error("Поддерживаются форматы: CSV, XLSX, JSON, DOCX, PDF");
       }
 
       const { error } = await supabase.from("assessment_scenarios").insert({
@@ -99,7 +125,7 @@ const Scenarios = () => {
       {/* Upload form */}
       <div className="bg-card rounded-xl border border-border p-6 space-y-4">
         <h3 className="font-semibold text-foreground">Загрузить сценарий</h3>
-        <p className="text-xs text-muted-foreground">Поддерживаемые форматы: JSON, CSV</p>
+        <p className="text-xs text-muted-foreground">Поддерживаемые форматы: CSV, XLSX, JSON, DOCX, PDF</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
             value={title}
@@ -115,7 +141,7 @@ const Scenarios = () => {
           />
         </div>
         <div className="flex items-center gap-4">
-          <input ref={fileRef} type="file" accept=".json,.csv" className="text-sm text-muted-foreground file:mr-3 file:px-4 file:py-2 file:rounded-lg file:bg-secondary file:text-foreground file:text-sm file:font-medium file:border-0 file:cursor-pointer" />
+          <input ref={fileRef} type="file" accept=".json,.csv,.xlsx,.xls,.docx,.pdf" className="text-sm text-muted-foreground file:mr-3 file:px-4 file:py-2 file:rounded-lg file:bg-secondary file:text-foreground file:text-sm file:font-medium file:border-0 file:cursor-pointer" />
           <button
             onClick={() => uploadMutation.mutate()}
             disabled={uploadMutation.isPending}
