@@ -107,11 +107,11 @@ serve(async (req) => {
       console.error("AI error:", aiResponse.status, errText);
       
       if (aiResponse.status === 429) {
-        await supabase.from("hr_documents").update({ processing_status: "failed", extracted_data: { error: "Превышен лимит запросов, попробуйте позже" } }).eq("id", documentId);
+        if (documentId) await supabase.from("hr_documents").update({ processing_status: "failed", extracted_data: { error: "Превышен лимит запросов, попробуйте позже" } }).eq("id", documentId);
         return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       
-      await supabase.from("hr_documents").update({ processing_status: "failed", extracted_data: { error: "AI processing failed" } }).eq("id", documentId);
+      if (documentId) await supabase.from("hr_documents").update({ processing_status: "failed", extracted_data: { error: "AI processing failed" } }).eq("id", documentId);
       return new Response(JSON.stringify({ error: "AI processing failed" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
