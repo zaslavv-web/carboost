@@ -9,7 +9,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { fileUrl, fileName } = await req.json();
+    const { fileUrl, fileName, extractPositions } = await req.json();
     if (!fileUrl) {
       return new Response(JSON.stringify({ error: "fileUrl required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -50,6 +50,31 @@ serve(async (req) => {
       base64Content = btoa(binary);
     }
 
+    const positionsBlock = extractPositions ? `
+
+Также извлеки все должности/позиции, упомянутые в документе. Для каждой должности попробуй определить:
+- К какому отделу она относится
+- Профиль компетенций (навыки с требуемым уровнем 1-10)
+- Психологический портрет (личностные черты)
+
+Добавь в ответ поле "positions":
+"positions": [
+  {
+    "title": "название должности",
+    "department": "название отдела к которому относится",
+    "description": "описание должности",
+    "competency_profile": [
+      {"name": "название компетенции", "required_level": 7}
+    ],
+    "psychological_profile": [
+      {"trait": "название черты", "level": "высокое"}
+    ]
+  }
+]
+
+Уровни для черт: низкое, ниже среднего, среднее, выше среднего, высокое.
+Если информации о компетенциях или психопортрете нет — оставь пустые массивы.` : "";
+
     const systemPrompt = `Ты — HR-аналитик. Проанализируй документ "${fileName}" и извлеки организационную структуру компании.
 
 Извлеки список отделов/подразделений с их иерархией.
@@ -58,11 +83,12 @@ serve(async (req) => {
 {
   "departments": [
     {"name": "название отдела", "description": "краткое описание", "parent": "название родительского отдела или null"}
-  ]
+  ]${extractPositions ? `,
+  "positions": [...]` : ""}
 }
 
 Если родительский отдел не указан, поставь parent: null.
-Извлеки максимум информации о структуре.`;
+Извлеки максимум информации о структуре.${positionsBlock}`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
