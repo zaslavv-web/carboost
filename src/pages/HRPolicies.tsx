@@ -77,7 +77,8 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
       const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage.from("hr-documents").getPublicUrl(filePath);
+      const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
+      if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
 
       // Create document record
       const { data: doc, error: insertError } = await supabase
@@ -85,7 +86,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
         .insert({
           document_type: docType,
           title: file.name.replace(/\.[^.]+$/, ""),
-          file_url: urlData.publicUrl,
+          file_url: signedData.signedUrl,
           file_name: file.name,
           created_by: user!.id,
         })
@@ -95,7 +96,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
 
       // Trigger AI parsing
       const { error: fnError } = await supabase.functions.invoke("parse-hr-document", {
-        body: { documentId: doc.id, fileUrl: urlData.publicUrl, fileName: file.name, documentType: docType },
+        body: { documentId: doc.id, fileUrl: signedData.signedUrl, fileName: file.name, documentType: docType },
       });
       if (fnError) console.error("Parse error:", fnError);
 
