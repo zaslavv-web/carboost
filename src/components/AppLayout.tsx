@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import ImpersonationBanner from "./ImpersonationBanner";
 import { Bell, Search, Menu, X } from "lucide-react";
@@ -14,6 +14,7 @@ const AppLayout = () => {
   const { data: profile } = useUserProfile();
   const role = usePrimaryRole();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const roleLabels: Record<string, string> = { employee: "Сотрудник", manager: "Руководитель", hrd: "Администратор HRD", superadmin: "Суперадмин", company_admin: "Админ компании" };
   const initials = profile?.full_name
     ? profile.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
@@ -91,7 +92,7 @@ const AppLayout = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
-            <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
+            <button onClick={() => navigate("/notifications")} className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
               <Bell className="w-5 h-5 text-muted-foreground" />
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive" />
             </button>

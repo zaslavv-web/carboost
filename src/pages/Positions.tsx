@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import {
   ReactFlow, Background, Controls, MiniMap, addEdge,
@@ -363,6 +364,7 @@ const PositionEditor = ({
 // ── Org Structure Upload ──
 const OrgStructureUpload = () => {
   const { user } = useAuth();
+  const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -387,6 +389,7 @@ const OrgStructureUpload = () => {
         competency_profile: pos.competency_profile || [],
         psychological_profile: pos.psychological_profile || [],
         created_by: user!.id,
+        company_id: profile?.company_id || null,
       } as any);
       if (!error) created++;
     }
@@ -451,7 +454,7 @@ const OrgStructureUpload = () => {
 
       const nameToId = new Map<string, string>();
       for (const dept of deptRows) {
-        const { data, error } = await supabase.from("departments").insert({ name: dept.name, description: dept.description || null } as any).select("id").single();
+        const { data, error } = await supabase.from("departments").insert({ name: dept.name, description: dept.description || null, company_id: profile?.company_id || null } as any).select("id").single();
         if (error) throw error;
         nameToId.set(dept.name, data.id);
       }
