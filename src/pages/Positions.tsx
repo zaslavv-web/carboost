@@ -366,6 +366,7 @@ const OrgStructureUpload = () => {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [generatingPositions, setGeneratingPositions] = useState(false);
 
   const { data: departments = [], isLoading } = useQuery({
     queryKey: ["departments"],
@@ -376,6 +377,22 @@ const OrgStructureUpload = () => {
     },
   });
 
+  const createPositionsFromData = async (positions: any[]) => {
+    let created = 0;
+    for (const pos of positions) {
+      const { error } = await supabase.from("positions").insert({
+        title: pos.title,
+        department: pos.department || null,
+        description: pos.description || null,
+        competency_profile: pos.competency_profile || [],
+        psychological_profile: pos.psychological_profile || [],
+        created_by: user!.id,
+      } as any);
+      if (!error) created++;
+    }
+    return created;
+  };
+
   const uploadMutation = useMutation({
     mutationFn: async () => {
       const file = fileRef.current?.files?.[0];
@@ -383,8 +400,8 @@ const OrgStructureUpload = () => {
       setUploading(true);
 
       const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-
       let deptRows: { name: string; description?: string; parent?: string }[] = [];
+      let extractedPositions: any[] = [];
 
       if (ext === ".csv") {
         const text = await file.text();
@@ -393,16 +410,10 @@ const OrgStructureUpload = () => {
         const nameIdx = headers.findIndex((h) => h.includes("name") || h.includes("название") || h.includes("отдел"));
         const descIdx = headers.findIndex((h) => h.includes("desc") || h.includes("описание"));
         const parentIdx = headers.findIndex((h) => h.includes("parent") || h.includes("родител"));
-
         if (nameIdx < 0) throw new Error("CSV должен содержать столбец с названием отдела");
-
         deptRows = lines.slice(1).map((line) => {
           const vals = line.split(",").map((v) => v.trim());
-          return {
-            name: vals[nameIdx] || "",
-            description: descIdx >= 0 ? vals[descIdx] : undefined,
-            parent: parentIdx >= 0 ? vals[parentIdx] : undefined,
-          };
+          return { name: vals[nameIdx] || "", description: descIdx >= 0 ? vals[descIdx] : undefined, parent: parentIdx >= 0 ? vals[parentIdx] : undefined };
         }).filter((d) => d.name);
       } else if (ext === ".xlsx" || ext === ".xls") {
         const XLSX = (await import("xlsx"));
@@ -410,85 +421,80 @@ const OrgStructureUpload = () => {
         const workbook = XLSX.read(buffer, { type: "array" });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows: any[] = XLSX.utils.sheet_to_json(firstSheet);
-
-        const nameKey = Object.keys(rows[0] || {}).find(h => {
-          const lh = h.toLowerCase();
-          return lh.includes("name") || lh.includes("название") || lh.includes("отдел");
-        });
+        const nameKey = Object.keys(rows[0] || {}).find(h => { const lh = h.toLowerCase(); return lh.includes("name") || lh.includes("название") || lh.includes("отдел"); });
         if (!nameKey) throw new Error("XLSX должен содержать столбец с названием отдела");
-
-        const descKey = Object.keys(rows[0] || {}).find(h => {
-          const lh = h.toLowerCase();
-          return lh.includes("desc") || lh.includes("описание");
-        });
-        const parentKey = Object.keys(rows[0] || {}).find(h => {
-          const lh = h.toLowerCase();
-          return lh.includes("parent") || lh.includes("родител");
-        });
-
-        deptRows = rows.map(r => ({
-          name: String(r[nameKey] || ""),
-          description: descKey ? String(r[descKey] || "") : undefined,
-          parent: parentKey ? String(r[parentKey] || "") : undefined,
-        })).filter(d => d.name);
+        const descKey = Object.keys(rows[0] || {}).find(h => { const lh = h.toLowerCase(); return lh.includes("desc") || lh.includes("описание"); });
+        const parentKey = Object.keys(rows[0] || {}).find(h => { const lh = h.toLowerCase(); return lh.includes("parent") || lh.includes("родител"); });
+        deptRows = rows.map(r => ({ name: String(r[nameKey] || ""), description: descKey ? String(r[descKey] || "") : undefined, parent: parentKey ? String(r[parentKey] || "") : undefined })).filter(d => d.name);
       } else if (ext === ".json") {
         const text = await file.text();
         const parsed = JSON.parse(text);
         deptRows = Array.isArray(parsed) ? parsed : parsed.departments || [];
+        if (parsed.positions) extractedPositions = parsed.positions;
       } else if (ext === ".docx" || ext === ".doc" || ext === ".pdf") {
-        // Upload and parse with AI
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const filePath = `orgstructure/${Date.now()}_${safeName}`;
         const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
         if (uploadError) throw uploadError;
         const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
         if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
-
         const { data: result, error: fnError } = await supabase.functions.invoke("parse-org-structure", {
-          body: { fileUrl: signedData.signedUrl, fileName: file.name },
+          body: { fileUrl: signedData.signedUrl, fileName: file.name, extractPositions: true },
         });
         if (fnError) throw fnError;
         deptRows = result?.departments || [];
+        extractedPositions = result?.positions || [];
         if (!deptRows.length) throw new Error("Не удалось извлечь оргструктуру из документа");
       } else {
         throw new Error("Поддерживаются CSV, XLSX, JSON, DOCX и PDF файлы");
       }
 
-      // Insert departments (first pass — no parents)
       const nameToId = new Map<string, string>();
-
       for (const dept of deptRows) {
-        const { data, error } = await supabase
-          .from("departments")
-          .insert({ name: dept.name, description: dept.description || null } as any)
-          .select("id")
-          .single();
+        const { data, error } = await supabase.from("departments").insert({ name: dept.name, description: dept.description || null } as any).select("id").single();
         if (error) throw error;
         nameToId.set(dept.name, data.id);
       }
-
-      // Second pass — set parents
       for (const dept of deptRows) {
         if (dept.parent && nameToId.has(dept.parent) && nameToId.has(dept.name)) {
-          await supabase
-            .from("departments")
-            .update({ parent_id: nameToId.get(dept.parent) } as any)
-            .eq("id", nameToId.get(dept.name)!);
+          await supabase.from("departments").update({ parent_id: nameToId.get(dept.parent) } as any).eq("id", nameToId.get(dept.name)!);
         }
       }
 
-      return deptRows.length;
+      let posCount = 0;
+      if (extractedPositions.length > 0) {
+        posCount = await createPositionsFromData(extractedPositions);
+      }
+      return { deptCount: deptRows.length, posCount };
     },
-    onSuccess: (count) => {
+    onSuccess: ({ deptCount, posCount }) => {
       queryClient.invalidateQueries({ queryKey: ["departments"] });
-      toast.success(`Загружено ${count} отделов`);
+      queryClient.invalidateQueries({ queryKey: ["positions"] });
+      toast.success(posCount > 0 ? `Загружено ${deptCount} отделов и ${posCount} должностей` : `Загружено ${deptCount} отделов`);
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     },
-    onError: (e: any) => {
-      toast.error(e.message);
-      setUploading(false);
+    onError: (e: any) => { toast.error(e.message); setUploading(false); },
+  });
+
+  const generatePositionsMutation = useMutation({
+    mutationFn: async () => {
+      setGeneratingPositions(true);
+      if (departments.length === 0) throw new Error("Сначала загрузите оргструктуру");
+      const { data: result, error: fnError } = await supabase.functions.invoke("generate-positions-from-org", {
+        body: { departments },
+      });
+      if (fnError) throw fnError;
+      const positions = result?.positions || [];
+      if (!positions.length) throw new Error("AI не смог сгенерировать должности");
+      return await createPositionsFromData(positions);
     },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ["positions"] });
+      toast.success(`Создано ${count} должностей с профилями компетенций`);
+      setGeneratingPositions(false);
+    },
+    onError: (e: any) => { toast.error(e.message); setGeneratingPositions(false); },
   });
 
   const deleteDeptMutation = useMutation({
@@ -496,34 +502,26 @@ const OrgStructureUpload = () => {
       const { error } = await supabase.from("departments").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["departments"] });
-      toast.success("Отдел удалён");
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["departments"] }); toast.success("Отдел удалён"); },
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Build tree
-  const buildTree = (items: any[], parentId: string | null = null): any[] => {
-    return items
-      .filter((d) => d.parent_id === parentId)
-      .map((d) => ({ ...d, children: buildTree(items, d.id) }));
-  };
+  const buildTree = (items: any[], parentId: string | null = null): any[] =>
+    items.filter((d) => d.parent_id === parentId).map((d) => ({ ...d, children: buildTree(items, d.id) }));
 
   const tree = buildTree(departments);
 
   const renderTree = (nodes: any[], depth = 0) =>
     nodes.map((node) => (
       <div key={node.id}>
-        <div className={`flex items-center justify-between py-2 px-4 hover:bg-secondary/20 transition-colors`}
+        <div className="flex items-center justify-between py-2 px-4 hover:bg-secondary/20 transition-colors"
           style={{ paddingLeft: `${16 + depth * 24}px` }}>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">{depth > 0 ? "└" : "■"}</span>
             <span className="text-sm font-medium text-foreground">{node.name}</span>
             {node.description && <span className="text-xs text-muted-foreground">— {node.description}</span>}
           </div>
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive"
-            onClick={() => deleteDeptMutation.mutate(node.id)}>
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => deleteDeptMutation.mutate(node.id)}>
             <Trash2 className="w-3 h-3" />
           </Button>
         </div>
@@ -536,7 +534,7 @@ const OrgStructureUpload = () => {
       <div className="bg-secondary/30 rounded-lg p-4 space-y-3">
         <p className="text-sm font-medium text-foreground">Загрузить оргструктуру из файла</p>
         <p className="text-xs text-muted-foreground">
-          CSV/XLSX с колонками: название, описание (опц.), родительский_отдел (опц.), JSON массив, или DOCX/PDF для AI-распознавания.
+          CSV/XLSX/JSON — извлечение отделов. DOCX/PDF — AI автоматически извлечёт отделы, должности, компетенции и психопортреты.
         </p>
         <div className="flex items-center gap-3">
           <input ref={fileRef} type="file" accept=".csv,.json,.xlsx,.xls,.docx,.doc,.pdf"
@@ -547,6 +545,19 @@ const OrgStructureUpload = () => {
           </Button>
         </div>
       </div>
+
+      {departments.length > 0 && (
+        <div className="bg-primary/5 rounded-lg p-4 space-y-2">
+          <p className="text-sm font-medium text-foreground">Генерация должностей из оргструктуры</p>
+          <p className="text-xs text-muted-foreground">
+            AI проанализирует структуру отделов и создаст типовые должности с профилями компетенций и психологическими портретами.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => generatePositionsMutation.mutate()} disabled={generatingPositions}>
+            {generatingPositions ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            Сгенерировать должности (AI)
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
