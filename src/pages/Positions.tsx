@@ -258,10 +258,11 @@ const PositionEditor = ({
         const filePath = `standards/${Date.now()}_${safeName}`;
         const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
         if (uploadError) throw uploadError;
-        const { data: urlData } = supabase.storage.from("hr-documents").getPublicUrl(filePath);
+        const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
+        if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
 
         const { data: result, error: fnError } = await supabase.functions.invoke("parse-position-standards", {
-          body: { fileUrl: urlData.publicUrl, fileName: file.name },
+          body: { fileUrl: signedData.signedUrl, fileName: file.name },
         });
         if (fnError) throw fnError;
 
