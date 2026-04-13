@@ -51,7 +51,16 @@ serve(async (req) => {
     }
     
     // For binary docs (PDF, DOCX) or if no text extracted, use base64
-    const base64Content = textContent ? "" : btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+    let base64Content = "";
+    if (!textContent) {
+      const bytes = new Uint8Array(fileBuffer);
+      let binary = "";
+      const CHUNK = 8192;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, Math.min(i + CHUNK, bytes.length))));
+      }
+      base64Content = btoa(binary);
+    }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
