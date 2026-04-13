@@ -65,9 +65,9 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
       const file = fileRef.current?.files?.[0];
       if (!file) throw new Error("Выберите файл");
 
-      const allowed = [".doc", ".docx", ".pdf"];
+      const allowed = [".doc", ".docx", ".pdf", ".csv", ".xlsx"];
       const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-      if (!allowed.includes(ext)) throw new Error("Поддерживаются только DOC, DOCX и PDF файлы");
+      if (!allowed.includes(ext)) throw new Error("Поддерживаются CSV, XLSX, DOC, DOCX и PDF файлы");
 
       setUploading(true);
 
@@ -162,7 +162,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
         <div>
           <h3 className="font-semibold text-foreground text-lg">{config.title}</h3>
           <p className="text-sm text-muted-foreground mt-1">{config.description}</p>
-          <p className="text-xs text-muted-foreground mt-2">Форматы: DOC, DOCX, PDF</p>
+          <p className="text-xs text-muted-foreground mt-2">Форматы: CSV, XLSX, DOC, DOCX, PDF</p>
         </div>
 
         {/* Upload */}
@@ -170,7 +170,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
           <input
             ref={fileRef}
             type="file"
-            accept=".doc,.docx,.pdf"
+            accept=".doc,.docx,.pdf,.csv,.xlsx"
             className="text-sm text-muted-foreground file:mr-3 file:px-4 file:py-2 file:rounded-lg file:bg-secondary file:text-foreground file:text-sm file:font-medium file:border-0 file:cursor-pointer"
           />
           <Button
