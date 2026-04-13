@@ -158,29 +158,30 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
   });
 
   return (
-    <div className="bg-card rounded-xl border border-border p-6 space-y-4">
-      <div>
-        <h3 className="font-semibold text-foreground text-lg">{config.title}</h3>
-        <p className="text-sm text-muted-foreground mt-1">{config.description}</p>
-      </div>
+      <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+        <div>
+          <h3 className="font-semibold text-foreground text-lg">{config.title}</h3>
+          <p className="text-sm text-muted-foreground mt-1">{config.description}</p>
+          <p className="text-xs text-muted-foreground mt-2">Форматы: DOC, DOCX, PDF</p>
+        </div>
 
-      {/* Upload */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".doc,.docx,.pdf"
-          className="text-sm text-muted-foreground file:mr-3 file:px-4 file:py-2 file:rounded-lg file:bg-secondary file:text-foreground file:text-sm file:font-medium file:border-0 file:cursor-pointer"
-        />
-        <Button
-          onClick={() => uploadMutation.mutate()}
-          disabled={uploading || uploadMutation.isPending}
-          size="sm"
-        >
-          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-          Загрузить и обработать
-        </Button>
-      </div>
+        {/* Upload */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".doc,.docx,.pdf"
+            className="text-sm text-muted-foreground file:mr-3 file:px-4 file:py-2 file:rounded-lg file:bg-secondary file:text-foreground file:text-sm file:font-medium file:border-0 file:cursor-pointer"
+          />
+          <Button
+            onClick={() => uploadMutation.mutate()}
+            disabled={uploading || uploadMutation.isPending}
+            size="sm"
+          >
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            Загрузить и обработать
+          </Button>
+        </div>
 
       {/* Documents list */}
       {isLoading ? (

@@ -99,6 +99,7 @@ const Scenarios = () => {
       {/* Upload form */}
       <div className="bg-card rounded-xl border border-border p-6 space-y-4">
         <h3 className="font-semibold text-foreground">Загрузить сценарий</h3>
+        <p className="text-xs text-muted-foreground">Поддерживаемые форматы: JSON, CSV</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
             value={title}

@@ -106,7 +106,7 @@ const Settings = () => {
           </div>
         </button>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-        <p className="text-xs text-muted-foreground">Нажмите для загрузки (макс. 2 МБ)</p>
+        <p className="text-xs text-muted-foreground">Нажмите для загрузки (макс. 2 МБ). Форматы: JPG, PNG, GIF, WebP</p>
       </div>
 
       {/* Form */}
