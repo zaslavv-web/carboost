@@ -254,7 +254,8 @@ const PositionEditor = ({
         }
       } else {
         // For doc/docx/pdf — upload and parse with AI
-        const filePath = `standards/${Date.now()}_${file.name}`;
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `standards/${Date.now()}_${safeName}`;
         const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
         if (uploadError) throw uploadError;
         const { data: urlData } = supabase.storage.from("hr-documents").getPublicUrl(filePath);
