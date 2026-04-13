@@ -419,16 +419,33 @@ const OrgStructureUpload = () => {
           return { name: vals[nameIdx] || "", description: descIdx >= 0 ? vals[descIdx] : undefined, parent: parentIdx >= 0 ? vals[parentIdx] : undefined };
         }).filter((d) => d.name);
       } else if (ext === ".xlsx" || ext === ".xls") {
+        // Try client-side parsing first, fall back to AI
         const XLSX = (await import("xlsx"));
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: "array" });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows: any[] = XLSX.utils.sheet_to_json(firstSheet);
         const nameKey = Object.keys(rows[0] || {}).find(h => { const lh = h.toLowerCase(); return lh.includes("name") || lh.includes("название") || lh.includes("отдел"); });
-        if (!nameKey) throw new Error("XLSX должен содержать столбец с названием отдела");
-        const descKey = Object.keys(rows[0] || {}).find(h => { const lh = h.toLowerCase(); return lh.includes("desc") || lh.includes("описание"); });
-        const parentKey = Object.keys(rows[0] || {}).find(h => { const lh = h.toLowerCase(); return lh.includes("parent") || lh.includes("родител"); });
-        deptRows = rows.map(r => ({ name: String(r[nameKey] || ""), description: descKey ? String(r[descKey] || "") : undefined, parent: parentKey ? String(r[parentKey] || "") : undefined })).filter(d => d.name);
+        if (nameKey) {
+          const descKey = Object.keys(rows[0] || {}).find(h => { const lh = h.toLowerCase(); return lh.includes("desc") || lh.includes("описание"); });
+          const parentKey = Object.keys(rows[0] || {}).find(h => { const lh = h.toLowerCase(); return lh.includes("parent") || lh.includes("родител"); });
+          deptRows = rows.map(r => ({ name: String(r[nameKey] || ""), description: descKey ? String(r[descKey] || "") : undefined, parent: parentKey ? String(r[parentKey] || "") : undefined })).filter(d => d.name);
+        } else {
+          // Column not found — send to AI for parsing
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const filePath = `orgstructure/${Date.now()}_${safeName}`;
+          const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
+          if (uploadError) throw uploadError;
+          const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
+          if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
+          const { data: result, error: fnError } = await supabase.functions.invoke("parse-org-structure", {
+            body: { fileUrl: signedData.signedUrl, fileName: file.name, extractPositions: true },
+          });
+          if (fnError) throw fnError;
+          deptRows = result?.departments || [];
+          extractedPositions = result?.positions || [];
+          if (!deptRows.length) throw new Error("Не удалось извлечь оргструктуру из документа");
+        }
       } else if (ext === ".json") {
         const text = await file.text();
         const parsed = JSON.parse(text);
