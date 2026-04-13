@@ -596,6 +596,7 @@ const OrgStructureUpload = () => {
 // ── Main Page ──
 const Positions = () => {
   const { user } = useAuth();
+  const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
   const [editingPosition, setEditingPosition] = useState<Position | null | "new">(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
