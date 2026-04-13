@@ -12,7 +12,7 @@ import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Plus, Save, Trash2, Loader2, X, Upload, FileUp, Brain, Target,
+  Plus, Save, Trash2, Loader2, X, Upload, FileUp, Brain, Target, Sparkles,
 } from "lucide-react";
 
 interface Position {
@@ -588,6 +588,62 @@ const Positions = () => {
     },
   });
 
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("departments").select("*").order("created_at");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const [generating, setGenerating] = useState(false);
+
+  const generatePathsMutation = useMutation({
+    mutationFn: async () => {
+      setGenerating(true);
+      if (positions.length < 2) throw new Error("Нужно минимум 2 должности для построения путей");
+
+      const { data: result, error: fnError } = await supabase.functions.invoke("generate-career-paths", {
+        body: { positions, departments },
+      });
+      if (fnError) throw fnError;
+
+      const paths = result?.career_paths || [];
+      if (!paths.length) throw new Error("AI не смог построить карьерные пути");
+
+      // Delete existing paths
+      const { data: existing } = await supabase.from("position_career_paths").select("id");
+      if (existing?.length) {
+        for (const row of existing) {
+          await supabase.from("position_career_paths").delete().eq("id", row.id);
+        }
+      }
+
+      // Insert new paths
+      const toInsert = paths.map((cp: any) => ({
+        from_position_id: cp.from_position_id,
+        to_position_id: cp.to_position_id,
+        estimated_months: cp.estimated_months || null,
+        strategy_description: cp.strategy_description || null,
+        created_by: user!.id,
+      }));
+      const { error } = await supabase.from("position_career_paths").insert(toInsert as any);
+      if (error) throw error;
+      return paths.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ["career_paths"] });
+      setHasUnsavedPaths(false);
+      toast.success(`Построено ${count} карьерных путей`);
+      setGenerating(false);
+    },
+    onError: (e: any) => {
+      toast.error(e.message);
+      setGenerating(false);
+    },
+  });
+
   useMemo(() => {
     if (posLoading || pathsLoading) return;
     const cols = 3;
@@ -701,7 +757,11 @@ const Positions = () => {
         </TabsList>
 
         <TabsContent value="positions" className="space-y-6 mt-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => generatePathsMutation.mutate()} disabled={generating || positions.length < 2}>
+              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              Автопостроение путей (AI)
+            </Button>
             <Button onClick={() => setEditingPosition("new")}>
               <Plus className="w-4 h-4" /> Добавить должность
             </Button>
