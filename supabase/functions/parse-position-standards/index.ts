@@ -40,7 +40,16 @@ serve(async (req) => {
       textContent = sheets.join("\n\n");
     }
     
-    const base64Content = textContent ? "" : btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+    let base64Content = "";
+    if (!textContent) {
+      const bytes = new Uint8Array(fileBuffer);
+      let binary = "";
+      const CHUNK = 8192;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, Math.min(i + CHUNK, bytes.length))));
+      }
+      base64Content = btoa(binary);
+    }
 
     const systemPrompt = `Ты — HR-аналитик. Проанализируй документ "${fileName}" и извлеки:
 1. Профиль компетенций — список навыков с требуемым уровнем (1-10)
