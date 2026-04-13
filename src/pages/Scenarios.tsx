@@ -141,7 +141,7 @@ const Scenarios = () => {
           />
         </div>
         <div className="flex items-center gap-4">
-          <input ref={fileRef} type="file" accept=".json,.csv" className="text-sm text-muted-foreground file:mr-3 file:px-4 file:py-2 file:rounded-lg file:bg-secondary file:text-foreground file:text-sm file:font-medium file:border-0 file:cursor-pointer" />
+          <input ref={fileRef} type="file" accept=".json,.csv,.xlsx,.xls,.docx,.pdf" className="text-sm text-muted-foreground file:mr-3 file:px-4 file:py-2 file:rounded-lg file:bg-secondary file:text-foreground file:text-sm file:font-medium file:border-0 file:cursor-pointer" />
           <button
             onClick={() => uploadMutation.mutate()}
             disabled={uploadMutation.isPending}

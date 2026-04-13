@@ -193,8 +193,8 @@ const PositionEditor = ({
     if (!file) return;
 
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-    if (![".doc", ".docx", ".pdf", ".csv", ".json"].includes(ext)) {
-      toast.error("Поддерживаются DOC, DOCX, PDF, CSV и JSON");
+    if (![".doc", ".docx", ".pdf", ".csv", ".json", ".xlsx", ".xls"].includes(ext)) {
+      toast.error("Поддерживаются DOC, DOCX, PDF, CSV, XLSX и JSON");
       return;
     }
 
@@ -225,6 +225,32 @@ const PositionEditor = ({
           toast.success(`Загружено ${items.length} компетенций из CSV`);
         } else {
           toast.error("CSV должен содержать столбец с названием компетенции");
+        }
+      } else if (ext === ".xlsx" || ext === ".xls") {
+        // Parse XLSX client-side
+        const XLSX = (await import("xlsx"));
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: any[] = XLSX.utils.sheet_to_json(firstSheet);
+        const headers = Object.keys(rows[0] || {}).map(h => h.toLowerCase());
+        const nameKey = Object.keys(rows[0] || {}).find(h => {
+          const lh = h.toLowerCase();
+          return lh.includes("name") || lh.includes("компетенц") || lh.includes("навык");
+        });
+        const levelKey = Object.keys(rows[0] || {}).find(h => {
+          const lh = h.toLowerCase();
+          return lh.includes("level") || lh.includes("уровень");
+        });
+        if (nameKey) {
+          const items = rows.map(r => ({
+            name: String(r[nameKey] || ""),
+            required_level: parseInt(String(r[levelKey!] || "5")) || 5,
+          })).filter(c => c.name);
+          setCompetencies(items);
+          toast.success(`Загружено ${items.length} компетенций из XLSX`);
+        } else {
+          toast.error("XLSX должен содержать столбец с названием компетенции");
         }
       } else {
         // For doc/docx/pdf — upload and parse with AI
