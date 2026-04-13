@@ -128,10 +128,12 @@ serve(async (req) => {
     }
 
     // Update document with extracted data
-    await supabase.from("hr_documents").update({
-      processing_status: "completed",
-      extracted_data: extracted,
-    }).eq("id", documentId);
+    if (documentId) {
+      await supabase.from("hr_documents").update({
+        processing_status: "completed",
+        extracted_data: extracted,
+      }).eq("id", documentId);
+    }
 
     return new Response(JSON.stringify({ success: true, data: extracted }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
