@@ -3,10 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Upload, FileJson, Trash2, Loader2, ToggleLeft, ToggleRight } from "lucide-react";
+import { Upload, FileJson, Trash2, Loader2, ToggleLeft, ToggleRight, Eye } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
 import * as XLSX from "xlsx";
+import ScenarioSchemaViewer from "@/components/ScenarioSchemaViewer";
 
 const Scenarios = () => {
   const { user } = useAuth();
@@ -14,6 +15,7 @@ const Scenarios = () => {
   const fileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [viewingSchema, setViewingSchema] = useState<any | null>(null);
 
   const { data: scenarios = [], isLoading } = useQuery({
     queryKey: ["assessment_scenarios"],
@@ -178,6 +180,13 @@ const Scenarios = () => {
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
+                  onClick={() => setViewingSchema(s)}
+                  className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                  title="Просмотр схемы"
+                >
+                  <Eye className="w-5 h-5" />
+                </button>
+                <button
                   onClick={() => toggleMutation.mutate({ id: s.id, active: !s.is_active })}
                   className={`p-1.5 rounded-lg transition-colors ${s.is_active ? "text-success hover:bg-success/10" : "text-muted-foreground hover:bg-secondary"}`}
                   title={s.is_active ? "Активен" : "Неактивен"}
@@ -194,6 +203,10 @@ const Scenarios = () => {
             </div>
           ))}
         </div>
+      )}
+
+      {viewingSchema && (
+        <ScenarioSchemaViewer scenario={viewingSchema} onClose={() => setViewingSchema(null)} />
       )}
     </div>
   );
