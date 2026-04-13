@@ -23,7 +23,24 @@ serve(async (req) => {
     const fileResponse = await fetch(fileUrl);
     if (!fileResponse.ok) throw new Error("Failed to download file");
     const fileBuffer = await fileResponse.arrayBuffer();
-    const base64Content = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+    
+    const ext = (fileName || "").toLowerCase();
+    let textContent = "";
+    
+    if (ext.endsWith(".csv")) {
+      textContent = new TextDecoder().decode(fileBuffer);
+    } else if (ext.endsWith(".xlsx") || ext.endsWith(".xls")) {
+      const XLSX = await import("npm:xlsx@0.18.5");
+      const workbook = XLSX.read(new Uint8Array(fileBuffer), { type: "array" });
+      const sheets: string[] = [];
+      for (const name of workbook.SheetNames) {
+        const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[name]);
+        sheets.push(`=== Лист: ${name} ===\n${csv}`);
+      }
+      textContent = sheets.join("\n\n");
+    }
+    
+    const base64Content = textContent ? "" : btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
 
     const systemPrompt = `Ты — HR-аналитик. Проанализируй документ "${fileName}" и извлеки:
 1. Профиль компетенций — список навыков с требуемым уровнем (1-10)
@@ -52,7 +69,10 @@ serve(async (req) => {
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Содержимое файла (base64, первые 50000 символов): ${base64Content.substring(0, 50000)}` },
+          { role: "user", content: textContent
+            ? `Содержимое файла:\n${textContent.substring(0, 80000)}`
+            : `Содержимое файла (base64, первые 50000 символов): ${base64Content.substring(0, 50000)}`
+          },
         ],
       }),
     });
