@@ -659,6 +659,7 @@ const Positions = () => {
         estimated_months: cp.estimated_months || null,
         strategy_description: cp.strategy_description || null,
         created_by: user!.id,
+        company_id: profile?.company_id || null,
       }));
       const { error } = await supabase.from("position_career_paths").insert(toInsert as any);
       if (error) throw error;
