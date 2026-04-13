@@ -315,12 +315,12 @@ const PositionEditor = ({
           <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
             <FileUp className="w-4 h-4 text-primary" /> Загрузить эталон из файла
           </p>
-          <p className="text-xs text-muted-foreground">
-            Загрузите DOC, DOCX, PDF — AI извлечёт компетенции и психопортрет. Или CSV/JSON для прямого импорта.
-          </p>
-          <div className="flex items-center gap-3">
-            <input ref={fileRef} type="file" accept=".doc,.docx,.pdf,.csv,.json"
-              className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
+           <p className="text-xs text-muted-foreground">
+             Загрузите DOC, DOCX, PDF, XLSX — AI извлечёт компетенции и психопортрет. Или CSV/JSON для прямого импорта.
+           </p>
+           <div className="flex items-center gap-3">
+             <input ref={fileRef} type="file" accept=".doc,.docx,.pdf,.csv,.json,.xlsx,.xls"
+               className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
             <Button size="sm" onClick={handleFileUpload} disabled={parsing}>
               {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               Распознать
