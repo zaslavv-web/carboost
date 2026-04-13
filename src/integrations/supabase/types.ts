@@ -190,6 +190,114 @@ export type Database = {
           },
         ]
       }
+      career_level_actions: {
+        Row: {
+          action_order: number
+          action_text: string
+          category: string | null
+          created_at: string
+          id: string
+          is_required: boolean
+          template_id: string
+        }
+        Insert: {
+          action_order?: number
+          action_text: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          template_id: string
+        }
+        Update: {
+          action_order?: number
+          action_text?: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_level_actions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "career_track_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      career_track_templates: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          estimated_months: number | null
+          from_position_id: string | null
+          id: string
+          is_active: boolean
+          motivation_text: string | null
+          steps: Json
+          title: string
+          to_position_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          estimated_months?: number | null
+          from_position_id?: string | null
+          id?: string
+          is_active?: boolean
+          motivation_text?: string | null
+          steps?: Json
+          title: string
+          to_position_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          estimated_months?: number | null
+          from_position_id?: string | null
+          id?: string
+          is_active?: boolean
+          motivation_text?: string | null
+          steps?: Json
+          title?: string
+          to_position_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_track_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_track_templates_from_position_id_fkey"
+            columns: ["from_position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_track_templates_to_position_id_fkey"
+            columns: ["to_position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string
@@ -299,6 +407,158 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_career_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          company_id: string | null
+          current_step: number
+          id: string
+          personal_motivation: string | null
+          status: string
+          template_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          company_id?: string | null
+          current_step?: number
+          id?: string
+          personal_motivation?: string | null
+          status?: string
+          template_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          company_id?: string | null
+          current_step?: number
+          id?: string
+          personal_motivation?: string | null
+          status?: string
+          template_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_career_assignments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_career_assignments_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "career_track_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_rewards: {
+        Row: {
+          awarded_at: string
+          awarded_by: string | null
+          company_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          reward_type_id: string
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          awarded_by?: string | null
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          reward_type_id: string
+          user_id: string
+        }
+        Update: {
+          awarded_at?: string
+          awarded_by?: string | null
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          reward_type_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_rewards_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_rewards_reward_type_id_fkey"
+            columns: ["reward_type_id"]
+            isOneToOne: false
+            referencedRelation: "gamification_reward_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gamification_reward_types: {
+        Row: {
+          category: string
+          company_id: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          points: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          company_id?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          points?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          company_id?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          points?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gamification_reward_types_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
