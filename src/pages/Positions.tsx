@@ -381,11 +381,11 @@ const OrgStructureUpload = () => {
       setUploading(true);
 
       const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-      const text = await file.text();
 
       let deptRows: { name: string; description?: string; parent?: string }[] = [];
 
       if (ext === ".csv") {
+        const text = await file.text();
         const lines = text.split("\n").filter(Boolean);
         const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
         const nameIdx = headers.findIndex((h) => h.includes("name") || h.includes("название") || h.includes("отдел"));
@@ -402,11 +402,39 @@ const OrgStructureUpload = () => {
             parent: parentIdx >= 0 ? vals[parentIdx] : undefined,
           };
         }).filter((d) => d.name);
+      } else if (ext === ".xlsx" || ext === ".xls") {
+        const XLSX = (await import("xlsx"));
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: any[] = XLSX.utils.sheet_to_json(firstSheet);
+
+        const nameKey = Object.keys(rows[0] || {}).find(h => {
+          const lh = h.toLowerCase();
+          return lh.includes("name") || lh.includes("название") || lh.includes("отдел");
+        });
+        if (!nameKey) throw new Error("XLSX должен содержать столбец с названием отдела");
+
+        const descKey = Object.keys(rows[0] || {}).find(h => {
+          const lh = h.toLowerCase();
+          return lh.includes("desc") || lh.includes("описание");
+        });
+        const parentKey = Object.keys(rows[0] || {}).find(h => {
+          const lh = h.toLowerCase();
+          return lh.includes("parent") || lh.includes("родител");
+        });
+
+        deptRows = rows.map(r => ({
+          name: String(r[nameKey] || ""),
+          description: descKey ? String(r[descKey] || "") : undefined,
+          parent: parentKey ? String(r[parentKey] || "") : undefined,
+        })).filter(d => d.name);
       } else if (ext === ".json") {
+        const text = await file.text();
         const parsed = JSON.parse(text);
         deptRows = Array.isArray(parsed) ? parsed : parsed.departments || [];
       } else {
-        throw new Error("Поддерживаются CSV и JSON файлы");
+        throw new Error("Поддерживаются CSV, XLSX и JSON файлы");
       }
 
       // Insert departments (first pass — no parents)
