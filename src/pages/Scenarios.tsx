@@ -53,7 +53,8 @@ const Scenarios = () => {
         parsed = XLSX.utils.sheet_to_json(firstSheet);
       } else if (ext === ".docx" || ext === ".pdf") {
         // Upload to storage and parse with AI
-        const filePath = `scenarios/${Date.now()}_${file.name}`;
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `scenarios/${Date.now()}_${safeName}`;
         const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
         if (uploadError) throw uploadError;
         const { data: urlData } = supabase.storage.from("hr-documents").getPublicUrl(filePath);
