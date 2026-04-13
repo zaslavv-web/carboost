@@ -757,7 +757,11 @@ const Positions = () => {
         </TabsList>
 
         <TabsContent value="positions" className="space-y-6 mt-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => generatePathsMutation.mutate()} disabled={generating || positions.length < 2}>
+              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              Автопостроение путей (AI)
+            </Button>
             <Button onClick={() => setEditingPosition("new")}>
               <Plus className="w-4 h-4" /> Добавить должность
             </Button>
