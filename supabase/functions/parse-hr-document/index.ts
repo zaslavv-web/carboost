@@ -11,8 +11,8 @@ serve(async (req) => {
 
   try {
     const { documentId, fileUrl, fileName, documentType } = await req.json();
-    if (!documentId || !fileUrl) {
-      return new Response(JSON.stringify({ error: "documentId and fileUrl required" }), {
+    if (!fileUrl) {
+      return new Response(JSON.stringify({ error: "fileUrl required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -21,15 +21,37 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Update status to processing
-    await supabase.from("hr_documents").update({ processing_status: "processing" }).eq("id", documentId);
+    // Update status to processing (if documentId provided)
+    if (documentId) {
+      await supabase.from("hr_documents").update({ processing_status: "processing" }).eq("id", documentId);
+    }
 
     // Download file
     const fileResponse = await fetch(fileUrl);
     if (!fileResponse.ok) throw new Error("Failed to download file");
     
     const fileBuffer = await fileResponse.arrayBuffer();
-    const base64Content = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+    const ext = (fileName || "").toLowerCase();
+    
+    let textContent = "";
+    
+    // For CSV/XLSX — extract text content directly
+    if (ext.endsWith(".csv")) {
+      textContent = new TextDecoder().decode(fileBuffer);
+    } else if (ext.endsWith(".xlsx") || ext.endsWith(".xls")) {
+      // Parse XLSX using SheetJS
+      const XLSX = await import("npm:xlsx@0.18.5");
+      const workbook = XLSX.read(new Uint8Array(fileBuffer), { type: "array" });
+      const sheets: string[] = [];
+      for (const name of workbook.SheetNames) {
+        const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[name]);
+        sheets.push(`=== Лист: ${name} ===\n${csv}`);
+      }
+      textContent = sheets.join("\n\n");
+    }
+    
+    // For binary docs (PDF, DOCX) or if no text extracted, use base64
+    const base64Content = textContent ? "" : btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -72,7 +94,10 @@ serve(async (req) => {
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Содержимое файла (base64): ${base64Content.substring(0, 50000)}. Файл: ${fileName}. Проанализируй и создай сценарий оценки.` },
+          { role: "user", content: textContent 
+            ? `Содержимое файла:\n${textContent.substring(0, 80000)}. Файл: ${fileName}. Проанализируй и создай сценарий оценки.`
+            : `Содержимое файла (base64): ${base64Content.substring(0, 50000)}. Файл: ${fileName}. Проанализируй и создай сценарий оценки.`
+          },
         ],
       }),
     });
