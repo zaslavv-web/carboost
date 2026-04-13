@@ -72,7 +72,8 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
       setUploading(true);
 
       // Upload to storage
-      const filePath = `${docType}/${Date.now()}_${file.name}`;
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filePath = `${docType}/${Date.now()}_${safeName}`;
       const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
       if (uploadError) throw uploadError;
 
