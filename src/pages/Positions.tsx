@@ -400,6 +400,7 @@ const OrgStructureUpload = () => {
     mutationFn: async () => {
       const file = fileRef.current?.files?.[0];
       if (!file) throw new Error("Выберите файл");
+      if (!profile?.company_id) throw new Error("У вашего профиля не указана компания. Обратитесь к администратору для привязки к компании.");
       setUploading(true);
 
       const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
