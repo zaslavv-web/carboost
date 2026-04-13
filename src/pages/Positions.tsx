@@ -363,6 +363,7 @@ const PositionEditor = ({
 // ── Org Structure Upload ──
 const OrgStructureUpload = () => {
   const { user } = useAuth();
+  const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -451,7 +452,7 @@ const OrgStructureUpload = () => {
 
       const nameToId = new Map<string, string>();
       for (const dept of deptRows) {
-        const { data, error } = await supabase.from("departments").insert({ name: dept.name, description: dept.description || null } as any).select("id").single();
+        const { data, error } = await supabase.from("departments").insert({ name: dept.name, description: dept.description || null, company_id: profile?.company_id || null } as any).select("id").single();
         if (error) throw error;
         nameToId.set(dept.name, data.id);
       }
