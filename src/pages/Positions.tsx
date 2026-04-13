@@ -491,10 +491,10 @@ const OrgStructureUpload = () => {
       <div className="bg-secondary/30 rounded-lg p-4 space-y-3">
         <p className="text-sm font-medium text-foreground">Загрузить оргструктуру из файла</p>
         <p className="text-xs text-muted-foreground">
-          CSV с колонками: название, описание (опц.), родительский_отдел (опц.) или JSON массив.
+          CSV/XLSX с колонками: название, описание (опц.), родительский_отдел (опц.) или JSON массив.
         </p>
         <div className="flex items-center gap-3">
-          <input ref={fileRef} type="file" accept=".csv,.json"
+          <input ref={fileRef} type="file" accept=".csv,.json,.xlsx,.xls"
             className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
           <Button size="sm" onClick={() => uploadMutation.mutate()} disabled={uploading}>
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
