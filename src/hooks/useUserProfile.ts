@@ -38,9 +38,9 @@ export const useUserProfile = () => {
         .from("profiles")
         .select("*")
         .eq("user_id", effectiveId)
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      return data as UserProfile;
+      return data as UserProfile | null;
     },
     enabled: !!effectiveId,
   });
