@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile, useRealPrimaryRole } from "@/hooks/useUserProfile";
 import { ShieldAlert } from "lucide-react";
@@ -8,6 +8,7 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { session, loading } = useAuth();
   const { data: profile, isLoading: profileLoading } = useUserProfile();
   const realRole = useRealPrimaryRole();
+  const location = useLocation();
 
   if (loading || profileLoading) {
     return (
@@ -21,8 +22,17 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Superadmins and company admins always pass through (use real role, not impersonated)
-  if (realRole === "superadmin" || realRole === "company_admin") {
+  const needsCompanyAssignment = realRole !== "superadmin" && !profile?.company_id;
+
+  if (needsCompanyAssignment && location.pathname !== "/complete-registration") {
+    return <Navigate to="/complete-registration" replace />;
+  }
+
+  if (!needsCompanyAssignment && location.pathname === "/complete-registration") {
+    return <Navigate to="/" replace />;
+  }
+
+  if (realRole === "superadmin") {
     return <>{children}</>;
   }
 

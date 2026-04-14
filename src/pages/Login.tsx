@@ -4,13 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import {
+  clearPendingSocialSignup,
+  ROLE_OPTIONS,
+  savePendingSocialSignup,
+  type RequestedAppRole,
+} from "@/lib/pendingSocialSignup";
 import { toast } from "sonner";
-
-const ROLE_OPTIONS = [
-  { value: "employee", label: "Сотрудник" },
-  { value: "manager", label: "Руководитель" },
-  { value: "hrd", label: "HRD" },
-];
 
 const translateError = (msg: string): string => {
   const map: Record<string, string> = {
@@ -35,7 +35,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState("employee");
+  const [selectedRole, setSelectedRole] = useState<RequestedAppRole>("employee");
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
@@ -52,6 +52,12 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isSignUp && !selectedCompanyId) {
+      setErrorMessage("Выберите компанию перед регистрацией");
+      return;
+    }
+
     setLoading(true);
     setErrorMessage("");
 
@@ -103,14 +109,37 @@ const Login = () => {
   };
 
   const handleGoogleLogin = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      setErrorMessage("Ошибка входа через Google");
+    setErrorMessage("");
+
+    if (isSignUp) {
+      if (!selectedCompanyId) {
+        setErrorMessage("Выберите компанию перед регистрацией через Google");
+        return;
+      }
+
+      savePendingSocialSignup({
+        companyId: selectedCompanyId,
+        requestedRole: selectedRole,
+      });
+    } else {
+      clearPendingSocialSignup();
     }
+
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: isSignUp ? `${window.location.origin}/complete-registration` : window.location.origin,
+      extraParams: {
+        prompt: "select_account",
+      },
+    });
+
+    if (result.error) {
+      if (isSignUp) clearPendingSocialSignup();
+      setErrorMessage("Ошибка входа через Google");
+      return;
+    }
+
     if (result.redirected) return;
-    navigate("/");
+    navigate(isSignUp ? "/complete-registration" : "/");
   };
 
   return (
@@ -220,6 +249,7 @@ const Login = () => {
                   <select
                     value={selectedCompanyId}
                     onChange={(e) => setSelectedCompanyId(e.target.value)}
+                    required={isSignUp}
                     className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
                   >
                     <option value="">— Выберите компанию —</option>
@@ -263,12 +293,20 @@ const Login = () => {
               onClick={handleGoogleLogin}
               className="w-full py-2.5 rounded-lg border border-border bg-card text-foreground font-medium text-sm hover:bg-secondary transition-colors"
             >
-              Войти через Google
+              {isSignUp ? "Зарегистрироваться через Google" : "Войти через Google"}
             </button>
 
             <p className="text-center text-sm text-muted-foreground">
               {isSignUp ? "Уже есть аккаунт?" : "Нет аккаунта?"}{" "}
-              <button type="button" onClick={() => { setIsSignUp(!isSignUp); setErrorMessage(""); }} className="text-primary hover:underline">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setErrorMessage("");
+                  if (isSignUp) clearPendingSocialSignup();
+                }}
+                className="text-primary hover:underline"
+              >
                 {isSignUp ? "Войти" : "Зарегистрироваться"}
               </button>
             </p>

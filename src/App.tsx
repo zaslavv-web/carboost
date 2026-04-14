@@ -24,6 +24,7 @@ import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 import Companies from "@/pages/Companies";
 import ResetPassword from "@/pages/ResetPassword";
+import CompleteRegistration from "@/pages/CompleteRegistration";
 import Analytics from "@/pages/Analytics";
 import CareerTracksManagement from "@/pages/CareerTracksManagement";
 import GamificationManagement from "@/pages/GamificationManagement";
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route path="/" element={<RoleDashboard />} />
+                <Route path="/complete-registration" element={<CompleteRegistration />} />
                 <Route path="/assessment" element={<Assessment />} />
                 <Route path="/passport" element={<Passport />} />
                 <Route path="/career-track" element={<CareerTrack />} />
