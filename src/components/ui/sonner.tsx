@@ -1,13 +1,16 @@
 import type { ReactNode } from "react";
 import { useTheme } from "next-themes";
-import { Toaster as SonnerToaster, toast as baseToast } from "sonner/dist/index.mjs";
-import type { ExternalToast, ToasterProps } from "sonner";
+// @ts-ignore – resolved via vite alias "sonner-original"
+import { Toaster as SonnerToaster, toast as baseToast } from "sonner-original";
+// @ts-ignore
+import type { ExternalToast, ToasterProps } from "sonner-original";
 
 import { cn } from "@/lib/utils";
 
 type SupportedLanguage = "ru" | "en";
 type Translation = { ru: string; en: string };
-type SonnerToast = typeof import("sonner").toast;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SonnerToast = typeof baseToast;
 type LocalizableContent = string | ReactNode | (() => ReactNode);
 
 const exactTranslations: Translation[] = [
