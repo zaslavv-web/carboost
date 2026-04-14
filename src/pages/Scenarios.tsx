@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { Upload, FileJson, Trash2, Loader2, ToggleLeft, ToggleRight, Eye } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -11,6 +12,7 @@ import ScenarioSchemaViewer from "@/components/ScenarioSchemaViewer";
 
 const Scenarios = () => {
   const { user } = useAuth();
+  const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
@@ -81,6 +83,7 @@ const Scenarios = () => {
         description,
         scenario_data: parsed,
         created_by: user!.id,
+        company_id: profile?.company_id ?? null,
       });
       if (error) throw error;
     },

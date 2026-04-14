@@ -135,6 +135,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
         description: extracted.scenario.description,
         scenario_data: extracted.scenario,
         created_by: user!.id,
+        company_id: companyId,
       });
       if (error) throw error;
 
