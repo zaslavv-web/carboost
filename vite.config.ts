@@ -14,16 +14,11 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
-    alias: [
-      {
-        find: /^@\//,
-        replacement: `${path.resolve(__dirname, "./src")}/`,
-      },
-      {
-        find: /^sonner$/,
-        replacement: path.resolve(__dirname, "./src/components/ui/sonner.tsx"),
-      },
-    ],
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "sonner-original": path.resolve(__dirname, "./node_modules/sonner"),
+      "sonner": path.resolve(__dirname, "./src/components/ui/sonner.tsx"),
+    },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
   },
 }));
