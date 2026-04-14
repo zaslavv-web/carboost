@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 type SupportedLanguage = "ru" | "en";
 type Translation = { ru: string; en: string };
-type SonnerToast = typeof import("sonner").toast;
+type SonnerToast = typeof import("sonner-original").toast;
 type LocalizableContent = string | ReactNode | (() => ReactNode);
 
 const exactTranslations: Translation[] = [
