@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRealPrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { Upload, FileText, Trash2, Loader2, CheckCircle, XCircle, Clock, Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -41,11 +42,15 @@ const statusLabels: Record<string, string> = {
 
 const DocumentBlock = ({ docType }: { docType: DocType }) => {
   const { user } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useUserProfile();
+  const realRole = useRealPrimaryRole();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [expandedDoc, setExpandedDoc] = useState<string | null>(null);
   const config = DOC_TYPE_LABELS[docType];
+  const companyId = profile?.company_id ?? null;
+  const canManageWithoutCompany = realRole === "superadmin";
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["hr_documents", docType],
@@ -64,6 +69,11 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
     mutationFn: async () => {
       const file = fileRef.current?.files?.[0];
       if (!file) throw new Error("Выберите файл");
+      if (!user) throw new Error("Требуется авторизация");
+      if (profileLoading) throw new Error("Подождите, загружается профиль пользователя");
+      if (!companyId && !canManageWithoutCompany) {
+        throw new Error("Для этой учётной записи не назначена компания");
+      }
 
       const allowed = [".doc", ".docx", ".pdf", ".csv", ".xlsx"];
       const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
@@ -89,6 +99,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
           file_url: signedData.signedUrl,
           file_name: file.name,
           created_by: user!.id,
+          company_id: companyId,
         })
         .select()
         .single();
@@ -177,7 +188,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
           />
           <Button
             onClick={() => uploadMutation.mutate()}
-            disabled={uploading || uploadMutation.isPending}
+            disabled={uploading || uploadMutation.isPending || profileLoading}
             size="sm"
           >
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
