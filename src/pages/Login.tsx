@@ -263,7 +263,7 @@ const Login = () => {
                   <label className="text-sm font-medium text-foreground">Желаемая роль</label>
                   <select
                     value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value)}
+                    onChange={(e) => setSelectedRole(e.target.value as RequestedAppRole)}
                     className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
                   >
                     {ROLE_OPTIONS.map((r) => (
