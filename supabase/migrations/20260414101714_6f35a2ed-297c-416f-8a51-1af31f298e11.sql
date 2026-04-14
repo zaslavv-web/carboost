@@ -1,0 +1,1 @@
+UPDATE public.profiles SET company_id = 'a0000000-0000-0000-0000-000000000001' WHERE user_id = '856bd219-bc77-4d90-980d-2e1f3f105851' AND company_id IS NULL;
