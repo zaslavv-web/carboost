@@ -116,3 +116,17 @@
     box-shadow: var(--shadow-elevated);
   }
 }
+
+[data-sonner-toaster].center-screen-alerts[data-x-position="center"][data-y-position="top"] {
+  top: 50% !important;
+  bottom: auto !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+@media (max-width: 640px) {
+  [data-sonner-toaster].center-screen-alerts[data-x-position="center"][data-y-position="top"] {
+    width: calc(100vw - 1.5rem) !important;
+  }
+}
