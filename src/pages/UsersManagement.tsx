@@ -2,8 +2,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useNavigate } from "react-router-dom";
-import { Eye, Loader2, Search, CheckCircle, XCircle } from "lucide-react";
+import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import type { AppRole } from "@/hooks/useUserProfile";
 import { useRealPrimaryRole } from "@/hooks/useUserProfile";
@@ -98,6 +99,23 @@ const UsersManagement = () => {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const { user: currentUser } = useAuth();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.rpc("delete_user", { _target_user_id: userId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_users_list"] });
+      queryClient.invalidateQueries({ queryKey: ["superadmin_profiles"] });
+      toast.success("Пользователь удалён");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const assignRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: AppRole }) => {
@@ -257,6 +275,32 @@ const UsersManagement = () => {
                     >
                       <Eye className="w-3.5 h-3.5" /> Войти как
                     </button>
+                    {u.user_id !== currentUser?.id && (
+                      confirmDeleteId === u.user_id ? (
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <button
+                            onClick={() => { deleteMutation.mutate(u.user_id); setConfirmDeleteId(null); }}
+                            disabled={deleteMutation.isPending}
+                            className="px-2 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors"
+                          >
+                            Да, удалить
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="px-2 py-1 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 transition-colors"
+                          >
+                            Отмена
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(u.user_id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 mt-1.5 rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Удалить
+                        </button>
+                      )
+                    )}
                   </td>
                 </tr>
               ))}
