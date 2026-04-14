@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
 
 type SupportedLanguage = "ru" | "en";
 type Translation = { ru: string; en: string };
-type SonnerToast = typeof import("sonner-original").toast;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SonnerToast = typeof baseToast;
 type LocalizableContent = string | ReactNode | (() => ReactNode);
 
 const exactTranslations: Translation[] = [
