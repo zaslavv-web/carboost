@@ -829,6 +829,7 @@ const HRDDashboard = () => {
           Показано {filtered.length} из {employees.length} сотрудников
         </div>
       </div>
+      )}
 
       {/* Comparison modal */}
       {comparisonTarget && (
