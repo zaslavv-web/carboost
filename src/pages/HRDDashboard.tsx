@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, TrendingUp, Shield, BarChart3, Search, ChevronDown, Loader2, GitCompareArrows, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Users, TrendingUp, Shield, BarChart3, Search, ChevronDown, Loader2, GitCompareArrows, X, Briefcase, Mail, Plus, Trash2, Check } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { toast } from "sonner";
