@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ImpersonationProvider } from "@/contexts/ImpersonationContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import AppLayout from "@/components/AppLayout";
+import RoleAwareLayout from "@/components/RoleAwareLayout";
 import RoleDashboard from "@/pages/RoleDashboard";
 import Assessment from "@/pages/Assessment";
 import Passport from "@/pages/Passport";
@@ -43,7 +43,7 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+              <Route element={<ProtectedRoute><RoleAwareLayout /></ProtectedRoute>}>
                 <Route path="/" element={<RoleDashboard />} />
                 <Route path="/complete-registration" element={<CompleteRegistration />} />
                 <Route path="/assessment" element={<Assessment />} />
