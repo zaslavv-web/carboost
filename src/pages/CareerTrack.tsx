@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,10 +18,24 @@ interface Step { order: number; title: string; description: string; duration_mon
 const CareerTrack = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fromAssessment = searchParams.get("from") === "assessment";
+  const [showAssessmentBanner, setShowAssessmentBanner] = useState(fromAssessment);
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: "", description: "", deadline: "" });
   const [tab, setTab] = useState<"goals" | "tracks" | "rewards">("tracks");
+
+  useEffect(() => {
+    if (fromAssessment) {
+      // remove the query flag without reloading
+      const t = setTimeout(() => {
+        searchParams.delete("from");
+        setSearchParams(searchParams, { replace: true });
+      }, 200);
+      return () => clearTimeout(t);
+    }
+  }, [fromAssessment, searchParams, setSearchParams]);
 
   // Career goals
   const { data: goals = [], isLoading: goalsLoading } = useQuery({
