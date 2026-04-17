@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,10 +18,24 @@ interface Step { order: number; title: string; description: string; duration_mon
 const CareerTrack = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fromAssessment = searchParams.get("from") === "assessment";
+  const [showAssessmentBanner, setShowAssessmentBanner] = useState(fromAssessment);
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: "", description: "", deadline: "" });
   const [tab, setTab] = useState<"goals" | "tracks" | "rewards">("tracks");
+
+  useEffect(() => {
+    if (fromAssessment) {
+      // remove the query flag without reloading
+      const t = setTimeout(() => {
+        searchParams.delete("from");
+        setSearchParams(searchParams, { replace: true });
+      }, 200);
+      return () => clearTimeout(t);
+    }
+  }, [fromAssessment, searchParams, setSearchParams]);
 
   // Career goals
   const { data: goals = [], isLoading: goalsLoading } = useQuery({
@@ -174,6 +189,29 @@ const CareerTrack = () => {
         <h1 className="text-xl md:text-2xl font-bold text-foreground">Мой карьерный трек</h1>
         <p className="text-muted-foreground text-xs md:text-sm mt-1">Карьерный путь, цели и награды</p>
       </div>
+
+      {showAssessmentBanner && (
+        <div className="relative overflow-hidden rounded-xl border border-success/30 bg-success/5 p-4 md:p-5 animate-fade-in">
+          <button
+            onClick={() => setShowAssessmentBanner(false)}
+            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Закрыть"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex items-start gap-3 pr-6">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-success/20 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-success" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground text-sm md:text-base">Оценка завершена!</p>
+              <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
+                Ваш карьерный трек обновлён с учётом новых результатов. Проверьте этапы и рекомендации ниже.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-4">

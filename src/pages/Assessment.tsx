@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Send, Bot, User, Sparkles, RotateCcw, CheckCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +25,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assessment-c
 const Assessment = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -194,7 +196,11 @@ const Assessment = () => {
       queryClient.invalidateQueries({ queryKey: ["competencies"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       queryClient.invalidateQueries({ queryKey: ["assessments"] });
-      toast.success("Результаты оценки сохранены!");
+      toast.success("Результаты сохранены. Открываем ваш карьерный трек…");
+      // Auto-redirect to career track with highlight flag
+      setTimeout(() => {
+        navigate("/career-track?from=assessment", { replace: true });
+      }, 1800);
     } catch (e: any) {
       console.error(e);
       toast.error("Ошибка сохранения: " + e.message);

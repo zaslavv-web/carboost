@@ -411,6 +411,51 @@ export type Database = {
           },
         ]
       }
+      email_domain_position_mappings: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string
+          email_domain: string
+          id: string
+          position_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by: string
+          email_domain: string
+          id?: string
+          position_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string
+          email_domain?: string
+          id?: string
+          position_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_domain_position_mappings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_domain_position_mappings_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_career_assignments: {
         Row: {
           assigned_at: string
@@ -831,6 +876,7 @@ export type Database = {
           id: string
           is_verified: boolean
           overall_score: number | null
+          pending_position_id: string | null
           position: string | null
           position_id: string | null
           requested_role: string
@@ -848,6 +894,7 @@ export type Database = {
           id?: string
           is_verified?: boolean
           overall_score?: number | null
+          pending_position_id?: string | null
           position?: string | null
           position_id?: string | null
           requested_role?: string
@@ -865,6 +912,7 @@ export type Database = {
           id?: string
           is_verified?: boolean
           overall_score?: number | null
+          pending_position_id?: string | null
           position?: string | null
           position_id?: string | null
           requested_role?: string
@@ -878,6 +926,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_pending_position_id_fkey"
+            columns: ["pending_position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
             referencedColumns: ["id"]
           },
           {
