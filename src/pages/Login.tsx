@@ -72,11 +72,22 @@ const Login = () => {
           },
         });
         if (error) throw error;
+
+        // Supabase возвращает «фейковый» user без identities, если email уже занят
+        // (защита от email enumeration). Письмо в этом случае НЕ отправляется.
+        const identities = (data.user as any)?.identities;
+        if (data.user && Array.isArray(identities) && identities.length === 0) {
+          setErrorMessage(
+            "Этот email уже зарегистрирован. Войдите в систему или восстановите пароль."
+          );
+          return;
+        }
+
         if (data.session) {
           toast.success("Регистрация прошла успешно. Ожидайте подтверждения суперадмина.");
           navigate("/");
         } else {
-          toast.success("Проверьте почту для подтверждения регистрации");
+          toast.success(`Письмо для подтверждения отправлено на ${email}. Проверьте папку «Спам».`);
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -248,8 +259,7 @@ const Login = () => {
                   <label className="text-sm font-medium text-foreground">Компания</label>
                   <select
                     value={selectedCompanyId}
-                    onChange={(e) => setSelectedCompanyId(e.target.value)}
-                    required={isSignUp}
+                    onChange={(e) => { setSelectedCompanyId(e.target.value); setErrorMessage(""); }}
                     className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
                   >
                     <option value="">— Выберите компанию —</option>
