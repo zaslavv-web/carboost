@@ -187,7 +187,74 @@ const PositionEditor = ({
     parsePsychProfile(position?.psychological_profile)
   );
   const [parsing, setParsing] = useState(false);
+  const [loadingFromDocs, setLoadingFromDocs] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Load competencies from HR documents uploaded by HRD (matched by department/title)
+  const loadFromHrDocuments = async () => {
+    setLoadingFromDocs(true);
+    try {
+      const { data: docs, error } = await supabase
+        .from("hr_documents")
+        .select("title, document_type, extracted_data")
+        .eq("processing_status", "completed")
+        .not("extracted_data", "is", null);
+      if (error) throw error;
+
+      const collected = new Map<string, number>();
+      const collectedPsych = new Map<string, string>();
+      const titleLc = title.toLowerCase();
+      const deptLc = department.toLowerCase();
+
+      (docs || []).forEach((d: any) => {
+        const data = d.extracted_data;
+        if (!data) return;
+        const docTitle = (d.title || "").toLowerCase();
+        // Filter: doc relevant if it mentions position title or department
+        const relevant =
+          !titleLc && !deptLc
+            ? true
+            : (titleLc && docTitle.includes(titleLc)) ||
+              (deptLc && docTitle.includes(deptLc)) ||
+              d.document_type === "competency_model";
+
+        if (!relevant) return;
+
+        const comps = Array.isArray(data.competencies) ? data.competencies : [];
+        comps.forEach((c: any) => {
+          if (!c?.name) return;
+          const lvl = Number(c.required_level) || 5;
+          // Take max non-zero level across docs
+          const safeLvl = lvl > 0 ? lvl : 5;
+          collected.set(c.name, Math.max(collected.get(c.name) || 0, safeLvl));
+        });
+
+        const psych = Array.isArray(data.psychological_profile) ? data.psychological_profile : [];
+        psych.forEach((p: any) => {
+          if (p?.trait) collectedPsych.set(p.trait, p.level || "среднее");
+        });
+      });
+
+      if (collected.size === 0) {
+        toast.error("В загруженных HR-документах нет подходящих компетенций. Загрузите модель компетенций в разделе HR-документы.");
+        return;
+      }
+
+      const newComps: CompetencyItem[] = Array.from(collected.entries()).map(([name, required_level]) => ({
+        name,
+        required_level: required_level > 0 ? required_level : 5,
+      }));
+      const newPsych: PsychItem[] = Array.from(collectedPsych.entries()).map(([trait, level]) => ({ trait, level }));
+
+      setCompetencies(newComps);
+      if (newPsych.length > 0) setPsychTraits(newPsych);
+      toast.success(`Подгружено ${newComps.length} компетенций из HR-документов`);
+    } catch (e: any) {
+      toast.error(e.message || "Ошибка загрузки из HR-документов");
+    } finally {
+      setLoadingFromDocs(false);
+    }
+  };
 
   const handleFileUpload = async () => {
     const file = fileRef.current?.files?.[0];
