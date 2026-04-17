@@ -187,7 +187,74 @@ const PositionEditor = ({
     parsePsychProfile(position?.psychological_profile)
   );
   const [parsing, setParsing] = useState(false);
+  const [loadingFromDocs, setLoadingFromDocs] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Load competencies from HR documents uploaded by HRD (matched by department/title)
+  const loadFromHrDocuments = async () => {
+    setLoadingFromDocs(true);
+    try {
+      const { data: docs, error } = await supabase
+        .from("hr_documents")
+        .select("title, document_type, extracted_data")
+        .eq("processing_status", "completed")
+        .not("extracted_data", "is", null);
+      if (error) throw error;
+
+      const collected = new Map<string, number>();
+      const collectedPsych = new Map<string, string>();
+      const titleLc = title.toLowerCase();
+      const deptLc = department.toLowerCase();
+
+      (docs || []).forEach((d: any) => {
+        const data = d.extracted_data;
+        if (!data) return;
+        const docTitle = (d.title || "").toLowerCase();
+        // Filter: doc relevant if it mentions position title or department
+        const relevant =
+          !titleLc && !deptLc
+            ? true
+            : (titleLc && docTitle.includes(titleLc)) ||
+              (deptLc && docTitle.includes(deptLc)) ||
+              d.document_type === "competency_model";
+
+        if (!relevant) return;
+
+        const comps = Array.isArray(data.competencies) ? data.competencies : [];
+        comps.forEach((c: any) => {
+          if (!c?.name) return;
+          const lvl = Number(c.required_level) || 5;
+          // Take max non-zero level across docs
+          const safeLvl = lvl > 0 ? lvl : 5;
+          collected.set(c.name, Math.max(collected.get(c.name) || 0, safeLvl));
+        });
+
+        const psych = Array.isArray(data.psychological_profile) ? data.psychological_profile : [];
+        psych.forEach((p: any) => {
+          if (p?.trait) collectedPsych.set(p.trait, p.level || "среднее");
+        });
+      });
+
+      if (collected.size === 0) {
+        toast.error("В загруженных HR-документах нет подходящих компетенций. Загрузите модель компетенций в разделе HR-документы.");
+        return;
+      }
+
+      const newComps: CompetencyItem[] = Array.from(collected.entries()).map(([name, required_level]) => ({
+        name,
+        required_level: required_level > 0 ? required_level : 5,
+      }));
+      const newPsych: PsychItem[] = Array.from(collectedPsych.entries()).map(([trait, level]) => ({ trait, level }));
+
+      setCompetencies(newComps);
+      if (newPsych.length > 0) setPsychTraits(newPsych);
+      toast.success(`Подгружено ${newComps.length} компетенций из HR-документов`);
+    } catch (e: any) {
+      toast.error(e.message || "Ошибка загрузки из HR-документов");
+    } finally {
+      setLoadingFromDocs(false);
+    }
+  };
 
   const handleFileUpload = async () => {
     const file = fileRef.current?.files?.[0];
@@ -321,12 +388,16 @@ const PositionEditor = ({
            <p className="text-xs text-muted-foreground">
              Загрузите DOC, DOCX, PDF, XLSX — AI извлечёт компетенции и психопортрет. Или CSV/JSON для прямого импорта.
            </p>
-           <div className="flex items-center gap-3">
+           <div className="flex flex-wrap items-center gap-3">
              <input ref={fileRef} type="file" accept=".doc,.docx,.pdf,.csv,.json,.xlsx,.xls"
                className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
             <Button size="sm" onClick={handleFileUpload} disabled={parsing}>
               {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               Распознать
+            </Button>
+            <Button size="sm" variant="outline" onClick={loadFromHrDocuments} disabled={loadingFromDocs} type="button">
+              {loadingFromDocs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              Подтянуть из HR-документов
             </Button>
           </div>
         </div>
@@ -341,6 +412,15 @@ const PositionEditor = ({
           <Button variant="outline" onClick={onClose}>Отмена</Button>
           <Button
             onClick={() => {
+              if (competencies.length === 0) {
+                toast.error("Добавьте хотя бы одну компетенцию для эталона должности");
+                return;
+              }
+              const invalid = competencies.filter((c) => !c.name.trim() || !c.required_level || c.required_level <= 0);
+              if (invalid.length > 0) {
+                toast.error("Все компетенции должны иметь название и ненулевой требуемый уровень (1–10)");
+                return;
+              }
               const psychObj = psychTraits.length > 0 ? psychTraits : {};
               onSave({
                 title,
