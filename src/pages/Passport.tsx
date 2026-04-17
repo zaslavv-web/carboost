@@ -69,43 +69,39 @@ const Passport = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Цифровой паспорт</h1>
-          <p className="text-muted-foreground text-sm mt-1">Полный профиль компетенций и достижений</p>
-        </div>
+      <div>
+        <h1 className="text-xl md:text-2xl font-bold text-foreground">Цифровой паспорт</h1>
+        <p className="text-muted-foreground text-xs md:text-sm mt-1">Полный профиль компетенций и достижений</p>
       </div>
 
       {/* Profile header */}
       <div className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
-        <div className="h-24 gradient-hero" />
-        <div className="px-6 pb-6 -mt-10">
-          <div className="flex items-end gap-5">
-            <div className="w-20 h-20 rounded-xl gradient-primary flex items-center justify-center text-primary-foreground text-2xl font-bold border-4 border-card">
+        <div className="h-20 md:h-24 gradient-hero" />
+        <div className="px-4 md:px-6 pb-5 md:pb-6 -mt-8 md:-mt-10">
+          <div className="flex items-end gap-4 md:gap-5">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl gradient-primary flex items-center justify-center text-primary-foreground text-xl md:text-2xl font-bold border-4 border-card flex-shrink-0">
               {initials}
             </div>
-            <div className="pb-1">
-              <h2 className="text-xl font-bold text-foreground">{profile?.full_name || "—"}</h2>
-              <p className="text-muted-foreground text-sm">
+            <div className="pb-1 min-w-0">
+              <h2 className="text-base md:text-xl font-bold text-foreground truncate">{profile?.full_name || "—"}</h2>
+              <p className="text-muted-foreground text-xs md:text-sm truncate">
                 {profile?.position || "Должность не указана"} · {profile?.department || "Отдел не указан"}
                 {profile?.hire_date && ` · с ${format(new Date(profile.hire_date), "yyyy")}`}
               </p>
             </div>
           </div>
-          <div className="mt-4 flex gap-6">
+          <div className="mt-4 grid grid-cols-3 gap-2">
             <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">{profile?.overall_score || 0}</p>
-              <p className="text-xs text-muted-foreground">Общий скор</p>
+              <p className="text-xl md:text-2xl font-bold text-foreground">{profile?.overall_score || 0}</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Общий скор</p>
             </div>
-            <div className="w-px bg-border" />
-            <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">{profile?.role_readiness || 0}%</p>
-              <p className="text-xs text-muted-foreground">Готовность к роли</p>
+            <div className="text-center border-x border-border">
+              <p className="text-xl md:text-2xl font-bold text-foreground">{profile?.role_readiness || 0}%</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Готовность</p>
             </div>
-            <div className="w-px bg-border" />
             <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">{achievements.length}</p>
-              <p className="text-xs text-muted-foreground">Достижений</p>
+              <p className="text-xl md:text-2xl font-bold text-foreground">{achievements.length}</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Достижений</p>
             </div>
           </div>
         </div>

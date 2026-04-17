@@ -223,22 +223,22 @@ const Assessment = () => {
 
   return (
     <div className="max-w-3xl mx-auto animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">AI Карьерная оценка</h1>
-          <p className="text-muted-foreground text-sm mt-1">Диалог с искусственным интеллектом</p>
+      <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground truncate">AI Карьерная оценка</h1>
+          <p className="text-muted-foreground text-xs md:text-sm mt-1 hidden sm:block">Диалог с искусственным интеллектом</p>
         </div>
         <button
           onClick={handleReset}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80 transition-colors"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-xs md:text-sm hover:bg-secondary/80 transition-colors flex-shrink-0"
         >
-          <RotateCcw className="w-4 h-4" /> Начать заново
+          <RotateCcw className="w-4 h-4" /> <span className="hidden sm:inline">Начать заново</span>
         </button>
       </div>
 
       {/* Progress bar */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+      <div className="mb-4 md:mb-6">
+        <div className="flex items-center justify-between text-xs md:text-sm text-muted-foreground mb-2">
           <span>Прогресс оценки</span>
           <span className="flex items-center gap-1">
             {assessmentResult && <CheckCircle className="w-4 h-4 text-success" />}
@@ -253,7 +253,7 @@ const Assessment = () => {
 
       {/* Chat */}
       <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-        <div className="h-[500px] overflow-y-auto p-6 space-y-5">
+        <div className="h-[60vh] md:h-[500px] overflow-y-auto p-4 md:p-6 space-y-5">
           {messages.map((msg, i) => (
             <div key={i} className={`flex gap-3 animate-fade-in ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
               <div
