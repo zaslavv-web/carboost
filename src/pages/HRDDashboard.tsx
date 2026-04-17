@@ -493,7 +493,172 @@ const HRDDashboard = () => {
         </div>
       </div>
 
+      {/* Section tabs */}
+      <div className="flex gap-2 overflow-x-auto -mx-1 px-1">
+        {([
+          { key: "employees", label: "Сотрудники", icon: Users, count: employees.length },
+          { key: "requests", label: "Заявки на должность", icon: Briefcase, count: pendingRequests.length },
+          { key: "mappings", label: "Маппинг доменов", icon: Mail, count: mappings.length },
+        ] as const).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setActivePanel(t.key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
+              activePanel === t.key ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            }`}
+          >
+            <t.icon className="w-4 h-4" />
+            {t.label}
+            {t.count > 0 && (
+              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                activePanel === t.key ? "bg-primary-foreground/20" : "bg-background"
+              }`}>{t.count}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Pending position requests panel */}
+      {activePanel === "requests" && (
+        <div className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
+          <div className="p-5 border-b border-border">
+            <h3 className="font-semibold text-foreground">Заявки на подтверждение должности</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Сотрудники, выбравшие свою должность вручную при регистрации. Подтвердите, измените или отклоните.
+            </p>
+          </div>
+          {pendingRequests.length === 0 ? (
+            <div className="p-12 text-center">
+              <Briefcase className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+              <p className="text-sm text-muted-foreground">Нет заявок на подтверждение</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {pendingRequests.map((emp) => {
+                const requestedPos = positions.find((p) => p.id === emp.pending_position_id);
+                const initials = emp.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2);
+                return (
+                  <div key={emp.user_id} className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-accent-foreground text-sm font-semibold flex-shrink-0">
+                        {initials}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground truncate">{emp.full_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          Заявленная должность: <span className="text-foreground font-medium">{requestedPos?.title || "— должность удалена —"}</span>
+                          {requestedPos?.department && <span className="ml-1">· {requestedPos.department}</span>}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {/* Change position dropdown */}
+                      <div className="relative">
+                        <select
+                          value={emp.pending_position_id || ""}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              approvePositionMutation.mutate({ userId: emp.user_id, positionId: e.target.value });
+                            }
+                          }}
+                          className="text-xs px-3 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 max-w-[180px]"
+                          title="Изменить должность"
+                        >
+                          {positions.map((p) => (
+                            <option key={p.id} value={p.id}>{p.title}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => requestedPos && approvePositionMutation.mutate({ userId: emp.user_id, positionId: requestedPos.id })}
+                        disabled={!requestedPos || approvePositionMutation.isPending}
+                        className="gap-1"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Подтвердить
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => rejectPositionMutation.mutate(emp.user_id)}
+                        disabled={rejectPositionMutation.isPending}
+                        className="text-destructive hover:text-destructive gap-1"
+                      >
+                        <X className="w-3.5 h-3.5" /> Отклонить
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Email domain mappings panel */}
+      {activePanel === "mappings" && (
+        <div className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
+          <div className="p-5 border-b border-border">
+            <h3 className="font-semibold text-foreground">Автоназначение должности по email</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Сотрудники с email указанного домена будут автоматически получать выбранную должность без ручного подтверждения.
+            </p>
+          </div>
+          <div className="p-5 border-b border-border bg-secondary/20">
+            <div className="grid gap-3 md:grid-cols-[1fr_2fr_auto]">
+              <input
+                type="text"
+                value={newMapDomain}
+                onChange={(e) => setNewMapDomain(e.target.value)}
+                placeholder="example.com"
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+              />
+              <select
+                value={newMapPositionId}
+                onChange={(e) => setNewMapPositionId(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+              >
+                <option value="">— Выберите должность —</option>
+                {positions.map((p) => (
+                  <option key={p.id} value={p.id}>{p.title}{p.department ? ` · ${p.department}` : ""}</option>
+                ))}
+              </select>
+              <Button
+                onClick={() => addMappingMutation.mutate()}
+                disabled={addMappingMutation.isPending || !newMapDomain.trim() || !newMapPositionId}
+                className="gap-1"
+              >
+                <Plus className="w-4 h-4" /> Добавить
+              </Button>
+            </div>
+          </div>
+          {mappings.length === 0 ? (
+            <div className="p-12 text-center">
+              <Mail className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+              <p className="text-sm text-muted-foreground">Маппингов пока нет</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {mappings.map((m: any) => (
+                <div key={m.id} className="p-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-mono text-foreground">@{m.email_domain}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      → {m.positions?.title || "—"}{m.positions?.department ? ` · ${m.positions.department}` : ""}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => deleteMappingMutation.mutate(m.id)} className="text-destructive">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Employee table */}
+      {activePanel === "employees" && (
       <div className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
         <div className="p-6 border-b border-border">
           <div className="flex items-center justify-between gap-4 flex-wrap">
