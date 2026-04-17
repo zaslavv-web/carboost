@@ -169,56 +169,54 @@ const CareerTrack = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Мой карьерный трек</h1>
-          <p className="text-muted-foreground text-sm mt-1">Карьерный путь, цели и награды</p>
-        </div>
+    <div className="space-y-5 md:space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-xl md:text-2xl font-bold text-foreground">Мой карьерный трек</h1>
+        <p className="text-muted-foreground text-xs md:text-sm mt-1">Карьерный путь, цели и награды</p>
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-card rounded-xl p-5 shadow-card border border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-              <Route className="w-5 h-5 text-primary-foreground" />
+      <div className="grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-4">
+        <div className="bg-card rounded-xl p-3 md:p-5 shadow-card border border-border">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-3">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
+              <Route className="w-4 h-4 md:w-5 md:h-5 text-primary-foreground" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{assignments.length}</p>
-              <p className="text-xs text-muted-foreground">Карьерных треков</p>
+              <p className="text-lg md:text-2xl font-bold text-foreground leading-tight">{assignments.length}</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">Треков</p>
             </div>
           </div>
         </div>
-        <div className="bg-card rounded-xl p-5 shadow-card border border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-success/20 flex items-center justify-center">
-              <Target className="w-5 h-5 text-success" />
+        <div className="bg-card rounded-xl p-3 md:p-5 shadow-card border border-border">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-3">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-success/20 flex items-center justify-center flex-shrink-0">
+              <Target className="w-4 h-4 md:w-5 md:h-5 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{goals.filter(g => g.status === "completed").length}/{goals.length}</p>
-              <p className="text-xs text-muted-foreground">Целей достигнуто</p>
+              <p className="text-lg md:text-2xl font-bold text-foreground leading-tight">{goals.filter(g => g.status === "completed").length}/{goals.length}</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">Целей</p>
             </div>
           </div>
         </div>
-        <div className="bg-card rounded-xl p-5 shadow-card border border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-warning/20 flex items-center justify-center">
-              <Award className="w-5 h-5 text-warning" />
+        <div className="bg-card rounded-xl p-3 md:p-5 shadow-card border border-border">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-3">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-warning/20 flex items-center justify-center flex-shrink-0">
+              <Award className="w-4 h-4 md:w-5 md:h-5 text-warning" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{totalPoints}</p>
-              <p className="text-xs text-muted-foreground">Очков ({myRewards.length} наград)</p>
+              <p className="text-lg md:text-2xl font-bold text-foreground leading-tight">{totalPoints}</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">Очков</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto -mx-1 px-1">
         {(["tracks", "goals", "rewards"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
+            className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
             {t === "tracks" ? "Карьерный путь" : t === "goals" ? "Мои цели" : "Награды"}
           </button>
         ))}
