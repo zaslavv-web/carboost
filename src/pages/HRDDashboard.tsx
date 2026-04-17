@@ -235,14 +235,105 @@ const CompetencyComparisonModal = ({
 };
 
 const HRDDashboard = () => {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [showRoleMenu, setShowRoleMenu] = useState<string | null>(null);
   const [showPositionMenu, setShowPositionMenu] = useState<string | null>(null);
   const [comparisonTarget, setComparisonTarget] = useState<{ emp: EmployeeWithRole; pos: Position } | null>(null);
+  const [activePanel, setActivePanel] = useState<"employees" | "requests" | "mappings">("employees");
+  const [newMapDomain, setNewMapDomain] = useState("");
+  const [newMapPositionId, setNewMapPositionId] = useState("");
   const queryClient = useQueryClient();
   const { data: employees = [], isLoading } = useEmployeesWithRoles();
   const { data: positions = [] } = usePositions();
+
+  // User's company id (for domain mapping inserts)
+  const { data: myProfile } = useQuery({
+    queryKey: ["my_profile_company", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Email domain mappings
+  const { data: mappings = [] } = useQuery({
+    queryKey: ["email_domain_mappings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("email_domain_position_mappings")
+        .select("id, email_domain, position_id, positions(title, department)")
+        .order("email_domain");
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  const pendingRequests = employees.filter((e) => e.pending_position_id);
+
+  const approvePositionMutation = useMutation({
+    mutationFn: async ({ userId, positionId }: { userId: string; positionId: string }) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ position_id: positionId, pending_position_id: null } as any)
+        .eq("user_id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hrd_employees"] });
+      toast.success("Должность подтверждена");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const rejectPositionMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.from("profiles").update({ pending_position_id: null } as any).eq("user_id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hrd_employees"] });
+      toast.success("Заявка отклонена");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const addMappingMutation = useMutation({
+    mutationFn: async () => {
+      if (!newMapDomain.trim() || !newMapPositionId) throw new Error("Укажите домен и должность");
+      if (!user || !myProfile?.company_id) throw new Error("Не определена компания");
+      const domain = newMapDomain.trim().toLowerCase().replace(/^@/, "");
+      const { error } = await supabase.from("email_domain_position_mappings").insert({
+        company_id: myProfile.company_id,
+        email_domain: domain,
+        position_id: newMapPositionId,
+        created_by: user.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email_domain_mappings"] });
+      setNewMapDomain("");
+      setNewMapPositionId("");
+      toast.success("Маппинг добавлен");
+    },
+    onError: (err: any) => toast.error(err.message?.includes("duplicate") ? "Этот домен уже сопоставлен" : err.message),
+  });
+
+  const deleteMappingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("email_domain_position_mappings").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email_domain_mappings"] });
+      toast.success("Маппинг удалён");
+    },
+  });
 
   const assignRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
