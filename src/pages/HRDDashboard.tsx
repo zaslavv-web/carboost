@@ -14,6 +14,7 @@ interface EmployeeWithRole {
   full_name: string;
   position: string | null;
   position_id: string | null;
+  pending_position_id: string | null;
   department: string | null;
   overall_score: number | null;
   role_readiness: number | null;
@@ -48,7 +49,7 @@ const useEmployeesWithRoles = () =>
     queryKey: ["hrd_employees"],
     queryFn: async () => {
       const [profilesRes, rolesRes] = await Promise.all([
-        supabase.from("profiles").select("user_id, full_name, position, position_id, department, overall_score, role_readiness"),
+        supabase.from("profiles").select("user_id, full_name, position, position_id, pending_position_id, department, overall_score, role_readiness"),
         supabase.from("user_roles").select("user_id, role"),
       ]);
       if (profilesRes.error) throw profilesRes.error;
