@@ -190,6 +190,29 @@ const CareerTrack = () => {
         <p className="text-muted-foreground text-xs md:text-sm mt-1">Карьерный путь, цели и награды</p>
       </div>
 
+      {showAssessmentBanner && (
+        <div className="relative overflow-hidden rounded-xl border border-success/30 bg-success/5 p-4 md:p-5 animate-fade-in">
+          <button
+            onClick={() => setShowAssessmentBanner(false)}
+            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Закрыть"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex items-start gap-3 pr-6">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-success/20 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-success" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground text-sm md:text-base">Оценка завершена!</p>
+              <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
+                Ваш карьерный трек обновлён с учётом новых результатов. Проверьте этапы и рекомендации ниже.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary cards */}
       <div className="grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-4">
         <div className="bg-card rounded-xl p-3 md:p-5 shadow-card border border-border">
