@@ -388,12 +388,16 @@ const PositionEditor = ({
            <p className="text-xs text-muted-foreground">
              Загрузите DOC, DOCX, PDF, XLSX — AI извлечёт компетенции и психопортрет. Или CSV/JSON для прямого импорта.
            </p>
-           <div className="flex items-center gap-3">
+           <div className="flex flex-wrap items-center gap-3">
              <input ref={fileRef} type="file" accept=".doc,.docx,.pdf,.csv,.json,.xlsx,.xls"
                className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
             <Button size="sm" onClick={handleFileUpload} disabled={parsing}>
               {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               Распознать
+            </Button>
+            <Button size="sm" variant="outline" onClick={loadFromHrDocuments} disabled={loadingFromDocs} type="button">
+              {loadingFromDocs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              Подтянуть из HR-документов
             </Button>
           </div>
         </div>
@@ -408,6 +412,15 @@ const PositionEditor = ({
           <Button variant="outline" onClick={onClose}>Отмена</Button>
           <Button
             onClick={() => {
+              if (competencies.length === 0) {
+                toast.error("Добавьте хотя бы одну компетенцию для эталона должности");
+                return;
+              }
+              const invalid = competencies.filter((c) => !c.name.trim() || !c.required_level || c.required_level <= 0);
+              if (invalid.length > 0) {
+                toast.error("Все компетенции должны иметь название и ненулевой требуемый уровень (1–10)");
+                return;
+              }
               const psychObj = psychTraits.length > 0 ? psychTraits : {};
               onSave({
                 title,
