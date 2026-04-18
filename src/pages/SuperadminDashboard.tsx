@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Users, Clock, UserCheck, ShieldCheck, Building2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { AppRole } from "@/hooks/useUserProfile";
 
 const SuperadminDashboard = () => {
   const navigate = useNavigate();
