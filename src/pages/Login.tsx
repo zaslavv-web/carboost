@@ -133,13 +133,16 @@ const Login = () => {
     setErrorMessage("");
 
     if (isSignUp) {
-      if (!selectedCompanyId) {
-        setErrorMessage("Выберите компанию перед регистрацией через Google");
+      let companyId: string;
+      try {
+        companyId = await resolveCompanyId();
+      } catch (error: any) {
+        setErrorMessage(translateError(error.message || "Не удалось определить компанию"));
         return;
       }
 
       savePendingSocialSignup({
-        companyId: selectedCompanyId,
+        companyId,
         requestedRole: selectedRole,
       });
     } else {
