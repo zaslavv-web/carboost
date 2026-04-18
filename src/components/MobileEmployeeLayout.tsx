@@ -60,7 +60,7 @@ const MobileEmployeeLayout = () => {
               <div className="mt-6 space-y-1">
                 <MenuItem icon={Bell} label="Уведомления" onClick={() => { navigate("/notifications"); setMenuOpen(false); }} />
                 <MenuItem icon={Settings} label="Настройки" onClick={() => { navigate("/settings"); setMenuOpen(false); }} />
-                <MenuItem icon={LifeBuoy} label="Поддержка" onClick={() => { navigate("/support"); setMenuOpen(false); }} />
+                
                 <div className="h-px bg-border my-3" />
                 <MenuItem icon={LogOut} label="Выйти" onClick={async () => { await signOut(); navigate("/login"); }} />
               </div>
