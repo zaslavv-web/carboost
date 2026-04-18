@@ -1,336 +1,174 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send, Bot, User, Sparkles, RotateCcw, CheckCircle, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2, Sparkles, MessageSquare, ListChecks } from "lucide-react";
 import { toast } from "sonner";
-import ReactMarkdown from "react-markdown";
 
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
-interface AssessmentResult {
-  overall_score: number;
-  competencies: { skill_name: string; skill_value: number }[];
-  summary: string;
-  strengths: string[];
-  growth_areas: string[];
-}
-
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assessment-chat`;
+import { supabase } from "@/integrations/supabase/client";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import ClosedQuestionTestRunner, { TestPayload } from "@/components/ClosedQuestionTestRunner";
 
 const Assessment = () => {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
+  const { data: profile } = useUserProfile();
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const started = useRef(false);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  const [mode, setMode] = useState<"choose" | "running" | "ai_chat">("choose");
+  const [activeTest, setActiveTest] = useState<TestPayload | null>(null);
+  const [generating, setGenerating] = useState(false);
 
-  // Auto-start the conversation
-  useEffect(() => {
-    if (!started.current) {
-      started.current = true;
-      streamChat([]);
-    }
-  }, []);
-
-  const streamChat = async (chatMessages: ChatMessage[]) => {
-    setIsStreaming(true);
-    let assistantContent = "";
-    let toolCallArgs = "";
-    let isToolCall = false;
-
-    const appendAssistant = (chunk: string) => {
-      assistantContent += chunk;
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant") {
-          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantContent } : m));
-        }
-        return [...prev, { role: "assistant", content: assistantContent }];
+  // Fetch HRD tests for the user's company (active only) — RLS already enforces this
+  const { data: hrdTests = [], isLoading } = useQuery({
+    queryKey: ["available_hrd_tests", profile?.company_id, profile?.position_id],
+    queryFn: async () => {
+      if (!profile?.company_id) return [];
+      let q = supabase
+        .from("closed_question_tests")
+        .select("id, title, description, position_id, questions")
+        .eq("company_id", profile.company_id)
+        .eq("is_active", true);
+      const { data, error } = await q;
+      if (error) throw error;
+      // Prefer tests matching user's position_id, then unpinned (position_id is null)
+      const list = (data || []).filter((t: any) => Array.isArray(t.questions) && t.questions.length > 0);
+      list.sort((a: any, b: any) => {
+        const am = a.position_id === profile.position_id ? 0 : a.position_id === null ? 1 : 2;
+        const bm = b.position_id === profile.position_id ? 0 : b.position_id === null ? 1 : 2;
+        return am - bm;
       });
-    };
+      return list;
+    },
+    enabled: !!profile?.company_id,
+  });
 
-    try {
-      const resp = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ messages: chatMessages }),
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ error: "Ошибка сети" }));
-        toast.error(err.error || "Ошибка AI");
-        setIsStreaming(false);
-        return;
-      }
-
-      const reader = resp.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let nlIdx: number;
-        while ((nlIdx = buffer.indexOf("\n")) !== -1) {
-          let line = buffer.slice(0, nlIdx);
-          buffer = buffer.slice(nlIdx + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const delta = parsed.choices?.[0]?.delta;
-            if (delta?.content) {
-              appendAssistant(delta.content);
-            }
-            // Handle tool calls
-            if (delta?.tool_calls) {
-              isToolCall = true;
-              for (const tc of delta.tool_calls) {
-                if (tc.function?.arguments) {
-                  toolCallArgs += tc.function.arguments;
-                }
-              }
-            }
-          } catch {
-            buffer = line + "\n" + buffer;
-            break;
-          }
-        }
-      }
-
-      // Process tool call result
-      if (isToolCall && toolCallArgs) {
-        try {
-          const result = JSON.parse(toolCallArgs) as AssessmentResult;
-          setAssessmentResult(result);
-
-          // Show summary as assistant message
-          const summaryText = `## Результаты оценки\n\n**Общий балл: ${result.overall_score}/100**\n\n${result.summary}\n\n### Сильные стороны\n${result.strengths.map((s) => `- ${s}`).join("\n")}\n\n### Зоны роста\n${result.growth_areas.map((g) => `- ${g}`).join("\n")}\n\n### Компетенции\n${result.competencies.map((c) => `- **${c.skill_name}**: ${c.skill_value}/100`).join("\n")}`;
-
-          setMessages((prev) => {
-            const last = prev[prev.length - 1];
-            if (last?.role === "assistant" && !last.content.trim()) {
-              return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: summaryText } : m));
-            }
-            return [...prev, { role: "assistant", content: summaryText }];
-          });
-
-          // Auto-save
-          await saveResults(result);
-        } catch (e) {
-          console.error("Failed to parse assessment result:", e);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      toast.error("Ошибка подключения к AI");
-    }
-
-    setIsStreaming(false);
+  const startHrdTest = (t: any) => {
+    setActiveTest({
+      title: t.title,
+      description: t.description || undefined,
+      questions: t.questions,
+      source: "hrd",
+      testId: t.id,
+    });
+    setMode("running");
   };
 
-  const saveResults = async (result: AssessmentResult) => {
-    if (!user) return;
-    setIsSaving(true);
+  const startAiTest = async () => {
+    setGenerating(true);
     try {
-      // Save assessment
-      const { error: assessError } = await supabase.from("assessments").insert({
-        user_id: user.id,
-        assessment_type: "ai",
-        score: result.overall_score,
-        assessment_data: result as any,
-      });
-      if (assessError) throw assessError;
-
-      // Upsert competencies
-      for (const comp of result.competencies) {
-        const { data: existing } = await supabase
-          .from("competencies")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("skill_name", comp.skill_name)
+      // Pull position title + competency profile if available
+      let positionTitle = profile?.position || "Сотрудник";
+      let competencies: string[] = [];
+      if (profile?.position_id) {
+        const { data: pos } = await supabase
+          .from("positions")
+          .select("title, competency_profile")
+          .eq("id", profile.position_id)
           .maybeSingle();
-
-        if (existing) {
-          await supabase
-            .from("competencies")
-            .update({ skill_value: comp.skill_value })
-            .eq("id", existing.id);
-        } else {
-          await supabase.from("competencies").insert({
-            user_id: user.id,
-            skill_name: comp.skill_name,
-            skill_value: comp.skill_value,
-          });
+        if (pos?.title) positionTitle = pos.title;
+        if (Array.isArray(pos?.competency_profile)) {
+          competencies = (pos.competency_profile as any[]).map((c: any) => c.skill_name || c.name).filter(Boolean);
         }
       }
 
-      // Update profile overall_score
-      await supabase
-        .from("profiles")
-        .update({ overall_score: result.overall_score })
-        .eq("user_id", user.id);
-
-      queryClient.invalidateQueries({ queryKey: ["competencies"] });
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      queryClient.invalidateQueries({ queryKey: ["assessments"] });
-      toast.success("Результаты сохранены. Открываем ваш карьерный трек…");
-      // Auto-redirect to career track with highlight flag
-      setTimeout(() => {
-        navigate("/career-track?from=assessment", { replace: true });
-      }, 1800);
+      const { data, error } = await supabase.functions.invoke("generate-closed-test", {
+        body: { positionTitle, competencies },
+      });
+      if (error) throw error;
+      if (!data?.questions?.length) throw new Error("AI не сгенерировал вопросы");
+      setActiveTest({
+        title: data.title,
+        description: data.description,
+        questions: data.questions,
+        source: "ai_generated",
+        testId: null,
+      });
+      setMode("running");
     } catch (e: any) {
       console.error(e);
-      toast.error("Ошибка сохранения: " + e.message);
+      toast.error(e.message || "Ошибка генерации теста");
     }
-    setIsSaving(false);
+    setGenerating(false);
   };
 
-  const handleSend = () => {
-    if (!input.trim() || isStreaming) return;
-    const userMsg: ChatMessage = { role: "user", content: input.trim() };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    setInput("");
-    streamChat(newMessages);
-  };
+  // Auto-default: if no HRD tests, prepare AI test on first render once profile loaded
+  useEffect(() => {
+    if (mode !== "choose" || isLoading) return;
+    if (hrdTests.length === 0 && !generating && profile?.company_id) {
+      // Don't auto-start; let user click — keeps UI intentional
+    }
+  }, [hrdTests, isLoading, profile?.company_id, mode, generating]);
 
-  const handleReset = () => {
-    setMessages([]);
-    setAssessmentResult(null);
-    started.current = true;
-    streamChat([]);
-  };
-
-  const questionCount = messages.filter((m) => m.role === "assistant").length;
-  const progress = assessmentResult ? 100 : Math.min(Math.round((questionCount / 10) * 100), 95);
+  if (mode === "running" && activeTest) {
+    return <ClosedQuestionTestRunner test={activeTest} onRetake={() => { setActiveTest(null); setMode("choose"); }} />;
+  }
 
   return (
     <div className="max-w-3xl mx-auto animate-fade-in">
-      <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
-        <div className="min-w-0">
-          <h1 className="text-xl md:text-2xl font-bold text-foreground truncate">AI Карьерная оценка</h1>
-          <p className="text-muted-foreground text-xs md:text-sm mt-1 hidden sm:block">Диалог с искусственным интеллектом</p>
-        </div>
-        <button
-          onClick={handleReset}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-xs md:text-sm hover:bg-secondary/80 transition-colors flex-shrink-0"
-        >
-          <RotateCcw className="w-4 h-4" /> <span className="hidden sm:inline">Начать заново</span>
-        </button>
+      <div className="mb-6">
+        <h1 className="text-xl md:text-2xl font-bold text-foreground">Карьерная оценка</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Пройдите тест с закрытыми вопросами — результаты обновят ваши компетенции и карьерный трек.
+        </p>
       </div>
 
-      {/* Progress bar */}
-      <div className="mb-4 md:mb-6">
-        <div className="flex items-center justify-between text-xs md:text-sm text-muted-foreground mb-2">
-          <span>Прогресс оценки</span>
-          <span className="flex items-center gap-1">
-            {assessmentResult && <CheckCircle className="w-4 h-4 text-success" />}
-            {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-            {progress}%
-          </span>
-        </div>
-        <div className="w-full bg-muted rounded-full h-2">
-          <div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
-        </div>
-      </div>
-
-      {/* Chat */}
-      <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-        <div className="h-[60vh] md:h-[500px] overflow-y-auto p-4 md:p-6 space-y-5">
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex gap-3 animate-fade-in ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  msg.role === "assistant" ? "gradient-primary" : "bg-secondary"
-                }`}
-              >
-                {msg.role === "assistant" ? (
-                  <Bot className="w-4 h-4 text-primary-foreground" />
-                ) : (
-                  <User className="w-4 h-4 text-secondary-foreground" />
-                )}
-              </div>
-              <div className="max-w-[75%]">
-                <div
-                  className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                    msg.role === "assistant"
-                      ? "bg-secondary text-secondary-foreground rounded-tl-md"
-                      : "gradient-primary text-primary-foreground rounded-tr-md"
-                  }`}
+      {isLoading ? (
+        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+      ) : (
+        <div className="space-y-4">
+          {hrdTests.length > 0 ? (
+            <>
+              <p className="text-sm text-muted-foreground">Тесты от HRD вашей компании:</p>
+              {hrdTests.map((t: any) => (
+                <button
+                  key={t.id}
+                  onClick={() => startHrdTest(t)}
+                  className="w-full text-left bg-card rounded-xl border border-border p-5 shadow-card hover:border-primary transition-colors"
                 >
-                  {msg.role === "assistant" ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <div className="flex items-start gap-3">
+                    <ListChecks className="w-6 h-6 text-primary mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground">{t.title}</p>
+                      {t.description && <p className="text-sm text-muted-foreground mt-1">{t.description}</p>}
+                      <p className="text-xs text-muted-foreground mt-2">{t.questions.length} закрытых вопросов</p>
                     </div>
-                  ) : (
-                    msg.content
-                  )}
+                  </div>
+                </button>
+              ))}
+            </>
+          ) : (
+            <div className="bg-card rounded-xl border border-border p-5 shadow-card">
+              <div className="flex items-start gap-3">
+                <Sparkles className="w-6 h-6 text-primary mt-0.5" />
+                <div>
+                  <p className="font-semibold text-foreground">Тестов от HRD пока нет</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Сгенерируем для вас тест по вашей должности с помощью AI: 12 закрытых вопросов с одним правильным ответом.
+                  </p>
                 </div>
               </div>
-            </div>
-          ))}
-          {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
-            <div className="flex gap-3 animate-fade-in">
-              <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground animate-pulse" />
-              </div>
-              <div className="bg-secondary rounded-2xl rounded-tl-md px-4 py-3">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" />
-                  <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "0.15s" }} />
-                  <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "0.3s" }} />
-                </div>
-              </div>
+              <button
+                onClick={startAiTest}
+                disabled={generating}
+                className="mt-4 w-full px-4 py-2.5 rounded-lg gradient-primary text-primary-foreground text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {generating ? "AI готовит вопросы..." : "Сгенерировать AI-тест"}
+              </button>
             </div>
           )}
-          <div ref={bottomRef} />
-        </div>
 
-        {/* Input */}
-        <div className="border-t border-border p-4">
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              placeholder={assessmentResult ? "Оценка завершена" : "Введите ваш ответ..."}
-              disabled={isStreaming || !!assessmentResult}
-              className="flex-1 px-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 disabled:opacity-50"
-            />
+          {hrdTests.length > 0 && (
             <button
-              onClick={handleSend}
-              disabled={!input.trim() || isStreaming || !!assessmentResult}
-              className="px-4 py-2.5 rounded-lg gradient-primary text-primary-foreground disabled:opacity-40 transition-opacity"
+              onClick={startAiTest}
+              disabled={generating}
+              className="w-full text-left bg-secondary/40 rounded-xl border border-dashed border-border p-4 hover:border-primary transition-colors flex items-center gap-3 disabled:opacity-50"
             >
-              <Send className="w-4 h-4" />
+              <Sparkles className="w-5 h-5 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground flex-1">Или сгенерировать AI-тест под мою должность</span>
+              {generating && <Loader2 className="w-4 h-4 animate-spin" />}
             </button>
-          </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };

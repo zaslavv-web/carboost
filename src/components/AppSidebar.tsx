@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Route,
   Trophy,
+  ClipboardList,
 } from "lucide-react";
 
 interface NavItem {
@@ -75,6 +76,7 @@ const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
         { icon: Users, label: "Сотрудники", path: "/employees" },
         { icon: BarChart3, label: "Аналитика", path: "/analytics" },
         { icon: FileJson, label: "Сценарии оценки", path: "/scenarios" },
+        { icon: ClipboardList, label: "Тесты", path: "/tests" },
         { icon: Briefcase, label: "Должности", path: "/positions" },
         { icon: Route, label: "Карьерные треки", path: "/career-tracks-mgmt" },
         { icon: Trophy, label: "Геймификация", path: "/gamification" },
