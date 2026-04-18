@@ -335,6 +335,8 @@ const CareerTrack = () => {
                               totalSteps={steps.length}
                               isCompleted={i < a.current_step}
                               isCurrent={i === a.current_step}
+                              assignmentId={a.id}
+                              templateId={a.template_id}
                             />
                           ))}
                         </div>

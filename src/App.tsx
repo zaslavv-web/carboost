@@ -27,6 +27,7 @@ import ResetPassword from "@/pages/ResetPassword";
 import CompleteRegistration from "@/pages/CompleteRegistration";
 import Analytics from "@/pages/Analytics";
 import CareerTracksManagement from "@/pages/CareerTracksManagement";
+import CareerReviews from "@/pages/CareerReviews";
 import GamificationManagement from "@/pages/GamificationManagement";
 import HRDTests from "@/pages/HRDTests";
 import NotFound from "@/pages/NotFound";
@@ -62,6 +63,7 @@ const App = () => (
                 <Route path="/hr-policies" element={<HRPolicies />} />
                 <Route path="/positions" element={<Positions />} />
                 <Route path="/career-tracks-mgmt" element={<CareerTracksManagement />} />
+                <Route path="/career-reviews" element={<CareerReviews />} />
                 <Route path="/gamification" element={<GamificationManagement />} />
                 <Route path="/tests" element={<HRDTests />} />
                 <Route path="/settings" element={<Settings />} />
