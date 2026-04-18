@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X } from "lucide-react";
+import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import {
@@ -36,45 +35,56 @@ const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<RequestedAppRole>("employee");
-  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
 
-  const { data: companies = [] } = useQuery({
-    queryKey: ["public_companies"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("companies").select("id, name");
-      if (error) return [];
-      return data || [];
-    },
-    enabled: isSignUp,
-  });
+  const isHRD = selectedRole === "hrd";
+
+  /** Returns company UUID. Creates new company for HRD, finds existing for others. */
+  const resolveCompanyId = async (): Promise<string> => {
+    const trimmed = companyName.trim();
+    if (trimmed.length < 2) {
+      throw new Error("Введите название компании (минимум 2 символа)");
+    }
+    if (trimmed.length > 120) {
+      throw new Error("Название компании слишком длинное");
+    }
+
+    if (isHRD) {
+      const { data, error } = await supabase.rpc("register_company", { _name: trimmed });
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error("Не удалось создать компанию");
+      return data as string;
+    }
+
+    const { data, error } = await supabase.rpc("find_company_by_name", { _name: trimmed });
+    if (error) throw new Error(error.message);
+    if (!data) {
+      throw new Error("Компания не найдена. Попросите HRD вашей компании зарегистрироваться первым.");
+    }
+    return data as string;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (isSignUp && !selectedCompanyId) {
-      setErrorMessage("Выберите компанию перед регистрацией");
-      return;
-    }
-
     setLoading(true);
     setErrorMessage("");
 
     try {
       if (isSignUp) {
+        const companyId = await resolveCompanyId();
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { requested_role: selectedRole, company_id: selectedCompanyId || undefined },
+            data: { requested_role: selectedRole, company_id: companyId },
           },
         });
         if (error) throw error;
 
-        // Supabase возвращает «фейковый» user без identities, если email уже занят
-        // (защита от email enumeration). Письмо в этом случае НЕ отправляется.
         const identities = (data.user as any)?.identities;
         if (data.user && Array.isArray(identities) && identities.length === 0) {
           setErrorMessage(
@@ -123,13 +133,16 @@ const Login = () => {
     setErrorMessage("");
 
     if (isSignUp) {
-      if (!selectedCompanyId) {
-        setErrorMessage("Выберите компанию перед регистрацией через Google");
+      let companyId: string;
+      try {
+        companyId = await resolveCompanyId();
+      } catch (error: any) {
+        setErrorMessage(translateError(error.message || "Не удалось определить компанию"));
         return;
       }
 
       savePendingSocialSignup({
-        companyId: selectedCompanyId,
+        companyId,
         requestedRole: selectedRole,
       });
     } else {
@@ -256,24 +269,10 @@ const Login = () => {
             {isSignUp && (
               <>
                 <div>
-                  <label className="text-sm font-medium text-foreground">Компания</label>
-                  <select
-                    value={selectedCompanyId}
-                    onChange={(e) => { setSelectedCompanyId(e.target.value); setErrorMessage(""); }}
-                    className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
-                  >
-                    <option value="">— Выберите компанию —</option>
-                    {companies.map((c: any) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground mt-1">Выберите компанию, в которой вы работаете</p>
-                </div>
-                <div>
                   <label className="text-sm font-medium text-foreground">Желаемая роль</label>
                   <select
                     value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value as RequestedAppRole)}
+                    onChange={(e) => { setSelectedRole(e.target.value as RequestedAppRole); setErrorMessage(""); }}
                     className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
                   >
                     {ROLE_OPTIONS.map((r) => (
@@ -281,6 +280,28 @@ const Login = () => {
                     ))}
                   </select>
                   <p className="text-xs text-muted-foreground mt-1">После регистрации роль должна быть подтверждена администратором</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">
+                    {isHRD ? "Название вашей компании" : "Название компании, в которой вы работаете"}
+                  </label>
+                  <div className="relative mt-1.5">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={companyName}
+                      onChange={(e) => { setCompanyName(e.target.value); setErrorMessage(""); }}
+                      placeholder={isHRD ? "Например: ООО «Карьерный трек»" : "Точное название, как зарегистрировал HRD"}
+                      required
+                      maxLength={120}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {isHRD
+                      ? "Будет создана новая компания. Названия должны быть уникальными."
+                      : "Если компания не найдена — попросите HRD зарегистрироваться первым."}
+                  </p>
                 </div>
               </>
             )}
