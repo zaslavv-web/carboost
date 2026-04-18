@@ -269,24 +269,10 @@ const Login = () => {
             {isSignUp && (
               <>
                 <div>
-                  <label className="text-sm font-medium text-foreground">Компания</label>
-                  <select
-                    value={selectedCompanyId}
-                    onChange={(e) => { setSelectedCompanyId(e.target.value); setErrorMessage(""); }}
-                    className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
-                  >
-                    <option value="">— Выберите компанию —</option>
-                    {companies.map((c: any) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground mt-1">Выберите компанию, в которой вы работаете</p>
-                </div>
-                <div>
                   <label className="text-sm font-medium text-foreground">Желаемая роль</label>
                   <select
                     value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value as RequestedAppRole)}
+                    onChange={(e) => { setSelectedRole(e.target.value as RequestedAppRole); setErrorMessage(""); }}
                     className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
                   >
                     {ROLE_OPTIONS.map((r) => (
@@ -294,6 +280,28 @@ const Login = () => {
                     ))}
                   </select>
                   <p className="text-xs text-muted-foreground mt-1">После регистрации роль должна быть подтверждена администратором</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">
+                    {isHRD ? "Название вашей компании" : "Название компании, в которой вы работаете"}
+                  </label>
+                  <div className="relative mt-1.5">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={companyName}
+                      onChange={(e) => { setCompanyName(e.target.value); setErrorMessage(""); }}
+                      placeholder={isHRD ? "Например: ООО «Карьерный трек»" : "Точное название, как зарегистрировал HRD"}
+                      required
+                      maxLength={120}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {isHRD
+                      ? "Будет создана новая компания. Названия должны быть уникальными."
+                      : "Если компания не найдена — попросите HRD зарегистрироваться первым."}
+                  </p>
                 </div>
               </>
             )}
