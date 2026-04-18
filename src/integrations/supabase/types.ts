@@ -1400,6 +1400,10 @@ export type Database = {
         }
         Returns: string
       }
+      sync_step_goals_to_personal: {
+        Args: { _assignment_id: string }
+        Returns: undefined
+      }
       verify_user: { Args: { _target_user_id: string }; Returns: undefined }
     }
     Enums: {
