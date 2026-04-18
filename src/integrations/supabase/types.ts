@@ -625,11 +625,20 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          gift_content: string | null
           icon: string | null
           id: string
+          image_url: string | null
           is_active: boolean
+          monetary_amount: number | null
+          monetary_currency: string | null
+          non_monetary_description: string | null
+          non_monetary_title: string | null
           points: number
+          reward_kind: string
           title: string
+          trigger_events: Json
+          trigger_mode: string
           updated_at: string
         }
         Insert: {
@@ -638,11 +647,20 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          gift_content?: string | null
           icon?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
+          monetary_amount?: number | null
+          monetary_currency?: string | null
+          non_monetary_description?: string | null
+          non_monetary_title?: string | null
           points?: number
+          reward_kind?: string
           title: string
+          trigger_events?: Json
+          trigger_mode?: string
           updated_at?: string
         }
         Update: {
@@ -651,11 +669,20 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          gift_content?: string | null
           icon?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
+          monetary_amount?: number | null
+          monetary_currency?: string | null
+          non_monetary_description?: string | null
+          non_monetary_title?: string | null
           points?: number
+          reward_kind?: string
           title?: string
+          trigger_events?: Json
+          trigger_mode?: string
           updated_at?: string
         }
         Relationships: [
@@ -1178,6 +1205,15 @@ export type Database = {
       }
       delete_user: { Args: { _target_user_id: string }; Returns: undefined }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
+      grant_rewards_for_event: {
+        Args: {
+          _company_id: string
+          _description?: string
+          _event_code: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
