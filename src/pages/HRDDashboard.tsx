@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, TrendingUp, Shield, BarChart3, Search, ChevronDown, Loader2, GitCompareArrows, X, Briefcase, Mail, Plus, Trash2, Check } from "lucide-react";
+import { Users, TrendingUp, Shield, BarChart3, Search, ChevronDown, Loader2, GitCompareArrows, X, Briefcase, Mail, Plus, Trash2, Check, Route } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import HRDCareerTracksAnalytics from "@/components/HRDCareerTracksAnalytics";
 import type { AppRole } from "@/hooks/useUserProfile";
 
 interface EmployeeWithRole {
@@ -241,7 +242,7 @@ const HRDDashboard = () => {
   const [showRoleMenu, setShowRoleMenu] = useState<string | null>(null);
   const [showPositionMenu, setShowPositionMenu] = useState<string | null>(null);
   const [comparisonTarget, setComparisonTarget] = useState<{ emp: EmployeeWithRole; pos: Position } | null>(null);
-  const [activePanel, setActivePanel] = useState<"employees" | "requests" | "mappings">("employees");
+  const [activePanel, setActivePanel] = useState<"employees" | "requests" | "mappings" | "tracks">("employees");
   const [newMapDomain, setNewMapDomain] = useState("");
   const [newMapPositionId, setNewMapPositionId] = useState("");
   const queryClient = useQueryClient();
@@ -497,6 +498,7 @@ const HRDDashboard = () => {
       <div className="flex gap-2 overflow-x-auto -mx-1 px-1">
         {([
           { key: "employees", label: "Сотрудники", icon: Users, count: employees.length },
+          { key: "tracks", label: "Карьерные треки", icon: Route, count: 0 },
           { key: "requests", label: "Заявки на должность", icon: Briefcase, count: pendingRequests.length },
           { key: "mappings", label: "Маппинг доменов", icon: Mail, count: mappings.length },
         ] as const).map((t) => (
@@ -517,6 +519,8 @@ const HRDDashboard = () => {
           </button>
         ))}
       </div>
+
+      {activePanel === "tracks" && <HRDCareerTracksAnalytics />}
 
       {/* Pending position requests panel */}
       {activePanel === "requests" && (

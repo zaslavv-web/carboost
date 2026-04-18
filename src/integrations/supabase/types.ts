@@ -1203,6 +1203,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      build_employee_artifacts: { Args: { _user_id: string }; Returns: string }
       delete_user: { Args: { _target_user_id: string }; Returns: undefined }
       find_company_by_name: { Args: { _name: string }; Returns: string }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
@@ -1221,6 +1222,16 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      notify_career_event: {
+        Args: {
+          _company_id: string
+          _description: string
+          _ntype: string
+          _title: string
+          _user_id: string
+        }
+        Returns: undefined
       }
       register_company: { Args: { _name: string }; Returns: string }
       reject_user: { Args: { _target_user_id: string }; Returns: undefined }

@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Check, Clock, ChevronDown, ChevronRight, Target, Loader2, Plus, X, Route, Award, Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import CareerTrackStepCard, { type RichStep } from "@/components/CareerTrackStepCard";
 
 const statusConfig: Record<string, { label: string; color: string; textColor: string }> = {
   completed: { label: "Завершено", color: "bg-success", textColor: "text-success" },
@@ -13,7 +14,7 @@ const statusConfig: Record<string, { label: string; color: string; textColor: st
   at_risk: { label: "Под угрозой", color: "bg-destructive", textColor: "text-destructive" },
 };
 
-interface Step { order: number; title: string; description: string; duration_months: number }
+type Step = RichStep;
 
 const CareerTrack = () => {
   const { user } = useAuth();
@@ -326,31 +327,16 @@ const CareerTrack = () => {
                       <div className="mb-4">
                         <h4 className="text-sm font-medium text-foreground mb-3">Этапы карьерного пути</h4>
                         <div className="relative">
-                          {steps.map((s, i) => {
-                            const isCompleted = i < a.current_step;
-                            const isCurrent = i === a.current_step;
-                            return (
-                              <div key={i} className="flex items-start gap-3 mb-3 last:mb-0">
-                                <div className="flex flex-col items-center">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                                    isCompleted ? "bg-success text-success-foreground" : isCurrent ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                                  }`}>
-                                    {isCompleted ? <Check className="w-4 h-4" /> : i + 1}
-                                  </div>
-                                  {i < steps.length - 1 && <div className={`w-0.5 h-6 mt-1 ${isCompleted ? "bg-success" : "bg-border"}`} />}
-                                </div>
-                                <div className="flex-1 pb-2">
-                                  <p className={`text-sm font-medium ${isCompleted ? "text-muted-foreground line-through" : isCurrent ? "text-foreground" : "text-muted-foreground"}`}>
-                                    {s.title}
-                                  </p>
-                                  {s.description && <p className="text-xs text-muted-foreground">{s.description}</p>}
-                                  <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                    <Clock className="w-3 h-3" />{s.duration_months} мес.
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
+                          {steps.map((s, i) => (
+                            <CareerTrackStepCard
+                              key={i}
+                              step={s}
+                              index={i}
+                              totalSteps={steps.length}
+                              isCompleted={i < a.current_step}
+                              isCurrent={i === a.current_step}
+                            />
+                          ))}
                         </div>
                       </div>
                     ) : (

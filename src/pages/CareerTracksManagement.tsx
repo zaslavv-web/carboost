@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Plus, X, Edit2, Trash2, ChevronDown, ChevronRight, Target, Loader2, Route, Users, Clock, CheckCircle2 } from "lucide-react";
+import { Plus, X, Edit2, Trash2, ChevronDown, ChevronRight, Target, Loader2, Route, Users, Clock, CheckCircle2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface Step {
@@ -11,6 +11,11 @@ interface Step {
   title: string;
   description: string;
   duration_months: number;
+  goals?: string[];
+  pass_conditions?: string[];
+  rewards?: string[];
+  penalty?: string;
+  success_metrics?: string[];
 }
 
 interface TemplateForm {
@@ -105,8 +110,41 @@ const CareerTracksManagement = () => {
 
   const [actionTexts, setActionTexts] = useState<Record<string, string>>({});
 
+  const generateStepsAI = async (): Promise<Step[]> => {
+    const fromTitle = positions.find((p) => p.id === form.from_position_id)?.title;
+    const toTitle = positions.find((p) => p.id === form.to_position_id)?.title;
+    const { data, error } = await supabase.functions.invoke("generate-default-track-steps", {
+      body: {
+        template_title: form.title,
+        description: form.description,
+        from_position_title: fromTitle,
+        to_position_title: toTitle,
+        estimated_months: form.estimated_months,
+      },
+    });
+    if (error) throw error;
+    return (data?.steps || []) as Step[];
+  };
+
+  const generateStepsMutation = useMutation({
+    mutationFn: generateStepsAI,
+    onSuccess: (steps) => {
+      setForm((f) => ({ ...f, steps }));
+      toast.success("Этапы сгенерированы");
+    },
+    onError: () => toast.error("Не удалось сгенерировать этапы"),
+  });
+
   const saveMutation = useMutation({
     mutationFn: async () => {
+      let stepsToSave = form.steps;
+      if (!stepsToSave || stepsToSave.length === 0) {
+        try {
+          stepsToSave = await generateStepsAI();
+        } catch (e) {
+          console.error("auto-gen failed", e);
+        }
+      }
       const payload = {
         title: form.title,
         description: form.description || null,
@@ -114,7 +152,7 @@ const CareerTracksManagement = () => {
         from_position_id: form.from_position_id || null,
         to_position_id: form.to_position_id || null,
         estimated_months: form.estimated_months || null,
-        steps: form.steps as any,
+        steps: stepsToSave as any,
         company_id: companyId,
         created_by: user!.id,
       };
@@ -297,26 +335,67 @@ const CareerTracksManagement = () => {
 
           {/* Steps */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-foreground">Шаги карьерного пути</h4>
-              <button onClick={addStep} className="text-xs text-primary flex items-center gap-1"><Plus className="w-3 h-3" /> Добавить шаг</button>
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+              <h4 className="text-sm font-medium text-foreground">Этапы карьерного пути</h4>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => generateStepsMutation.mutate()}
+                  disabled={generateStepsMutation.isPending}
+                  className="text-xs text-primary flex items-center gap-1 px-2 py-1 rounded border border-primary/30 hover:bg-primary/5 disabled:opacity-50"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  {generateStepsMutation.isPending ? "Генерация..." : "Сгенерировать AI"}
+                </button>
+                <button onClick={addStep} className="text-xs text-primary flex items-center gap-1">
+                  <Plus className="w-3 h-3" /> Добавить этап
+                </button>
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground mb-2">
+              Если оставить пустым, этапы сгенерируются автоматически при сохранении.
+            </p>
             <div className="space-y-3">
               {form.steps.map((step, idx) => (
-                <div key={idx} className="flex gap-2 items-start bg-secondary/30 rounded-lg p-3">
-                  <span className="text-xs text-muted-foreground mt-2.5 w-6">{idx + 1}.</span>
-                  <div className="flex-1 space-y-2">
-                    <input type="text" placeholder="Название шага" value={step.title}
-                      onChange={e => updateStep(idx, "title", e.target.value)}
-                      className="w-full px-3 py-1.5 rounded border border-input bg-background text-sm" />
-                    <input type="text" placeholder="Описание" value={step.description}
-                      onChange={e => updateStep(idx, "description", e.target.value)}
-                      className="w-full px-3 py-1.5 rounded border border-input bg-background text-sm" />
-                    <input type="number" placeholder="Мес." value={step.duration_months} min={1}
-                      onChange={e => updateStep(idx, "duration_months", parseInt(e.target.value) || 3)}
-                      className="w-24 px-3 py-1.5 rounded border border-input bg-background text-sm" />
+                <div key={idx} className="bg-secondary/30 rounded-lg p-3 space-y-2">
+                  <div className="flex gap-2 items-start">
+                    <span className="text-xs text-muted-foreground mt-2.5 w-6">{idx + 1}.</span>
+                    <div className="flex-1 space-y-2">
+                      <input type="text" placeholder="Название этапа" value={step.title}
+                        onChange={e => updateStep(idx, "title", e.target.value)}
+                        className="w-full px-3 py-1.5 rounded border border-input bg-background text-sm" />
+                      <input type="text" placeholder="Описание" value={step.description}
+                        onChange={e => updateStep(idx, "description", e.target.value)}
+                        className="w-full px-3 py-1.5 rounded border border-input bg-background text-sm" />
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-muted-foreground">Срок (мес.)</label>
+                        <input type="number" value={step.duration_months} min={1}
+                          onChange={e => updateStep(idx, "duration_months", parseInt(e.target.value) || 3)}
+                          className="w-20 px-3 py-1.5 rounded border border-input bg-background text-sm" />
+                      </div>
+                      <textarea placeholder="Ключевые цели (по одной в строке)" rows={2}
+                        value={(step.goals || []).join("\n")}
+                        onChange={e => updateStep(idx, "goals", e.target.value.split("\n").filter(Boolean))}
+                        className="w-full px-3 py-1.5 rounded border border-input bg-background text-xs" />
+                      <textarea placeholder="Условия прохождения (по одной в строке)" rows={2}
+                        value={(step.pass_conditions || []).join("\n")}
+                        onChange={e => updateStep(idx, "pass_conditions", e.target.value.split("\n").filter(Boolean))}
+                        className="w-full px-3 py-1.5 rounded border border-input bg-background text-xs" />
+                      <textarea placeholder="Бонусы за прохождение (по одной в строке)" rows={2}
+                        value={(step.rewards || []).join("\n")}
+                        onChange={e => updateStep(idx, "rewards", e.target.value.split("\n").filter(Boolean))}
+                        className="w-full px-3 py-1.5 rounded border border-input bg-background text-xs" />
+                      <textarea placeholder="Штраф / предложение при непрохождении" rows={2}
+                        value={step.penalty || ""}
+                        onChange={e => updateStep(idx, "penalty", e.target.value)}
+                        className="w-full px-3 py-1.5 rounded border border-input bg-background text-xs" />
+                      <textarea placeholder="Метрики успеха (по одной в строке)" rows={2}
+                        value={(step.success_metrics || []).join("\n")}
+                        onChange={e => updateStep(idx, "success_metrics", e.target.value.split("\n").filter(Boolean))}
+                        className="w-full px-3 py-1.5 rounded border border-input bg-background text-xs" />
+                    </div>
+                    <button onClick={() => removeStep(idx)} className="mt-2"><X className="w-4 h-4 text-muted-foreground" /></button>
                   </div>
-                  <button onClick={() => removeStep(idx)} className="mt-2"><X className="w-4 h-4 text-muted-foreground" /></button>
                 </div>
               ))}
             </div>
