@@ -571,7 +571,7 @@ const GamificationManagement = () => {
           <div className="space-y-2">
             {customEvents.map(ev => {
               const isDefault = DEFAULT_EVENTS.find(d => d.code === ev.code);
-              const usedBy = rewardTypes.filter(r => (r.trigger_events || []).includes(ev.code)).length;
+              const usedBy = rewardTypes.filter(r => Array.isArray(r.trigger_events) && (r.trigger_events as any[]).includes(ev.code)).length;
               return (
                 <div key={ev.code} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
                   <div>
