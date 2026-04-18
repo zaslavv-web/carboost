@@ -2,9 +2,9 @@ import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
-import { X, Upload, Loader2, FileText, Trash2, AlertTriangle, Info } from "lucide-react";
-import ClosedQuestionTestRunner from "@/components/ClosedQuestionTestRunner";
+import { X, Upload, Loader2, FileText, Trash2, AlertTriangle, Info, CheckCircle2 } from "lucide-react";
 
 interface Props {
   assignmentId: string;
@@ -14,17 +14,27 @@ interface Props {
   onClose: () => void;
 }
 
+interface SimpleQ {
+  id?: string;
+  question: string;
+  options: string[];
+  correct: number;
+  competency?: string;
+}
+
 const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, onClose }: Props) => {
   const { user } = useAuth();
+  const { data: profile } = useUserProfile();
   const qc = useQueryClient();
   const [comment, setComment] = useState("");
   const [files, setFiles] = useState<{ url: string; name: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [testAttemptId, setTestAttemptId] = useState<string | null>(null);
+  const [testScore, setTestScore] = useState<number | null>(null);
   const [showTest, setShowTest] = useState(false);
+  const [answers, setAnswers] = useState<Record<number, number>>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // last attempt to know if this is reinforced
   const { data: lastAttempts = [] } = useQuery({
     queryKey: ["my_step_attempts", assignmentId, stepOrder],
     queryFn: async () => {
@@ -56,7 +66,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
     },
   });
 
-  const { data: test } = useQuery({
+  const { data: stepTest } = useQuery({
     queryKey: ["step_test", scenario?.test_id],
     queryFn: async () => {
       if (!scenario?.test_id) return null;
@@ -71,6 +81,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
     enabled: !!scenario?.test_id,
   });
 
+  const questions: SimpleQ[] = (stepTest?.questions as any) || [];
   const minFiles = isReinforced ? Math.max(2, scenario?.min_files ?? 1) : scenario?.min_files ?? 1;
   const minScore = isReinforced ? Math.max(85, scenario?.min_test_score ?? 80) : scenario?.min_test_score ?? 80;
 
@@ -97,6 +108,38 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
     }
   };
 
+  const submitTest = async () => {
+    if (!user) return;
+    const correct = questions.reduce((s, q, i) => s + (answers[i] === q.correct ? 1 : 0), 0);
+    const pct = Math.round((correct / Math.max(1, questions.length)) * 100);
+    if (pct < minScore) {
+      toast.error(`Балл ${pct}% ниже порога ${minScore}%. Попробуйте ещё раз.`);
+      setAnswers({});
+      return;
+    }
+    const { data, error } = await supabase
+      .from("test_attempts")
+      .insert({
+        user_id: user.id,
+        company_id: profile?.company_id ?? null,
+        test_id: stepTest?.id ?? null,
+        test_source: "career_step",
+        answers: answers as any,
+        score: pct,
+        total: 100,
+      })
+      .select()
+      .single();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setTestAttemptId(data.id);
+    setTestScore(pct);
+    setShowTest(false);
+    toast.success(`Тест пройден на ${pct}%`);
+  };
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.rpc("submit_career_step", {
@@ -117,33 +160,59 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
     onError: (e: any) => toast.error(e.message),
   });
 
+  const testRequired = scenario?.requires_test && questions.length > 0;
   const canSubmit =
     files.length >= minFiles &&
     (!scenario?.requires_comment || comment.trim().length > 0) &&
-    (!scenario?.requires_test || !!testAttemptId);
+    (!testRequired || testAttemptId !== null);
 
-  if (showTest && test) {
+  // INLINE TEST VIEW
+  if (showTest) {
+    const allAnswered = questions.every((_, i) => answers[i] !== undefined);
     return (
       <div className="fixed inset-0 bg-background/95 z-50 overflow-y-auto p-4">
-        <div className="max-w-3xl mx-auto bg-card rounded-xl border border-border p-5">
+        <div className="max-w-2xl mx-auto bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Контрольный тест этапа</h3>
+            <h3 className="font-semibold">Контрольный тест этапа · мин. {minScore}%</h3>
             <button onClick={() => setShowTest(false)} className="text-muted-foreground hover:text-foreground">
               <X className="w-5 h-5" />
             </button>
           </div>
-          <ClosedQuestionTestRunner
-            test={test as any}
-            onComplete={(attemptId, scorePct) => {
-              if (scorePct < minScore) {
-                toast.error(`Балл ${scorePct}% ниже порога ${minScore}%. Попробуйте ещё раз.`);
-                return;
-              }
-              setTestAttemptId(attemptId);
-              setShowTest(false);
-              toast.success(`Тест пройден на ${scorePct}%`);
-            }}
-          />
+          <div className="space-y-4">
+            {questions.map((q, i) => (
+              <div key={i} className="border border-border rounded-lg p-3">
+                <p className="text-sm font-medium mb-2">{i + 1}. {q.question}</p>
+                <div className="space-y-1.5">
+                  {q.options.map((opt, oi) => (
+                    <label
+                      key={oi}
+                      className={`flex items-start gap-2 p-2 rounded cursor-pointer text-sm transition-colors ${
+                        answers[i] === oi ? "bg-primary/10 border border-primary/30" : "hover:bg-secondary/40 border border-transparent"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        checked={answers[i] === oi}
+                        onChange={() => setAnswers((p) => ({ ...p, [i]: oi }))}
+                        className="mt-0.5 accent-primary"
+                      />
+                      <span>{opt}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setShowTest(false)} className="px-4 py-2 rounded-lg text-sm hover:bg-secondary/60">Отмена</button>
+            <button
+              onClick={submitTest}
+              disabled={!allAnswered}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
+            >
+              Завершить тест
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -152,7 +221,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-card rounded-xl border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b border-border sticky top-0 bg-card">
+        <div className="flex items-center justify-between p-5 border-b border-border sticky top-0 bg-card z-10">
           <div>
             <h3 className="font-semibold text-foreground">Отправить этап на проверку</h3>
             <p className="text-xs text-muted-foreground mt-0.5">{stepTitle}</p>
@@ -178,36 +247,35 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
           {scenario?.instructions && (
             <div className="rounded-lg bg-info/10 border border-info/20 p-3 text-xs flex gap-2">
               <Info className="w-4 h-4 text-info flex-shrink-0 mt-0.5" />
-              <p className="text-foreground/90">{isReinforced ? scenario.reinforced_instructions || scenario.instructions : scenario.instructions}</p>
+              <p className="text-foreground/90">
+                {isReinforced ? scenario.reinforced_instructions || scenario.instructions : scenario.instructions}
+              </p>
             </div>
           )}
 
-          {/* Test */}
-          {scenario?.requires_test && (
+          {testRequired && (
             <div>
-              <p className="text-sm font-medium mb-2">Контрольный тест (минимум {minScore}%)</p>
-              {test ? (
-                <button
-                  type="button"
-                  onClick={() => setShowTest(true)}
-                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                    testAttemptId
-                      ? "border-success/30 bg-success/5"
-                      : "border-border hover:border-primary/40 hover:bg-secondary/40"
-                  }`}
-                >
-                  <p className="text-sm font-medium">{test.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {testAttemptId ? "✓ Тест пройден — можно отправлять" : "Нажмите, чтобы пройти тест"}
-                  </p>
-                </button>
-              ) : (
-                <p className="text-xs text-muted-foreground">Тест ещё не назначен HRD — этап можно отправить без теста.</p>
-              )}
+              <p className="text-sm font-medium mb-2">Контрольный тест (мин. {minScore}%)</p>
+              <button
+                type="button"
+                onClick={() => setShowTest(true)}
+                className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                  testAttemptId
+                    ? "border-success/30 bg-success/5"
+                    : "border-border hover:border-primary/40 hover:bg-secondary/40"
+                }`}
+              >
+                <p className="text-sm font-medium flex items-center gap-2">
+                  {testAttemptId && <CheckCircle2 className="w-4 h-4 text-success" />}
+                  {stepTest?.title || "Тест этапа"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {testAttemptId ? `✓ Пройден на ${testScore}%` : `${questions.length} вопросов · нажмите, чтобы пройти`}
+                </p>
+              </button>
             </div>
           )}
 
-          {/* Files */}
           <div>
             <p className="text-sm font-medium mb-2">
               Подтверждающие файлы ({files.length}/{minFiles} мин.)
@@ -234,13 +302,14 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border text-sm hover:bg-secondary/40 transition-colors disabled:opacity-50"
             >
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              Загрузить файлы
+              Загрузить файлы (сертификаты, скрины, отчёты)
             </button>
           </div>
 
-          {/* Comment */}
           <div>
-            <p className="text-sm font-medium mb-2">Комментарий{scenario?.requires_comment && <span className="text-destructive"> *</span>}</p>
+            <p className="text-sm font-medium mb-2">
+              Комментарий{scenario?.requires_comment && <span className="text-destructive"> *</span>}
+            </p>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
