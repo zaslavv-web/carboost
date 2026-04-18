@@ -35,45 +35,56 @@ const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<RequestedAppRole>("employee");
-  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
 
-  const { data: companies = [] } = useQuery({
-    queryKey: ["public_companies"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("companies").select("id, name");
-      if (error) return [];
-      return data || [];
-    },
-    enabled: isSignUp,
-  });
+  const isHRD = selectedRole === "hrd";
+
+  /** Returns company UUID. Creates new company for HRD, finds existing for others. */
+  const resolveCompanyId = async (): Promise<string> => {
+    const trimmed = companyName.trim();
+    if (trimmed.length < 2) {
+      throw new Error("Введите название компании (минимум 2 символа)");
+    }
+    if (trimmed.length > 120) {
+      throw new Error("Название компании слишком длинное");
+    }
+
+    if (isHRD) {
+      const { data, error } = await supabase.rpc("register_company", { _name: trimmed });
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error("Не удалось создать компанию");
+      return data as string;
+    }
+
+    const { data, error } = await supabase.rpc("find_company_by_name", { _name: trimmed });
+    if (error) throw new Error(error.message);
+    if (!data) {
+      throw new Error("Компания не найдена. Попросите HRD вашей компании зарегистрироваться первым.");
+    }
+    return data as string;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (isSignUp && !selectedCompanyId) {
-      setErrorMessage("Выберите компанию перед регистрацией");
-      return;
-    }
-
     setLoading(true);
     setErrorMessage("");
 
     try {
       if (isSignUp) {
+        const companyId = await resolveCompanyId();
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { requested_role: selectedRole, company_id: selectedCompanyId || undefined },
+            data: { requested_role: selectedRole, company_id: companyId },
           },
         });
         if (error) throw error;
 
-        // Supabase возвращает «фейковый» user без identities, если email уже занят
-        // (защита от email enumeration). Письмо в этом случае НЕ отправляется.
         const identities = (data.user as any)?.identities;
         if (data.user && Array.isArray(identities) && identities.length === 0) {
           setErrorMessage(
