@@ -298,6 +298,66 @@ export type Database = {
           },
         ]
       }
+      closed_question_tests: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean
+          position_id: string | null
+          questions: Json
+          source_file_name: string | null
+          source_file_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          position_id?: string | null
+          questions?: Json
+          source_file_name?: string | null
+          source_file_url?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          position_id?: string | null
+          questions?: Json
+          source_file_name?: string | null
+          source_file_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "closed_question_tests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "closed_question_tests_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string
@@ -1028,6 +1088,60 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_attempts: {
+        Row: {
+          answers: Json
+          company_id: string | null
+          competency_breakdown: Json
+          created_at: string
+          id: string
+          score: number
+          test_id: string | null
+          test_source: string
+          total: number
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          company_id?: string | null
+          competency_breakdown?: Json
+          created_at?: string
+          id?: string
+          score?: number
+          test_id?: string | null
+          test_source?: string
+          total?: number
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          company_id?: string | null
+          competency_breakdown?: Json
+          created_at?: string
+          id?: string
+          score?: number
+          test_id?: string | null
+          test_source?: string
+          total?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_attempts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_attempts_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "closed_question_tests"
             referencedColumns: ["id"]
           },
         ]
