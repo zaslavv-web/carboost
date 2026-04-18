@@ -37,6 +37,8 @@ const UsersManagement = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [companyFilter, setCompanyFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
 
   const { data: companies = [] } = useQuery({
     queryKey: ["companies_list"],
