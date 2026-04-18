@@ -18,6 +18,8 @@ export interface UserProfile {
   is_verified: boolean;
   requested_role: string;
   company_id: string | null;
+  position_id: string | null;
+  pending_position_id: string | null;
 }
 
 /** Returns the effective user ID (impersonated or real) */
