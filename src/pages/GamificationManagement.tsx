@@ -495,7 +495,7 @@ const GamificationManagement = () => {
                     </span>
                   )}
                   <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 ${r.trigger_mode === "auto" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                    {r.trigger_mode === "auto" ? <><Zap className="w-3 h-3" /> Авто ({(r.trigger_events || []).length})</> : <><Hand className="w-3 h-3" /> Ручная</>}
+                    {r.trigger_mode === "auto" ? <><Zap className="w-3 h-3" /> Авто ({(Array.isArray(r.trigger_events) ? r.trigger_events.length : 0)})</> : <><Hand className="w-3 h-3" /> Ручная</>}
                   </span>
                 </div>
 
