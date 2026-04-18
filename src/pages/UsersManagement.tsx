@@ -132,10 +132,18 @@ const UsersManagement = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const departments = Array.from(
+    new Set(users.map((u: any) => (u.department || "").trim()).filter(Boolean)),
+  ).sort() as string[];
+
   const filtered = users.filter((u: any) => {
+    const q = search.toLowerCase();
     const matchesSearch =
-      u.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      (u.department || "").toLowerCase().includes(search.toLowerCase());
+      !q ||
+      u.full_name.toLowerCase().includes(q) ||
+      (u.department || "").toLowerCase().includes(q) ||
+      (u.position || "").toLowerCase().includes(q) ||
+      roleLabelMap[u.role]?.toLowerCase().includes(q);
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "verified" && u.is_verified) ||
@@ -144,7 +152,12 @@ const UsersManagement = () => {
       companyFilter === "all" ||
       (companyFilter === "none" && !u.company_id) ||
       u.company_id === companyFilter;
-    return matchesSearch && matchesStatus && matchesCompany;
+    const matchesRole = roleFilter === "all" || u.role === roleFilter;
+    const matchesDepartment =
+      departmentFilter === "all" ||
+      (departmentFilter === "none" && !(u.department || "").trim()) ||
+      (u.department || "").trim() === departmentFilter;
+    return matchesSearch && matchesStatus && matchesCompany && matchesRole && matchesDepartment;
   });
 
   const pendingCount = users.filter((u: any) => !u.is_verified).length;
