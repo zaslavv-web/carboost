@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, MessageSquare, User, Target, Menu, Bell, LogOut, Settings, LifeBuoy } from "lucide-react";
+import { LayoutDashboard, MessageSquare, User, Target, Menu, Bell, LogOut, Settings } from "lucide-react";
 import { useState } from "react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAuth } from "@/contexts/AuthContext";
