@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useRef, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -13,19 +13,37 @@ const Settings = () => {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState("");
-  const [position, setPosition] = useState("");
-  const [department, setDepartment] = useState("");
+  const [positionId, setPositionId] = useState<string>("");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [initialized, setInitialized] = useState(false);
 
+  const { data: positions = [], isLoading: positionsLoading } = useQuery({
+    queryKey: ["positions_for_settings", profile?.company_id],
+    queryFn: async () => {
+      if (!profile?.company_id) return [];
+      const { data, error } = await supabase
+        .from("positions")
+        .select("id, title, department")
+        .eq("company_id", profile.company_id)
+        .order("title");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!profile?.company_id,
+  });
+
   if (profile && !initialized) {
     setFullName(profile.full_name || "");
-    setPosition(profile.position || "");
-    setDepartment(profile.department || "");
+    setPositionId(profile.position_id || "");
     setAvatarPreview(profile.avatar_url);
     setInitialized(true);
   }
+
+  const selectedPosition = useMemo(
+    () => positions.find((p) => p.id === positionId),
+    [positions, positionId],
+  );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -59,8 +77,9 @@ const Settings = () => {
         .from("profiles")
         .update({
           full_name: fullName.trim(),
-          position: position.trim(),
-          department: department.trim(),
+          position_id: positionId || null,
+          position: selectedPosition?.title ?? "",
+          department: selectedPosition?.department ?? "",
           avatar_url: avatarUrl,
         })
         .eq("user_id", user.id);
@@ -129,23 +148,29 @@ const Settings = () => {
         </div>
         <div>
           <label className="text-sm font-medium text-foreground">Должность</label>
-          <input
-            value={position}
-            onChange={(e) => setPosition(e.target.value)}
-            maxLength={100}
-            placeholder="Например: Frontend-разработчик"
-            className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium text-foreground">Отдел</label>
-          <input
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            maxLength={100}
-            placeholder="Например: Разработка"
-            className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
-          />
+          <select
+            value={positionId}
+            onChange={(e) => setPositionId(e.target.value)}
+            disabled={positionsLoading || positions.length === 0}
+            className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary disabled:opacity-50"
+          >
+            <option value="">— Выберите должность —</option>
+            {positions.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title}{p.department ? ` · ${p.department}` : ""}
+              </option>
+            ))}
+          </select>
+          {!positionsLoading && positions.length === 0 && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              В компании пока нет должностей. Их создаёт HRD в разделе «Должности».
+            </p>
+          )}
+          {selectedPosition?.department && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Отдел: <span className="text-foreground">{selectedPosition.department}</span>
+            </p>
+          )}
         </div>
 
         <button
