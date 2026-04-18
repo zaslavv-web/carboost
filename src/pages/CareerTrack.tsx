@@ -22,6 +22,7 @@ const CareerTrack = () => {
   const fromAssessment = searchParams.get("from") === "assessment";
   const [showAssessmentBanner, setShowAssessmentBanner] = useState(fromAssessment);
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
+  const [expandedTrack, setExpandedTrack] = useState<string | null>(null);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: "", description: "", deadline: "" });
   const [tab, setTab] = useState<"goals" | "tracks" | "rewards">("tracks");
@@ -279,14 +280,19 @@ const CareerTrack = () => {
             const tActions = levelActions.filter(la => la.template_id === t.id);
             return (
               <div key={a.id} className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
-                <div className="p-5">
-                  <div className="flex items-center gap-4 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setExpandedTrack(expandedTrack === a.id ? null : a.id)}
+                  className="w-full text-left p-5 hover:bg-secondary/30 transition-colors"
+                  aria-expanded={expandedTrack === a.id}
+                >
+                  <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-lg gradient-primary flex items-center justify-center">
                       <Route className="w-6 h-6 text-primary-foreground" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-semibold text-foreground">{t.title}</h3>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                         {fromPos && <span>{fromPos.title}</span>}
                         {fromPos && toPos && <ArrowRight className="w-4 h-4" />}
                         {toPos && <span className="text-primary font-medium">{toPos.title}</span>}
@@ -296,71 +302,77 @@ const CareerTrack = () => {
                     <span className={`text-xs px-3 py-1 rounded-full ${a.status === "completed" ? "bg-success/20 text-success" : "bg-info/20 text-info"}`}>
                       {a.status === "completed" ? "Завершён" : "Активен"}
                     </span>
+                    {expandedTrack === a.id
+                      ? <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                      : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
                   </div>
+                </button>
 
-                  {t.description && <p className="text-sm text-muted-foreground mb-4">{t.description}</p>}
+                {expandedTrack === a.id && (
+                  <div className="px-5 pb-5 border-t border-border pt-4 animate-fade-in">
+                    {t.description && <p className="text-sm text-muted-foreground mb-4">{t.description}</p>}
 
-                  {/* Motivation */}
-                  {(t.motivation_text || a.personal_motivation) && (
-                    <div className="bg-primary/5 border border-primary/10 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Sparkles className="w-4 h-4 text-primary" />
-                        <h4 className="text-sm font-medium text-primary">Мотивация</h4>
+                    {(t.motivation_text || a.personal_motivation) && (
+                      <div className="bg-primary/5 border border-primary/10 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles className="w-4 h-4 text-primary" />
+                          <h4 className="text-sm font-medium text-primary">Мотивация</h4>
+                        </div>
+                        <p className="text-sm text-foreground">{a.personal_motivation || t.motivation_text}</p>
                       </div>
-                      <p className="text-sm text-foreground">{a.personal_motivation || t.motivation_text}</p>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Steps timeline */}
-                  {steps.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium text-foreground mb-3">Этапы карьерного пути</h4>
-                      <div className="relative">
-                        {steps.map((s, i) => {
-                          const isCompleted = i < a.current_step;
-                          const isCurrent = i === a.current_step;
-                          return (
-                            <div key={i} className="flex items-start gap-3 mb-3 last:mb-0">
-                              <div className="flex flex-col items-center">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                                  isCompleted ? "bg-success text-success-foreground" : isCurrent ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                                }`}>
-                                  {isCompleted ? <Check className="w-4 h-4" /> : i + 1}
+                    {steps.length > 0 ? (
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-foreground mb-3">Этапы карьерного пути</h4>
+                        <div className="relative">
+                          {steps.map((s, i) => {
+                            const isCompleted = i < a.current_step;
+                            const isCurrent = i === a.current_step;
+                            return (
+                              <div key={i} className="flex items-start gap-3 mb-3 last:mb-0">
+                                <div className="flex flex-col items-center">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
+                                    isCompleted ? "bg-success text-success-foreground" : isCurrent ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                                  }`}>
+                                    {isCompleted ? <Check className="w-4 h-4" /> : i + 1}
+                                  </div>
+                                  {i < steps.length - 1 && <div className={`w-0.5 h-6 mt-1 ${isCompleted ? "bg-success" : "bg-border"}`} />}
                                 </div>
-                                {i < steps.length - 1 && <div className={`w-0.5 h-6 mt-1 ${isCompleted ? "bg-success" : "bg-border"}`} />}
+                                <div className="flex-1 pb-2">
+                                  <p className={`text-sm font-medium ${isCompleted ? "text-muted-foreground line-through" : isCurrent ? "text-foreground" : "text-muted-foreground"}`}>
+                                    {s.title}
+                                  </p>
+                                  {s.description && <p className="text-xs text-muted-foreground">{s.description}</p>}
+                                  <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                    <Clock className="w-3 h-3" />{s.duration_months} мес.
+                                  </span>
+                                </div>
                               </div>
-                              <div className={`flex-1 pb-2 ${isCurrent ? "" : ""}`}>
-                                <p className={`text-sm font-medium ${isCompleted ? "text-muted-foreground line-through" : isCurrent ? "text-foreground" : "text-muted-foreground"}`}>
-                                  {s.title}
-                                </p>
-                                {s.description && <p className="text-xs text-muted-foreground">{s.description}</p>}
-                                <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                  <Clock className="w-3 h-3" />{s.duration_months} мес.
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <p className="text-sm text-muted-foreground mb-4">У трека пока нет детализированных этапов — HRD скоро добавит их.</p>
+                    )}
 
-                  {/* Required actions */}
-                  {tActions.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-foreground mb-2">Что нужно для перехода на следующий уровень</h4>
-                      <div className="space-y-1.5">
-                        {tActions.map(act => (
-                          <div key={act.id} className="flex items-center gap-2.5 p-2.5 bg-secondary/30 rounded-lg">
-                            <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${act.is_required ? "text-primary" : "text-muted-foreground"}`} />
-                            <span className="text-sm text-foreground flex-1">{act.action_text}</span>
-                            {act.is_required && <span className="text-xs text-primary">обязательно</span>}
-                          </div>
-                        ))}
+                    {tActions.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium text-foreground mb-2">Что нужно для перехода на следующий уровень</h4>
+                        <div className="space-y-1.5">
+                          {tActions.map(act => (
+                            <div key={act.id} className="flex items-center gap-2.5 p-2.5 bg-secondary/30 rounded-lg">
+                              <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${act.is_required ? "text-primary" : "text-muted-foreground"}`} />
+                              <span className="text-sm text-foreground flex-1">{act.action_text}</span>
+                              {act.is_required && <span className="text-xs text-primary">обязательно</span>}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
