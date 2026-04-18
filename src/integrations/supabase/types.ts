@@ -1204,6 +1204,7 @@ export type Database = {
         Returns: undefined
       }
       delete_user: { Args: { _target_user_id: string }; Returns: undefined }
+      find_company_by_name: { Args: { _name: string }; Returns: string }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       grant_rewards_for_event: {
         Args: {
@@ -1221,6 +1222,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      register_company: { Args: { _name: string }; Returns: string }
       reject_user: { Args: { _target_user_id: string }; Returns: undefined }
       verify_user: { Args: { _target_user_id: string }; Returns: undefined }
     }
