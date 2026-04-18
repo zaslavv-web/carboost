@@ -79,6 +79,7 @@ const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
         { icon: ClipboardList, label: "Тесты", path: "/tests" },
         { icon: Briefcase, label: "Должности", path: "/positions" },
         { icon: Route, label: "Карьерные треки", path: "/career-tracks-mgmt" },
+        { icon: ClipboardList, label: "Проверка этапов", path: "/career-reviews" },
         { icon: Trophy, label: "Геймификация", path: "/gamification" },
       { icon: Shield, label: "Политики", path: "/hr-policies" },
       { icon: Settings, label: "Настройки", path: "/settings" },
@@ -89,6 +90,7 @@ const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
     return [
       ...common,
       { icon: Users, label: "Моя команда", path: "/team" },
+      { icon: ClipboardList, label: "Проверка этапов", path: "/career-reviews" },
       { icon: Settings, label: "Настройки", path: "/settings" },
     ];
   }

@@ -145,6 +145,8 @@ export type Database = {
       }
       career_goals: {
         Row: {
+          assignment_id: string | null
+          auto_generated: boolean
           company_id: string | null
           created_at: string
           deadline: string | null
@@ -152,11 +154,14 @@ export type Database = {
           id: string
           progress: number
           status: string
+          step_order: number | null
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          assignment_id?: string | null
+          auto_generated?: boolean
           company_id?: string | null
           created_at?: string
           deadline?: string | null
@@ -164,11 +169,14 @@ export type Database = {
           id?: string
           progress?: number
           status?: string
+          step_order?: number | null
           title: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          assignment_id?: string | null
+          auto_generated?: boolean
           company_id?: string | null
           created_at?: string
           deadline?: string | null
@@ -176,6 +184,7 @@ export type Database = {
           id?: string
           progress?: number
           status?: string
+          step_order?: number | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -227,6 +236,149 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      career_step_scenarios: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          instructions: string | null
+          min_files: number
+          min_test_score: number
+          reinforced_instructions: string | null
+          requires_comment: boolean
+          requires_files: boolean
+          requires_test: boolean
+          step_order: number
+          template_id: string
+          test_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          instructions?: string | null
+          min_files?: number
+          min_test_score?: number
+          reinforced_instructions?: string | null
+          requires_comment?: boolean
+          requires_files?: boolean
+          requires_test?: boolean
+          step_order: number
+          template_id: string
+          test_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          instructions?: string | null
+          min_files?: number
+          min_test_score?: number
+          reinforced_instructions?: string | null
+          requires_comment?: boolean
+          requires_files?: boolean
+          requires_test?: boolean
+          step_order?: number
+          template_id?: string
+          test_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      career_step_submission_files: {
+        Row: {
+          file_name: string | null
+          file_size: number | null
+          file_url: string
+          id: string
+          submission_id: string
+          uploaded_at: string
+        }
+        Insert: {
+          file_name?: string | null
+          file_size?: number | null
+          file_url: string
+          id?: string
+          submission_id: string
+          uploaded_at?: string
+        }
+        Update: {
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          submission_id?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_step_submission_files_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "career_step_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      career_step_submissions: {
+        Row: {
+          assignment_id: string
+          attempt_no: number
+          comment: string | null
+          company_id: string | null
+          created_at: string
+          id: string
+          is_reinforced: boolean
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          step_order: number
+          template_id: string
+          test_attempt_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignment_id: string
+          attempt_no?: number
+          comment?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_reinforced?: boolean
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          step_order: number
+          template_id: string
+          test_attempt_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignment_id?: string
+          attempt_no?: number
+          comment?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_reinforced?: boolean
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          step_order?: number
+          template_id?: string
+          test_attempt_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       career_track_templates: {
         Row: {
@@ -1235,6 +1387,19 @@ export type Database = {
       }
       register_company: { Args: { _name: string }; Returns: string }
       reject_user: { Args: { _target_user_id: string }; Returns: undefined }
+      review_career_step: {
+        Args: { _approve: boolean; _reason?: string; _submission_id: string }
+        Returns: undefined
+      }
+      submit_career_step: {
+        Args: {
+          _assignment_id: string
+          _comment?: string
+          _file_urls?: Json
+          _test_attempt_id?: string
+        }
+        Returns: string
+      }
       verify_user: { Args: { _target_user_id: string }; Returns: undefined }
     }
     Enums: {
