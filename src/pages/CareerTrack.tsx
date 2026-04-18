@@ -22,6 +22,7 @@ const CareerTrack = () => {
   const fromAssessment = searchParams.get("from") === "assessment";
   const [showAssessmentBanner, setShowAssessmentBanner] = useState(fromAssessment);
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
+  const [expandedTrack, setExpandedTrack] = useState<string | null>(null);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: "", description: "", deadline: "" });
   const [tab, setTab] = useState<"goals" | "tracks" | "rewards">("tracks");
