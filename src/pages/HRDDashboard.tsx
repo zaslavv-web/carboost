@@ -520,6 +520,8 @@ const HRDDashboard = () => {
         ))}
       </div>
 
+      {activePanel === "tracks" && <HRDCareerTracksAnalytics />}
+
       {/* Pending position requests panel */}
       {activePanel === "requests" && (
         <div className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
