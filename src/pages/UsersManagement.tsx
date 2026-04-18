@@ -180,44 +180,87 @@ const UsersManagement = () => {
         <p className="text-muted-foreground text-sm mt-1">Верификация, роли и просмотр от имени пользователей</p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск по имени или отделу..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-          />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Поиск по имени, должности, отделу или роли..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {statusFilters.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setStatusFilter(f.value)}
+                className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                  statusFilter === f.value
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                }`}
+              >
+                {f.label} ({f.count})
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2">
-          {statusFilters.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setStatusFilter(f.value)}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                statusFilter === f.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              }`}
-            >
-              {f.label} ({f.count})
-            </button>
-          ))}
-        </div>
-        {isSuperadmin && companies.length > 0 && (
+
+        <div className="flex flex-wrap gap-2">
           <select
-            value={companyFilter}
-            onChange={(e) => setCompanyFilter(e.target.value)}
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
             className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
           >
-            <option value="all">Все компании</option>
-            <option value="none">Без компании</option>
-            {companies.map((c: any) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+            <option value="all">Все роли</option>
+            {Object.entries(roleLabelMap).map(([val, label]) => (
+              <option key={val} value={val}>{label}</option>
             ))}
           </select>
-        )}
+
+          <select
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
+          >
+            <option value="all">Все отделы</option>
+            <option value="none">Без отдела</option>
+            {departments.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+
+          {isSuperadmin && companies.length > 0 && (
+            <select
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
+            >
+              <option value="all">Все компании</option>
+              <option value="none">Без компании</option>
+              {companies.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          )}
+
+          {(roleFilter !== "all" || departmentFilter !== "all" || companyFilter !== "all" || statusFilter !== "all" || search) && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("all");
+                setCompanyFilter("all");
+                setRoleFilter("all");
+                setDepartmentFilter("all");
+              }}
+              className="px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+            >
+              Сбросить фильтры
+            </button>
+          )}
+        </div>
       </div>
 
       {isLoading ? (
