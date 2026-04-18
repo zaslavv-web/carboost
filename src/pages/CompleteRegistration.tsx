@@ -110,8 +110,9 @@ const CompleteRegistration = () => {
     mutationFn: async () => {
       if (!user) throw new Error("Требуется авторизация");
       if (!selectedCompanyId) throw new Error("Выберите компанию");
+      // Position is now MANDATORY for employees
       if (selectedRole === "employee" && !autoMatchedPosition && !selectedPositionId) {
-        throw new Error("Выберите вашу должность");
+        throw new Error("Должность обязательна — выберите её из списка");
       }
 
       // Auto-mapped → position_id is set immediately (no HRD verification needed for the position)
@@ -234,10 +235,13 @@ const CompleteRegistration = () => {
           {/* Manual position picker (employees, no domain match) */}
           {showPositionPicker && (
             <div>
-              <label className="text-sm font-medium text-foreground">Ваша должность</label>
+              <label className="text-sm font-medium text-foreground">
+                Ваша должность <span className="text-destructive">*</span>
+              </label>
               <select
                 value={selectedPositionId}
                 onChange={(event) => setSelectedPositionId(event.target.value)}
+                required
                 className="mt-1.5 w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
               >
                 <option value="">— Выберите должность —</option>
@@ -249,7 +253,7 @@ const CompleteRegistration = () => {
               </select>
               <div className="mt-2 flex items-start gap-2 text-xs text-muted-foreground">
                 <Sparkles className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-warning" />
-                <span>Должность будет подтверждена HRD-менеджером компании. До подтверждения часть функций может быть ограничена.</span>
+                <span>Должность обязательна. До подтверждения HRD часть функций может быть ограничена.</span>
               </div>
               {positions.length === 0 && (
                 <p className="mt-1 text-xs text-destructive">
