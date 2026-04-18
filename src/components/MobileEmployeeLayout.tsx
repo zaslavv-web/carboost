@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, MessageSquare, User, Target, Menu, Bell, LogOut, Settings, LifeBuoy } from "lucide-react";
+import { LayoutDashboard, MessageSquare, User, Target, Menu, Bell, LogOut, Settings } from "lucide-react";
 import { useState } from "react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,7 +60,7 @@ const MobileEmployeeLayout = () => {
               <div className="mt-6 space-y-1">
                 <MenuItem icon={Bell} label="Уведомления" onClick={() => { navigate("/notifications"); setMenuOpen(false); }} />
                 <MenuItem icon={Settings} label="Настройки" onClick={() => { navigate("/settings"); setMenuOpen(false); }} />
-                <MenuItem icon={LifeBuoy} label="Поддержка" onClick={() => { navigate("/support"); setMenuOpen(false); }} />
+                
                 <div className="h-px bg-border my-3" />
                 <MenuItem icon={LogOut} label="Выйти" onClick={async () => { await signOut(); navigate("/login"); }} />
               </div>
