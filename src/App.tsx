@@ -53,6 +53,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/feature/:slug" element={<FeaturePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route element={<ProtectedRoute><RoleAwareLayout /></ProtectedRoute>}>
