@@ -34,12 +34,12 @@ const FeaturePage = () => {
       <section className="relative overflow-hidden border-b border-border">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-background pointer-events-none" />
         <div className="relative max-w-4xl mx-auto px-4 md:px-8 pt-12 md:pt-20 pb-16">
-          <button
-            onClick={() => navigate(-1)}
+          <Link
+            to="/#features"
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" /> Все возможности
-          </button>
+          </Link>
           <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-6">
             <Icon className="w-8 h-8 text-primary-foreground" />
           </div>
