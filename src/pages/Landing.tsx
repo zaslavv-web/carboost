@@ -54,9 +54,6 @@ const Landing = () => {
       <section id="pains" className="py-20 md:py-28 bg-card/40 border-y border-border">
         <div className="max-w-6xl mx-auto px-4 md:px-8">
           <div className="text-center max-w-2xl mx-auto mb-14">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium mb-4">
-              <Sparkles className="w-3.5 h-3.5" /> Основные задачи продукта
-            </div>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Что система делает за HR-функцию</h2>
             <p className="text-muted-foreground">Шесть направлений, на которых платформа закрывает рутину и даёт HRD управляемые цифры.</p>
           </div>
