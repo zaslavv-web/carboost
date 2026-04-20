@@ -31,7 +31,7 @@ const Landing = () => {
 
         <div className="relative max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-24 w-full">
           <div className="max-w-3xl space-y-6">
-            <h1 className="text-5xl md:text-7xl font-extrabold leading-[1.02] tracking-tight">
+            <h1 className="text-5xl md:text-7xl font-extrabold leading-[1.02] tracking-tight -mt-[30px]">
               Растите сотрудников,<br />а не бюджет на найм<br />
               <span className="bg-gradient-to-r from-primary to-info bg-clip-text text-transparent">кадровый резерв изнутри</span>
             </h1>
