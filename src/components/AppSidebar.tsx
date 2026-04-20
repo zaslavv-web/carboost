@@ -197,9 +197,19 @@ const AppSidebar = ({ collapsed, onToggle, onHide }: AppSidebarProps) => {
       <button
         onClick={onToggle}
         className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+        aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
       >
         {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
       </button>
+      {onHide && (
+        <button
+          onClick={onHide}
+          className="absolute -right-3 top-32 w-6 h-6 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Скрыть меню"
+        >
+          <PanelLeftClose className="w-3 h-3" />
+        </button>
+      )}
     </aside>
   );
 };
