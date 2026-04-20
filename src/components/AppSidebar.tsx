@@ -11,6 +11,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  PanelLeftClose,
   Briefcase,
   Users,
   Shield,
@@ -38,9 +39,10 @@ interface NavItem {
 interface AppSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  onHide?: () => void;
 }
 
-const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
+const AppSidebar = ({ collapsed, onToggle, onHide }: AppSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
