@@ -21,12 +21,12 @@ const DemoRequestDialog = ({ open, onOpenChange, source }: Props) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.from("demo_requests").insert({
-        name: name.trim(),
-        email: email.trim(),
-        company: company.trim() || null,
-        headcount: headcount ? Number(headcount) : null,
-        source: source || "landing",
+      const { error } = await supabase.rpc("submit_demo_request", {
+        _name: name.trim(),
+        _email: email.trim(),
+        _company: company.trim() || null,
+        _headcount: headcount ? Number(headcount) : null,
+        _source: source || "landing",
       });
       if (error) throw error;
       toast.success("Спасибо! Мы свяжемся с вами в течение рабочего дня.");
