@@ -37,6 +37,7 @@ import MyOrders from "@/pages/MyOrders";
 import ShopAdmin from "@/pages/ShopAdmin";
 import Onboarding from "@/pages/Onboarding";
 import Invitations from "@/pages/Invitations";
+import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,10 +51,11 @@ const App = () => (
         <ImpersonationProvider>
           <BrowserRouter>
             <Routes>
+              <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route element={<ProtectedRoute><RoleAwareLayout /></ProtectedRoute>}>
-                <Route path="/" element={<RoleDashboard />} />
+                <Route path="/dashboard" element={<RoleDashboard />} />
                 <Route path="/complete-registration" element={<CompleteRegistration />} />
                 <Route path="/assessment" element={<Assessment />} />
                 <Route path="/passport" element={<Passport />} />
