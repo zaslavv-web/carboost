@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import LandingHeader from "@/components/landing/LandingHeader";
@@ -10,6 +10,10 @@ const FeaturePage = () => {
   const navigate = useNavigate();
   const [demoOpen, setDemoOpen] = useState(false);
   const feature = FEATURES.find((f) => f.slug === slug);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [slug]);
 
   if (!feature) {
     return (
