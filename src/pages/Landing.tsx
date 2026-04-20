@@ -219,8 +219,8 @@ const Landing = () => {
       {/* Final CTA */}
       <section className="py-20 md:py-28 bg-gradient-to-br from-primary/15 via-background to-background">
         <div className="max-w-4xl mx-auto px-4 md:px-8 text-center space-y-6">
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Соберите HR-функцию вокруг данных, а не Excel</h2>
-          <p className="text-lg text-muted-foreground">30-минутный созвон — покажем платформу под вашу структуру и боли.</p>
+          <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Каждый сотрудник растёт — компания растёт вместе с ним</h2>
+          <p className="text-lg text-muted-foreground">30-минутный созвон — покажем, как закрывать ключевые позиции своими людьми и удерживать сильных.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
             <button onClick={() => setDemoOpen(true)} className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity shadow-elevated">
               Запросить демо <ArrowRight className="w-4 h-4" />
