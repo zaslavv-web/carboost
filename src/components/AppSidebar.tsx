@@ -22,6 +22,8 @@ import {
   Route,
   Trophy,
   ClipboardList,
+  ShoppingBag,
+  Store,
 } from "lucide-react";
 
 interface NavItem {
@@ -81,6 +83,7 @@ const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
         { icon: Route, label: "Карьерные треки", path: "/career-tracks-mgmt" },
         { icon: ClipboardList, label: "Проверка этапов", path: "/career-reviews" },
         { icon: Trophy, label: "Геймификация", path: "/gamification" },
+      { icon: Store, label: "Магазин и валюта", path: "/shop-admin" },
       { icon: Shield, label: "Политики", path: "/hr-policies" },
       { icon: Settings, label: "Настройки", path: "/settings" },
     ];
@@ -101,6 +104,7 @@ const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
     { icon: MessageSquare, label: "AI Оценка", path: "/assessment" },
     { icon: User, label: "Цифровой паспорт", path: "/passport" },
     { icon: Target, label: "Карьерный трек", path: "/career-track" },
+    { icon: ShoppingBag, label: "Магазин", path: "/shop" },
     { icon: Bell, label: "Уведомления", path: "/notifications" },
     { icon: Settings, label: "Настройки", path: "/settings" },
   ];
