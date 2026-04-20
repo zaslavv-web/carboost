@@ -30,6 +30,11 @@ import CareerTracksManagement from "@/pages/CareerTracksManagement";
 import CareerReviews from "@/pages/CareerReviews";
 import GamificationManagement from "@/pages/GamificationManagement";
 import HRDTests from "@/pages/HRDTests";
+import Shop from "@/pages/Shop";
+import ShopProductDetail from "@/pages/ShopProductDetail";
+import Cart from "@/pages/Cart";
+import MyOrders from "@/pages/MyOrders";
+import ShopAdmin from "@/pages/ShopAdmin";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +71,11 @@ const App = () => (
                 <Route path="/career-reviews" element={<CareerReviews />} />
                 <Route path="/gamification" element={<GamificationManagement />} />
                 <Route path="/tests" element={<HRDTests />} />
+                <Route path="/shop" element={<Shop />} />
+                <Route path="/shop/:id" element={<ShopProductDetail />} />
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/my-orders" element={<MyOrders />} />
+                <Route path="/shop-admin" element={<ShopAdmin />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
