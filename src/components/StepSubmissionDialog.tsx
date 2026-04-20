@@ -93,7 +93,8 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
       const uploaded: { url: string; name: string }[] = [];
       for (const file of Array.from(fs)) {
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const path = `${user.id}/${assignmentId}/${stepOrder}/${Date.now()}_${safe}`;
+        const companySegment = profile?.company_id ?? user.id;
+        const path = `${companySegment}/${user.id}/${assignmentId}/${stepOrder}/${Date.now()}_${safe}`;
         const { error } = await supabase.storage.from("career-submissions").upload(path, file);
         if (error) throw error;
         uploaded.push({ url: path, name: file.name });
