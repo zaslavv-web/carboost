@@ -17,10 +17,10 @@ const LandingHeader = ({ onOpenDemo, showAnchors = true }: Props) => (
       </Link>
       {showAnchors && (
         <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
-          <Link to="/#pains" className="hover:text-foreground transition-colors">Боли HRD</Link>
-          <Link to="/#features" className="hover:text-foreground transition-colors">Возможности</Link>
-          <Link to="/#roles" className="hover:text-foreground transition-colors">Истории</Link>
-          <Link to="/#faq" className="hover:text-foreground transition-colors">FAQ</Link>
+          <a href="#pains" className="hover:text-foreground transition-colors">Боли HRD</a>
+          <a href="#features" className="hover:text-foreground transition-colors">Возможности</a>
+          <a href="#roles" className="hover:text-foreground transition-colors">Истории</a>
+          <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
         </nav>
       )}
       <div className="flex items-center gap-2">
