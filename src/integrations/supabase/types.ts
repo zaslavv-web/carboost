@@ -564,6 +564,39 @@ export type Database = {
         }
         Relationships: []
       }
+      company_onboarding_settings: {
+        Row: {
+          auto_assign_tests: boolean
+          auto_assign_tracks: boolean
+          company_id: string
+          created_at: string
+          id: string
+          updated_at: string
+          welcome_bonus_amount: number
+          welcome_bonus_enabled: boolean
+        }
+        Insert: {
+          auto_assign_tests?: boolean
+          auto_assign_tracks?: boolean
+          company_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          welcome_bonus_amount?: number
+          welcome_bonus_enabled?: boolean
+        }
+        Update: {
+          auto_assign_tests?: boolean
+          auto_assign_tracks?: boolean
+          company_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          welcome_bonus_amount?: number
+          welcome_bonus_enabled?: boolean
+        }
+        Relationships: []
+      }
       competencies: {
         Row: {
           company_id: string | null
@@ -808,6 +841,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      employee_invitations: {
+        Row: {
+          claimed_at: string | null
+          claimed_user_id: string | null
+          company_id: string
+          created_at: string
+          department: string | null
+          email: string
+          full_name: string | null
+          id: string
+          invited_by: string
+          position_id: string | null
+          requested_role: string
+          status: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          company_id: string
+          created_at?: string
+          department?: string | null
+          email: string
+          full_name?: string | null
+          id?: string
+          invited_by: string
+          position_id?: string | null
+          requested_role?: string
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          company_id?: string
+          created_at?: string
+          department?: string | null
+          email?: string
+          full_name?: string | null
+          id?: string
+          invited_by?: string
+          position_id?: string | null
+          requested_role?: string
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       employee_rewards: {
         Row: {
@@ -1623,6 +1707,7 @@ export type Database = {
         Returns: string
       }
       build_employee_artifacts: { Args: { _user_id: string }; Returns: string }
+      bulk_invite_employees: { Args: { _invites: Json }; Returns: Json }
       create_shop_order: { Args: { _items: Json }; Returns: string }
       delete_user: { Args: { _target_user_id: string }; Returns: undefined }
       find_company_by_name: { Args: { _name: string }; Returns: string }
