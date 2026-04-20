@@ -79,18 +79,26 @@ const Landing = () => {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {HRD_PAINS.map((p) => (
-              <div key={p.pain} className="bg-card rounded-2xl border border-border p-6">
+              <button
+                key={p.pain}
+                type="button"
+                onClick={() => setDemoOpen(true)}
+                className="text-left bg-card rounded-2xl border border-border p-6 hover:border-primary/50 hover:shadow-elevated transition-all group"
+              >
                 <div className="flex items-start gap-3 mb-4">
                   <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center flex-shrink-0">
                     <AlertTriangle className="w-4 h-4 text-destructive" />
                   </div>
                   <p className="font-semibold text-sm leading-snug">{p.pain}</p>
                 </div>
-                <div className="flex items-start gap-3 pl-1">
+                <div className="flex items-start gap-3 pl-1 mb-4">
                   <Check className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-muted-foreground">{p.solution}</p>
                 </div>
-              </div>
+                <span className="text-xs text-primary font-medium inline-flex items-center gap-1 group-hover:gap-2 transition-all">
+                  Решить эту боль <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </button>
             ))}
           </div>
           <div className="flex justify-center mt-12">
