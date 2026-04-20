@@ -38,6 +38,7 @@ import ShopAdmin from "@/pages/ShopAdmin";
 import Onboarding from "@/pages/Onboarding";
 import Invitations from "@/pages/Invitations";
 import Landing from "@/pages/Landing";
+import FeaturePage from "@/pages/FeaturePage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/feature/:slug" element={<FeaturePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route element={<ProtectedRoute><RoleAwareLayout /></ProtectedRoute>}>

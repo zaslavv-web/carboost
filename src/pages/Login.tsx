@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "lucide-react";
+import LandingHeader from "@/components/landing/LandingHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import {
@@ -167,7 +168,9 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col bg-background">
+      <LandingHeader />
+      <div className="flex-1 flex">
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 gradient-hero items-center justify-center p-12">
         <div className="max-w-md text-center">
@@ -343,6 +346,7 @@ const Login = () => {
             </p>
           </form>
         </div>
+      </div>
       </div>
     </div>
   );

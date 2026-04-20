@@ -695,6 +695,45 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_requests: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string
+          headcount: number | null
+          id: string
+          name: string
+          notes: string | null
+          source: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email: string
+          headcount?: number | null
+          id?: string
+          name: string
+          notes?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string
+          headcount?: number | null
+          id?: string
+          name?: string
+          notes?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
           company_id: string | null
@@ -1754,6 +1793,16 @@ export type Database = {
           _comment?: string
           _file_urls?: Json
           _test_attempt_id?: string
+        }
+        Returns: string
+      }
+      submit_demo_request: {
+        Args: {
+          _company?: string
+          _email: string
+          _headcount?: number
+          _name: string
+          _source?: string
         }
         Returns: string
       }
