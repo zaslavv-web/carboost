@@ -53,6 +53,8 @@ export default function Cart() {
       toast.success("Заказ оформлен! Ожидает выдачи HRD");
       qc.invalidateQueries({ queryKey: ["shop_cart"] });
       qc.invalidateQueries({ queryKey: ["currency_balance"] });
+      qc.invalidateQueries({ queryKey: ["shop_orders_my"] });
+      qc.invalidateQueries({ queryKey: ["currency_transactions"] });
       navigate("/my-orders");
     },
     onError: (e: any) => toast.error(e.message),
