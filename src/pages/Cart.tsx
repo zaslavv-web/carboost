@@ -2,15 +2,19 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useMyBalance, useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Trash2, Package, ShoppingCart } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, Trash2, Package, ShoppingCart, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Cart() {
   const userId = useEffectiveUserId();
+  const { impersonatedUserId } = useImpersonation();
+  const isImpersonating = !!impersonatedUserId;
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: balance = 0 } = useMyBalance();
