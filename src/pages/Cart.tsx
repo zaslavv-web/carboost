@@ -105,7 +105,13 @@ export default function Cart() {
             <CardContent className="p-6 space-y-3">
               <div className="flex justify-between"><span>Итого:</span><span className="font-bold text-xl">{formatCoins(total)} {icon}</span></div>
               <div className="flex justify-between text-sm text-muted-foreground"><span>Баланс:</span><span>{formatCoins(balance)} {icon}</span></div>
-              <Button className="w-full" size="lg" disabled={checkout.isPending || balance < total} onClick={() => checkout.mutate()}>
+              {isImpersonating && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>В режиме имперсонации оформление заказа заблокировано.</AlertDescription>
+                </Alert>
+              )}
+              <Button className="w-full" size="lg" disabled={checkout.isPending || balance < total || isImpersonating} onClick={() => checkout.mutate()}>
                 {balance < total ? "Недостаточно средств" : "Оформить заказ"}
               </Button>
             </CardContent>
