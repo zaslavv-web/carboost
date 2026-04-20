@@ -269,7 +269,7 @@ const Landing = () => {
             <span className="ml-2">© {new Date().getFullYear()}</span>
           </div>
           <div className="flex items-center gap-6 flex-wrap justify-center">
-            <a href="#pains" className="hover:text-foreground transition-colors">Боли HRD</a>
+            <a href="#pains" className="hover:text-foreground transition-colors">Задачи продукта</a>
             <a href="#features" className="hover:text-foreground transition-colors">Возможности</a>
             <a href="#roles" className="hover:text-foreground transition-colors">Истории</a>
             <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
