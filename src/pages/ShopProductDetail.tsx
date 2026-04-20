@@ -130,11 +130,18 @@ export default function ShopProductDetail() {
             <div className="text-sm">Итого: <span className="font-bold">{formatCoins(total)} {icon}</span></div>
             <div className="text-xs text-muted-foreground">Ваш баланс: {formatCoins(balance)} {icon}</div>
 
+            {isImpersonating && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>В режиме имперсонации покупки заблокированы.</AlertDescription>
+              </Alert>
+            )}
+
             <div className="flex gap-2 pt-4">
-              <Button onClick={() => addToCart.mutate()} disabled={addToCart.isPending} variant="outline" className="flex-1">
+              <Button onClick={() => addToCart.mutate()} disabled={addToCart.isPending || isImpersonating} variant="outline" className="flex-1">
                 <ShoppingCart className="mr-2" /> В корзину
               </Button>
-              <Button onClick={() => buyNow.mutate()} disabled={buyNow.isPending || !canAfford} className="flex-1">
+              <Button onClick={() => buyNow.mutate()} disabled={buyNow.isPending || !canAfford || isImpersonating} className="flex-1">
                 <Zap className="mr-2" /> {canAfford ? "Купить сейчас" : "Недостаточно"}
               </Button>
             </div>
