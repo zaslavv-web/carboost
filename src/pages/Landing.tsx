@@ -31,9 +31,6 @@ const Landing = () => {
 
         <div className="relative max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-24 w-full">
           <div className="max-w-3xl space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/15 backdrop-blur-sm text-primary text-xs font-medium border border-primary/20">
-              <Sparkles className="w-3.5 h-3.5" /> Платформа для роста людей и компании
-            </div>
             <h1 className="text-5xl md:text-7xl font-extrabold leading-[1.02] tracking-tight">
               Растите сотрудников,<br />а не бюджет на найм<br />
               <span className="bg-gradient-to-r from-primary to-info bg-clip-text text-transparent">кадровый резерв изнутри</span>
