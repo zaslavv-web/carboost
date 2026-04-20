@@ -32,14 +32,14 @@ const Landing = () => {
         <div className="relative max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-24 w-full">
           <div className="max-w-3xl space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/15 backdrop-blur-sm text-primary text-xs font-medium border border-primary/20">
-              <Sparkles className="w-3.5 h-3.5" /> Платформа для HR и HRD
+              <Sparkles className="w-3.5 h-3.5" /> Платформа для роста людей и компании
             </div>
             <h1 className="text-5xl md:text-7xl font-extrabold leading-[1.02] tracking-tight">
-              Снизьте текучесть<br />и нагрузку на HR<br />
-              <span className="bg-gradient-to-r from-primary to-info bg-clip-text text-transparent">с одной системой</span>
+              Растите сотрудников,<br />а не бюджет на найм<br />
+              <span className="bg-gradient-to-r from-primary to-info bg-clip-text text-transparent">кадровый резерв изнутри</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl">
-              AI-оценка, карьерные треки, геймификация и live-аналитика. Заменяет 4 системы и освобождает HR от рутины.
+              Повышаем эффективность и лояльность каждого сотрудника. Закрываем ключевые позиции своими людьми вместо дорогих внешних специалистов.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button onClick={() => setDemoOpen(true)} className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity shadow-elevated">
@@ -51,16 +51,16 @@ const Landing = () => {
             </div>
             <div className="grid grid-cols-3 gap-6 pt-8 max-w-xl">
               <div>
+                <p className="text-3xl md:text-4xl font-bold text-primary">+37%</p>
+                <p className="text-xs text-muted-foreground mt-1">вовлечённость сотрудников</p>
+              </div>
+              <div>
+                <p className="text-3xl md:text-4xl font-bold text-primary">70%</p>
+                <p className="text-xs text-muted-foreground mt-1">вакансий закрываются изнутри</p>
+              </div>
+              <div>
                 <p className="text-3xl md:text-4xl font-bold text-primary">−24%</p>
                 <p className="text-xs text-muted-foreground mt-1">текучесть за полгода</p>
-              </div>
-              <div>
-                <p className="text-3xl md:text-4xl font-bold text-primary">×10</p>
-                <p className="text-xs text-muted-foreground mt-1">скорость онбординга</p>
-              </div>
-              <div>
-                <p className="text-3xl md:text-4xl font-bold text-primary">25 мин</p>
-                <p className="text-xs text-muted-foreground mt-1">на оценку вместо 4 часов</p>
               </div>
             </div>
           </div>
