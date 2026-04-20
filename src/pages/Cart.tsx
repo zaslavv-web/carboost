@@ -2,15 +2,19 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useMyBalance, useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Trash2, Package, ShoppingCart } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, Trash2, Package, ShoppingCart, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Cart() {
   const userId = useEffectiveUserId();
+  const { impersonatedUserId } = useImpersonation();
+  const isImpersonating = !!impersonatedUserId;
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: balance = 0 } = useMyBalance();
@@ -53,6 +57,8 @@ export default function Cart() {
       toast.success("Заказ оформлен! Ожидает выдачи HRD");
       qc.invalidateQueries({ queryKey: ["shop_cart"] });
       qc.invalidateQueries({ queryKey: ["currency_balance"] });
+      qc.invalidateQueries({ queryKey: ["shop_orders_my"] });
+      qc.invalidateQueries({ queryKey: ["currency_transactions"] });
       navigate("/my-orders");
     },
     onError: (e: any) => toast.error(e.message),
@@ -99,7 +105,13 @@ export default function Cart() {
             <CardContent className="p-6 space-y-3">
               <div className="flex justify-between"><span>Итого:</span><span className="font-bold text-xl">{formatCoins(total)} {icon}</span></div>
               <div className="flex justify-between text-sm text-muted-foreground"><span>Баланс:</span><span>{formatCoins(balance)} {icon}</span></div>
-              <Button className="w-full" size="lg" disabled={checkout.isPending || balance < total} onClick={() => checkout.mutate()}>
+              {isImpersonating && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>В режиме имперсонации оформление заказа заблокировано.</AlertDescription>
+                </Alert>
+              )}
+              <Button className="w-full" size="lg" disabled={checkout.isPending || balance < total || isImpersonating} onClick={() => checkout.mutate()}>
                 {balance < total ? "Недостаточно средств" : "Оформить заказ"}
               </Button>
             </CardContent>
