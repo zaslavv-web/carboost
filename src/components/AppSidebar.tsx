@@ -51,7 +51,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide }: AppSidebarProps) => {
 
   const getNavItems = (): NavItem[] => {
     const common: NavItem[] = [
-      { icon: LayoutDashboard, label: "Дашборд", path: "/" },
+      { icon: LayoutDashboard, label: "Дашборд", path: "/dashboard" },
     ];
 
     if (role === "superadmin") {
