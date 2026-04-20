@@ -4,18 +4,22 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useMyBalance, useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Package, ShoppingCart, Zap } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, Package, ShoppingCart, Zap, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ShopProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const userId = useEffectiveUserId();
+  const { impersonatedUserId } = useImpersonation();
+  const isImpersonating = !!impersonatedUserId;
   const { data: profile } = useUserProfile();
   const { data: balance = 0 } = useMyBalance();
   const { data: settings } = useCurrencySettings();
