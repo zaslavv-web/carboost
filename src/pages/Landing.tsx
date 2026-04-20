@@ -71,11 +71,11 @@ const Landing = () => {
       <section id="pains" className="py-20 md:py-28 bg-card/40 border-y border-border">
         <div className="max-w-6xl mx-auto px-4 md:px-8">
           <div className="text-center max-w-2xl mx-auto mb-14">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-warning/10 text-warning text-xs font-medium mb-4">
-              <AlertTriangle className="w-3.5 h-3.5" /> Знакомые боли HRD
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium mb-4">
+              <Sparkles className="w-3.5 h-3.5" /> Основные задачи продукта
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Если хоть одно — про вас, читайте дальше</h2>
-            <p className="text-muted-foreground">Мы собрали систему вокруг шести самых дорогих болей HR-функции.</p>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Что система делает за HR-функцию</h2>
+            <p className="text-muted-foreground">Шесть направлений, на которых платформа закрывает рутину и даёт HRD управляемые цифры.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {HRD_PAINS.map((p) => (
@@ -86,17 +86,14 @@ const Landing = () => {
                 className="text-left bg-card rounded-2xl border border-border p-6 hover:border-primary/50 hover:shadow-elevated transition-all group"
               >
                 <div className="flex items-start gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center flex-shrink-0">
-                    <AlertTriangle className="w-4 h-4 text-destructive" />
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Check className="w-5 h-5 text-primary" />
                   </div>
-                  <p className="font-semibold text-sm leading-snug">{p.pain}</p>
+                  <p className="font-semibold text-base leading-snug">{p.pain}</p>
                 </div>
-                <div className="flex items-start gap-3 pl-1 mb-4">
-                  <Check className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-muted-foreground">{p.solution}</p>
-                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-4">{p.solution}</p>
                 <span className="text-xs text-primary font-medium inline-flex items-center gap-1 group-hover:gap-2 transition-all">
-                  Решить эту боль <ArrowRight className="w-3.5 h-3.5" />
+                  Узнать подробнее <ArrowRight className="w-3.5 h-3.5" />
                 </span>
               </button>
             ))}
