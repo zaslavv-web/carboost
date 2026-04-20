@@ -19,53 +19,50 @@ const Landing = () => {
     <div className="min-h-screen bg-background text-foreground">
       <LandingHeader onOpenDemo={() => setDemoOpen(true)} />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-background pointer-events-none" />
-        <div className="relative max-w-7xl mx-auto px-4 md:px-8 pt-12 md:pt-24 pb-16 md:pb-24 grid lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+      {/* Hero — full-bleed image background with overlay */}
+      <section className="relative overflow-hidden min-h-[calc(100vh-4rem)] flex items-center">
+        <img
+          src={heroImg}
+          alt="Карьерный трек — AI-платформа для HR"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-background/95 via-background/80 to-background/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+
+        <div className="relative max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-24 w-full">
+          <div className="max-w-3xl space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/15 backdrop-blur-sm text-primary text-xs font-medium border border-primary/20">
               <Sparkles className="w-3.5 h-3.5" /> Платформа для HR и HRD
             </div>
-            <h1 className="text-4xl md:text-6xl font-extrabold leading-[1.05] tracking-tight">
-              Снизьте текучесть и нагрузку на HR<br />
+            <h1 className="text-5xl md:text-7xl font-extrabold leading-[1.02] tracking-tight">
+              Снизьте текучесть<br />и нагрузку на HR<br />
               <span className="bg-gradient-to-r from-primary to-info bg-clip-text text-transparent">с одной системой</span>
             </h1>
-            <p className="text-lg text-muted-foreground max-w-xl">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl">
               AI-оценка, карьерные треки, геймификация и live-аналитика. Заменяет 4 системы и освобождает HR от рутины.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button onClick={() => setDemoOpen(true)} className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity shadow-elevated">
                 Запросить демо <ArrowRight className="w-4 h-4" />
               </button>
-              <Link to="/login" className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-border font-semibold hover:bg-secondary transition-colors">
+              <Link to="/login" className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-border bg-background/60 backdrop-blur-sm font-semibold hover:bg-secondary transition-colors">
                 Войти в систему
               </Link>
             </div>
-            <div className="grid grid-cols-3 gap-6 pt-6 max-w-md">
+            <div className="grid grid-cols-3 gap-6 pt-8 max-w-xl">
               <div>
-                <p className="text-2xl md:text-3xl font-bold text-primary">−24%</p>
+                <p className="text-3xl md:text-4xl font-bold text-primary">−24%</p>
                 <p className="text-xs text-muted-foreground mt-1">текучесть за полгода</p>
               </div>
               <div>
-                <p className="text-2xl md:text-3xl font-bold text-primary">×10</p>
+                <p className="text-3xl md:text-4xl font-bold text-primary">×10</p>
                 <p className="text-xs text-muted-foreground mt-1">скорость онбординга</p>
               </div>
               <div>
-                <p className="text-2xl md:text-3xl font-bold text-primary">25 мин</p>
+                <p className="text-3xl md:text-4xl font-bold text-primary">25 мин</p>
                 <p className="text-xs text-muted-foreground mt-1">на оценку вместо 4 часов</p>
               </div>
             </div>
-          </div>
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-tr from-primary/30 to-transparent blur-3xl rounded-full" />
-            <img
-              src={heroImg}
-              alt="Карьерный трек — AI-платформа для HR"
-              width={1536}
-              height={1024}
-              className="relative rounded-2xl border border-border shadow-elevated"
-            />
           </div>
         </div>
       </section>
