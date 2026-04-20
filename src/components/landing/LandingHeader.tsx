@@ -18,7 +18,7 @@ const LandingHeader = ({ onOpenDemo, showAnchors = true }: Props) => (
       {showAnchors && (
         <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
           <a href="#pains" className="hover:text-foreground transition-colors">Решения</a>
-          <a href="#features" className="hover:text-foreground transition-colors">Возможности</a>
+          <a href="#features" className="hover:text-foreground transition-colors">Инструменты</a>
           <a href="#roles" className="hover:text-foreground transition-colors">Истории</a>
           <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
         </nav>
