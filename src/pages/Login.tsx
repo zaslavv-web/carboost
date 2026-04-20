@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "lucide-react";
+import LandingHeader from "@/components/landing/LandingHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import {
@@ -345,6 +346,7 @@ const Login = () => {
             </p>
           </form>
         </div>
+      </div>
       </div>
     </div>
   );
