@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import ImpersonationBanner from "./ImpersonationBanner";
-import { Bell, Search, Menu, X } from "lucide-react";
+import { Bell, Search, Menu, PanelLeftOpen } from "lucide-react";
 import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -21,7 +21,8 @@ const AppLayout = () => {
     : "??";
 
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < COLLAPSE_BREAKPOINT);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // Sidebar fully hidden (off-canvas). Defaults to hidden on mobile.
+  const [hidden, setHidden] = useState(() => window.innerWidth < 768);
 
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${COLLAPSE_BREAKPOINT - 1}px)`);
@@ -30,56 +31,57 @@ const AppLayout = () => {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  // Close mobile drawer on route change
+  // Auto-hide sidebar when entering mobile viewport.
   useEffect(() => {
-    if (isMobile) setMobileOpen(false);
+    if (isMobile) setHidden(true);
   }, [isMobile]);
 
-  const sidebarWidth = isMobile ? 0 : collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_FULL;
+  const sidebarWidth = hidden ? 0 : isMobile ? 0 : collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_FULL;
+
+  const toggleSidebar = () => {
+    if (isMobile) {
+      setHidden((h) => !h);
+    } else {
+      // On desktop: collapsed → expanded → hidden → expanded ...
+      // Simpler: toggle collapsed; arrow handles hide separately via onHide.
+      setCollapsed((c) => !c);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile overlay sidebar */}
-      {isMobile && (
-        <>
-          {mobileOpen && (
-            <div
-              className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
-              onClick={() => setMobileOpen(false)}
-            />
-          )}
-          <div
-            className={`fixed left-0 top-0 h-screen z-[70] transition-transform duration-300 ${
-              mobileOpen ? "translate-x-0" : "-translate-x-full"
-            }`}
-          >
-            <AppSidebar collapsed={false} onToggle={() => setMobileOpen(false)} />
-          </div>
-        </>
+      {/* Backdrop when sidebar is shown over content (mobile or hidden-toggle on desktop) */}
+      {!hidden && isMobile && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
+          onClick={() => setHidden(true)}
+        />
       )}
 
-      {/* Desktop sidebar */}
-      {!isMobile && (
-        <AppSidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
-      )}
+      {/* Sidebar (always rendered, slides off-canvas when hidden) */}
+      <div
+        className={`fixed left-0 top-0 h-screen z-[70] transition-transform duration-300 ${
+          hidden ? "-translate-x-full" : "translate-x-0"
+        }`}
+      >
+        <AppSidebar
+          collapsed={!isMobile && collapsed}
+          onToggle={toggleSidebar}
+          onHide={() => setHidden(true)}
+        />
+      </div>
 
       <div className="transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
         <ImpersonationBanner />
         <header className="sticky top-0 z-40 h-14 md:h-16 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-3 md:px-8">
           <div className="flex items-center gap-2 md:gap-3">
-            {isMobile ? (
+            {hidden && (
               <button
-                onClick={() => setMobileOpen(true)}
+                onClick={() => setHidden(false)}
                 className="p-2 rounded-lg hover:bg-secondary transition-colors"
+                aria-label="Показать меню"
               >
-                <Menu className="w-5 h-5 text-muted-foreground" />
-              </button>
-            ) : (
-              <button
-                onClick={() => setCollapsed((c) => !c)}
-                className="lg:hidden p-2 rounded-lg hover:bg-secondary transition-colors"
-              >
-                <Menu className="w-5 h-5 text-muted-foreground" />
+                <PanelLeftOpen className="w-5 h-5 text-muted-foreground" />
               </button>
             )}
             <div className="relative hidden sm:block">
