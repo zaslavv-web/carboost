@@ -46,20 +46,6 @@ const Landing = () => {
                 Войти в систему
               </Link>
             </div>
-            <div className="flex flex-wrap gap-x-8 gap-y-2 pt-4 max-w-2xl">
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-primary">+37%</span>
-                <span className="text-xs text-muted-foreground">вовлечённость</span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-primary">70%</span>
-                <span className="text-xs text-muted-foreground">вакансий закрываются изнутри</span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-primary">−24%</span>
-                <span className="text-xs text-muted-foreground">текучесть за полгода</span>
-              </div>
-            </div>
           </div>
         </div>
       </section>
