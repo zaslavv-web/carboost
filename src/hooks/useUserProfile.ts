@@ -23,11 +23,14 @@ export interface UserProfile {
 }
 
 /** Returns the effective user ID (impersonated or real) */
-const useEffectiveId = () => {
+export const useEffectiveUserId = (): string | null => {
   const { user } = useAuth();
   const { impersonatedUserId } = useImpersonation();
   return impersonatedUserId || user?.id || null;
 };
+
+// Internal alias used inside this file.
+const useEffectiveId = useEffectiveUserId;
 
 export const useUserProfile = () => {
   const effectiveId = useEffectiveId();

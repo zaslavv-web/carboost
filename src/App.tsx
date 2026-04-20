@@ -35,6 +35,8 @@ import ShopProductDetail from "@/pages/ShopProductDetail";
 import Cart from "@/pages/Cart";
 import MyOrders from "@/pages/MyOrders";
 import ShopAdmin from "@/pages/ShopAdmin";
+import Onboarding from "@/pages/Onboarding";
+import Invitations from "@/pages/Invitations";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -76,6 +78,8 @@ const App = () => (
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/my-orders" element={<MyOrders />} />
                 <Route path="/shop-admin" element={<ShopAdmin />} />
+                <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/invitations" element={<Invitations />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<NotFound />} />

@@ -25,12 +25,13 @@ const SuperadminDashboard = () => {
     },
   });
 
+  // Используем фиксированные классы (Tailwind не поддерживает динамические `bg-${color}/10`).
   const metrics = [
-    { icon: Building2, label: "Компании", value: stats?.companies ?? 0, color: "primary", link: "/companies" },
-    { icon: Users, label: "Всего", value: stats?.total ?? 0, color: "primary", link: "/users" },
-    { icon: Clock, label: "Ожидают", value: stats?.pending ?? 0, color: "warning", link: "/users" },
-    { icon: UserCheck, label: "Верифицированы", value: stats?.verified ?? 0, color: "success", link: "/users" },
-    { icon: ShieldCheck, label: "Суперадмины", value: stats?.superadmins ?? 0, color: "info", link: "/users" },
+    { icon: Building2, label: "Компании", value: stats?.companies ?? 0, bg: "bg-primary/10", fg: "text-primary", link: "/companies" },
+    { icon: Users, label: "Всего", value: stats?.total ?? 0, bg: "bg-primary/10", fg: "text-primary", link: "/users" },
+    { icon: Clock, label: "Ожидают", value: stats?.pending ?? 0, bg: "bg-warning/10", fg: "text-warning", link: "/users" },
+    { icon: UserCheck, label: "Верифицированы", value: stats?.verified ?? 0, bg: "bg-success/10", fg: "text-success", link: "/users" },
+    { icon: ShieldCheck, label: "Суперадмины", value: stats?.superadmins ?? 0, bg: "bg-info/10", fg: "text-info", link: "/users" },
   ];
 
   return (
@@ -48,8 +49,8 @@ const SuperadminDashboard = () => {
             className="bg-card rounded-xl border border-border p-4 cursor-pointer hover:border-primary/30 transition-colors overflow-hidden"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className={`w-10 h-10 rounded-lg bg-${m.color}/10 flex items-center justify-center flex-shrink-0`}>
-                <m.icon className={`w-5 h-5 text-${m.color}`} />
+              <div className={`w-10 h-10 rounded-lg ${m.bg} flex items-center justify-center flex-shrink-0`}>
+                <m.icon className={`w-5 h-5 ${m.fg}`} />
               </div>
               <div className="min-w-0">
                 <p className="text-2xl font-bold text-foreground truncate">{m.value}</p>

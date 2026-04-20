@@ -1,16 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Check, Info, AlertTriangle, Award, Loader2 } from "lucide-react";
+import { Check, Info, AlertTriangle, Award, Loader2, Route, ShoppingBag, GraduationCap, ClipboardCheck, XCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
 import { toast } from "sonner";
 
-const typeConfig = {
+const typeConfig: Record<string, { icon: any; color: string }> = {
   info: { icon: Info, color: "bg-info/10 text-info" },
   success: { icon: Check, color: "bg-success/10 text-success" },
   warning: { icon: AlertTriangle, color: "bg-warning/10 text-warning" },
   achievement: { icon: Award, color: "bg-primary/10 text-primary" },
+  reward: { icon: Award, color: "bg-primary/10 text-primary" },
+  career_track: { icon: Route, color: "bg-info/10 text-info" },
+  career_step_passed: { icon: ClipboardCheck, color: "bg-success/10 text-success" },
+  career_step_failed: { icon: XCircle, color: "bg-destructive/10 text-destructive" },
+  career_step_review: { icon: ClipboardCheck, color: "bg-warning/10 text-warning" },
+  shop_order: { icon: ShoppingBag, color: "bg-primary/10 text-primary" },
 };
 
 const Notifications = () => {
