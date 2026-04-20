@@ -38,6 +38,7 @@ import ShopAdmin from "@/pages/ShopAdmin";
 import Onboarding from "@/pages/Onboarding";
 import Invitations from "@/pages/Invitations";
 import Landing from "@/pages/Landing";
+import FeaturePage from "@/pages/FeaturePage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
