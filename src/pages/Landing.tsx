@@ -46,18 +46,18 @@ const Landing = () => {
                 Войти в систему
               </Link>
             </div>
-            <div className="grid grid-cols-3 gap-6 pt-8 max-w-xl">
-              <div>
-                <p className="text-3xl md:text-4xl font-bold text-primary">+37%</p>
-                <p className="text-xs text-muted-foreground mt-1">вовлечённость сотрудников</p>
+            <div className="flex flex-wrap gap-x-8 gap-y-2 pt-4 max-w-2xl">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-primary">+37%</span>
+                <span className="text-xs text-muted-foreground">вовлечённость</span>
               </div>
-              <div>
-                <p className="text-3xl md:text-4xl font-bold text-primary">70%</p>
-                <p className="text-xs text-muted-foreground mt-1">вакансий закрываются изнутри</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-primary">70%</span>
+                <span className="text-xs text-muted-foreground">вакансий закрываются изнутри</span>
               </div>
-              <div>
-                <p className="text-3xl md:text-4xl font-bold text-primary">−24%</p>
-                <p className="text-xs text-muted-foreground mt-1">текучесть за полгода</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-primary">−24%</span>
+                <span className="text-xs text-muted-foreground">текучесть за полгода</span>
               </div>
             </div>
           </div>
