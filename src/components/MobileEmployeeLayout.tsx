@@ -7,7 +7,7 @@ import ImpersonationBanner from "./ImpersonationBanner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const tabs = [
-  { icon: LayoutDashboard, label: "Главная", path: "/" },
+  { icon: LayoutDashboard, label: "Главная", path: "/dashboard" },
   { icon: MessageSquare, label: "Оценка", path: "/assessment" },
   { icon: Target, label: "Трек", path: "/career-track" },
   { icon: User, label: "Паспорт", path: "/passport" },

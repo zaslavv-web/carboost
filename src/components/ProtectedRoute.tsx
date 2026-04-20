@@ -29,7 +29,7 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   }
 
   if (!needsCompanyAssignment && location.pathname === "/complete-registration") {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   if (realRole === "superadmin") {
