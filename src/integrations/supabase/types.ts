@@ -1796,6 +1796,16 @@ export type Database = {
         }
         Returns: string
       }
+      submit_demo_request: {
+        Args: {
+          _company?: string
+          _email: string
+          _headcount?: number
+          _name: string
+          _source?: string
+        }
+        Returns: string
+      }
       sync_step_goals_to_personal: {
         Args: { _assignment_id: string }
         Returns: undefined
