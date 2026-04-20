@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Target, Award, TrendingUp, Clock, MessageSquare, Loader2 } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import ProgressRing from "@/components/ProgressRing";
+import CurrencyWidget from "@/components/CurrencyWidget";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -111,6 +112,8 @@ const Dashboard = () => {
           icon={TrendingUp}
         />
       </div>
+
+      <CurrencyWidget />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Progress ring */}

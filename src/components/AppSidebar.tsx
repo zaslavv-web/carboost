@@ -24,6 +24,8 @@ import {
   ClipboardList,
   ShoppingBag,
   Store,
+  Rocket,
+  Mail,
 } from "lucide-react";
 
 interface NavItem {
@@ -63,6 +65,8 @@ const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
     if (role === "company_admin") {
       return [
         ...common,
+        { icon: Rocket, label: "Запуск компании", path: "/onboarding" },
+        { icon: Mail, label: "Приглашения", path: "/invitations" },
         { icon: UserCog, label: "Пользователи", path: "/users" },
         { icon: Users, label: "Сотрудники", path: "/employees" },
         { icon: BarChart3, label: "Аналитика", path: "/analytics" },
@@ -75,6 +79,8 @@ const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
     if (role === "hrd") {
       return [
         ...common,
+        { icon: Rocket, label: "Запуск компании", path: "/onboarding" },
+        { icon: Mail, label: "Приглашения", path: "/invitations" },
         { icon: Users, label: "Сотрудники", path: "/employees" },
         { icon: BarChart3, label: "Аналитика", path: "/analytics" },
         { icon: FileJson, label: "Сценарии оценки", path: "/scenarios" },
@@ -83,11 +89,11 @@ const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
         { icon: Route, label: "Карьерные треки", path: "/career-tracks-mgmt" },
         { icon: ClipboardList, label: "Проверка этапов", path: "/career-reviews" },
         { icon: Trophy, label: "Геймификация", path: "/gamification" },
-      { icon: Store, label: "Магазин и валюта", path: "/shop-admin" },
-      { icon: Shield, label: "Политики", path: "/hr-policies" },
-      { icon: Settings, label: "Настройки", path: "/settings" },
-    ];
-  }
+        { icon: Store, label: "Магазин и валюта", path: "/shop-admin" },
+        { icon: Shield, label: "Политики", path: "/hr-policies" },
+        { icon: Settings, label: "Настройки", path: "/settings" },
+      ];
+    }
 
   if (role === "manager") {
     return [
