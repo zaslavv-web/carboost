@@ -95,14 +95,14 @@ const Login = () => {
 
         if (data.session) {
           toast.success("Регистрация прошла успешно. Ожидайте подтверждения суперадмина.");
-          navigate("/");
+          navigate("/dashboard");
         } else {
           toast.success(`Письмо для подтверждения отправлено на ${email}. Проверьте папку «Спам».`);
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate("/");
+        navigate("/dashboard");
       }
     } catch (error: any) {
       const translated = translateError(error.message || "Ошибка авторизации");
