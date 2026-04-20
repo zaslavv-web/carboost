@@ -53,7 +53,7 @@ export default function MyOrders() {
                     <p className="font-semibold">Заказ #{o.id.substring(0, 8)}</p>
                     <p className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleString("ru-RU")}</p>
                   </div>
-                  <Badge variant={STATUS[o.status].variant}>{STATUS[o.status].label}</Badge>
+                  <Badge variant={(STATUS[o.status]?.variant) ?? "outline"}>{STATUS[o.status]?.label ?? o.status}</Badge>
                 </div>
                 <div className="space-y-1 text-sm">
                   {o.items?.map((it: any) => (
