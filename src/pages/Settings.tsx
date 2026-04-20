@@ -64,7 +64,8 @@ const Settings = () => {
 
       if (avatarFile) {
         const ext = avatarFile.name.split(".").pop();
-        const path = `${user.id}/avatar.${ext}`;
+        const companySegment = profile?.company_id ?? user.id;
+        const path = `${companySegment}/${user.id}/avatar.${ext}`;
         const { error: uploadErr } = await supabase.storage
           .from("avatars")
           .upload(path, avatarFile, { upsert: true });
