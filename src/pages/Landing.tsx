@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { ArrowRight, Check, AlertTriangle, Sparkles } from "lucide-react";
 import heroImg from "@/assets/landing-hero.jpg";
 import LandingHeader from "@/components/landing/LandingHeader";
@@ -7,16 +7,8 @@ import DemoRequestDialog from "@/components/landing/DemoRequestDialog";
 import { FEATURES, ROLE_STORIES, HRD_PAINS } from "@/data/features";
 
 const Landing = () => {
-  const location = useLocation();
   const [demoOpen, setDemoOpen] = useState(false);
   const [activeRole, setActiveRole] = useState(0);
-
-  useEffect(() => {
-    if (location.hash) {
-      const el = document.getElementById(location.hash.slice(1));
-      if (el) setTimeout(() => el.scrollIntoView({ behavior: "smooth" }), 50);
-    }
-  }, [location.hash]);
 
   const story = ROLE_STORIES[activeRole];
   const storyFeatures = story.features

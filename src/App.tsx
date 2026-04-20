@@ -40,6 +40,7 @@ import Invitations from "@/pages/Invitations";
 import Landing from "@/pages/Landing";
 import FeaturePage from "@/pages/FeaturePage";
 import NotFound from "@/pages/NotFound";
+import ScrollToTop from "@/components/ScrollToTop";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
       <AuthProvider>
         <ImpersonationProvider>
           <BrowserRouter>
+            <ScrollToTop />
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/feature/:slug" element={<FeaturePage />} />
