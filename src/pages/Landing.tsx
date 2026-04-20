@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
 import { ArrowRight, Check, AlertTriangle, Sparkles } from "lucide-react";
 import heroImg from "@/assets/landing-hero.jpg";
 import LandingHeader from "@/components/landing/LandingHeader";
@@ -8,14 +7,8 @@ import DemoRequestDialog from "@/components/landing/DemoRequestDialog";
 import { FEATURES, ROLE_STORIES, HRD_PAINS } from "@/data/features";
 
 const Landing = () => {
-  const navigate = useNavigate();
-  const { session, loading } = useAuth();
   const [demoOpen, setDemoOpen] = useState(false);
   const [activeRole, setActiveRole] = useState(0);
-
-  useEffect(() => {
-    if (!loading && session) navigate("/dashboard", { replace: true });
-  }, [loading, session, navigate]);
 
   const story = ROLE_STORIES[activeRole];
   const storyFeatures = story.features
