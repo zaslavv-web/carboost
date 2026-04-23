@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { ArrowRight, Check, AlertTriangle, Sparkles } from "lucide-react";
 import heroImg from "@/assets/landing-hero.jpg";
 import LandingHeader from "@/components/landing/LandingHeader";
 import DemoRequestDialog from "@/components/landing/DemoRequestDialog";
 import { FEATURES, ROLE_STORIES, HRD_PAINS } from "@/data/features";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Landing = () => {
+  const { session, loading } = useAuth();
   const [demoOpen, setDemoOpen] = useState(false);
   const [activeRole, setActiveRole] = useState(0);
 
@@ -14,6 +16,18 @@ const Landing = () => {
   const storyFeatures = story.features
     .map((slug) => FEATURES.find((f) => f.slug === slug))
     .filter(Boolean) as typeof FEATURES;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (session) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
