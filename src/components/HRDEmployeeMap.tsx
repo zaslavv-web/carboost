@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ReactFlow,
@@ -286,7 +286,7 @@ const HRDEmployeeMap = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState(layouted.edges);
 
   // Sync when source data changes
-  useMemo(() => {
+  useEffect(() => {
     setNodes(layouted.nodes);
     setEdges(layouted.edges);
   }, [layouted, setNodes, setEdges]);
@@ -820,7 +820,7 @@ const CreateHrTaskDialog = ({
   const [assigneeIds, setAssigneeIds] = useState<string[]>(defaultAssigneeId ? [defaultAssigneeId] : []);
 
   // Reset on open
-  useMemo(() => {
+  useEffect(() => {
     if (open) {
       setTitle("");
       setDescription("");
