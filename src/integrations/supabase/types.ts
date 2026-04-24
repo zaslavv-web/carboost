@@ -896,6 +896,7 @@ export type Database = {
           requested_role: string
           status: string
           token: string
+          token_hash: string | null
           updated_at: string
         }
         Insert: {
@@ -912,6 +913,7 @@ export type Database = {
           requested_role?: string
           status?: string
           token?: string
+          token_hash?: string | null
           updated_at?: string
         }
         Update: {
@@ -928,6 +930,7 @@ export type Database = {
           requested_role?: string
           status?: string
           token?: string
+          token_hash?: string | null
           updated_at?: string
         }
         Relationships: []
