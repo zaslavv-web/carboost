@@ -499,6 +499,7 @@ const HRDDashboard = () => {
       <div className="flex gap-2 overflow-x-auto -mx-1 px-1">
         {([
           { key: "employees", label: "Сотрудники", icon: Users, count: employees.length },
+          { key: "map", label: "Карта сотрудников", icon: GitCompareArrows, count: 0 },
           { key: "tracks", label: "Карьерные треки", icon: Route, count: 0 },
           { key: "requests", label: "Заявки на должность", icon: Briefcase, count: pendingRequests.length },
           { key: "mappings", label: "Маппинг доменов", icon: Mail, count: mappings.length },
@@ -520,6 +521,8 @@ const HRDDashboard = () => {
           </button>
         ))}
       </div>
+
+      {activePanel === "map" && <HRDEmployeeMap />}
 
       {activePanel === "tracks" && <HRDCareerTracksAnalytics />}
 
