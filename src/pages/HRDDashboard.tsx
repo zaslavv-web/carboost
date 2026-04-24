@@ -8,6 +8,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import HRDCareerTracksAnalytics from "@/components/HRDCareerTracksAnalytics";
+import HRDEmployeeMap from "@/components/HRDEmployeeMap";
 import type { AppRole } from "@/hooks/useUserProfile";
 
 interface EmployeeWithRole {
