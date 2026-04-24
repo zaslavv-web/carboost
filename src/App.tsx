@@ -41,13 +41,16 @@ import Invitations from "@/pages/Invitations";
 import Landing from "@/pages/Landing";
 import FeaturePage from "@/pages/FeaturePage";
 import NotFound from "@/pages/NotFound";
+import Recognition from "@/pages/Recognition";
+import RiskAnalytics from "@/pages/RiskAnalytics";
 import ScrollToTop from "@/components/ScrollToTop";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+    <ThemeProvider>
+      <TooltipProvider>
       <Toaster />
       <Sonner />
       <AuthProvider>
@@ -88,13 +91,16 @@ const App = () => (
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/invitations" element={<Invitations />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/recognition" element={<Recognition />} />
+                <Route path="/risk-analytics" element={<RiskAnalytics />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </ImpersonationProvider>
       </AuthProvider>
-    </TooltipProvider>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
