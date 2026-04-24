@@ -8,6 +8,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import HRDCareerTracksAnalytics from "@/components/HRDCareerTracksAnalytics";
+import HRDEmployeeMap from "@/components/HRDEmployeeMap";
 import type { AppRole } from "@/hooks/useUserProfile";
 
 interface EmployeeWithRole {
@@ -242,7 +243,7 @@ const HRDDashboard = () => {
   const [showRoleMenu, setShowRoleMenu] = useState<string | null>(null);
   const [showPositionMenu, setShowPositionMenu] = useState<string | null>(null);
   const [comparisonTarget, setComparisonTarget] = useState<{ emp: EmployeeWithRole; pos: Position } | null>(null);
-  const [activePanel, setActivePanel] = useState<"employees" | "requests" | "mappings" | "tracks">("employees");
+  const [activePanel, setActivePanel] = useState<"employees" | "map" | "requests" | "mappings" | "tracks">("employees");
   const [newMapDomain, setNewMapDomain] = useState("");
   const [newMapPositionId, setNewMapPositionId] = useState("");
   const queryClient = useQueryClient();
@@ -498,6 +499,7 @@ const HRDDashboard = () => {
       <div className="flex gap-2 overflow-x-auto -mx-1 px-1">
         {([
           { key: "employees", label: "Сотрудники", icon: Users, count: employees.length },
+          { key: "map", label: "Карта сотрудников", icon: GitCompareArrows, count: 0 },
           { key: "tracks", label: "Карьерные треки", icon: Route, count: 0 },
           { key: "requests", label: "Заявки на должность", icon: Briefcase, count: pendingRequests.length },
           { key: "mappings", label: "Маппинг доменов", icon: Mail, count: mappings.length },
@@ -519,6 +521,8 @@ const HRDDashboard = () => {
           </button>
         ))}
       </div>
+
+      {activePanel === "map" && <HRDEmployeeMap />}
 
       {activePanel === "tracks" && <HRDCareerTracksAnalytics />}
 
