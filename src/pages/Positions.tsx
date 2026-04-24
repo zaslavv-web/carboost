@@ -13,7 +13,7 @@ import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Plus, Save, Trash2, Loader2, X, Upload, FileUp, Brain, Target, Sparkles,
+  Plus, Save, Trash2, Loader2, X, Upload, FileUp, Brain, Target, Sparkles, ArrowRight,
 } from "lucide-react";
 
 interface Position {
@@ -673,6 +673,99 @@ const OrgStructureUpload = () => {
   );
 };
 
+// ── Edge (Career Path) Editor Modal ──
+const EdgeEditor = ({
+  edge,
+  positions,
+  onClose,
+  onSave,
+  onDelete,
+  isSaving,
+  isDeleting,
+}: {
+  edge: { id: string; source: string; target: string; estimated_months: number | null; strategy_description: string | null };
+  positions: Position[];
+  onClose: () => void;
+  onSave: (data: { from_position_id: string; to_position_id: string; estimated_months: number | null; strategy_description: string | null }) => void;
+  onDelete: () => void;
+  isSaving: boolean;
+  isDeleting: boolean;
+}) => {
+  const [from, setFrom] = useState(edge.source);
+  const [to, setTo] = useState(edge.target);
+  const [months, setMonths] = useState<string>(edge.estimated_months?.toString() ?? "");
+  const [strategy, setStrategy] = useState(edge.strategy_description ?? "");
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card rounded-xl border border-border w-full max-w-lg p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <ArrowRight className="w-4 h-4 text-primary" /> Карьерная связь
+          </h2>
+          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium text-foreground">Из должности</label>
+            <select value={from} onChange={(e) => setFrom(e.target.value)}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
+              {positions.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">В должность</label>
+            <select value={to} onChange={(e) => setTo(e.target.value)}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
+              {positions.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-foreground">Оценка длительности (месяцев)</label>
+          <input type="number" min={0} value={months} onChange={(e) => setMonths(e.target.value)}
+            className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+            placeholder="Например, 12" />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-foreground">Стратегия / описание перехода</label>
+          <textarea value={strategy} onChange={(e) => setStrategy(e.target.value)}
+            className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[80px]"
+            placeholder="Какие шаги/обучение нужны для перехода" />
+        </div>
+
+        <div className="flex justify-between gap-2 pt-2">
+          <Button variant="ghost" className="text-destructive" onClick={onDelete} disabled={isDeleting || isSaving}>
+            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Удалить связь
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>Отмена</Button>
+            <Button
+              onClick={() => {
+                if (from === to) { toast.error("Нельзя создать связь должности самой с собой"); return; }
+                onSave({
+                  from_position_id: from,
+                  to_position_id: to,
+                  estimated_months: months ? Number(months) : null,
+                  strategy_description: strategy || null,
+                });
+              }}
+              disabled={isSaving || isDeleting}
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Сохранить
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Main Page ──
 const Positions = () => {
   const { user } = useAuth();
@@ -682,6 +775,7 @@ const Positions = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [hasUnsavedPaths, setHasUnsavedPaths] = useState(false);
+  const [editingEdge, setEditingEdge] = useState<{ id: string; source: string; target: string; estimated_months: number | null; strategy_description: string | null } | null>(null);
 
   const { data: positions = [], isLoading: posLoading } = useQuery({
     queryKey: ["positions"],
@@ -830,9 +924,17 @@ const Positions = () => {
           await supabase.from("position_career_paths").delete().eq("id", row.id);
         }
       }
-      const pathsToInsert = edges.filter((e) => e.source && e.target).map((e) => ({
-        from_position_id: e.source, to_position_id: e.target, created_by: user!.id,
-      }));
+      const pathsToInsert = edges.filter((e) => e.source && e.target).map((e) => {
+        const orig = careerPaths.find((cp) => cp.id === e.id);
+        return {
+          from_position_id: e.source,
+          to_position_id: e.target,
+          estimated_months: orig?.estimated_months ?? null,
+          strategy_description: orig?.strategy_description ?? null,
+          created_by: user!.id,
+          company_id: profile?.company_id || null,
+        };
+      });
       if (pathsToInsert.length > 0) {
         const { error } = await supabase.from("position_career_paths").insert(pathsToInsert as any);
         if (error) throw error;
@@ -845,6 +947,65 @@ const Positions = () => {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const updateEdgeMutation = useMutation({
+    mutationFn: async (data: { id: string; from_position_id: string; to_position_id: string; estimated_months: number | null; strategy_description: string | null }) => {
+      // If id starts with "temp-" — it's a new unsaved edge, insert it
+      if (data.id.startsWith("temp-")) {
+        const { error } = await supabase.from("position_career_paths").insert({
+          from_position_id: data.from_position_id,
+          to_position_id: data.to_position_id,
+          estimated_months: data.estimated_months,
+          strategy_description: data.strategy_description,
+          created_by: user!.id,
+          company_id: profile?.company_id || null,
+        } as any);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("position_career_paths").update({
+          from_position_id: data.from_position_id,
+          to_position_id: data.to_position_id,
+          estimated_months: data.estimated_months,
+          strategy_description: data.strategy_description,
+        } as any).eq("id", data.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["career_paths"] });
+      setEditingEdge(null);
+      setHasUnsavedPaths(false);
+      toast.success("Связь обновлена");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteEdgeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!id.startsWith("temp-")) {
+        const { error } = await supabase.from("position_career_paths").delete().eq("id", id);
+        if (error) throw error;
+      }
+      setEdges((eds) => eds.filter((e) => e.id !== id));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["career_paths"] });
+      setEditingEdge(null);
+      toast.success("Связь удалена");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const onEdgeClick = useCallback((_: any, edge: Edge) => {
+    const orig = careerPaths.find((cp) => cp.id === edge.id);
+    setEditingEdge({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      estimated_months: orig?.estimated_months ?? null,
+      strategy_description: orig?.strategy_description ?? null,
+    });
+  }, [careerPaths]);
 
   const onNodeDoubleClick = useCallback((_: any, node: Node) => {
     const pos = positions.find((p) => p.id === node.id);
@@ -882,10 +1043,13 @@ const Positions = () => {
           </div>
 
           {/* Graph */}
-          <div className="bg-card rounded-xl border border-border" style={{ height: "500px" }}>
+          <p className="text-xs text-muted-foreground -mb-2">
+            Двойной клик по должности — редактирование. Клик по стрелке — изменить или удалить связь. Перетащите от точки одной должности к другой, чтобы создать новую связь.
+          </p>
+          <div className="bg-card rounded-xl border border-border react-flow-contrast-cursor" style={{ height: "500px" }}>
             <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange}
               onEdgesChange={(changes) => { onEdgesChange(changes); if (changes.some((c) => c.type === "remove")) setHasUnsavedPaths(true); }}
-              onConnect={onConnect} onNodeDoubleClick={onNodeDoubleClick} fitView deleteKeyCode="Delete">
+              onConnect={onConnect} onNodeDoubleClick={onNodeDoubleClick} onEdgeClick={onEdgeClick} fitView deleteKeyCode="Delete">
               <Background /><Controls />
               <MiniMap style={{ background: "hsl(var(--card))" }} maskColor="hsl(var(--muted) / 0.5)" />
               <Panel position="top-right">
@@ -949,6 +1113,18 @@ const Positions = () => {
               saveMutation.mutate(data);
             }
           }}
+        />
+      )}
+
+      {editingEdge && (
+        <EdgeEditor
+          edge={editingEdge}
+          positions={positions}
+          onClose={() => setEditingEdge(null)}
+          onSave={(data) => updateEdgeMutation.mutate({ id: editingEdge.id, ...data })}
+          onDelete={() => deleteEdgeMutation.mutate(editingEdge.id)}
+          isSaving={updateEdgeMutation.isPending}
+          isDeleting={deleteEdgeMutation.isPending}
         />
       )}
     </div>
