@@ -1165,6 +1165,97 @@ export type Database = {
           },
         ]
       }
+      hr_task_assignees: {
+        Row: {
+          created_at: string
+          id: string
+          individual_status: string
+          reward_paid: boolean
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          individual_status?: string
+          reward_paid?: boolean
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          individual_status?: string
+          reward_paid?: boolean
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_task_assignees_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "hr_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_tasks: {
+        Row: {
+          category: string
+          company_id: string
+          created_at: string
+          created_by: string
+          deadline: string | null
+          description: string | null
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reward_coins: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          company_id: string
+          created_at?: string
+          created_by: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reward_coins?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reward_coins?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_tasks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           company_id: string | null
