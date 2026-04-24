@@ -5,6 +5,7 @@ import ImpersonationBanner from "./ImpersonationBanner";
 import { Bell, Search, Menu, PanelLeftOpen } from "lucide-react";
 import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
 import { useIsMobile } from "@/hooks/use-mobile";
+import ThemeToggle from "./ThemeToggle";
 
 const SIDEBAR_FULL = 260;
 const SIDEBAR_COLLAPSED = 72;
