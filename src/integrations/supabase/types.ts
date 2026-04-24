@@ -983,6 +983,48 @@ export type Database = {
           },
         ]
       }
+      employee_risk_scores: {
+        Row: {
+          attrition_risk: number
+          burnout_risk: number
+          company_id: string
+          computed_at: string
+          engagement_score: number
+          factors: Json
+          id: string
+          recommendations: Json
+          risk_level: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attrition_risk?: number
+          burnout_risk?: number
+          company_id: string
+          computed_at?: string
+          engagement_score?: number
+          factors?: Json
+          id?: string
+          recommendations?: Json
+          risk_level?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attrition_risk?: number
+          burnout_risk?: number
+          company_id?: string
+          computed_at?: string
+          engagement_score?: number
+          factors?: Json
+          id?: string
+          recommendations?: Json
+          risk_level?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       gamification_reward_types: {
         Row: {
           category: string
@@ -1299,6 +1341,71 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      peer_recognition_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          reaction: string
+          recognition_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reaction?: string
+          recognition_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reaction?: string
+          recognition_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "peer_recognition_reactions_recognition_id_fkey"
+            columns: ["recognition_id"]
+            isOneToOne: false
+            referencedRelation: "peer_recognitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      peer_recognitions: {
+        Row: {
+          category: string
+          coin_reward: number
+          company_id: string
+          created_at: string
+          from_user_id: string
+          id: string
+          message: string
+          to_user_id: string
+        }
+        Insert: {
+          category?: string
+          coin_reward?: number
+          company_id: string
+          created_at?: string
+          from_user_id: string
+          id?: string
+          message: string
+          to_user_id: string
+        }
+        Update: {
+          category?: string
+          coin_reward?: number
+          company_id?: string
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          message?: string
+          to_user_id?: string
+        }
+        Relationships: []
       }
       position_career_paths: {
         Row: {

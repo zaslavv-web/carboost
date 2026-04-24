@@ -27,6 +27,8 @@ import {
   Store,
   Rocket,
   Mail,
+  Heart,
+  Activity,
 } from "lucide-react";
 
 interface NavItem {
@@ -85,12 +87,14 @@ const AppSidebar = ({ collapsed, onToggle, onHide }: AppSidebarProps) => {
         { icon: Mail, label: "Приглашения", path: "/invitations" },
         { icon: Users, label: "Сотрудники", path: "/employees" },
         { icon: BarChart3, label: "Аналитика", path: "/analytics" },
+        { icon: Activity, label: "Риски и удержание", path: "/risk-analytics" },
         { icon: FileJson, label: "Сценарии оценки", path: "/scenarios" },
         { icon: ClipboardList, label: "Тесты", path: "/tests" },
         { icon: Briefcase, label: "Должности", path: "/positions" },
         { icon: Route, label: "Карьерные треки", path: "/career-tracks-mgmt" },
         { icon: ClipboardList, label: "Проверка этапов", path: "/career-reviews" },
         { icon: Trophy, label: "Геймификация", path: "/gamification" },
+        { icon: Heart, label: "Лента признания", path: "/recognition" },
         { icon: Store, label: "Магазин и валюта", path: "/shop-admin" },
         { icon: Shield, label: "Политики", path: "/hr-policies" },
         { icon: Settings, label: "Настройки", path: "/settings" },
@@ -112,6 +116,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide }: AppSidebarProps) => {
     { icon: MessageSquare, label: "AI Оценка", path: "/assessment" },
     { icon: User, label: "Цифровой паспорт", path: "/passport" },
     { icon: Target, label: "Карьерный трек", path: "/career-track" },
+    { icon: Heart, label: "Признание коллег", path: "/recognition" },
     { icon: ShoppingBag, label: "Магазин", path: "/shop" },
     { icon: Bell, label: "Уведомления", path: "/notifications" },
     { icon: Settings, label: "Настройки", path: "/settings" },
