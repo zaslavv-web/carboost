@@ -425,25 +425,64 @@ const HRDDashboard = () => {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Панель администратора HRD 🛡️</h1>
-          <p className="text-muted-foreground mt-1">Управление сотрудниками, ролями и развитием</p>
+    <div className="space-y-6 animate-fade-in">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl gradient-hero p-6 md:p-8 shadow-elevated">
+        <div className="absolute inset-0 gradient-glow opacity-60 pointer-events-none" />
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/20 backdrop-blur-md flex items-center justify-center">
+              <Shield className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Панель HRD</h1>
+              <p className="text-muted-foreground mt-1">Управление сотрудниками, ролями и развитием.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => (window.location.href = "/risk-analytics")} variant="outline" className="bg-background/40 backdrop-blur-sm">
+              Риски и удержание
+            </Button>
+            <Button onClick={() => (window.location.href = "/recognition")} className="gradient-primary text-primary-foreground shadow-glow">
+              Лента признания
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <MetricCard title="Всего сотрудников" value={String(employees.length)} subtitle={`${roleCounts.manager} руководителей`} icon={Users} />
-        <MetricCard title="Средний балл" value={String(avgScore)} subtitle="По всей компании" icon={TrendingUp} />
-        <MetricCard title="Руководителей" value={String(roleCounts.manager)} icon={Shield} />
-        <MetricCard title="Отделов" value={String(deptMap.size)} icon={BarChart3} />
+      {/* Metrics — glass KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="glass rounded-xl p-4 hover-lift">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+            <Users className="w-4 h-4 text-primary" /> Сотрудников
+          </div>
+          <div className="mt-2 text-3xl font-bold text-foreground">{employees.length}</div>
+          <div className="text-xs text-muted-foreground mt-1">{roleCounts.manager} руководителей</div>
+        </div>
+        <div className="glass rounded-xl p-4 hover-lift">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+            <TrendingUp className="w-4 h-4 text-info" /> Средний балл
+          </div>
+          <div className="mt-2 text-3xl font-bold text-foreground">{avgScore}</div>
+          <div className="text-xs text-muted-foreground mt-1">по компании</div>
+        </div>
+        <div className="glass rounded-xl p-4 hover-lift">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+            <Shield className="w-4 h-4 text-warning" /> Руководителей
+          </div>
+          <div className="mt-2 text-3xl font-bold text-foreground">{roleCounts.manager}</div>
+        </div>
+        <div className="glass rounded-xl p-4 hover-lift">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+            <BarChart3 className="w-4 h-4 text-success" /> Отделов
+          </div>
+          <div className="mt-2 text-3xl font-bold text-foreground">{deptMap.size}</div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Role distribution */}
-        <div className="bg-card rounded-xl p-6 shadow-card border border-border">
+        <div className="glass rounded-xl p-6">
           <h3 className="font-semibold text-foreground mb-4">Распределение ролей</h3>
           {roleDistribution.some((r) => r.value > 0) ? (
             <>
@@ -454,7 +493,7 @@ const HRDDashboard = () => {
                       <Cell key={i} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-2 mt-2">
@@ -475,7 +514,7 @@ const HRDDashboard = () => {
         </div>
 
         {/* Department comparison */}
-        <div className="lg:col-span-2 bg-card rounded-xl p-6 shadow-card border border-border">
+        <div className="lg:col-span-2 glass rounded-xl p-6">
           <h3 className="font-semibold text-foreground mb-4">Средний балл по отделам</h3>
           {departmentData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
@@ -483,10 +522,10 @@ const HRDDashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                 <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+                <Tooltip contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
                 <Legend />
-                <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Средний балл" />
-                <Bar dataKey="employees" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} name="Сотрудников" />
+                <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name="Средний балл" />
+                <Bar dataKey="employees" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} name="Сотрудников" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
