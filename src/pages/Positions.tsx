@@ -673,6 +673,99 @@ const OrgStructureUpload = () => {
   );
 };
 
+// ── Edge (Career Path) Editor Modal ──
+const EdgeEditor = ({
+  edge,
+  positions,
+  onClose,
+  onSave,
+  onDelete,
+  isSaving,
+  isDeleting,
+}: {
+  edge: { id: string; source: string; target: string; estimated_months: number | null; strategy_description: string | null };
+  positions: Position[];
+  onClose: () => void;
+  onSave: (data: { from_position_id: string; to_position_id: string; estimated_months: number | null; strategy_description: string | null }) => void;
+  onDelete: () => void;
+  isSaving: boolean;
+  isDeleting: boolean;
+}) => {
+  const [from, setFrom] = useState(edge.source);
+  const [to, setTo] = useState(edge.target);
+  const [months, setMonths] = useState<string>(edge.estimated_months?.toString() ?? "");
+  const [strategy, setStrategy] = useState(edge.strategy_description ?? "");
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card rounded-xl border border-border w-full max-w-lg p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <ArrowRight className="w-4 h-4 text-primary" /> Карьерная связь
+          </h2>
+          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium text-foreground">Из должности</label>
+            <select value={from} onChange={(e) => setFrom(e.target.value)}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
+              {positions.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">В должность</label>
+            <select value={to} onChange={(e) => setTo(e.target.value)}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
+              {positions.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-foreground">Оценка длительности (месяцев)</label>
+          <input type="number" min={0} value={months} onChange={(e) => setMonths(e.target.value)}
+            className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+            placeholder="Например, 12" />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-foreground">Стратегия / описание перехода</label>
+          <textarea value={strategy} onChange={(e) => setStrategy(e.target.value)}
+            className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[80px]"
+            placeholder="Какие шаги/обучение нужны для перехода" />
+        </div>
+
+        <div className="flex justify-between gap-2 pt-2">
+          <Button variant="ghost" className="text-destructive" onClick={onDelete} disabled={isDeleting || isSaving}>
+            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Удалить связь
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>Отмена</Button>
+            <Button
+              onClick={() => {
+                if (from === to) { toast.error("Нельзя создать связь должности самой с собой"); return; }
+                onSave({
+                  from_position_id: from,
+                  to_position_id: to,
+                  estimated_months: months ? Number(months) : null,
+                  strategy_description: strategy || null,
+                });
+              }}
+              disabled={isSaving || isDeleting}
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Сохранить
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Main Page ──
 const Positions = () => {
   const { user } = useAuth();
