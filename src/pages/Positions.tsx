@@ -1022,6 +1022,18 @@ const Positions = () => {
           }}
         />
       )}
+
+      {editingEdge && (
+        <EdgeEditor
+          edge={editingEdge}
+          positions={positions}
+          onClose={() => setEditingEdge(null)}
+          onSave={(data) => updateEdgeMutation.mutate({ id: editingEdge.id, ...data })}
+          onDelete={() => deleteEdgeMutation.mutate(editingEdge.id)}
+          isSaving={updateEdgeMutation.isPending}
+          isDeleting={deleteEdgeMutation.isPending}
+        />
+      )}
     </div>
   );
 };
