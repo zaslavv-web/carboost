@@ -286,7 +286,7 @@ const HRDEmployeeMap = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState(layouted.edges);
 
   // Sync when source data changes
-  useMemo(() => {
+  useEffect(() => {
     setNodes(layouted.nodes);
     setEdges(layouted.edges);
   }, [layouted, setNodes, setEdges]);
