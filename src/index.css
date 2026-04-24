@@ -133,3 +133,29 @@ section[id] { scroll-margin-top: 80px; }
     width: calc(100vw - 1.5rem) !important;
   }
 }
+
+/* React Flow: ensure cursor stays contrasted against the canvas background.
+   The canvas uses a light/dark adaptive background, so we render a custom
+   crosshair cursor that's always visible. Edges & nodes get pointer cursor. */
+.react-flow-contrast-cursor .react-flow__pane {
+  cursor: crosshair;
+}
+.react-flow-contrast-cursor .react-flow__pane.dragging,
+.react-flow-contrast-cursor .react-flow__pane:active {
+  cursor: grabbing;
+}
+.react-flow-contrast-cursor .react-flow__node,
+.react-flow-contrast-cursor .react-flow__edge-interaction,
+.react-flow-contrast-cursor .react-flow__edge-path {
+  cursor: pointer;
+}
+.react-flow-contrast-cursor .react-flow__edge {
+  cursor: pointer;
+}
+.react-flow-contrast-cursor .react-flow__edge-path {
+  stroke-width: 2;
+}
+.react-flow-contrast-cursor .react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3;
+  filter: drop-shadow(0 0 4px hsl(var(--primary) / 0.5));
+}
