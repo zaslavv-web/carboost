@@ -950,10 +950,13 @@ const Positions = () => {
           </div>
 
           {/* Graph */}
-          <div className="bg-card rounded-xl border border-border" style={{ height: "500px" }}>
+          <p className="text-xs text-muted-foreground -mb-2">
+            Двойной клик по должности — редактирование. Клик по стрелке — изменить или удалить связь. Перетащите от точки одной должности к другой, чтобы создать новую связь.
+          </p>
+          <div className="bg-card rounded-xl border border-border react-flow-contrast-cursor" style={{ height: "500px" }}>
             <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange}
               onEdgesChange={(changes) => { onEdgesChange(changes); if (changes.some((c) => c.type === "remove")) setHasUnsavedPaths(true); }}
-              onConnect={onConnect} onNodeDoubleClick={onNodeDoubleClick} fitView deleteKeyCode="Delete">
+              onConnect={onConnect} onNodeDoubleClick={onNodeDoubleClick} onEdgeClick={onEdgeClick} fitView deleteKeyCode="Delete">
               <Background /><Controls />
               <MiniMap style={{ background: "hsl(var(--card))" }} maskColor="hsl(var(--muted) / 0.5)" />
               <Panel position="top-right">
