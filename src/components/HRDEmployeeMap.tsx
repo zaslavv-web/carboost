@@ -820,7 +820,7 @@ const CreateHrTaskDialog = ({
   const [assigneeIds, setAssigneeIds] = useState<string[]>(defaultAssigneeId ? [defaultAssigneeId] : []);
 
   // Reset on open
-  useMemo(() => {
+  useEffect(() => {
     if (open) {
       setTitle("");
       setDescription("");
