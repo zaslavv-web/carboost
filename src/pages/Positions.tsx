@@ -831,9 +831,17 @@ const Positions = () => {
           await supabase.from("position_career_paths").delete().eq("id", row.id);
         }
       }
-      const pathsToInsert = edges.filter((e) => e.source && e.target).map((e) => ({
-        from_position_id: e.source, to_position_id: e.target, created_by: user!.id,
-      }));
+      const pathsToInsert = edges.filter((e) => e.source && e.target).map((e) => {
+        const orig = careerPaths.find((cp) => cp.id === e.id);
+        return {
+          from_position_id: e.source,
+          to_position_id: e.target,
+          estimated_months: orig?.estimated_months ?? null,
+          strategy_description: orig?.strategy_description ?? null,
+          created_by: user!.id,
+          company_id: profile?.company_id || null,
+        };
+      });
       if (pathsToInsert.length > 0) {
         const { error } = await supabase.from("position_career_paths").insert(pathsToInsert as any);
         if (error) throw error;
@@ -846,6 +854,65 @@ const Positions = () => {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const updateEdgeMutation = useMutation({
+    mutationFn: async (data: { id: string; from_position_id: string; to_position_id: string; estimated_months: number | null; strategy_description: string | null }) => {
+      // If id starts with "temp-" — it's a new unsaved edge, insert it
+      if (data.id.startsWith("temp-")) {
+        const { error } = await supabase.from("position_career_paths").insert({
+          from_position_id: data.from_position_id,
+          to_position_id: data.to_position_id,
+          estimated_months: data.estimated_months,
+          strategy_description: data.strategy_description,
+          created_by: user!.id,
+          company_id: profile?.company_id || null,
+        } as any);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("position_career_paths").update({
+          from_position_id: data.from_position_id,
+          to_position_id: data.to_position_id,
+          estimated_months: data.estimated_months,
+          strategy_description: data.strategy_description,
+        } as any).eq("id", data.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["career_paths"] });
+      setEditingEdge(null);
+      setHasUnsavedPaths(false);
+      toast.success("Связь обновлена");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteEdgeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!id.startsWith("temp-")) {
+        const { error } = await supabase.from("position_career_paths").delete().eq("id", id);
+        if (error) throw error;
+      }
+      setEdges((eds) => eds.filter((e) => e.id !== id));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["career_paths"] });
+      setEditingEdge(null);
+      toast.success("Связь удалена");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const onEdgeClick = useCallback((_: any, edge: Edge) => {
+    const orig = careerPaths.find((cp) => cp.id === edge.id);
+    setEditingEdge({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      estimated_months: orig?.estimated_months ?? null,
+      strategy_description: orig?.strategy_description ?? null,
+    });
+  }, [careerPaths]);
 
   const onNodeDoubleClick = useCallback((_: any, node: Node) => {
     const pos = positions.find((p) => p.id === node.id);
