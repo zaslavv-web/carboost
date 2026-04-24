@@ -243,7 +243,7 @@ const HRDDashboard = () => {
   const [showRoleMenu, setShowRoleMenu] = useState<string | null>(null);
   const [showPositionMenu, setShowPositionMenu] = useState<string | null>(null);
   const [comparisonTarget, setComparisonTarget] = useState<{ emp: EmployeeWithRole; pos: Position } | null>(null);
-  const [activePanel, setActivePanel] = useState<"employees" | "requests" | "mappings" | "tracks">("employees");
+  const [activePanel, setActivePanel] = useState<"employees" | "map" | "requests" | "mappings" | "tracks">("employees");
   const [newMapDomain, setNewMapDomain] = useState("");
   const [newMapPositionId, setNewMapPositionId] = useState("");
   const queryClient = useQueryClient();
