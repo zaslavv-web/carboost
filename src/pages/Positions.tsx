@@ -13,7 +13,7 @@ import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Plus, Save, Trash2, Loader2, X, Upload, FileUp, Brain, Target, Sparkles,
+  Plus, Save, Trash2, Loader2, X, Upload, FileUp, Brain, Target, Sparkles, ArrowRight,
 } from "lucide-react";
 
 interface Position {
