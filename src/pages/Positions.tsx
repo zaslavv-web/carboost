@@ -682,6 +682,7 @@ const Positions = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [hasUnsavedPaths, setHasUnsavedPaths] = useState(false);
+  const [editingEdge, setEditingEdge] = useState<{ id: string; source: string; target: string; estimated_months: number | null; strategy_description: string | null } | null>(null);
 
   const { data: positions = [], isLoading: posLoading } = useQuery({
     queryKey: ["positions"],
