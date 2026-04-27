@@ -198,6 +198,15 @@ const PositionEditor = ({
   const [loadingFromDocs, setLoadingFromDocs] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const applyTemplate = (template: any) => {
+    setTitle(template.title || title);
+    setDepartment(template.department || department);
+    setDescription(template.mission || description);
+    setCompetencies(template.competencies || []);
+    setProfileTemplate(template);
+    toast.success("Шаблон профиля применён");
+  };
+
   // Load competencies from HR documents uploaded by HRD (matched by department/title)
   const loadFromHrDocuments = async () => {
     setLoadingFromDocs(true);
