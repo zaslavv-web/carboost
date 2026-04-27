@@ -165,14 +165,7 @@ const EmployeeQuestionnaire = () => {
     mutationFn: async (status: "draft" | "submitted") => {
       if (!user || !profile?.company_id) throw new Error("Профиль сотрудника не привязан к компании");
       if (!positionId && !otherPosition.trim()) throw new Error("Выберите должность или укажите вариант вручную");
-      const answers = {
-        basic,
-        competencies: competencies.map((c) => ({ ...c, ...(competencyAnswers[c.name] || { level: 1, examples: [] }) })),
-        experience,
-        motivators,
-        motivation_comment: motivationComment,
-        behavioral,
-      };
+      const answers = buildAnswers();
       const { data: questionnaireId, error } = await supabase.rpc("submit_employee_questionnaire" as any, {
         _questionnaire_id: null,
         _position_id: positionId || null,
@@ -192,14 +185,24 @@ const EmployeeQuestionnaire = () => {
         })) as any);
         if (filesError) throw filesError;
       }
-      return questionnaireId;
+      return { questionnaireId: questionnaireId as string, status, answers };
     },
-    onSuccess: (_, status) => {
+    onSuccess: async ({ questionnaireId, status, answers }) => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       queryClient.invalidateQueries({ queryKey: ["competencies"] });
       queryClient.invalidateQueries({ queryKey: ["assessments"] });
+      setQuestionnaireId(questionnaireId);
       toast.success(status === "draft" ? "Черновик анкеты сохранён" : "Анкета отправлена, цифровой паспорт обновлён");
-      if (status === "submitted") navigate("/passport");
+      if (status === "submitted") {
+        const { data, error } = await supabase.functions.invoke("generate-questionnaire-profile", {
+          body: { answers, skillGaps, positionTitle: selectedPosition?.title || otherPosition },
+        });
+        if (error) throw error;
+        const draft = data as ProfileDraft;
+        setProfileDraft(draft);
+        setDraftText(formatDraft(draft));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     },
     onError: (error: any) => toast.error(error.message || "Не удалось сохранить анкету"),
   });
