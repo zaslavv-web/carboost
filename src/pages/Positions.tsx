@@ -12,6 +12,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { eightBlockJobProfileGuide, miningPilotProfiles } from "@/data/jobProfileTemplates";
 import {
   Plus, Save, Trash2, Loader2, X, Upload, FileUp, Brain, Target, Sparkles, ArrowRight,
 } from "lucide-react";
@@ -39,6 +40,9 @@ interface CareerPath {
 interface CompetencyItem {
   name: string;
   required_level: number;
+  category?: string;
+  critical_threshold?: number;
+  behavioral_indicators?: Record<string, string[]>;
 }
 
 interface PsychItem {
@@ -193,6 +197,15 @@ const PositionEditor = ({
   const [parsing, setParsing] = useState(false);
   const [loadingFromDocs, setLoadingFromDocs] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const applyTemplate = (template: any) => {
+    setTitle(template.title || title);
+    setDepartment(template.department || department);
+    setDescription(template.mission || description);
+    setCompetencies(template.competencies || []);
+    setProfileTemplate(template);
+    toast.success("Шаблон профиля применён");
+  };
 
   // Load competencies from HR documents uploaded by HRD (matched by department/title)
   const loadFromHrDocuments = async () => {
@@ -384,6 +397,25 @@ const PositionEditor = ({
             className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[50px]" />
         </div>
 
+        <div className="bg-primary/5 rounded-lg border border-primary/20 p-4 space-y-3">
+          <div>
+            <p className="text-sm font-medium text-foreground">Skills-based шаблон 8 блоков</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {eightBlockJobProfileGuide.rules[0]} {eightBlockJobProfileGuide.rules[2]}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" type="button" onClick={() => setProfileTemplate({ ...profileTemplate, methodology: eightBlockJobProfileGuide.rules, blocks: eightBlockJobProfileGuide.blocks, generation_source: "manual", review_frequency: "12 месяцев или при изменении технологии/стратегии" })}>
+              Применить 8 блоков
+            </Button>
+            {miningPilotProfiles.map((template) => (
+              <Button key={template.title} size="sm" variant="secondary" type="button" onClick={() => applyTemplate(template)}>
+                {template.title}
+              </Button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="text-sm font-medium text-foreground">Статус эталона</label>
@@ -400,6 +432,30 @@ const PositionEditor = ({
             <input value={profileTemplate.success_metrics || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, success_metrics: e.target.value })}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
               placeholder="KPI, ожидаемые результаты" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="text-sm font-medium text-foreground">Источник генерации</label>
+            <select value={profileTemplate.generation_source || "manual"} onChange={(e) => setProfileTemplate({ ...profileTemplate, generation_source: e.target.value })}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
+              <option value="manual">Ручное заполнение</option>
+              <option value="vacancy">Из вакансии компании</option>
+              <option value="market">Из рыночного бенчмарка</option>
+              <option value="psychological">Из психологического портрета</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Грейд</label>
+            <input value={profileTemplate.grade || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, grade: e.target.value })}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Частота пересмотра</label>
+            <input value={profileTemplate.review_frequency || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, review_frequency: e.target.value })}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+              placeholder="12 месяцев" />
           </div>
         </div>
 
