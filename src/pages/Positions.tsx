@@ -251,6 +251,7 @@ const PositionEditor = ({
   const [department, setDepartment] = useState(position?.department || "");
   const [profileStatus, setProfileStatus] = useState(position?.profile_status || "draft");
   const [profileTemplate, setProfileTemplate] = useState<any>(position?.profile_template || {});
+  const [okrKpis, setOkrKpis] = useState<OKRKPIItem[]>(normalizeOKRKPI(position?.profile_template?.okr_kpis));
   const [competencies, setCompetencies] = useState<CompetencyItem[]>(
     parseCompetencyProfile(position?.competency_profile)
   );
@@ -267,6 +268,7 @@ const PositionEditor = ({
     setDescription(template.mission || description);
     setCompetencies(template.competencies || []);
     setProfileTemplate(template);
+    setOkrKpis(normalizeOKRKPI(template.okr_kpis));
     toast.success("Шаблон профиля применён");
   };
 
@@ -497,6 +499,8 @@ const PositionEditor = ({
               placeholder="KPI, ожидаемые результаты" />
           </div>
         </div>
+
+        <OKRKPIEditor value={okrKpis} onChange={setOkrKpis} />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
