@@ -188,20 +188,24 @@ const EmployeeQuestionnaire = () => {
       return { questionnaireId: questionnaireId as string, status, answers };
     },
     onSuccess: async ({ questionnaireId, status, answers }) => {
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      queryClient.invalidateQueries({ queryKey: ["competencies"] });
-      queryClient.invalidateQueries({ queryKey: ["assessments"] });
-      setQuestionnaireId(questionnaireId);
-      toast.success(status === "draft" ? "Черновик анкеты сохранён" : "Анкета отправлена, цифровой паспорт обновлён");
-      if (status === "submitted") {
-        const { data, error } = await supabase.functions.invoke("generate-questionnaire-profile", {
-          body: { answers, skillGaps, positionTitle: selectedPosition?.title || otherPosition },
-        });
-        if (error) throw error;
-        const draft = data as ProfileDraft;
-        setProfileDraft(draft);
-        setDraftText(formatDraft(draft));
-        window.scrollTo({ top: 0, behavior: "smooth" });
+      try {
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
+        queryClient.invalidateQueries({ queryKey: ["competencies"] });
+        queryClient.invalidateQueries({ queryKey: ["assessments"] });
+        setQuestionnaireId(questionnaireId);
+        toast.success(status === "draft" ? "Черновик анкеты сохранён" : "Анкета отправлена, цифровой паспорт обновлён");
+        if (status === "submitted") {
+          const { data, error } = await supabase.functions.invoke("generate-questionnaire-profile", {
+            body: { answers, skillGaps, positionTitle: selectedPosition?.title || otherPosition },
+          });
+          if (error) throw error;
+          const draft = data as ProfileDraft;
+          setProfileDraft(draft);
+          setDraftText(formatDraft(draft));
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      } catch (error: any) {
+        toast.error(error.message || "Анкета сохранена, но черновик профиля не сгенерирован");
       }
     },
     onError: (error: any) => toast.error(error.message || "Не удалось сохранить анкету"),
