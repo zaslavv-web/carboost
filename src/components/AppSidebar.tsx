@@ -170,8 +170,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide }: AppSidebarProps) => {
               title={collapsed ? item.label : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-primary hover:text-sidebar-primary-foreground"
               } ${collapsed ? "justify-center" : ""}`}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -194,7 +194,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide }: AppSidebarProps) => {
             <p className="text-xs text-sidebar-foreground/50 truncate">{profile.position || "Не указана"}</p>
           </div>
         )}
-        <button onClick={() => { signOut(); navigate("/login"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors ${collapsed ? "justify-center" : ""}`}>
+        <button onClick={() => { signOut(); navigate("/login"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors ${collapsed ? "justify-center" : ""}`}>
           <LogOut className="w-5 h-5 flex-shrink-0" />
           {!collapsed && <span>Выйти</span>}
         </button>
