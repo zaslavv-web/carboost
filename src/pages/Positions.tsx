@@ -1116,12 +1116,14 @@ const Positions = () => {
                 const compCount = Array.isArray(p.competency_profile) ? p.competency_profile.length : 0;
                 const psychCount = Array.isArray(p.psychological_profile) ? p.psychological_profile.length :
                   (typeof p.psychological_profile === "object" && p.psychological_profile ? Object.keys(p.psychological_profile).length : 0);
+                const statusLabel = p.profile_status === "approved" ? "Утверждён" : p.profile_status === "review" ? "На ревью" : p.profile_status === "archived" ? "Архив" : "Черновик";
                 return (
                   <div key={p.id} className="p-4 flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground">{p.title}</p>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                         <span>{p.department || "Без отдела"}</span>
+                        <span>{statusLabel}</span>
                         {compCount > 0 && <span className="flex items-center gap-0.5"><Target className="w-3 h-3" />{compCount} компетенций</span>}
                         {psychCount > 0 && <span className="flex items-center gap-0.5"><Brain className="w-3 h-3" />{psychCount} черт</span>}
                       </div>
