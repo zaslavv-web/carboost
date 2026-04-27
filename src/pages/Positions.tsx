@@ -40,6 +40,9 @@ interface CareerPath {
 interface CompetencyItem {
   name: string;
   required_level: number;
+  category?: string;
+  critical_threshold?: number;
+  behavioral_indicators?: Record<string, string[]>;
 }
 
 interface PsychItem {
