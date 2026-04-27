@@ -23,6 +23,8 @@ interface Position {
   department: string | null;
   psychological_profile: any;
   competency_profile: any;
+  profile_status?: string;
+  profile_template?: any;
 }
 
 interface CareerPath {
@@ -180,6 +182,8 @@ const PositionEditor = ({
   const [title, setTitle] = useState(position?.title || "");
   const [description, setDescription] = useState(position?.description || "");
   const [department, setDepartment] = useState(position?.department || "");
+  const [profileStatus, setProfileStatus] = useState(position?.profile_status || "draft");
+  const [profileTemplate, setProfileTemplate] = useState<any>(position?.profile_template || {});
   const [competencies, setCompetencies] = useState<CompetencyItem[]>(
     parseCompetencyProfile(position?.competency_profile)
   );
