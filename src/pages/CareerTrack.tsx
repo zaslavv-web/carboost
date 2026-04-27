@@ -149,8 +149,9 @@ const CareerTrack = () => {
 
   const addGoalMutation = useMutation({
     mutationFn: async () => {
+      if (!effectiveUserId) throw new Error("Пользователь не определён");
       const { error } = await supabase.from("career_goals").insert({
-        user_id: user!.id, title: newGoal.title, description: newGoal.description || null, deadline: newGoal.deadline || null,
+        user_id: effectiveUserId, title: newGoal.title, description: newGoal.description || null, deadline: newGoal.deadline || null,
       });
       if (error) throw error;
     },
