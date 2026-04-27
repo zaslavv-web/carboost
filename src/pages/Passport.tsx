@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -41,6 +42,22 @@ const Passport = () => {
       const { data, error } = await supabase.from("assessments").select("*").eq("user_id", user!.id).order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const { data: latestQuestionnaire } = useQuery({
+    queryKey: ["latest_employee_questionnaire", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employee_questionnaires" as any)
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
     },
     enabled: !!user,
   });
@@ -108,6 +125,22 @@ const Passport = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-card rounded-xl p-6 shadow-card border border-border lg:col-span-2">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="font-semibold text-foreground">Анкета первичного заполнения</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {latestQuestionnaire
+                  ? `Последняя версия: ${latestQuestionnaire.status === "draft" ? "черновик" : "отправлена"}`
+                  : "Заполните анкету, чтобы сформировать стартовый профиль компетенций"}
+              </p>
+            </div>
+            <Link to="/employee-questionnaire" className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+              {latestQuestionnaire?.status === "draft" ? "Продолжить" : "Открыть анкету"}
+            </Link>
+          </div>
+        </div>
+
         {/* Radar */}
         <div className="bg-card rounded-xl p-6 shadow-card border border-border">
           <h3 className="font-semibold text-foreground mb-4">Навыки и компетенции</h3>
