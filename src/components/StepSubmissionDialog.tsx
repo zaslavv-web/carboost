@@ -319,7 +319,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
                 </div>
               ))}
             </div>
-            <input ref={fileRef} type="file" multiple onChange={handleUpload} className="hidden" />
+            <input ref={fileRef} type="file" multiple accept={evidenceAccept} onChange={handleUpload} className="hidden" />
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
@@ -327,7 +327,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border text-sm hover:bg-secondary/40 transition-colors disabled:opacity-50"
             >
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              Загрузить файлы (сертификаты, скрины, отчёты)
+              Загрузить DOCX, PDF, JPG или PNG
             </button>
           </div>
 
