@@ -29,6 +29,7 @@ import {
   Mail,
   Heart,
   Activity,
+  ClipboardCheck,
 } from "lucide-react";
 
 interface NavItem {
@@ -114,6 +115,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide }: AppSidebarProps) => {
   return [
     ...common,
     { icon: MessageSquare, label: "AI Оценка", path: "/assessment" },
+    { icon: ClipboardCheck, label: "Анкета", path: "/employee-questionnaire" },
     { icon: User, label: "Цифровой паспорт", path: "/passport" },
     { icon: Target, label: "Карьерный трек", path: "/career-track" },
     { icon: Heart, label: "Признание коллег", path: "/recognition" },

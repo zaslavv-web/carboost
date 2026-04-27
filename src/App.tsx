@@ -43,6 +43,7 @@ import FeaturePage from "@/pages/FeaturePage";
 import NotFound from "@/pages/NotFound";
 import Recognition from "@/pages/Recognition";
 import RiskAnalytics from "@/pages/RiskAnalytics";
+import EmployeeQuestionnaire from "@/pages/EmployeeQuestionnaire";
 import ScrollToTop from "@/components/ScrollToTop";
 
 const queryClient = new QueryClient();
@@ -67,6 +68,7 @@ const App = () => (
                 <Route path="/complete-registration" element={<CompleteRegistration />} />
                 <Route path="/assessment" element={<Assessment />} />
                 <Route path="/passport" element={<Passport />} />
+                <Route path="/employee-questionnaire" element={<EmployeeQuestionnaire />} />
                 <Route path="/career-track" element={<CareerTrack />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/team" element={<ManagerDashboard />} />
