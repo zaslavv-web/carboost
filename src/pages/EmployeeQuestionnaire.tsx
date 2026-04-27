@@ -111,6 +111,24 @@ const EmployeeQuestionnaire = () => {
     return { name: c.name, category: c.category, current_level: current, required_level: required, gap: Math.max(0, required - current) };
   }), [competencies, competencyAnswers]);
 
+  const buildAnswers = () => ({
+    basic,
+    competencies: competencies.map((c) => ({ ...c, ...(competencyAnswers[c.name] || { level: 1, examples: [] }) })),
+    experience,
+    motivators,
+    motivation_comment: motivationComment,
+    behavioral,
+  });
+
+  const formatDraft = (draft: ProfileDraft) => [
+    `Резюме профиля:\n${draft.summary || ""}`,
+    `\nСильные стороны:\n${(draft.strengths || []).map((item) => `• ${item}`).join("\n")}`,
+    `\nЗоны роста:\n${(draft.growth_areas || []).map((item) => `• ${item}`).join("\n")}`,
+    `\nРекомендации:\n${(draft.recommendations || []).map((item) => `• ${item}`).join("\n")}`,
+    `\nКарьерный фокус:\n${draft.career_focus || ""}`,
+    draft.risk_notes?.length ? `\nРиски/наблюдения:\n${draft.risk_notes.map((item) => `• ${item}`).join("\n")}` : "",
+  ].filter(Boolean).join("\n");
+
   const uploadFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(event.target.files || []);
     if (!selected.length || !user || !profile?.company_id) return;
