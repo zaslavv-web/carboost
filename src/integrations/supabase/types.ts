@@ -935,6 +935,90 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_questionnaire_files: {
+        Row: {
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          questionnaire_id: string
+          uploaded_at: string
+        }
+        Insert: {
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          questionnaire_id: string
+          uploaded_at?: string
+        }
+        Update: {
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          questionnaire_id?: string
+          uploaded_at?: string
+        }
+        Relationships: []
+      }
+      employee_questionnaires: {
+        Row: {
+          ai_interpretation: Json | null
+          answers: Json
+          company_id: string | null
+          confirmed_at: string | null
+          created_at: string
+          id: string
+          next_update_due_at: string | null
+          other_position_title: string | null
+          position_id: string | null
+          skill_gaps: Json
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          ai_interpretation?: Json | null
+          answers?: Json
+          company_id?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          next_update_due_at?: string | null
+          other_position_title?: string | null
+          position_id?: string | null
+          skill_gaps?: Json
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          ai_interpretation?: Json | null
+          answers?: Json
+          company_id?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          next_update_due_at?: string | null
+          other_position_title?: string | null
+          position_id?: string | null
+          skill_gaps?: Json
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
       employee_rewards: {
         Row: {
           awarded_at: string
@@ -1470,6 +1554,8 @@ export type Database = {
       }
       positions: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           company_id: string | null
           competency_profile: Json | null
           created_at: string
@@ -1477,11 +1563,16 @@ export type Database = {
           department: string | null
           description: string | null
           id: string
+          profile_status: string
+          profile_template: Json
+          profile_version: number
           psychological_profile: Json | null
           title: string
           updated_at: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           company_id?: string | null
           competency_profile?: Json | null
           created_at?: string
@@ -1489,11 +1580,16 @@ export type Database = {
           department?: string | null
           description?: string | null
           id?: string
+          profile_status?: string
+          profile_template?: Json
+          profile_version?: number
           psychological_profile?: Json | null
           title: string
           updated_at?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           company_id?: string | null
           competency_profile?: Json | null
           created_at?: string
@@ -1501,6 +1597,9 @@ export type Database = {
           department?: string | null
           description?: string | null
           id?: string
+          profile_status?: string
+          profile_template?: Json
+          profile_version?: number
           psychological_profile?: Json | null
           title?: string
           updated_at?: string
@@ -2004,6 +2103,17 @@ export type Database = {
           _headcount?: number
           _name: string
           _source?: string
+        }
+        Returns: string
+      }
+      submit_employee_questionnaire: {
+        Args: {
+          _answers: Json
+          _other_position_title: string
+          _position_id: string
+          _questionnaire_id: string
+          _skill_gaps: Json
+          _status?: string
         }
         Returns: string
       }
