@@ -67,7 +67,7 @@ const CareerTrack = () => {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   const { data: templates = [] } = useQuery({
