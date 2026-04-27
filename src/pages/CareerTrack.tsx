@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
 import { Check, Clock, ChevronDown, ChevronRight, Target, Loader2, Plus, X, Route, Award, Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,7 +17,6 @@ const statusConfig: Record<string, { label: string; color: string; textColor: st
 type Step = RichStep;
 
 const CareerTrack = () => {
-  const { user } = useAuth();
   const effectiveUserId = useEffectiveUserId();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
