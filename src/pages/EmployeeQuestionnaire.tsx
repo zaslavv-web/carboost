@@ -22,6 +22,14 @@ type Competency = {
 };
 
 type UploadedFile = { path: string; name: string; size: number; type: string };
+type ProfileDraft = {
+  summary: string;
+  strengths: string[];
+  growth_areas: string[];
+  recommendations: string[];
+  career_focus: string;
+  risk_notes: string[];
+};
 
 const allowedFileTypes = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -72,6 +80,9 @@ const EmployeeQuestionnaire = () => {
   const [behavioral, setBehavioral] = useState({ decision: "", stress: "", feedback: "" });
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [questionnaireId, setQuestionnaireId] = useState<string | null>(null);
+  const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
+  const [draftText, setDraftText] = useState("");
 
   const { data: positions = [], isLoading: positionsLoading } = useQuery({
     queryKey: ["questionnaire_positions", profile?.company_id],
@@ -99,6 +110,24 @@ const EmployeeQuestionnaire = () => {
     const required = Math.min(4, Math.max(1, Number(c.required_level || 2)));
     return { name: c.name, category: c.category, current_level: current, required_level: required, gap: Math.max(0, required - current) };
   }), [competencies, competencyAnswers]);
+
+  const buildAnswers = () => ({
+    basic,
+    competencies: competencies.map((c) => ({ ...c, ...(competencyAnswers[c.name] || { level: 1, examples: [] }) })),
+    experience,
+    motivators,
+    motivation_comment: motivationComment,
+    behavioral,
+  });
+
+  const formatDraft = (draft: ProfileDraft) => [
+    `Резюме профиля:\n${draft.summary || ""}`,
+    `\nСильные стороны:\n${(draft.strengths || []).map((item) => `• ${item}`).join("\n")}`,
+    `\nЗоны роста:\n${(draft.growth_areas || []).map((item) => `• ${item}`).join("\n")}`,
+    `\nРекомендации:\n${(draft.recommendations || []).map((item) => `• ${item}`).join("\n")}`,
+    `\nКарьерный фокус:\n${draft.career_focus || ""}`,
+    draft.risk_notes?.length ? `\nРиски/наблюдения:\n${draft.risk_notes.map((item) => `• ${item}`).join("\n")}` : "",
+  ].filter(Boolean).join("\n");
 
   const uploadFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(event.target.files || []);
@@ -136,14 +165,7 @@ const EmployeeQuestionnaire = () => {
     mutationFn: async (status: "draft" | "submitted") => {
       if (!user || !profile?.company_id) throw new Error("Профиль сотрудника не привязан к компании");
       if (!positionId && !otherPosition.trim()) throw new Error("Выберите должность или укажите вариант вручную");
-      const answers = {
-        basic,
-        competencies: competencies.map((c) => ({ ...c, ...(competencyAnswers[c.name] || { level: 1, examples: [] }) })),
-        experience,
-        motivators,
-        motivation_comment: motivationComment,
-        behavioral,
-      };
+      const answers = buildAnswers();
       const { data: questionnaireId, error } = await supabase.rpc("submit_employee_questionnaire" as any, {
         _questionnaire_id: null,
         _position_id: positionId || null,
@@ -163,20 +185,92 @@ const EmployeeQuestionnaire = () => {
         })) as any);
         if (filesError) throw filesError;
       }
-      return questionnaireId;
+      return { questionnaireId: questionnaireId as string, status, answers };
     },
-    onSuccess: (_, status) => {
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      queryClient.invalidateQueries({ queryKey: ["competencies"] });
-      queryClient.invalidateQueries({ queryKey: ["assessments"] });
-      toast.success(status === "draft" ? "Черновик анкеты сохранён" : "Анкета отправлена, цифровой паспорт обновлён");
-      if (status === "submitted") navigate("/passport");
+    onSuccess: async ({ questionnaireId, status, answers }) => {
+      try {
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
+        queryClient.invalidateQueries({ queryKey: ["competencies"] });
+        queryClient.invalidateQueries({ queryKey: ["assessments"] });
+        setQuestionnaireId(questionnaireId);
+        toast.success(status === "draft" ? "Черновик анкеты сохранён" : "Анкета отправлена, цифровой паспорт обновлён");
+        if (status === "submitted") {
+          const { data, error } = await supabase.functions.invoke("generate-questionnaire-profile", {
+            body: { answers, skillGaps, positionTitle: selectedPosition?.title || otherPosition },
+          });
+          if (error) throw error;
+          const draft = data as ProfileDraft;
+          setProfileDraft(draft);
+          setDraftText(formatDraft(draft));
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      } catch (error: any) {
+        toast.error(error.message || "Анкета сохранена, но черновик профиля не сгенерирован");
+      }
     },
     onError: (error: any) => toast.error(error.message || "Не удалось сохранить анкету"),
   });
 
+  const confirmDraftMutation = useMutation({
+    mutationFn: async () => {
+      if (!questionnaireId || !profileDraft) throw new Error("Черновик профиля не найден");
+      const { error } = await supabase
+        .from("employee_questionnaires" as any)
+        .update({
+          status: "confirmed",
+          ai_interpretation: { ...profileDraft, edited_profile_text: draftText },
+        } as any)
+        .eq("id", questionnaireId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["latest_employee_questionnaire"] });
+      toast.success("Черновик профиля подтверждён");
+      navigate("/passport");
+    },
+    onError: (error: any) => toast.error(error.message || "Не удалось подтвердить профиль"),
+  });
+
   if (positionsLoading) {
     return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  if (profileDraft) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Черновик цифрового профиля</h1>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">Проверьте AI-рекомендации, отредактируйте при необходимости и подтвердите профиль</p>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg"><Sparkles className="h-5 w-5 text-primary" />AI-интерпретация анкеты</CardTitle>
+            <CardDescription>После подтверждения черновик сохранится в истории анкеты и будет использоваться в цифровом паспорте</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Textarea value={draftText} onChange={(e) => setDraftText(e.target.value)} className="min-h-[420px] font-mono text-sm" />
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {skillGaps.filter((gap) => gap.gap > 0).map((gap) => (
+                <div key={gap.name} className="rounded-lg border border-border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-foreground">{gap.name}</p>
+                    <Badge variant="outline">Gap {gap.gap}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">Ваш уровень {gap.current_level} / эталон {gap.required_level}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2 md:flex-row md:justify-end">
+              <Button variant="outline" onClick={() => setProfileDraft(null)}>Вернуться к анкете</Button>
+              <Button onClick={() => confirmDraftMutation.mutate()} disabled={confirmDraftMutation.isPending}>
+                {confirmDraftMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Подтвердить профиль
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
