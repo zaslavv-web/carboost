@@ -22,6 +22,15 @@ interface SimpleQ {
   competency?: string;
 }
 
+const allowedEvidenceExtensions = ["docx", "pdf", "jpg", "jpeg", "png"];
+const allowedEvidenceMimeTypes = [
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+];
+const evidenceAccept = ".docx,.pdf,.jpg,.jpeg,.png,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,image/jpeg,image/png";
+
 const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, onClose }: Props) => {
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
@@ -88,12 +97,27 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fs = e.target.files;
     if (!fs?.length || !user) return;
+    if (!profile?.company_id) {
+      toast.error("Загрузка доступна после привязки сотрудника к компании");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    const selectedFiles = Array.from(fs);
+    const invalidFiles = selectedFiles.filter((file) => {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      return !allowedEvidenceExtensions.includes(ext) || !allowedEvidenceMimeTypes.includes(file.type);
+    });
+    if (invalidFiles.length > 0) {
+      toast.error("Можно загрузить только DOCX, PDF, JPG или PNG");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     setUploading(true);
     try {
       const uploaded: { url: string; name: string }[] = [];
-      for (const file of Array.from(fs)) {
+      for (const file of selectedFiles) {
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const companySegment = profile?.company_id ?? user.id;
+        const companySegment = profile.company_id;
         const path = `${companySegment}/${user.id}/${assignmentId}/${stepOrder}/${Date.now()}_${safe}`;
         const { error } = await supabase.storage.from("career-submissions").upload(path, file);
         if (error) throw error;
@@ -295,7 +319,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
                 </div>
               ))}
             </div>
-            <input ref={fileRef} type="file" multiple onChange={handleUpload} className="hidden" />
+            <input ref={fileRef} type="file" multiple accept={evidenceAccept} onChange={handleUpload} className="hidden" />
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
@@ -303,7 +327,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border text-sm hover:bg-secondary/40 transition-colors disabled:opacity-50"
             >
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              Загрузить файлы (сертификаты, скрины, отчёты)
+              Загрузить DOCX, PDF, JPG или PNG
             </button>
           </div>
 
