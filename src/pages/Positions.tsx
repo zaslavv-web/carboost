@@ -50,6 +50,13 @@ interface PsychItem {
   level: string;
 }
 
+interface OKRKPIItem {
+  objective: string;
+  metric: string;
+  target: string;
+  example: string;
+}
+
 // ── Structured Competency Editor ──
 const CompetencyProfileEditor = ({
   value,
@@ -157,6 +164,62 @@ const PsychProfileEditor = ({
   );
 };
 
+const createEmptyOKR = (): OKRKPIItem => ({ objective: "", metric: "", target: "", example: "" });
+
+const normalizeOKRKPI = (raw: any): OKRKPIItem[] => {
+  const items = Array.isArray(raw) ? raw.slice(0, 5) : [];
+  const normalized = items.map((item: any) => ({
+    objective: String(item?.objective || ""),
+    metric: String(item?.metric || ""),
+    target: String(item?.target || ""),
+    example: String(item?.example || ""),
+  }));
+  while (normalized.length < 3) normalized.push(createEmptyOKR());
+  return normalized;
+};
+
+const OKRKPIEditor = ({ value, onChange }: { value: OKRKPIItem[]; onChange: (v: OKRKPIItem[]) => void }) => {
+  const update = (i: number, field: keyof OKRKPIItem, val: string) =>
+    onChange(value.map((item, idx) => (idx === i ? { ...item, [field]: val } : item)));
+  const add = () => value.length < 5 && onChange([...value, createEmptyOKR()]);
+  const remove = (i: number) => value.length > 3 && onChange(value.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-secondary/20 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+            <Target className="w-4 h-4 text-primary" /> Цели и ключевые результаты OKR/KPI
+          </label>
+          <p className="text-xs text-muted-foreground mt-1">Заполните 3–5 измеримых целей с метрикой, целевым значением и примером результата.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={add} disabled={value.length >= 5} type="button">
+          <Plus className="w-3 h-3" /> OKR/KPI
+        </Button>
+      </div>
+
+      {value.map((item, i) => (
+        <div key={i} className="space-y-2 rounded-lg border border-border/60 bg-card p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-muted-foreground">OKR/KPI {i + 1}</span>
+            {value.length > 3 && (
+              <Button variant="ghost" size="icon" onClick={() => remove(i)} className="text-destructive h-7 w-7" type="button">
+                <X className="w-3 h-3" />
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <input value={item.objective} onChange={(e) => update(i, "objective", e.target.value)} placeholder="Цель: повысить стабильность сменного плана" className="px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
+            <input value={item.metric} onChange={(e) => update(i, "metric", e.target.value)} placeholder="Метрика: выполнение плана, %" className="px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
+            <input value={item.target} onChange={(e) => update(i, "target", e.target.value)} placeholder="Целевое значение: ≥ 98% ежемесячно" className="px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
+            <input value={item.example} onChange={(e) => update(i, "example", e.target.value)} placeholder="Пример: отчёт по отклонениям и корректирующим действиям" className="px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // ── Parse helpers for profiles ──
 const parseCompetencyProfile = (raw: any): CompetencyItem[] => {
   if (Array.isArray(raw)) return raw.filter((r: any) => r.name);
@@ -188,6 +251,7 @@ const PositionEditor = ({
   const [department, setDepartment] = useState(position?.department || "");
   const [profileStatus, setProfileStatus] = useState(position?.profile_status || "draft");
   const [profileTemplate, setProfileTemplate] = useState<any>(position?.profile_template || {});
+  const [okrKpis, setOkrKpis] = useState<OKRKPIItem[]>(normalizeOKRKPI(position?.profile_template?.okr_kpis));
   const [competencies, setCompetencies] = useState<CompetencyItem[]>(
     parseCompetencyProfile(position?.competency_profile)
   );
@@ -204,6 +268,7 @@ const PositionEditor = ({
     setDescription(template.mission || description);
     setCompetencies(template.competencies || []);
     setProfileTemplate(template);
+    setOkrKpis(normalizeOKRKPI(template.okr_kpis));
     toast.success("Шаблон профиля применён");
   };
 
@@ -435,6 +500,8 @@ const PositionEditor = ({
           </div>
         </div>
 
+        <OKRKPIEditor value={okrKpis} onChange={setOkrKpis} />
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <label className="text-sm font-medium text-foreground">Источник генерации</label>
@@ -513,6 +580,20 @@ const PositionEditor = ({
                 toast.error("Все компетенции должны иметь название и ненулевой требуемый уровень (1–10)");
                 return;
               }
+              const filledOkrKpis = okrKpis.filter((item) =>
+                item.objective.trim() || item.metric.trim() || item.target.trim() || item.example.trim()
+              );
+              if (filledOkrKpis.length < 3 || filledOkrKpis.length > 5) {
+                toast.error("Добавьте от 3 до 5 OKR/KPI для профиля должности");
+                return;
+              }
+              const invalidOkrKpis = filledOkrKpis.filter((item) =>
+                !item.objective.trim() || !item.metric.trim() || !item.target.trim() || !item.example.trim()
+              );
+              if (invalidOkrKpis.length > 0) {
+                toast.error("В каждом OKR/KPI заполните цель, метрику, целевое значение и пример");
+                return;
+              }
               const psychObj = psychTraits.length > 0 ? psychTraits : {};
               onSave({
                 title,
@@ -524,6 +605,7 @@ const PositionEditor = ({
                 profile_template: {
                   ...profileTemplate,
                   metadata: { title, department },
+                  okr_kpis: filledOkrKpis,
                   competencies,
                   psychological_profile: psychObj,
                   career_growth: profileTemplate.career_growth || "",
