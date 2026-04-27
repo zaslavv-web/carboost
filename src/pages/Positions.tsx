@@ -397,6 +397,25 @@ const PositionEditor = ({
             className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[50px]" />
         </div>
 
+        <div className="bg-primary/5 rounded-lg border border-primary/20 p-4 space-y-3">
+          <div>
+            <p className="text-sm font-medium text-foreground">Skills-based шаблон 8 блоков</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {eightBlockJobProfileGuide.rules[0]} {eightBlockJobProfileGuide.rules[2]}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" type="button" onClick={() => setProfileTemplate({ ...profileTemplate, methodology: eightBlockJobProfileGuide.rules, blocks: eightBlockJobProfileGuide.blocks, generation_source: "manual", review_frequency: "12 месяцев или при изменении технологии/стратегии" })}>
+              Применить 8 блоков
+            </Button>
+            {miningPilotProfiles.map((template) => (
+              <Button key={template.title} size="sm" variant="secondary" type="button" onClick={() => applyTemplate(template)}>
+                {template.title}
+              </Button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="text-sm font-medium text-foreground">Статус эталона</label>
