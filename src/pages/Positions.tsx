@@ -580,6 +580,20 @@ const PositionEditor = ({
                 toast.error("Все компетенции должны иметь название и ненулевой требуемый уровень (1–10)");
                 return;
               }
+              const filledOkrKpis = okrKpis.filter((item) =>
+                item.objective.trim() || item.metric.trim() || item.target.trim() || item.example.trim()
+              );
+              if (filledOkrKpis.length < 3 || filledOkrKpis.length > 5) {
+                toast.error("Добавьте от 3 до 5 OKR/KPI для профиля должности");
+                return;
+              }
+              const invalidOkrKpis = filledOkrKpis.filter((item) =>
+                !item.objective.trim() || !item.metric.trim() || !item.target.trim() || !item.example.trim()
+              );
+              if (invalidOkrKpis.length > 0) {
+                toast.error("В каждом OKR/KPI заполните цель, метрику, целевое значение и пример");
+                return;
+              }
               const psychObj = psychTraits.length > 0 ? psychTraits : {};
               onSave({
                 title,
@@ -591,6 +605,7 @@ const PositionEditor = ({
                 profile_template: {
                   ...profileTemplate,
                   metadata: { title, department },
+                  okr_kpis: filledOkrKpis,
                   competencies,
                   psychological_profile: psychObj,
                   career_growth: profileTemplate.career_growth || "",
