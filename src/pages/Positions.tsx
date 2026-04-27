@@ -384,6 +384,38 @@ const PositionEditor = ({
             className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[50px]" />
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium text-foreground">Статус эталона</label>
+            <select value={profileStatus} onChange={(e) => setProfileStatus(e.target.value)}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
+              <option value="draft">Черновик</option>
+              <option value="review">На ревью</option>
+              <option value="approved">Утверждён</option>
+              <option value="archived">Архив</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Цели и метрики успеха</label>
+            <input value={profileTemplate.success_metrics || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, success_metrics: e.target.value })}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+              placeholder="KPI, ожидаемые результаты" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium text-foreground">Основные обязанности</label>
+            <textarea value={profileTemplate.responsibilities || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, responsibilities: e.target.value })}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[70px]" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Опыт, образование и риски</label>
+            <textarea value={profileTemplate.requirements_and_risks || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, requirements_and_risks: e.target.value })}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[70px]" />
+          </div>
+        </div>
+
         {/* File upload for standards */}
         <div className="bg-secondary/30 rounded-lg p-4 space-y-2">
           <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
@@ -432,6 +464,14 @@ const PositionEditor = ({
                 department: department || null,
                 competency_profile: competencies,
                 psychological_profile: psychObj,
+                profile_status: profileStatus,
+                profile_template: {
+                  ...profileTemplate,
+                  metadata: { title, department },
+                  competencies,
+                  psychological_profile: psychObj,
+                  career_growth: profileTemplate.career_growth || "",
+                },
               });
             }}
             disabled={!title || isSaving}
