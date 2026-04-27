@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import {
-  ReactFlow, Background, Controls, MiniMap, addEdge,
+  ReactFlow, Background, Controls, addEdge,
   useNodesState, useEdgesState,
   type Connection, type Node, type Edge, MarkerType, Panel,
 } from "@xyflow/react";
@@ -1233,7 +1233,6 @@ const Positions = () => {
               onEdgesChange={(changes) => { onEdgesChange(changes); if (changes.some((c) => c.type === "remove")) setHasUnsavedPaths(true); }}
               onConnect={onConnect} onNodeDoubleClick={onNodeDoubleClick} onEdgeClick={onEdgeClick} fitView deleteKeyCode="Delete">
               <Background /><Controls />
-              <MiniMap style={{ background: "hsl(var(--card))" }} maskColor="hsl(var(--muted) / 0.5)" />
               <Panel position="top-right">
                 {hasUnsavedPaths && (
                   <Button size="sm" onClick={() => savePathsMutation.mutate()} disabled={savePathsMutation.isPending}>
