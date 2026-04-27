@@ -22,6 +22,14 @@ type Competency = {
 };
 
 type UploadedFile = { path: string; name: string; size: number; type: string };
+type ProfileDraft = {
+  summary: string;
+  strengths: string[];
+  growth_areas: string[];
+  recommendations: string[];
+  career_focus: string;
+  risk_notes: string[];
+};
 
 const allowedFileTypes = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -72,6 +80,9 @@ const EmployeeQuestionnaire = () => {
   const [behavioral, setBehavioral] = useState({ decision: "", stress: "", feedback: "" });
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [questionnaireId, setQuestionnaireId] = useState<string | null>(null);
+  const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
+  const [draftText, setDraftText] = useState("");
 
   const { data: positions = [], isLoading: positionsLoading } = useQuery({
     queryKey: ["questionnaire_positions", profile?.company_id],
