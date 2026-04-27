@@ -164,7 +164,7 @@ const UsersManagement = () => {
 
   const handleImpersonate = (userId: string, name: string) => {
     startImpersonation(userId, name);
-    navigate("/");
+    navigate("/dashboard");
   };
 
   const statusFilters: { value: StatusFilter; label: string; count?: number }[] = [
