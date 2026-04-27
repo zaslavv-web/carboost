@@ -435,6 +435,30 @@ const PositionEditor = ({
           </div>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="text-sm font-medium text-foreground">Источник генерации</label>
+            <select value={profileTemplate.generation_source || "manual"} onChange={(e) => setProfileTemplate({ ...profileTemplate, generation_source: e.target.value })}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
+              <option value="manual">Ручное заполнение</option>
+              <option value="vacancy">Из вакансии компании</option>
+              <option value="market">Из рыночного бенчмарка</option>
+              <option value="psychological">Из психологического портрета</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Грейд</label>
+            <input value={profileTemplate.grade || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, grade: e.target.value })}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Частота пересмотра</label>
+            <input value={profileTemplate.review_frequency || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, review_frequency: e.target.value })}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+              placeholder="12 месяцев" />
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="text-sm font-medium text-foreground">Основные обязанности</label>
