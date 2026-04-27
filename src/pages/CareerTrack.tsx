@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
 import { Check, Clock, ChevronDown, ChevronRight, Target, Loader2, Plus, X, Route, Award, Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -17,7 +17,7 @@ const statusConfig: Record<string, { label: string; color: string; textColor: st
 type Step = RichStep;
 
 const CareerTrack = () => {
-  const { user } = useAuth();
+  const effectiveUserId = useEffectiveUserId();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const fromAssessment = searchParams.get("from") === "assessment";
@@ -41,10 +41,11 @@ const CareerTrack = () => {
 
   // Career goals
   const { data: goals = [], isLoading: goalsLoading } = useQuery({
-    queryKey: ["career_goals_full", user?.id],
+    queryKey: ["career_goals_full", effectiveUserId],
     queryFn: async () => {
+      if (!effectiveUserId) return [];
       const { data: goalsData, error: goalsErr } = await supabase
-        .from("career_goals").select("*").eq("user_id", user!.id).order("created_at", { ascending: true });
+        .from("career_goals").select("*").eq("user_id", effectiveUserId).order("created_at", { ascending: true });
       if (goalsErr) throw goalsErr;
       const goalIds = (goalsData || []).map(g => g.id);
       if (!goalIds.length) return [];
@@ -53,23 +54,24 @@ const CareerTrack = () => {
       if (itemsErr) throw itemsErr;
       return (goalsData || []).map(g => ({ ...g, checklist: (items || []).filter(i => i.goal_id === g.id) }));
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   // Assigned career tracks
   const { data: assignments = [], isLoading: assignLoading } = useQuery({
-    queryKey: ["my_career_assignments", user?.id],
+    queryKey: ["my_career_assignments", effectiveUserId],
     queryFn: async () => {
+      if (!effectiveUserId) return [];
       const { data, error } = await supabase
-        .from("employee_career_assignments").select("*").eq("user_id", user!.id);
+        .from("employee_career_assignments").select("*").eq("user_id", effectiveUserId);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   const { data: templates = [] } = useQuery({
-    queryKey: ["career_track_templates_for_employee"],
+    queryKey: ["career_track_templates_for_employee", effectiveUserId, assignments.map(a => a.template_id).join(",")],
     queryFn: async () => {
       const ids = assignments.map(a => a.template_id);
       if (!ids.length) return [];
@@ -81,7 +83,7 @@ const CareerTrack = () => {
   });
 
   const { data: levelActions = [] } = useQuery({
-    queryKey: ["career_level_actions_for_employee"],
+    queryKey: ["career_level_actions_for_employee", effectiveUserId, assignments.map(a => a.template_id).join(",")],
     queryFn: async () => {
       const ids = assignments.map(a => a.template_id);
       if (!ids.length) return [];
@@ -103,13 +105,14 @@ const CareerTrack = () => {
 
   // My rewards
   const { data: myRewards = [] } = useQuery({
-    queryKey: ["my_rewards", user?.id],
+    queryKey: ["my_rewards", effectiveUserId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("employee_rewards").select("*").eq("user_id", user!.id).order("awarded_at", { ascending: false });
+      if (!effectiveUserId) return [];
+      const { data, error } = await supabase.from("employee_rewards").select("*").eq("user_id", effectiveUserId).order("awarded_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   const { data: rewardTypes = [] } = useQuery({
@@ -144,8 +147,9 @@ const CareerTrack = () => {
 
   const addGoalMutation = useMutation({
     mutationFn: async () => {
+      if (!effectiveUserId) throw new Error("Пользователь не определён");
       const { error } = await supabase.from("career_goals").insert({
-        user_id: user!.id, title: newGoal.title, description: newGoal.description || null, deadline: newGoal.deadline || null,
+        user_id: effectiveUserId, title: newGoal.title, description: newGoal.description || null, deadline: newGoal.deadline || null,
       });
       if (error) throw error;
     },
