@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Briefcase, Lock, Eye, EyeOff } from "lucide-react";
+import brandLogo from "@/assets/logo-growth-peak.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -77,10 +78,11 @@ const ResetPassword = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-8">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-            <Briefcase className="w-5 h-5 text-primary-foreground" />
+          <img src={brandLogo} alt="Пик Роста" width={40} height={40} className="w-10 h-10 object-contain" />
+          <div className="leading-tight">
+            <span className="block font-bold text-base text-foreground">Пик Роста</span>
+            <span className="block text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Growth Peak</span>
           </div>
-          <span className="font-bold text-lg text-foreground">Карьерный трек</span>
         </div>
 
         <h2 className="text-2xl font-bold text-foreground">Новый пароль</h2>
