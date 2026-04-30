@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Briefcase } from "lucide-react";
+import brandLogo from "@/assets/logo-growth-peak.png";
 
 interface Props {
   onOpenDemo?: () => void;
@@ -9,11 +9,12 @@ interface Props {
 const LandingHeader = ({ onOpenDemo, showAnchors = true }: Props) => (
   <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border">
     <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
-      <Link to="/" className="flex items-center gap-2">
-        <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center">
-          <Briefcase className="w-5 h-5 text-primary-foreground" />
+      <Link to="/" className="flex items-center gap-3">
+        <img src={brandLogo} alt="Пик Роста" width={36} height={36} className="w-9 h-9 object-contain" />
+        <div className="leading-tight">
+          <span className="block font-bold text-base tracking-tight">Пик Роста</span>
+          <span className="block text-[10px] font-medium tracking-[0.18em] text-muted-foreground uppercase">Growth Peak</span>
         </div>
-        <span className="font-bold text-lg tracking-tight">Карьерный трек</span>
       </Link>
       {showAnchors && (
         <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
