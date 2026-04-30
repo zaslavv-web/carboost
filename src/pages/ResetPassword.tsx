@@ -56,9 +56,7 @@ const ResetPassword = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-8">
         <div className="w-full max-w-sm text-center">
-          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center mx-auto mb-6">
-            <Briefcase className="w-5 h-5 text-primary-foreground" />
-          </div>
+          <img src={brandLogo} alt="Пик Роста" width={48} height={48} className="w-12 h-12 mx-auto mb-6 object-contain" />
           <h2 className="text-xl font-bold text-foreground mb-2">Ссылка недействительна</h2>
           <p className="text-muted-foreground text-sm mb-6">
             Перейдите по ссылке из письма для сброса пароля
