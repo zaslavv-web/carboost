@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "lucide-react";
+import brandLogo from "@/assets/logo-growth-peak.png";
 import LandingHeader from "@/components/landing/LandingHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -174,10 +175,15 @@ const Login = () => {
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 gradient-hero items-center justify-center p-12">
         <div className="max-w-md text-center">
-          <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mx-auto mb-8">
-            <Briefcase className="w-8 h-8 text-primary-foreground" />
-          </div>
-          <h1 className="text-3xl font-bold text-primary-foreground mb-4">Карьерный трек</h1>
+          <img
+            src={brandLogo}
+            alt="Пик Роста"
+            width={96}
+            height={96}
+            className="w-24 h-24 mx-auto mb-8 object-contain drop-shadow-[0_8px_24px_rgba(212,175,55,0.35)]"
+          />
+          <h1 className="text-3xl font-bold text-primary-foreground mb-2">Пик Роста</h1>
+          <p className="text-primary-foreground/60 text-xs tracking-[0.25em] uppercase mb-4">Growth Peak</p>
           <p className="text-primary-foreground/70 text-lg leading-relaxed">
             Платформа интеллектуального управления развитием и мотивацией персонала
           </p>
@@ -202,10 +208,11 @@ const Login = () => {
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-              <Briefcase className="w-5 h-5 text-primary-foreground" />
+            <img src={brandLogo} alt="Пик Роста" width={40} height={40} className="w-10 h-10 object-contain" />
+            <div className="leading-tight">
+              <span className="block font-bold text-base text-foreground">Пик Роста</span>
+              <span className="block text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Growth Peak</span>
             </div>
-            <span className="font-bold text-lg text-foreground">Карьерный трек</span>
           </div>
 
           <h2 className="text-2xl font-bold text-foreground">{isSignUp ? "Регистрация" : "Вход в систему"}</h2>
@@ -294,7 +301,7 @@ const Login = () => {
                       type="text"
                       value={companyName}
                       onChange={(e) => { setCompanyName(e.target.value); setErrorMessage(""); }}
-                      placeholder={isHRD ? "Например: ООО «Карьерный трек»" : "Точное название, как зарегистрировал HRD"}
+                      placeholder={isHRD ? "Например: ООО «Моя компания»" : "Точное название, как зарегистрировал HRD"}
                       required
                       maxLength={120}
                       className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"

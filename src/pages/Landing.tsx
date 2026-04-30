@@ -37,7 +37,7 @@ const Landing = () => {
       <section className="relative overflow-hidden min-h-[calc(100vh-4rem)] flex items-center">
         <img
           src={heroImg}
-          alt="Карьерный трек — AI-платформа для HR"
+          alt="Пик Роста — AI-платформа для HR"
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-background/95 via-background/80 to-background/40" />
@@ -414,7 +414,7 @@ const Landing = () => {
       <footer className="border-t border-border py-10 bg-card/30">
         <div className="max-w-7xl mx-auto px-4 md:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground">Карьерный трек</span>
+            <span className="font-semibold text-foreground">Пик Роста · Growth Peak</span>
             <span className="ml-2">© {new Date().getFullYear()}</span>
           </div>
           <div className="flex items-center gap-6 flex-wrap justify-center">

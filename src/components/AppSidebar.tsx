@@ -31,6 +31,7 @@ import {
   Activity,
   ClipboardCheck,
 } from "lucide-react";
+import brandLogo from "@/assets/logo-growth-peak.png";
 
 interface NavItem {
   icon: any;
@@ -143,11 +144,18 @@ const AppSidebar = ({ collapsed, onToggle, onHide }: AppSidebarProps) => {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 h-16 border-b border-sidebar-border">
-        <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
-          <Briefcase className="w-4 h-4 text-primary-foreground" />
-        </div>
+        <img
+          src={brandLogo}
+          alt="Пик Роста"
+          width={32}
+          height={32}
+          className="w-8 h-8 flex-shrink-0 object-contain"
+        />
         {!collapsed && (
-          <span className="font-bold text-base tracking-tight">Карьерный трек</span>
+          <div className="leading-tight">
+            <span className="block font-bold text-base tracking-tight">Пик Роста</span>
+            <span className="block text-[10px] font-medium tracking-[0.15em] text-sidebar-foreground/50 uppercase">Growth Peak</span>
+          </div>
         )}
       </div>
 
