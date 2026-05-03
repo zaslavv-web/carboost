@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
 Общая длительность: ~${months} месяцев.
 Сгенерируй 4 этапа.`;
 
-    const response = await fetch("${Deno.env.get("AI_API_URL") ?? "https://ai.gateway.lovable.dev/v1/chat/completions"}", {
+    const response = await fetch(`${Deno.env.get("AI_API_URL") ?? "https://ai.gateway.lovable.dev/v1/chat/completions"}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({

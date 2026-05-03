@@ -46,7 +46,7 @@ serve(async (req) => {
       id: d.id, name: d.name, parent_id: d.parent_id,
     })), null, 2)}`;
 
-    const aiResponse = await fetch("${Deno.env.get("AI_API_URL") ?? "https://ai.gateway.lovable.dev/v1/chat/completions"}", {
+    const aiResponse = await fetch(`${Deno.env.get("AI_API_URL") ?? "https://ai.gateway.lovable.dev/v1/chat/completions"}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,

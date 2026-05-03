@@ -88,7 +88,7 @@ serve(async (req) => {
       userParts.push({ type: "image_url", image_url: { url: `data:${mime};base64,${base64Content}` } });
     }
 
-    const aiResp = await fetch("${Deno.env.get("AI_API_URL") ?? "https://ai.gateway.lovable.dev/v1/chat/completions"}", {
+    const aiResp = await fetch(`${Deno.env.get("AI_API_URL") ?? "https://ai.gateway.lovable.dev/v1/chat/completions"}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({

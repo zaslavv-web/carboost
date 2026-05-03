@@ -27,7 +27,7 @@ serve(async (req) => {
 
 Будь кратким и конкретным. Отвечай на русском языке.`;
 
-    const aiResponse = await fetch("${Deno.env.get("AI_API_URL") ?? "https://ai.gateway.lovable.dev/v1/chat/completions"}", {
+    const aiResponse = await fetch(`${Deno.env.get("AI_API_URL") ?? "https://ai.gateway.lovable.dev/v1/chat/completions"}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,

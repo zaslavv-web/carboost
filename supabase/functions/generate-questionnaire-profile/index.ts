@@ -43,7 +43,7 @@ serve(async (req) => {
 Skill gaps: ${JSON.stringify(skillGaps).slice(0, 6000)}
 Анкета: ${JSON.stringify(answers).slice(0, 14000)}`;
 
-    const response = await fetch("${Deno.env.get("AI_API_URL") ?? "https://ai.gateway.lovable.dev/v1/chat/completions"}", {
+    const response = await fetch(`${Deno.env.get("AI_API_URL") ?? "https://ai.gateway.lovable.dev/v1/chat/completions"}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
