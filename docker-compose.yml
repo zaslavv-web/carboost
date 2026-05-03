@@ -1,0 +1,18 @@
+# Production deployment for the Career Track frontend.
+# Бэкенд (self-hosted Supabase) поднимается отдельным compose из репозитория
+# https://github.com/supabase/supabase (docker/docker-compose.yml).
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID:-self-hosted}
+    container_name: career-track-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    # При деплое фронт обычно стоит за внешним nginx/Traefik с TLS.
