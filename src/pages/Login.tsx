@@ -150,21 +150,24 @@ const Login = () => {
       clearPendingSocialSignup();
     }
 
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: isSignUp ? `${window.location.origin}/complete-registration` : window.location.origin,
-      extraParams: {
-        prompt: "select_account",
+    const redirectTo = isSignUp
+      ? `${window.location.origin}/complete-registration`
+      : `${window.location.origin}/`;
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        queryParams: { prompt: "select_account" },
       },
     });
 
-    if (result.error) {
+    if (error) {
       if (isSignUp) clearPendingSocialSignup();
       setErrorMessage("Ошибка входа через Google");
       return;
     }
-
-    if (result.redirected) return;
-    navigate(isSignUp ? "/complete-registration" : "/");
+    // Browser will redirect to Google; nothing else to do.
   };
 
   return (
