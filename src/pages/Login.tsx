@@ -4,7 +4,6 @@ import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "l
 import brandLogo from "@/assets/logo-growth-peak.png";
 import LandingHeader from "@/components/landing/LandingHeader";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import {
   clearPendingSocialSignup,
   ROLE_OPTIONS,
