@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
 
   try {
     const body: Body = await req.json();
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    const apiKey = (Deno.env.get("AI_API_KEY") ?? Deno.env.get("LOVABLE_API_KEY"));
     const title = body.step_title || `Этап ${body.step_order + 1}`;
     const goals = body.goals || [];
 
@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
       },
     ];
 
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const r = await fetch("${Deno.env.get("AI_API_URL") ?? "https://ai.gateway.lovable.dev/v1/chat/completions"}", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
