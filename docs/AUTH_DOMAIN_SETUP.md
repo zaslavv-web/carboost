@@ -9,11 +9,11 @@
 ## 0. Что должно быть готово до начала
 
 - Развёрнут self-hosted Supabase (Docker, по `DEPLOYMENT.md`).
-- Куплен домен, например `app.example.com` (фронт) и `auth.example.com` (Supabase Auth / Kong).
+- Куплен домен, например `growth-peak.pro` (фронт) и `auth.growth-peak.pro` (Supabase Auth / Kong).
 - DNS A-записи указывают на ваш VPS.
 - На VPS установлен nginx + получен SSL (например, через `certbot`).
-- Фронт собран (`docker compose up -d frontend`) и доступен по `https://app.example.com`.
-- Supabase (Kong) доступен по `https://auth.example.com`.
+- Фронт собран (`docker compose up -d frontend`) и доступен по `https://growth-peak.pro`.
+- Supabase (Kong) доступен по `https://auth.growth-peak.pro`.
 
 ---
 
@@ -22,7 +22,7 @@
 В `.env` (рядом с `docker-compose.yml`) укажите URL вашего self-hosted Supabase и его anon-ключ:
 
 ```env
-VITE_SUPABASE_URL=https://auth.example.com
+VITE_SUPABASE_URL=https://auth.growth-peak.pro
 VITE_SUPABASE_PUBLISHABLE_KEY=<anon ключ из supabase/.env>
 VITE_SUPABASE_PROJECT_ID=self-hosted
 ```
@@ -34,7 +34,7 @@ docker compose build frontend
 docker compose up -d frontend
 ```
 
-Проверьте в браузере DevTools → Network: запросы должны идти на `https://auth.example.com/auth/v1/...`, а не на `*.supabase.co`.
+Проверьте в браузере DevTools → Network: запросы должны идти на `https://auth.growth-peak.pro/auth/v1/...`, а не на `*.supabase.co`.
 
 ---
 
@@ -43,8 +43,8 @@ docker compose up -d frontend
 В файле `supabase/.env` (или через Studio → Authentication → URL Configuration) задайте:
 
 ```env
-SITE_URL=https://app.example.com
-ADDITIONAL_REDIRECT_URLS=https://app.example.com/,https://app.example.com/complete-registration,https://app.example.com/reset-password
+SITE_URL=https://growth-peak.pro
+ADDITIONAL_REDIRECT_URLS=https://growth-peak.pro/,https://growth-peak.pro/complete-registration,https://growth-peak.pro/reset-password
 ```
 
 Перезапустите Auth-контейнер:
@@ -95,19 +95,19 @@ GOTRUE_SMTP_SENDER_NAME=Пик Роста
 2. **APIs & Services → OAuth consent screen**:
    - User type: **External**.
    - App name: `Пик Роста`.
-   - Authorized domains: `example.com`.
+   - Authorized domains: `growth-peak.pro`.
    - Scopes: `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile`.
 3. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
    - Application type: **Web application**.
    - Name: `Career Track Web`.
    - **Authorized JavaScript origins**:
      ```
-     https://app.example.com
-     https://auth.example.com
+     https://growth-peak.pro
+     https://auth.growth-peak.pro
      ```
    - **Authorized redirect URIs** (callback Supabase Auth):
      ```
-     https://auth.example.com/auth/v1/callback
+     https://auth.growth-peak.pro/auth/v1/callback
      ```
 4. Сохраните **Client ID** и **Client Secret**.
 
@@ -119,7 +119,7 @@ GOTRUE_SMTP_SENDER_NAME=Пик Роста
 GOTRUE_EXTERNAL_GOOGLE_ENABLED=true
 GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID=<Client ID>
 GOTRUE_EXTERNAL_GOOGLE_SECRET=<Client Secret>
-GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI=https://auth.example.com/auth/v1/callback
+GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI=https://auth.growth-peak.pro/auth/v1/callback
 ```
 
 Перезапустите Auth:
@@ -130,9 +130,9 @@ docker compose restart auth
 
 ### 4.3. Проверка
 
-1. Откройте `https://app.example.com/login`.
+1. Откройте `https://growth-peak.pro/login`.
 2. Нажмите **«Войти через Google»**.
-3. Должен открыться экран Google → выбор аккаунта → возврат на `https://app.example.com/`.
+3. Должен открыться экран Google → выбор аккаунта → возврат на `https://growth-peak.pro/`.
 
 В DevTools → Console приложение пишет структурированные логи:
 
@@ -152,10 +152,10 @@ docker compose restart auth
 ```nginx
 server {
   listen 443 ssl http2;
-  server_name app.example.com;
+  server_name growth-peak.pro;
 
-  ssl_certificate     /etc/letsencrypt/live/app.example.com/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/app.example.com/privkey.pem;
+  ssl_certificate     /etc/letsencrypt/live/growth-peak.pro/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/growth-peak.pro/privkey.pem;
 
   root /usr/share/nginx/html;
   index index.html;
@@ -173,7 +173,7 @@ server {
 
 ## 6. Чек-лист после настройки
 
-- [ ] `https://app.example.com` открывает приложение.
+- [ ] `https://growth-peak.pro` открывает приложение.
 - [ ] Email/password регистрация → приходит письмо подтверждения.
 - [ ] Сброс пароля работает, `/reset-password` открывается.
 - [ ] Кнопка «Войти через Google» уводит на `accounts.google.com` и возвращает обратно с активной сессией.
@@ -187,9 +187,9 @@ server {
 | Симптом | Причина | Решение |
 |---|---|---|
 | `Unsupported provider: missing OAuth secret` | Не заданы `GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID/SECRET` | Добавить в `supabase/.env`, `docker compose restart auth` |
-| `redirect_to is not allowed` | URL не в `ADDITIONAL_REDIRECT_URLS` | Добавить `https://app.example.com/*` адреса, перезапустить auth |
-| Google: `redirect_uri_mismatch` | URI не совпадает с тем, что в Google Console | Прописать точно `https://auth.example.com/auth/v1/callback` |
-| После Google входа редиректит на `localhost` | `SITE_URL` не задан | Указать `SITE_URL=https://app.example.com` |
+| `redirect_to is not allowed` | URL не в `ADDITIONAL_REDIRECT_URLS` | Добавить `https://growth-peak.pro/*` адреса, перезапустить auth |
+| Google: `redirect_uri_mismatch` | URI не совпадает с тем, что в Google Console | Прописать точно `https://auth.growth-peak.pro/auth/v1/callback` |
+| После Google входа редиректит на `localhost` | `SITE_URL` не задан | Указать `SITE_URL=https://growth-peak.pro` |
 | 404 при обновлении страницы `/dashboard` | Нет SPA fallback в nginx | Добавить `try_files $uri /index.html;` |
 | Письма не приходят | SMTP не настроен | Заполнить `GOTRUE_SMTP_*`, проверить порт/TLS |
 
