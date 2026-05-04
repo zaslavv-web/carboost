@@ -73,7 +73,7 @@ GOTRUE_SMTP_HOST=smtp.yourprovider.com
 GOTRUE_SMTP_PORT=587
 GOTRUE_SMTP_USER=...
 GOTRUE_SMTP_PASS=...
-GOTRUE_SMTP_ADMIN_EMAIL=no-reply@example.com
+GOTRUE_SMTP_ADMIN_EMAIL=no-reply@growth-peak.pro
 GOTRUE_SMTP_SENDER_NAME=Пик Роста
 ```
 
