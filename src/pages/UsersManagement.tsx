@@ -173,11 +173,62 @@ const UsersManagement = () => {
     { value: "verified", label: "Верифицированы", count: users.length - pendingCount },
   ];
 
+  // ---- Create user dialog ----
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newFullName, setNewFullName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newRole, setNewRole] = useState<AppRole>("employee");
+  const [newCompanyId, setNewCompanyId] = useState<string>("");
+
+  const createUserMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("admin-create-user", {
+        body: {
+          full_name: newFullName.trim(),
+          email: newEmail.trim().toLowerCase(),
+          role: newRole,
+          company_id: isSuperadmin ? (newCompanyId || null) : undefined,
+        },
+      });
+      if (error) {
+        const ctx: any = (error as any).context;
+        let msg = error.message;
+        try {
+          const body = await ctx?.json?.();
+          if (body?.error) msg = body.error;
+        } catch {}
+        throw new Error(msg);
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_users_list"] });
+      toast.success("Пользователь создан. Приглашение отправлено на email.");
+      setCreateOpen(false);
+      setNewFullName("");
+      setNewEmail("");
+      setNewRole("employee");
+      setNewCompanyId("");
+    },
+    onError: (e: any) => toast.error(e.message || "Не удалось создать пользователя"),
+  });
+
+  const canCreate = newFullName.trim().length >= 2 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim());
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Управление пользователями</h1>
-        <p className="text-muted-foreground text-sm mt-1">Верификация, роли и просмотр от имени пользователей</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Управление пользователями</h1>
+          <p className="text-muted-foreground text-sm mt-1">Верификация, роли и просмотр от имени пользователей</p>
+        </div>
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          <UserPlus className="w-4 h-4" /> Создать пользователя
+        </button>
       </div>
 
       <div className="flex flex-col gap-3">
