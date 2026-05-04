@@ -4,6 +4,7 @@ import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "l
 import brandLogo from "@/assets/logo-growth-peak.png";
 import LandingHeader from "@/components/landing/LandingHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import {
   clearPendingSocialSignup,
   ROLE_OPTIONS,
@@ -11,6 +12,19 @@ import {
   type RequestedAppRole,
 } from "@/lib/pendingSocialSignup";
 import { toast } from "sonner";
+
+/**
+ * На Lovable-хостах (preview / *.lovable.app) используем managed Google OAuth
+ * через `lovable.auth` — работает без настройки credentials.
+ * На любом другом домене (self-hosted, кастомный VPS) идём напрямую через
+ * `supabase.auth.signInWithOAuth` — там должны быть свои Google Client ID/Secret
+ * прописаны в Supabase Auth провайдере.
+ */
+const isLovableHost = (): boolean => {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host.endsWith(".lovable.app") || host.endsWith(".lovable.dev") || host === "localhost";
+};
 
 const translateError = (msg: string): string => {
   const map: Record<string, string> = {
