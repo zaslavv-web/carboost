@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useNavigate } from "react-router-dom";
-import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2 } from "lucide-react";
+import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2, UserPlus, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -173,11 +173,62 @@ const UsersManagement = () => {
     { value: "verified", label: "Верифицированы", count: users.length - pendingCount },
   ];
 
+  // ---- Create user dialog ----
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newFullName, setNewFullName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newRole, setNewRole] = useState<AppRole>("employee");
+  const [newCompanyId, setNewCompanyId] = useState<string>("");
+
+  const createUserMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("admin-create-user", {
+        body: {
+          full_name: newFullName.trim(),
+          email: newEmail.trim().toLowerCase(),
+          role: newRole,
+          company_id: isSuperadmin ? (newCompanyId || null) : undefined,
+        },
+      });
+      if (error) {
+        const ctx: any = (error as any).context;
+        let msg = error.message;
+        try {
+          const body = await ctx?.json?.();
+          if (body?.error) msg = body.error;
+        } catch {}
+        throw new Error(msg);
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_users_list"] });
+      toast.success("Пользователь создан. Приглашение отправлено на email.");
+      setCreateOpen(false);
+      setNewFullName("");
+      setNewEmail("");
+      setNewRole("employee");
+      setNewCompanyId("");
+    },
+    onError: (e: any) => toast.error(e.message || "Не удалось создать пользователя"),
+  });
+
+  const canCreate = newFullName.trim().length >= 2 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim());
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Управление пользователями</h1>
-        <p className="text-muted-foreground text-sm mt-1">Верификация, роли и просмотр от имени пользователей</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Управление пользователями</h1>
+          <p className="text-muted-foreground text-sm mt-1">Верификация, роли и просмотр от имени пользователей</p>
+        </div>
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          <UserPlus className="w-4 h-4" /> Создать пользователя
+        </button>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -366,6 +417,105 @@ const UsersManagement = () => {
           </table>
           <div className="p-4 text-sm text-muted-foreground border-t border-border">
             Показано {filtered.length} из {users.length} пользователей
+          </div>
+        </div>
+      )}
+
+      {createOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
+          onClick={() => !createUserMutation.isPending && setCreateOpen(false)}
+        >
+          <div
+            className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-foreground">Создать пользователя</h2>
+              <button
+                onClick={() => setCreateOpen(false)}
+                disabled={createUserMutation.isPending}
+                className="p-1 rounded hover:bg-secondary text-muted-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Фамилия и Имя</label>
+                <input
+                  value={newFullName}
+                  onChange={(e) => setNewFullName(e.target.value)}
+                  placeholder="Иванов Иван"
+                  className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Электронная почта</label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Роль</label>
+                <select
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value as AppRole)}
+                  className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                >
+                  {Object.entries(roleLabelMap)
+                    .filter(([val]) => val !== "superadmin" || isSuperadmin)
+                    .map(([val, label]) => (
+                      <option key={val} value={val}>{label}</option>
+                    ))}
+                </select>
+              </div>
+
+              {isSuperadmin && (
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Компания</label>
+                  <select
+                    value={newCompanyId}
+                    onChange={(e) => setNewCompanyId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                  >
+                    <option value="">Без компании</option>
+                    {companies.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground pt-1">
+                На указанный email будет отправлено письмо со ссылкой для входа в систему.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setCreateOpen(false)}
+                disabled={createUserMutation.isPending}
+                className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80 transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => createUserMutation.mutate()}
+                disabled={!canCreate || createUserMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createUserMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Создать и отправить приглашение
+              </button>
+            </div>
           </div>
         </div>
       )}
