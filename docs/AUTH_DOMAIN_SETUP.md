@@ -4,6 +4,12 @@
 
 > Для Lovable-хостов (`*.lovable.app`, `*.lovable.dev`) ничего настраивать не нужно — там работает managed Google OAuth от Lovable Cloud. Эта инструкция нужна только для **собственного домена** и **self-hosted Supabase**.
 
+> **Используемые домены в этой инструкции:**
+> - `https://growth-peak.pro` — фронтенд приложения (то, что видят пользователи).
+> - `https://auth.growth-peak.pro` — self-hosted Supabase Auth / Kong gateway (создаётся отдельной A-записью в DNS, ставится за nginx с SSL).
+>
+> Если для Supabase вы хотите другой поддомен (например, `api.growth-peak.pro` или `supabase.growth-peak.pro`) — просто замените `auth.growth-peak.pro` на свой во всех шагах ниже. Главное правило: **redirect URI в Google Console и значение `VITE_SUPABASE_URL` должны указывать на один и тот же домен Supabase**.
+
 ---
 
 ## 0. Что должно быть готово до начала
