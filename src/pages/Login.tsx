@@ -168,20 +168,48 @@ const Login = () => {
       ? `${window.location.origin}/complete-registration`
       : `${window.location.origin}/`;
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        queryParams: { prompt: "select_account" },
-      },
-    });
+    const redirectTo = isSignUp
+      ? `${window.location.origin}/complete-registration`
+      : `${window.location.origin}/`;
 
-    if (error) {
+    try {
+      if (isLovableHost()) {
+        // Managed OAuth — для Lovable preview/прод на *.lovable.app
+        const result = await lovable.auth.signInWithOAuth("google", {
+          redirect_uri: redirectTo,
+          extraParams: { prompt: "select_account" },
+        });
+        if (result.error) {
+          if (isSignUp) clearPendingSocialSignup();
+          setErrorMessage("Ошибка входа через Google");
+          return;
+        }
+        if (result.redirected) return;
+        navigate(isSignUp ? "/complete-registration" : "/dashboard");
+      } else {
+        // Self-hosted: свои Google credentials в Supabase Auth провайдере
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo,
+            queryParams: { prompt: "select_account" },
+          },
+        });
+        if (error) {
+          if (isSignUp) clearPendingSocialSignup();
+          setErrorMessage(
+            error.message.includes("missing OAuth secret")
+              ? "Google OAuth не настроен на этом домене. Обратитесь к администратору."
+              : "Ошибка входа через Google"
+          );
+          return;
+        }
+        // Браузер уйдёт на Google
+      }
+    } catch (e: any) {
       if (isSignUp) clearPendingSocialSignup();
       setErrorMessage("Ошибка входа через Google");
-      return;
     }
-    // Browser will redirect to Google; nothing else to do.
   };
 
   return (
