@@ -4,6 +4,7 @@ import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "l
 import brandLogo from "@/assets/logo-growth-peak.png";
 import LandingHeader from "@/components/landing/LandingHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import {
   clearPendingSocialSignup,
   ROLE_OPTIONS,
@@ -11,6 +12,19 @@ import {
   type RequestedAppRole,
 } from "@/lib/pendingSocialSignup";
 import { toast } from "sonner";
+
+/**
+ * На Lovable-хостах (preview / *.lovable.app) используем managed Google OAuth
+ * через `lovable.auth` — работает без настройки credentials.
+ * На любом другом домене (self-hosted, кастомный VPS) идём напрямую через
+ * `supabase.auth.signInWithOAuth` — там должны быть свои Google Client ID/Secret
+ * прописаны в Supabase Auth провайдере.
+ */
+const isLovableHost = (): boolean => {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host.endsWith(".lovable.app") || host.endsWith(".lovable.dev") || host === "localhost";
+};
 
 const translateError = (msg: string): string => {
   const map: Record<string, string> = {
@@ -154,20 +168,44 @@ const Login = () => {
       ? `${window.location.origin}/complete-registration`
       : `${window.location.origin}/`;
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        queryParams: { prompt: "select_account" },
-      },
-    });
-
-    if (error) {
+    try {
+      if (isLovableHost()) {
+        // Managed OAuth — для Lovable preview/прод на *.lovable.app
+        const result = await lovable.auth.signInWithOAuth("google", {
+          redirect_uri: redirectTo,
+          extraParams: { prompt: "select_account" },
+        });
+        if (result.error) {
+          if (isSignUp) clearPendingSocialSignup();
+          setErrorMessage("Ошибка входа через Google");
+          return;
+        }
+        if (result.redirected) return;
+        navigate(isSignUp ? "/complete-registration" : "/dashboard");
+      } else {
+        // Self-hosted: свои Google credentials в Supabase Auth провайдере
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo,
+            queryParams: { prompt: "select_account" },
+          },
+        });
+        if (error) {
+          if (isSignUp) clearPendingSocialSignup();
+          setErrorMessage(
+            error.message.includes("missing OAuth secret")
+              ? "Google OAuth не настроен на этом домене. Обратитесь к администратору."
+              : "Ошибка входа через Google"
+          );
+          return;
+        }
+        // Браузер уйдёт на Google
+      }
+    } catch (e: any) {
       if (isSignUp) clearPendingSocialSignup();
       setErrorMessage("Ошибка входа через Google");
-      return;
     }
-    // Browser will redirect to Google; nothing else to do.
   };
 
   return (
