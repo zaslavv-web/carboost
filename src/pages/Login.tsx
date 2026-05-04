@@ -168,10 +168,6 @@ const Login = () => {
       ? `${window.location.origin}/complete-registration`
       : `${window.location.origin}/`;
 
-    const redirectTo = isSignUp
-      ? `${window.location.origin}/complete-registration`
-      : `${window.location.origin}/`;
-
     try {
       if (isLovableHost()) {
         // Managed OAuth — для Lovable preview/прод на *.lovable.app
