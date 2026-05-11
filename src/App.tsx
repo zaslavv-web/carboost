@@ -39,6 +39,8 @@ import ShopAdmin from "@/pages/ShopAdmin";
 import Onboarding from "@/pages/Onboarding";
 import Invitations from "@/pages/Invitations";
 import Landing from "@/pages/Landing";
+import Pricing from "@/pages/Pricing";
+import PricingInquiries from "@/pages/PricingInquiries";
 import FeaturePage from "@/pages/FeaturePage";
 import NotFound from "@/pages/NotFound";
 import Recognition from "@/pages/Recognition";
@@ -60,6 +62,7 @@ const App = () => (
             <ScrollToTop />
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/pricing" element={<Pricing />} />
               <Route path="/feature/:slug" element={<FeaturePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
@@ -95,6 +98,7 @@ const App = () => (
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/recognition" element={<Recognition />} />
                 <Route path="/risk-analytics" element={<RiskAnalytics />} />
+                <Route path="/pricing-inquiries" element={<PricingInquiries />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

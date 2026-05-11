@@ -22,6 +22,7 @@ const LandingHeader = ({ onOpenDemo, showAnchors = true }: Props) => (
           <a href="#features" className="hover:text-foreground transition-colors">Инструменты</a>
           <a href="#roles" className="hover:text-foreground transition-colors">Истории</a>
           <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
+          <Link to="/pricing" className="hover:text-foreground transition-colors">Тарифы</Link>
         </nav>
       )}
       <div className="flex items-center gap-2">
