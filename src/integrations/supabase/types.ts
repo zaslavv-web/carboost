@@ -1614,6 +1614,54 @@ export type Database = {
           },
         ]
       }
+      pricing_inquiries: {
+        Row: {
+          admin_notes: string | null
+          company: string | null
+          created_at: string
+          email: string
+          headcount: number | null
+          id: string
+          message: string | null
+          name: string
+          phone: string | null
+          plan: string
+          source: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          company?: string | null
+          created_at?: string
+          email: string
+          headcount?: number | null
+          id?: string
+          message?: string | null
+          name: string
+          phone?: string | null
+          plan: string
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string
+          headcount?: number | null
+          id?: string
+          message?: string | null
+          name?: string
+          phone?: string | null
+          plan?: string
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -2114,6 +2162,19 @@ export type Database = {
           _questionnaire_id: string
           _skill_gaps: Json
           _status?: string
+        }
+        Returns: string
+      }
+      submit_pricing_inquiry: {
+        Args: {
+          _company?: string
+          _email: string
+          _headcount?: number
+          _message?: string
+          _name: string
+          _phone?: string
+          _plan: string
+          _source?: string
         }
         Returns: string
       }
