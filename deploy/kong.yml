@@ -1,0 +1,40 @@
+# Kong declarative config — единая точка входа для self-hosted Supabase.
+# Маршруты соответствуют тому, что использует @supabase/supabase-js.
+_format_version: "2.1"
+
+services:
+  - name: auth-v1
+    url: http://auth:9999/
+    routes:
+      - name: auth-v1-route
+        strip_path: true
+        paths: [/auth/v1/]
+    plugins:
+      - name: cors
+
+  - name: rest-v1
+    url: http://rest:3000/
+    routes:
+      - name: rest-v1-route
+        strip_path: true
+        paths: [/rest/v1/]
+    plugins:
+      - name: cors
+
+  - name: realtime-v1
+    url: http://realtime:4000/socket/
+    routes:
+      - name: realtime-v1-route
+        strip_path: true
+        paths: [/realtime/v1/]
+    plugins:
+      - name: cors
+
+  - name: storage-v1
+    url: http://storage:5000/
+    routes:
+      - name: storage-v1-route
+        strip_path: true
+        paths: [/storage/v1/]
+    plugins:
+      - name: cors

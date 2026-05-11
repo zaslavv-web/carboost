@@ -1,0 +1,9 @@
+apiVersion: v2
+name: career-track
+description: Career Track / Growth Peak HR-tech platform (frontend + self-hosted Supabase)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords: [hr, career, supabase]
+maintainers:
+  - name: Career Track
