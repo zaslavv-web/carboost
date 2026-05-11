@@ -30,6 +30,7 @@ import {
   Heart,
   Activity,
   ClipboardCheck,
+  Banknote,
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 
@@ -64,6 +65,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide }: AppSidebarProps) => {
         { icon: Shield, label: "Компании", path: "/companies" },
         { icon: UserCog, label: "Пользователи", path: "/users" },
         { icon: LifeBuoy, label: "Обращения", path: "/support" },
+        { icon: Banknote, label: "Заявки на тарифы", path: "/pricing-inquiries" },
         { icon: Settings, label: "Настройки", path: "/settings" },
       ];
     }
