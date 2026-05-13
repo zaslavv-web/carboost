@@ -11,7 +11,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  PanelLeftClose,
+  X,
   Briefcase,
   Users,
   Shield,
@@ -214,21 +214,22 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         </button>
       </div>
 
-      {/* Collapse toggle */}
-      <button
-        onClick={onToggle}
-        className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-        aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
-      >
-        {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
-      </button>
-      {onHide && (
+      {/* Sidebar controls */}
+      {isMobile ? (
         <button
           onClick={onHide}
-          className="absolute -right-3 top-32 w-6 h-6 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          className="absolute right-3 top-3 w-10 h-10 rounded-lg bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors flex items-center justify-center"
           aria-label="Скрыть меню"
         >
-          <PanelLeftClose className="w-3 h-3" />
+          <X className="w-5 h-5" />
+        </button>
+      ) : (
+        <button
+          onClick={onToggle}
+          className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
+        >
+          {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </button>
       )}
     </aside>
