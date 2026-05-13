@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import ImpersonationBanner from "./ImpersonationBanner";
 import { Bell, Search, Menu, PanelLeftOpen } from "lucide-react";
@@ -16,6 +16,7 @@ const AppLayout = () => {
   const role = usePrimaryRole();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const location = useLocation();
   const roleLabels: Record<string, string> = { employee: "Сотрудник", manager: "Руководитель", hrd: "Администратор HRD", superadmin: "Суперадмин", company_admin: "Админ компании" };
   const initials = profile?.full_name
     ? profile.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
@@ -36,6 +37,20 @@ const AppLayout = () => {
   useEffect(() => {
     if (isMobile) setHidden(true);
   }, [isMobile]);
+
+  // Auto-hide sidebar on every route change while on mobile.
+  useEffect(() => {
+    if (isMobile) setHidden(true);
+  }, [location.pathname, isMobile]);
+
+  // Lock body scroll while sidebar is open over content on mobile.
+  useEffect(() => {
+    if (isMobile && !hidden) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [isMobile, hidden]);
 
   const sidebarWidth = hidden ? 0 : isMobile ? 0 : collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_FULL;
 
