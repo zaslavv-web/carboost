@@ -69,6 +69,7 @@ const AppLayout = () => {
           collapsed={!isMobile && collapsed}
           onToggle={toggleSidebar}
           onHide={() => setHidden(true)}
+          isMobile={isMobile}
         />
       </div>
 
