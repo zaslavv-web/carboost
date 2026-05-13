@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import ImpersonationBanner from "./ImpersonationBanner";
-import { Bell, Search, Menu, PanelLeftOpen } from "lucide-react";
+import { Bell, Search, PanelLeftOpen } from "lucide-react";
 import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ThemeToggle from "./ThemeToggle";
@@ -77,8 +77,9 @@ const AppLayout = () => {
       {/* Sidebar (always rendered, slides off-canvas when hidden) */}
       <div
         className={`fixed left-0 top-0 h-screen z-[70] transition-transform duration-300 ${
-          hidden ? "-translate-x-full" : "translate-x-0"
+          hidden ? "-translate-x-[calc(100%+1rem)] pointer-events-none" : "translate-x-0"
         }`}
+        style={{ width: isMobile ? SIDEBAR_FULL : collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_FULL }}
       >
         <AppSidebar
           collapsed={!isMobile && collapsed}
