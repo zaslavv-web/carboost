@@ -48,7 +48,7 @@ interface AppSidebarProps {
   isMobile?: boolean;
 }
 
-const AppSidebar = ({ collapsed, onToggle, onHide }: AppSidebarProps) => {
+const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
