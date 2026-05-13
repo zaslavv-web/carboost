@@ -45,6 +45,7 @@ interface AppSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   onHide?: () => void;
+  isMobile?: boolean;
 }
 
 const AppSidebar = ({ collapsed, onToggle, onHide }: AppSidebarProps) => {
