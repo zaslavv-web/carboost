@@ -1,0 +1,46 @@
+# ============================================================
+# Caddyfile для проксирования Lovable Cloud (Supabase) через
+# собственный домен. Решает проблему блокировки *.supabase.co
+# российскими провайдерами.
+#
+# Использование:
+#   APP_DOMAIN=growth-peak.pro \
+#   SUPABASE_HOST=wwmdzrzguicinvxibbqv.supabase.co \
+#   caddy run --config deploy/Caddyfile.proxy
+#
+# Или через docker-compose.proxy.yml.
+# ============================================================
+
+{$APP_DOMAIN} {
+	encode gzip zstd
+
+	# --- Проксирование Supabase API ---
+	# Все запросы к Supabase (auth, db, storage, realtime, functions)
+	# идут на ваш домен и затем форвардятся на supabase.co.
+	@supabase {
+		path /auth/v1/* /rest/v1/* /storage/v1/* /realtime/v1/* /functions/v1/* /pg/*
+	}
+	handle @supabase {
+		reverse_proxy https://{$SUPABASE_HOST} {
+			header_up Host {$SUPABASE_HOST}
+			header_up X-Forwarded-Host {host}
+			header_up X-Forwarded-Proto {scheme}
+			# Таймауты — Supabase realtime/long-polling может держать соединение
+			transport http {
+				dial_timeout 10s
+				response_header_timeout 60s
+				read_timeout 300s
+			}
+		}
+	}
+
+	# --- Статика SPA ---
+	handle {
+		root * /srv/www
+		try_files {path} /index.html
+		file_server
+		# Долгий кеш для ассетов
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+	}
+}
