@@ -113,7 +113,7 @@ const CareerTracksManagement = () => {
   const generateStepsAI = async (): Promise<Step[]> => {
     const fromTitle = positions.find((p) => p.id === form.from_position_id)?.title;
     const toTitle = positions.find((p) => p.id === form.to_position_id)?.title;
-    const { data, error } = await supabase.functions.invoke("generate-default-track-steps", {
+    const { data, error } = await aiInvoke("generate-default-track-steps", {
       body: {
         template_title: form.title,
         description: form.description,

@@ -195,7 +195,7 @@ const EmployeeQuestionnaire = () => {
         setQuestionnaireId(questionnaireId);
         toast.success(status === "draft" ? "Черновик анкеты сохранён" : "Анкета отправлена, цифровой паспорт обновлён");
         if (status === "submitted") {
-          const { data, error } = await supabase.functions.invoke("generate-questionnaire-profile", {
+          const { data, error } = await aiInvoke("generate-questionnaire-profile", {
             body: { answers, skillGaps, positionTitle: selectedPosition?.title || otherPosition },
           });
           if (error) throw error;

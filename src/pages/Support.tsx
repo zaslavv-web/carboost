@@ -54,7 +54,7 @@ const TicketCard = ({ ticket, profiles, isAdmin, userId }: {
   const generateAiSuggestion = async () => {
     setAiLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("suggest-ticket-fix", {
+      const { data, error } = await aiInvoke("suggest-ticket-fix", {
         body: { subject: ticket.subject, description: ticket.description },
       });
       if (error) throw error;

@@ -106,7 +106,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
       if (insertError) throw insertError;
 
       // Trigger AI parsing
-      const { error: fnError } = await supabase.functions.invoke("parse-hr-document", {
+      const { error: fnError } = await aiInvoke("parse-hr-document", {
         body: { documentId: doc.id, fileUrl: signedData.signedUrl, fileName: file.name, documentType: docType },
       });
       if (fnError) console.error("Parse error:", fnError);

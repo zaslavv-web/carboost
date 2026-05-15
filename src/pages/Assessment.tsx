@@ -69,7 +69,7 @@ const Assessment = () => {
         }
       }
 
-      const { data, error } = await supabase.functions.invoke("generate-closed-test", {
+      const { data, error } = await aiInvoke("generate-closed-test", {
         body: { positionTitle, competencies },
       });
       if (error) throw error;

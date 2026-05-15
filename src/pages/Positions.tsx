@@ -411,7 +411,7 @@ const PositionEditor = ({
         const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
         if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
 
-        const { data: result, error: fnError } = await supabase.functions.invoke("parse-position-standards", {
+        const { data: result, error: fnError } = await aiInvoke("parse-position-standards", {
           body: { fileUrl: signedData.signedUrl, fileName: file.name },
         });
         if (fnError) throw fnError;
@@ -701,7 +701,7 @@ const OrgStructureUpload = () => {
           if (uploadError) throw uploadError;
           const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
           if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
-          const { data: result, error: fnError } = await supabase.functions.invoke("parse-org-structure", {
+          const { data: result, error: fnError } = await aiInvoke("parse-org-structure", {
             body: { fileUrl: signedData.signedUrl, fileName: file.name, extractPositions: true },
           });
           if (fnError) throw fnError;
@@ -721,7 +721,7 @@ const OrgStructureUpload = () => {
         if (uploadError) throw uploadError;
         const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
         if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
-        const { data: result, error: fnError } = await supabase.functions.invoke("parse-org-structure", {
+        const { data: result, error: fnError } = await aiInvoke("parse-org-structure", {
           body: { fileUrl: signedData.signedUrl, fileName: file.name, extractPositions: true },
         });
         if (fnError) throw fnError;
@@ -764,7 +764,7 @@ const OrgStructureUpload = () => {
     mutationFn: async () => {
       setGeneratingPositions(true);
       if (departments.length === 0) throw new Error("Сначала загрузите оргструктуру");
-      const { data: result, error: fnError } = await supabase.functions.invoke("generate-positions-from-org", {
+      const { data: result, error: fnError } = await aiInvoke("generate-positions-from-org", {
         body: { departments },
       });
       if (fnError) throw fnError;
@@ -993,7 +993,7 @@ const Positions = () => {
       setGenerating(true);
       if (positions.length < 2) throw new Error("Нужно минимум 2 должности для построения путей");
 
-      const { data: result, error: fnError } = await supabase.functions.invoke("generate-career-paths", {
+      const { data: result, error: fnError } = await aiInvoke("generate-career-paths", {
         body: { positions, departments },
       });
       if (fnError) throw fnError;
