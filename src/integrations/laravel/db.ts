@@ -18,7 +18,7 @@ import { laravel, type LaravelInvokeResult } from "./client";
 
 type Filter = { op: string; col: string; value: any };
 
-class QueryBuilder<T = any> implements PromiseLike<LaravelInvokeResult<T>> {
+class QueryBuilder<T = any> implements PromiseLike<LaravelInvokeResult<T> & { count: number | null }> {
   private filters: Filter[] = [];
   private selectCols?: string;
   private orderParts: string[] = [];
@@ -28,6 +28,9 @@ class QueryBuilder<T = any> implements PromiseLike<LaravelInvokeResult<T>> {
   private mode: "select" | "insert" | "update" | "upsert" | "delete" = "select";
   private payload: any = undefined;
   private singleMode: "single" | "maybe" | null = null;
+  private countMode: "exact" | "planned" | "estimated" | null = null;
+  private headOnly = false;
+  private upsertOnConflict?: string;
 
   constructor(private readonly table: string) {}
 
