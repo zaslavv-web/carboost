@@ -1,6 +1,8 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelRpc } from "@/integrations/laravel/rpc";
+import { laravelStorage } from "@/integrations/laravel/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
@@ -119,7 +121,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const companySegment = profile.company_id;
         const path = `${companySegment}/${user.id}/${assignmentId}/${stepOrder}/${Date.now()}_${safe}`;
-        const { error } = await supabase.storage.from("career-submissions").upload(path, file);
+        const { error } = await laravelStorage.from("career-submissions").upload(path, file);
         if (error) throw error;
         uploaded.push({ url: path, name: file.name });
       }
@@ -167,7 +169,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc("submit_career_step", {
+      const { data, error } = await laravelRpc("submit_career_step", {
         _assignment_id: assignmentId,
         _comment: comment || null,
         _test_attempt_id: testAttemptId,

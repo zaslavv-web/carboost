@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
+import { laravelRpc } from "@/integrations/laravel/rpc";
+import { laravelStorage } from "@/integrations/laravel/storage";
 import { toast } from "sonner";
 import { Loader2, FileText, CheckCircle2, XCircle, Download, Clock, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -30,7 +33,7 @@ const CareerReviews = () => {
     queryKey: ["review_profiles", userIds],
     queryFn: async () => {
       if (!userIds.length) return [];
-      const { data } = await supabase.from("profiles").select("user_id, full_name, position, department").in("user_id", userIds);
+      const { data } = await laravelDb.from("profiles").select("user_id, full_name, position, department").in("user_id", userIds);
       return data || [];
     },
     enabled: userIds.length > 0,
@@ -40,7 +43,7 @@ const CareerReviews = () => {
     queryKey: ["review_templates", templateIds],
     queryFn: async () => {
       if (!templateIds.length) return [];
-      const { data } = await supabase.from("career_track_templates").select("id, title, steps").in("id", templateIds);
+      const { data } = await laravelDb.from("career_track_templates").select("id, title, steps").in("id", templateIds);
       return data || [];
     },
     enabled: templateIds.length > 0,
@@ -65,7 +68,7 @@ const CareerReviews = () => {
     queryKey: ["review_attempts", attemptIds],
     queryFn: async () => {
       if (!attemptIds.length) return [];
-      const { data } = await supabase.from("test_attempts").select("id, score, total, created_at").in("id", attemptIds);
+      const { data } = await laravelDb.from("test_attempts").select("id, score, total, created_at").in("id", attemptIds);
       return data || [];
     },
     enabled: attemptIds.length > 0,
@@ -77,7 +80,7 @@ const CareerReviews = () => {
 
   const reviewMutation = useMutation({
     mutationFn: async ({ id, approve, why }: { id: string; approve: boolean; why?: string }) => {
-      const { error } = await supabase.rpc("review_career_step", {
+      const { error } = await laravelRpc("review_career_step", {
         _submission_id: id,
         _approve: approve,
         _reason: why || null,
@@ -94,7 +97,7 @@ const CareerReviews = () => {
   });
 
   const downloadFile = async (path: string, name: string) => {
-    const { data, error } = await supabase.storage.from("career-submissions").createSignedUrl(path, 600);
+    const { data, error } = await laravelStorage.from("career-submissions").createSignedUrl(path, 600);
     if (error) {
       toast.error("Не удалось получить файл");
       return;

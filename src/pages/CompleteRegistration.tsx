@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealPrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import {
   clearPendingSocialSignup,
   getPendingSocialSignup,
@@ -50,7 +51,7 @@ const CompleteRegistration = () => {
   const { data: companies = [], isLoading: companiesLoading } = useQuery({
     queryKey: ["public_companies"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("companies").select("id, name").order("name");
+      const { data, error } = await laravelDb.from("companies").select("id, name").order("name");
       if (error) throw error;
       return data || [];
     },
@@ -131,10 +132,10 @@ const CompleteRegistration = () => {
       };
 
       if (profile?.id) {
-        const { error } = await supabase.from("profiles").update(payload).eq("id", profile.id);
+        const { error } = await laravelDb.from("profiles").update(payload).eq("id", profile.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("profiles").insert({
+        const { error } = await laravelDb.from("profiles").insert({
           user_id: user.id,
           full_name: user.user_metadata?.full_name ?? user.email ?? "",
           is_verified: false,

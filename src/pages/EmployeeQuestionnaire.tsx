@@ -2,6 +2,9 @@ import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
+import { laravelRpc } from "@/integrations/laravel/rpc";
+import { laravelStorage } from "@/integrations/laravel/storage";
 import { aiInvoke } from "@/integrations/laravel/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -148,7 +151,7 @@ const EmployeeQuestionnaire = () => {
       for (const file of selected) {
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const path = `${profile.company_id}/${user.id}/onboarding/${Date.now()}_${safeName}`;
-        const { error } = await supabase.storage.from("employee-questionnaires").upload(path, file);
+        const { error } = await laravelStorage.from("employee-questionnaires").upload(path, file);
         if (error) throw error;
         uploaded.push({ path, name: file.name, size: file.size, type: file.type });
       }
@@ -167,7 +170,7 @@ const EmployeeQuestionnaire = () => {
       if (!user || !profile?.company_id) throw new Error("Профиль сотрудника не привязан к компании");
       if (!positionId && !otherPosition.trim()) throw new Error("Выберите должность или укажите вариант вручную");
       const answers = buildAnswers();
-      const { data: questionnaireId, error } = await supabase.rpc("submit_employee_questionnaire" as any, {
+      const { data: questionnaireId, error } = await laravelRpc("submit_employee_questionnaire" as any, {
         _questionnaire_id: null,
         _position_id: positionId || null,
         _other_position_title: otherPosition || null,
@@ -177,7 +180,7 @@ const EmployeeQuestionnaire = () => {
       });
       if (error) throw error;
       if (files.length > 0 && questionnaireId) {
-        const { error: filesError } = await supabase.from("employee_questionnaire_files" as any).insert(files.map((file) => ({
+        const { error: filesError } = await laravelDb.from("employee_questionnaire_files" as any).insert(files.map((file) => ({
           questionnaire_id: questionnaireId,
           file_path: file.path,
           file_name: file.name,

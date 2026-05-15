@@ -1,6 +1,8 @@
 import { useState, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
+import { laravelStorage } from "@/integrations/laravel/storage";
 import { aiInvoke } from "@/integrations/laravel/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -407,9 +409,9 @@ const PositionEditor = ({
         // For doc/docx/pdf — upload and parse with AI
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const filePath = `standards/${Date.now()}_${safeName}`;
-        const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
+        const { error: uploadError } = await laravelStorage.from("hr-documents").upload(filePath, file);
         if (uploadError) throw uploadError;
-        const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
+        const { data: signedData, error: signError } = await laravelStorage.from("hr-documents").createSignedUrl(filePath, 600);
         if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
 
         const { data: result, error: fnError } = await aiInvoke("parse-position-standards", {
@@ -636,7 +638,7 @@ const OrgStructureUpload = () => {
   const { data: departments = [], isLoading } = useQuery({
     queryKey: ["departments"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("departments").select("*").order("name");
+      const { data, error } = await laravelDb.from("departments").select("*").order("name");
       if (error) throw error;
       return data || [];
     },
@@ -645,7 +647,7 @@ const OrgStructureUpload = () => {
   const createPositionsFromData = async (positions: any[]) => {
     let created = 0;
     for (const pos of positions) {
-      const { error } = await supabase.from("positions").insert({
+      const { error } = await laravelDb.from("positions").insert({
         title: pos.title,
         department: pos.department || null,
         description: pos.description || null,
@@ -698,9 +700,9 @@ const OrgStructureUpload = () => {
           // Column not found — send to AI for parsing
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
           const filePath = `orgstructure/${Date.now()}_${safeName}`;
-          const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
+          const { error: uploadError } = await laravelStorage.from("hr-documents").upload(filePath, file);
           if (uploadError) throw uploadError;
-          const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
+          const { data: signedData, error: signError } = await laravelStorage.from("hr-documents").createSignedUrl(filePath, 600);
           if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
           const { data: result, error: fnError } = await aiInvoke("parse-org-structure", {
             body: { fileUrl: signedData.signedUrl, fileName: file.name, extractPositions: true },
@@ -718,9 +720,9 @@ const OrgStructureUpload = () => {
       } else if (ext === ".docx" || ext === ".doc" || ext === ".pdf") {
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const filePath = `orgstructure/${Date.now()}_${safeName}`;
-        const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
+        const { error: uploadError } = await laravelStorage.from("hr-documents").upload(filePath, file);
         if (uploadError) throw uploadError;
-        const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
+        const { data: signedData, error: signError } = await laravelStorage.from("hr-documents").createSignedUrl(filePath, 600);
         if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
         const { data: result, error: fnError } = await aiInvoke("parse-org-structure", {
           body: { fileUrl: signedData.signedUrl, fileName: file.name, extractPositions: true },
@@ -735,13 +737,13 @@ const OrgStructureUpload = () => {
 
       const nameToId = new Map<string, string>();
       for (const dept of deptRows) {
-        const { data, error } = await supabase.from("departments").insert({ name: dept.name, description: dept.description || null, company_id: profile?.company_id || null } as any).select("id").single();
+        const { data, error } = await laravelDb.from("departments").insert({ name: dept.name, description: dept.description || null, company_id: profile?.company_id || null } as any).select("id").single();
         if (error) throw error;
         nameToId.set(dept.name, data.id);
       }
       for (const dept of deptRows) {
         if (dept.parent && nameToId.has(dept.parent) && nameToId.has(dept.name)) {
-          await supabase.from("departments").update({ parent_id: nameToId.get(dept.parent) } as any).eq("id", nameToId.get(dept.name)!);
+          await laravelDb.from("departments").update({ parent_id: nameToId.get(dept.parent) } as any).eq("id", nameToId.get(dept.name)!);
         }
       }
 
@@ -783,7 +785,7 @@ const OrgStructureUpload = () => {
 
   const deleteDeptMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("departments").delete().eq("id", id);
+      const { error } = await laravelDb.from("departments").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["departments"] }); toast.success("Отдел удалён"); },
@@ -963,7 +965,7 @@ const Positions = () => {
   const { data: positions = [], isLoading: posLoading } = useQuery({
     queryKey: ["positions"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("positions").select("*").order("created_at");
+      const { data, error } = await laravelDb.from("positions").select("*").order("created_at");
       if (error) throw error;
       return data as Position[];
     },
@@ -972,7 +974,7 @@ const Positions = () => {
   const { data: careerPaths = [], isLoading: pathsLoading } = useQuery({
     queryKey: ["career_paths"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("position_career_paths").select("*");
+      const { data, error } = await laravelDb.from("position_career_paths").select("*");
       if (error) throw error;
       return data as CareerPath[];
     },
@@ -981,7 +983,7 @@ const Positions = () => {
   const { data: departments = [] } = useQuery({
     queryKey: ["departments"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("departments").select("*").order("created_at");
+      const { data, error } = await laravelDb.from("departments").select("*").order("created_at");
       if (error) throw error;
       return data || [];
     },
@@ -1003,10 +1005,10 @@ const Positions = () => {
       if (!paths.length) throw new Error("AI не смог построить карьерные пути");
 
       // Delete existing paths
-      const { data: existing } = await supabase.from("position_career_paths").select("id");
+      const { data: existing } = await laravelDb.from("position_career_paths").select("id");
       if (existing?.length) {
         for (const row of existing) {
-          await supabase.from("position_career_paths").delete().eq("id", row.id);
+          await laravelDb.from("position_career_paths").delete().eq("id", row.id);
         }
       }
 
@@ -1019,7 +1021,7 @@ const Positions = () => {
         created_by: user!.id,
         company_id: profile?.company_id || null,
       }));
-      const { error } = await supabase.from("position_career_paths").insert(toInsert as any);
+      const { error } = await laravelDb.from("position_career_paths").insert(toInsert as any);
       if (error) throw error;
       return paths.length;
     },
@@ -1071,10 +1073,10 @@ const Positions = () => {
   const saveMutation = useMutation({
     mutationFn: async (pos: Partial<Position> & { id?: string }) => {
       if (pos.id) {
-        const { error } = await supabase.from("positions").update(pos as any).eq("id", pos.id);
+        const { error } = await laravelDb.from("positions").update(pos as any).eq("id", pos.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("positions").insert({ ...pos, created_by: user!.id } as any);
+        const { error } = await laravelDb.from("positions").insert({ ...pos, created_by: user!.id } as any);
         if (error) throw error;
       }
     },
@@ -1088,7 +1090,7 @@ const Positions = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("positions").delete().eq("id", id);
+      const { error } = await laravelDb.from("positions").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1101,10 +1103,10 @@ const Positions = () => {
 
   const savePathsMutation = useMutation({
     mutationFn: async () => {
-      const { data: existing } = await supabase.from("position_career_paths").select("id");
+      const { data: existing } = await laravelDb.from("position_career_paths").select("id");
       if (existing?.length) {
         for (const row of existing) {
-          await supabase.from("position_career_paths").delete().eq("id", row.id);
+          await laravelDb.from("position_career_paths").delete().eq("id", row.id);
         }
       }
       const pathsToInsert = edges.filter((e) => e.source && e.target).map((e) => {
@@ -1119,7 +1121,7 @@ const Positions = () => {
         };
       });
       if (pathsToInsert.length > 0) {
-        const { error } = await supabase.from("position_career_paths").insert(pathsToInsert as any);
+        const { error } = await laravelDb.from("position_career_paths").insert(pathsToInsert as any);
         if (error) throw error;
       }
     },
@@ -1135,7 +1137,7 @@ const Positions = () => {
     mutationFn: async (data: { id: string; from_position_id: string; to_position_id: string; estimated_months: number | null; strategy_description: string | null }) => {
       // If id starts with "temp-" — it's a new unsaved edge, insert it
       if (data.id.startsWith("temp-")) {
-        const { error } = await supabase.from("position_career_paths").insert({
+        const { error } = await laravelDb.from("position_career_paths").insert({
           from_position_id: data.from_position_id,
           to_position_id: data.to_position_id,
           estimated_months: data.estimated_months,
@@ -1145,7 +1147,7 @@ const Positions = () => {
         } as any);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("position_career_paths").update({
+        const { error } = await laravelDb.from("position_career_paths").update({
           from_position_id: data.from_position_id,
           to_position_id: data.to_position_id,
           estimated_months: data.estimated_months,
@@ -1166,7 +1168,7 @@ const Positions = () => {
   const deleteEdgeMutation = useMutation({
     mutationFn: async (id: string) => {
       if (!id.startsWith("temp-")) {
-        const { error } = await supabase.from("position_career_paths").delete().eq("id", id);
+        const { error } = await laravelDb.from("position_career_paths").delete().eq("id", id);
         if (error) throw error;
       }
       setEdges((eds) => eds.filter((e) => e.id !== id));

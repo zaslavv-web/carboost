@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { Building2, Plus, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,7 +43,7 @@ const Companies = () => {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("companies").insert({ name, description: description || null });
+      const { error } = await laravelDb.from("companies").insert({ name, description: description || null });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -72,7 +73,7 @@ const Companies = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("companies").delete().eq("id", id);
+      const { error } = await laravelDb.from("companies").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

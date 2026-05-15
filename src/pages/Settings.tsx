@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelStorage } from "@/integrations/laravel/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
@@ -66,11 +67,11 @@ const Settings = () => {
         const ext = avatarFile.name.split(".").pop();
         const companySegment = profile?.company_id ?? user.id;
         const path = `${companySegment}/${user.id}/avatar.${ext}`;
-        const { error: uploadErr } = await supabase.storage
+        const { error: uploadErr } = await laravelStorage
           .from("avatars")
           .upload(path, avatarFile, { upsert: true });
         if (uploadErr) throw uploadErr;
-        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+        const { data: urlData } = laravelStorage.from("avatars").getPublicUrl(path);
         avatarUrl = urlData.publicUrl;
       }
 

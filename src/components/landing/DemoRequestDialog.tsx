@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelRpc } from "@/integrations/laravel/rpc";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -21,7 +22,7 @@ const DemoRequestDialog = ({ open, onOpenChange, source }: Props) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.rpc("submit_demo_request", {
+      const { error } = await laravelRpc("submit_demo_request", {
         _name: name.trim(),
         _email: email.trim(),
         _company: company.trim() || null,

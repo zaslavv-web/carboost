@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Award, Calendar, Edit, Loader2, Plus, X } from "lucide-react";
@@ -19,7 +20,7 @@ const Passport = () => {
   const { data: competencies = [] } = useQuery({
     queryKey: ["competencies", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("competencies").select("*").eq("user_id", user!.id);
+      const { data, error } = await laravelDb.from("competencies").select("*").eq("user_id", user!.id);
       if (error) throw error;
       return data || [];
     },
@@ -29,7 +30,7 @@ const Passport = () => {
   const { data: achievements = [] } = useQuery({
     queryKey: ["achievements", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("achievements").select("*").eq("user_id", user!.id).order("achievement_date", { ascending: false });
+      const { data, error } = await laravelDb.from("achievements").select("*").eq("user_id", user!.id).order("achievement_date", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -39,7 +40,7 @@ const Passport = () => {
   const { data: assessments = [] } = useQuery({
     queryKey: ["assessments", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("assessments").select("*").eq("user_id", user!.id).order("created_at", { ascending: false });
+      const { data, error } = await laravelDb.from("assessments").select("*").eq("user_id", user!.id).order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -64,7 +65,7 @@ const Passport = () => {
 
   const addAchievementMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("achievements").insert({
+      const { error } = await laravelDb.from("achievements").insert({
         user_id: user!.id,
         title: newAchievement.title,
         description: newAchievement.description,

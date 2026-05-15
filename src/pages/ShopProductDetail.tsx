@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
+import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
@@ -29,7 +31,7 @@ export default function ShopProductDetail() {
   const { data: product, isLoading } = useQuery({
     queryKey: ["shop_product", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("shop_products").select("*").eq("id", id!).maybeSingle();
+      const { data, error } = await laravelDb.from("shop_products").select("*").eq("id", id!).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -43,11 +45,11 @@ export default function ShopProductDetail() {
         .from("shop_cart_items").select("*")
         .eq("user_id", userId).eq("product_id", product.id).maybeSingle();
       if (existing) {
-        const { error } = await supabase.from("shop_cart_items")
+        const { error } = await laravelDb.from("shop_cart_items")
           .update({ quantity: existing.quantity + qty }).eq("id", existing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("shop_cart_items").insert({
+        const { error } = await laravelDb.from("shop_cart_items").insert({
           user_id: userId, company_id: profile.company_id, product_id: product.id, quantity: qty,
         });
         if (error) throw error;
@@ -63,7 +65,7 @@ export default function ShopProductDetail() {
   const buyNow = useMutation({
     mutationFn: async () => {
       if (!product) throw new Error("Нет данных");
-      const { data, error } = await supabase.rpc("create_shop_order", {
+      const { data, error } = await laravelRpc("create_shop_order", {
         _items: [{ product_id: product.id, quantity: qty }],
       });
       if (error) throw error;

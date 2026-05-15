@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 
@@ -109,7 +110,7 @@ export const useAllProfiles = () => {
   return useQuery({
     queryKey: ["all_profiles"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*");
+      const { data, error } = await laravelDb.from("profiles").select("*");
       if (error) throw error;
       return data as UserProfile[];
     },

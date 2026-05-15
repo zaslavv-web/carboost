@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Upload, Plus, Trash2, Mail, Users, FileSpreadsheet, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,7 +62,7 @@ const Invitations = () => {
         .map((i) => ({ ...i, email: i.email.trim().toLowerCase() }))
         .filter((i) => i.email.includes("@"));
       if (cleaned.length === 0) throw new Error("Нет валидных email");
-      const { data, error } = await supabase.rpc("bulk_invite_employees" as any, { _invites: cleaned });
+      const { data, error } = await laravelRpc("bulk_invite_employees" as any, { _invites: cleaned });
       if (error) throw error;
       return data as any;
     },

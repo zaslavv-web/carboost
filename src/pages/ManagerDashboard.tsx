@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { Users, TrendingUp, Target, Award, Eye, Loader2, UserPlus, X, Search } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
@@ -46,9 +47,9 @@ const ManagerDashboard = () => {
       if (teamIds.length === 0) return [];
 
       const [profilesRes, goalsRes, compsRes] = await Promise.all([
-        supabase.from("profiles").select("user_id, full_name, position, department, overall_score, role_readiness").in("user_id", teamIds),
-        supabase.from("career_goals").select("user_id, progress, status").in("user_id", teamIds),
-        supabase.from("competencies").select("user_id, skill_name, skill_value").in("user_id", teamIds),
+        laravelDb.from("profiles").select("user_id, full_name, position, department, overall_score, role_readiness").in("user_id", teamIds),
+        laravelDb.from("career_goals").select("user_id, progress, status").in("user_id", teamIds),
+        laravelDb.from("competencies").select("user_id, skill_name, skill_value").in("user_id", teamIds),
       ]);
 
       if (profilesRes.error) throw profilesRes.error;
@@ -105,7 +106,7 @@ const ManagerDashboard = () => {
   const { data: allProfiles = [] } = useQuery({
     queryKey: ["all_profiles_for_manager"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("user_id, full_name, position, department");
+      const { data, error } = await laravelDb.from("profiles").select("user_id, full_name, position, department");
       if (error) throw error;
       return data || [];
     },
@@ -114,7 +115,7 @@ const ManagerDashboard = () => {
 
   const addMemberMutation = useMutation({
     mutationFn: async (employeeId: string) => {
-      const { error } = await supabase.from("team_members").insert({ manager_id: user!.id, employee_id: employeeId });
+      const { error } = await laravelDb.from("team_members").insert({ manager_id: user!.id, employee_id: employeeId });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -128,7 +129,7 @@ const ManagerDashboard = () => {
 
   const removeMemberMutation = useMutation({
     mutationFn: async (employeeId: string) => {
-      const { error } = await supabase.from("team_members").delete().eq("manager_id", user!.id).eq("employee_id", employeeId);
+      const { error } = await laravelDb.from("team_members").delete().eq("manager_id", user!.id).eq("employee_id", employeeId);
       if (error) throw error;
     },
     onSuccess: () => {

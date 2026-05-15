@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
 import { Check, Clock, ChevronDown, ChevronRight, Target, Loader2, Plus, X, Route, Award, Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
@@ -75,7 +76,7 @@ const CareerTrack = () => {
     queryFn: async () => {
       const ids = assignments.map(a => a.template_id);
       if (!ids.length) return [];
-      const { data, error } = await supabase.from("career_track_templates").select("*").in("id", ids);
+      const { data, error } = await laravelDb.from("career_track_templates").select("*").in("id", ids);
       if (error) throw error;
       return data || [];
     },
@@ -87,7 +88,7 @@ const CareerTrack = () => {
     queryFn: async () => {
       const ids = assignments.map(a => a.template_id);
       if (!ids.length) return [];
-      const { data, error } = await supabase.from("career_level_actions").select("*").in("template_id", ids).order("action_order");
+      const { data, error } = await laravelDb.from("career_level_actions").select("*").in("template_id", ids).order("action_order");
       if (error) throw error;
       return data || [];
     },
@@ -97,7 +98,7 @@ const CareerTrack = () => {
   const { data: positions = [] } = useQuery({
     queryKey: ["positions_for_track"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("positions").select("id, title, department");
+      const { data, error } = await laravelDb.from("positions").select("id, title, department");
       if (error) throw error;
       return data || [];
     },
@@ -108,7 +109,7 @@ const CareerTrack = () => {
     queryKey: ["my_rewards", effectiveUserId],
     queryFn: async () => {
       if (!effectiveUserId) return [];
-      const { data, error } = await supabase.from("employee_rewards").select("*").eq("user_id", effectiveUserId).order("awarded_at", { ascending: false });
+      const { data, error } = await laravelDb.from("employee_rewards").select("*").eq("user_id", effectiveUserId).order("awarded_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -118,7 +119,7 @@ const CareerTrack = () => {
   const { data: rewardTypes = [] } = useQuery({
     queryKey: ["reward_types_for_employee"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("gamification_reward_types").select("*");
+      const { data, error } = await laravelDb.from("gamification_reward_types").select("*");
       if (error) throw error;
       return data || [];
     },
@@ -132,7 +133,7 @@ const CareerTrack = () => {
   // Goal mutations
   const toggleItemMutation = useMutation({
     mutationFn: async ({ itemId, isDone }: { itemId: string; isDone: boolean }) => {
-      const { error } = await supabase.from("goal_checklist_items").update({ is_done: isDone }).eq("id", itemId);
+      const { error } = await laravelDb.from("goal_checklist_items").update({ is_done: isDone }).eq("id", itemId);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["career_goals_full"] }),
@@ -140,7 +141,7 @@ const CareerTrack = () => {
 
   const updateGoalProgressMutation = useMutation({
     mutationFn: async ({ goalId, progress, status }: { goalId: string; progress: number; status: string }) => {
-      const { error } = await supabase.from("career_goals").update({ progress, status }).eq("id", goalId);
+      const { error } = await laravelDb.from("career_goals").update({ progress, status }).eq("id", goalId);
       if (error) throw error;
     },
   });
@@ -148,7 +149,7 @@ const CareerTrack = () => {
   const addGoalMutation = useMutation({
     mutationFn: async () => {
       if (!effectiveUserId) throw new Error("Пользователь не определён");
-      const { error } = await supabase.from("career_goals").insert({
+      const { error } = await laravelDb.from("career_goals").insert({
         user_id: effectiveUserId, title: newGoal.title, description: newGoal.description || null, deadline: newGoal.deadline || null,
       });
       if (error) throw error;
@@ -163,7 +164,7 @@ const CareerTrack = () => {
   const [newItemText, setNewItemText] = useState<Record<string, string>>({});
   const addChecklistItemMutation = useMutation({
     mutationFn: async ({ goalId, text }: { goalId: string; text: string }) => {
-      const { error } = await supabase.from("goal_checklist_items").insert({ goal_id: goalId, text });
+      const { error } = await laravelDb.from("goal_checklist_items").insert({ goal_id: goalId, text });
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["career_goals_full"] }),

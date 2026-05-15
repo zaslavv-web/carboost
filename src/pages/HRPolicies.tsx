@@ -1,6 +1,8 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
+import { laravelStorage } from "@/integrations/laravel/storage";
 import { aiInvoke } from "@/integrations/laravel/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealPrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
@@ -85,10 +87,10 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
       // Upload to storage
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const filePath = `${docType}/${Date.now()}_${safeName}`;
-      const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
+      const { error: uploadError } = await laravelStorage.from("hr-documents").upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
+      const { data: signedData, error: signError } = await laravelStorage.from("hr-documents").createSignedUrl(filePath, 600);
       if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
 
       // Create document record
@@ -131,7 +133,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
       const extracted = doc.extracted_data;
       if (!extracted?.scenario) throw new Error("Нет данных для создания сценария");
 
-      const { error } = await supabase.from("assessment_scenarios").insert({
+      const { error } = await laravelDb.from("assessment_scenarios").insert({
         title: extracted.scenario.title || doc.title,
         description: extracted.scenario.description,
         scenario_data: extracted.scenario,
@@ -149,7 +151,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
         .limit(1);
 
       if (scenarios?.[0]) {
-        await supabase.from("hr_documents").update({ scenario_id: scenarios[0].id }).eq("id", doc.id);
+        await laravelDb.from("hr_documents").update({ scenario_id: scenarios[0].id }).eq("id", doc.id);
       }
     },
     onSuccess: () => {
@@ -162,7 +164,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("hr_documents").delete().eq("id", id);
+      const { error } = await laravelDb.from("hr_documents").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

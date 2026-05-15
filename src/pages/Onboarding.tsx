@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Building2, Briefcase, Users, Settings as SettingsIcon, CheckCircle2, ArrowRight, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,11 +29,11 @@ const Onboarding = () => {
     queryFn: async () => {
       if (!companyId) return null;
       const [pos, emp, tracks, tests, products] = await Promise.all([
-        supabase.from("positions").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        supabase.from("career_track_templates").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        supabase.from("closed_question_tests").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        supabase.from("shop_products").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        laravelDb.from("positions").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        laravelDb.from("profiles").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        laravelDb.from("career_track_templates").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        laravelDb.from("closed_question_tests").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        laravelDb.from("shop_products").select("id", { count: "exact", head: true }).eq("company_id", companyId),
       ]);
       return {
         positions: pos.count ?? 0,

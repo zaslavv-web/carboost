@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import { Loader2, Route, Users, TrendingUp } from "lucide-react";
@@ -18,8 +19,8 @@ const HRDCareerTracksAnalytics = () => {
     queryKey: ["hrd_track_analytics", companyId],
     queryFn: async () => {
       const [tplRes, asgRes] = await Promise.all([
-        supabase.from("career_track_templates").select("id, title, steps, estimated_months"),
-        supabase.from("employee_career_assignments").select("template_id, current_step, status, user_id"),
+        laravelDb.from("career_track_templates").select("id, title, steps, estimated_months"),
+        laravelDb.from("employee_career_assignments").select("template_id, current_step, status, user_id"),
       ]);
       if (tplRes.error) throw tplRes.error;
       if (asgRes.error) throw asgRes.error;

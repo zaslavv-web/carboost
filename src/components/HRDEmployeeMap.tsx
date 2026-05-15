@@ -13,6 +13,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -414,7 +415,7 @@ const HRDEmployeeMap = () => {
         .single();
       if (error) throw error;
       if (payload.assigneeIds.length > 0) {
-        const { error: aErr } = await supabase.from("hr_task_assignees").insert(
+        const { error: aErr } = await laravelDb.from("hr_task_assignees").insert(
           payload.assigneeIds.map((uid) => ({ task_id: task.id, user_id: uid })),
         );
         if (aErr) throw aErr;
@@ -463,7 +464,7 @@ const HRDEmployeeMap = () => {
 
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
-      const { error } = await supabase.from("hr_tasks").delete().eq("id", taskId);
+      const { error } = await laravelDb.from("hr_tasks").delete().eq("id", taskId);
       if (error) throw error;
     },
     onSuccess: () => {

@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
+import { laravelRpc } from "@/integrations/laravel/rpc";
+import { laravelStorage } from "@/integrations/laravel/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
@@ -42,7 +45,7 @@ export default function ShopAdmin() {
         currency_name: currencyName || settings?.currency_name || "Монеты",
         currency_icon: currencyIcon || settings?.currency_icon || "🪙",
       };
-      const { error } = await supabase.from("company_currency_settings").upsert(payload, { onConflict: "company_id" });
+      const { error } = await laravelDb.from("company_currency_settings").upsert(payload, { onConflict: "company_id" });
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Настройки сохранены"); refetchSettings(); },
@@ -54,7 +57,7 @@ export default function ShopAdmin() {
     queryKey: ["company_employees", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data, error } = await supabase.from("profiles").select("user_id, full_name").eq("company_id", companyId);
+      const { data, error } = await laravelDb.from("profiles").select("user_id, full_name").eq("company_id", companyId);
       if (error) throw error;
       return data ?? [];
     },
@@ -66,7 +69,7 @@ export default function ShopAdmin() {
   const award = useMutation({
     mutationFn: async () => {
       if (!awardUser || !companyId) throw new Error("Выберите сотрудника");
-      const { error } = await supabase.rpc("award_currency", {
+      const { error } = await laravelRpc("award_currency", {
         _user_id: awardUser, _company_id: companyId, _amount: awardAmount,
         _kind: "earn_event", _description: awardDesc || "Начисление за участие в мероприятии", _reference_id: null,
       });
@@ -84,7 +87,7 @@ export default function ShopAdmin() {
     queryKey: ["company_transactions", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data, error } = await supabase.from("currency_transactions")
+      const { data, error } = await laravelDb.from("currency_transactions")
         .select("*").eq("company_id", companyId).order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
       return data ?? [];
@@ -97,7 +100,7 @@ export default function ShopAdmin() {
     queryKey: ["admin_products", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data, error } = await supabase.from("shop_products").select("*").eq("company_id", companyId).order("created_at", { ascending: false });
+      const { data, error } = await laravelDb.from("shop_products").select("*").eq("company_id", companyId).order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -119,9 +122,9 @@ export default function ShopAdmin() {
     try {
       const ext = file.name.split(".").pop();
       const path = `${companyId}/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("shop-products").upload(path, file, { upsert: true });
+      const { error } = await laravelStorage.from("shop-products").upload(path, file, { upsert: true });
       if (error) throw error;
-      const { data } = supabase.storage.from("shop-products").getPublicUrl(path);
+      const { data } = laravelStorage.from("shop-products").getPublicUrl(path);
       setForm((f: any) => ({ ...f, image_url: data.publicUrl }));
       toast.success("Изображение загружено");
     } catch (e: any) { toast.error(e.message); }
@@ -144,10 +147,10 @@ export default function ShopAdmin() {
       };
       if (editing === "new") {
         payload.created_by = user.id;
-        const { error } = await supabase.from("shop_products").insert(payload);
+        const { error } = await laravelDb.from("shop_products").insert(payload);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("shop_products").update(payload).eq("id", editing.id);
+        const { error } = await laravelDb.from("shop_products").update(payload).eq("id", editing.id);
         if (error) throw error;
       }
     },
@@ -157,7 +160,7 @@ export default function ShopAdmin() {
 
   const deleteProduct = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("shop_products").delete().eq("id", id);
+      const { error } = await laravelDb.from("shop_products").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Удалено"); refetchProducts(); },
@@ -169,13 +172,13 @@ export default function ShopAdmin() {
     queryKey: ["admin_orders", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data, error } = await supabase.from("shop_orders")
+      const { data, error } = await laravelDb.from("shop_orders")
         .select("*, items:shop_order_items(*)")
         .eq("company_id", companyId).order("created_at", { ascending: false });
       if (error) throw error;
       // enrich with profile names
       const userIds = [...new Set((data ?? []).map((o: any) => o.user_id))];
-      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
+      const { data: profiles } = await laravelDb.from("profiles").select("user_id, full_name").in("user_id", userIds);
       const map = new Map((profiles ?? []).map((p: any) => [p.user_id, p.full_name]));
       return (data ?? []).map((o: any) => ({ ...o, user_name: map.get(o.user_id) || o.user_id }));
     },
@@ -184,7 +187,7 @@ export default function ShopAdmin() {
 
   const fulfill = useMutation({
     mutationFn: async ({ id, approve, reason }: { id: string; approve: boolean; reason?: string }) => {
-      const { error } = await supabase.rpc("fulfill_shop_order", { _order_id: id, _approve: approve, _reason: reason ?? null });
+      const { error } = await laravelRpc("fulfill_shop_order", { _order_id: id, _approve: approve, _reason: reason ?? null });
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Готово"); refetchOrders(); },

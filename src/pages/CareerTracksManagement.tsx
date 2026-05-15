@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { aiInvoke } from "@/integrations/laravel/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -54,7 +55,7 @@ const CareerTracksManagement = () => {
   const { data: positions = [] } = useQuery({
     queryKey: ["positions", companyId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("positions").select("id, title, department").order("title");
+      const { data, error } = await laravelDb.from("positions").select("id, title, department").order("title");
       if (error) throw error;
       return data || [];
     },
@@ -103,7 +104,7 @@ const CareerTracksManagement = () => {
   const { data: profiles = [] } = useQuery({
     queryKey: ["all_profiles"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("user_id, full_name, position, department");
+      const { data, error } = await laravelDb.from("profiles").select("user_id, full_name, position, department");
       if (error) throw error;
       return data || [];
     },
@@ -158,10 +159,10 @@ const CareerTracksManagement = () => {
         created_by: user!.id,
       };
       if (editingId) {
-        const { error } = await supabase.from("career_track_templates").update(payload).eq("id", editingId);
+        const { error } = await laravelDb.from("career_track_templates").update(payload).eq("id", editingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("career_track_templates").insert(payload);
+        const { error } = await laravelDb.from("career_track_templates").insert(payload);
         if (error) throw error;
       }
     },
@@ -177,7 +178,7 @@ const CareerTracksManagement = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("career_track_templates").delete().eq("id", id);
+      const { error } = await laravelDb.from("career_track_templates").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -189,7 +190,7 @@ const CareerTracksManagement = () => {
   const addActionMutation = useMutation({
     mutationFn: async ({ templateId, text }: { templateId: string; text: string }) => {
       const count = actions.filter(a => a.template_id === templateId).length;
-      const { error } = await supabase.from("career_level_actions").insert({
+      const { error } = await laravelDb.from("career_level_actions").insert({
         template_id: templateId,
         action_text: text,
         action_order: count,
@@ -201,7 +202,7 @@ const CareerTracksManagement = () => {
 
   const deleteActionMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("career_level_actions").delete().eq("id", id);
+      const { error } = await laravelDb.from("career_level_actions").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["career_level_actions"] }),
@@ -213,7 +214,7 @@ const CareerTracksManagement = () => {
 
   const assignMutation = useMutation({
     mutationFn: async ({ templateId, userId }: { templateId: string; userId: string }) => {
-      const { error } = await supabase.from("employee_career_assignments").insert({
+      const { error } = await laravelDb.from("employee_career_assignments").insert({
         template_id: templateId,
         user_id: userId,
         company_id: companyId,
