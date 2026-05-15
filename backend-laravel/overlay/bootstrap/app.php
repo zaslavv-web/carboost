@@ -21,8 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
 
         $middleware->alias([
-            'verified.user' => \App\Http\Middleware\EnsureVerified::class,
-            'has.company'   => \App\Http\Middleware\EnsureHasCompany::class,
+            'verified.user'  => \App\Http\Middleware\EnsureVerified::class,
+            'has.company'    => \App\Http\Middleware\EnsureHasCompany::class,
+            'effective.user' => \App\Http\Middleware\EffectiveUser::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
