@@ -13,7 +13,7 @@
 |---|---|
 | `lovable.auth.signInWithOAuth("google")` в `Login.tsx` | `supabase.auth.signInWithOAuth({ provider: "google" })` — работает с любыми Supabase OAuth credentials |
 | Edge Functions хардкодили `LOVABLE_API_KEY` и URL Lovable AI | Все читают `AI_API_URL`, `AI_API_KEY`, `AI_MODEL` (с фолбэком на `LOVABLE_API_KEY`) |
-| Хостинг только на `.lovable.app` | Добавлены `Dockerfile`, `deploy/nginx.conf`, `docker-compose.yml` |
+| Хостинг только на `.lovable.app` | Добавлены `Dockerfile`, `backend/deploy/nginx.conf`, `docker-compose.yml` |
 | Конфиг разбросан | `.env.example` с описанием всех переменных |
 
 > ⚠️ Файл `src/integrations/lovable/index.ts` оставлен — он автогенерируемый и больше нигде не используется, после переезда его можно удалить.
@@ -113,7 +113,7 @@ cp .env.example .env
 
 ## 5. AI-функции (Edge Functions)
 
-В каталоге `supabase/functions/.env` (или через `supabase secrets set`) пропишите:
+В каталоге `backend/supabase/functions/.env` (или через `supabase secrets set`) пропишите:
 
 ```
 AI_API_URL=https://api.openai.com/v1/chat/completions
@@ -171,5 +171,5 @@ docker compose up -d web
 
 1. **Никогда не возвращать `lovable.auth`** — только `supabase.auth.*`.
 2. **Все AI-вызовы** идут через `AI_API_URL` / `AI_API_KEY`. Не хардкодить URL.
-3. **Миграции БД** живут в `supabase/migrations/*.sql` — на проде накатываются командой `supabase db push` или `psql -f`.
+3. **Миграции БД** живут в `backend/supabase/migrations/*.sql` — на проде накатываются командой `supabase db push` или `psql -f`.
 4. **Секреты** не коммитим. Только `.env.example`.

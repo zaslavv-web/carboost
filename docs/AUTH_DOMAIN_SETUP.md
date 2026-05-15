@@ -153,7 +153,7 @@ docker compose restart auth
 
 ## 5. Конфигурация nginx (фронт)
 
-Минимальный блок в `deploy/nginx.conf` (уже есть в репозитории):
+Минимальный блок в `backend/deploy/nginx.conf` (уже есть в репозитории):
 
 ```nginx
 server {
