@@ -13,17 +13,26 @@ import {
 } from "@/lib/pendingSocialSignup";
 import { toast } from "sonner";
 
+const SUPABASE_HOST = (() => {
+  try {
+    return new URL(import.meta.env.VITE_SUPABASE_URL).hostname;
+  } catch {
+    return "";
+  }
+})();
+
 /**
- * На Lovable-хостах (preview / *.lovable.app) используем managed Google OAuth
- * через `lovable.auth` — работает без настройки credentials.
- * На любом другом домене (self-hosted, кастомный VPS) идём напрямую через
- * `supabase.auth.signInWithOAuth` — там должны быть свои Google Client ID/Secret
- * прописаны в Supabase Auth провайдере.
+ * Managed Google OAuth нужен для всех Lovable-хостов, включая live preview
+ * (*.lovableproject.com), опубликованные *.lovable.app и кастомные домены,
+ * если фронтенд всё ещё подключён к Lovable Cloud backend.
  */
-const isLovableHost = (): boolean => {
+const shouldUseManagedOAuth = (): boolean => {
   if (typeof window === "undefined") return false;
   const host = window.location.hostname;
-  return host.endsWith(".lovable.app") || host.endsWith(".lovable.dev") || host === "localhost";
+  const isLovablePreview = host.includes("lovableproject.com") || host.includes("id-preview--");
+  const isLovableDomain = host.endsWith(".lovable.app") || host.endsWith(".lovable.dev") || host === "localhost";
+  const usesLovableBackend = SUPABASE_HOST.endsWith(".supabase.co");
+  return isLovablePreview || isLovableDomain || usesLovableBackend;
 };
 
 /**
@@ -40,7 +49,7 @@ const oauthLog = (
     event,
     host: typeof window !== "undefined" ? window.location.hostname : "ssr",
     origin: typeof window !== "undefined" ? window.location.origin : "ssr",
-    mode: isLovableHost() ? "lovable-managed" : "supabase-direct",
+    mode: shouldUseManagedOAuth() ? "lovable-managed" : "supabase-direct",
     ts: new Date().toISOString(),
     ...details,
   };
@@ -197,7 +206,7 @@ const Login = () => {
         redirectTo,
       });
 
-      if (isLovableHost()) {
+      if (shouldUseManagedOAuth()) {
         // Managed OAuth — для Lovable preview/прод на *.lovable.app
         const result = await lovable.auth.signInWithOAuth("google", {
           redirect_uri: redirectTo,
