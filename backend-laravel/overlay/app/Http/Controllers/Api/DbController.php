@@ -180,10 +180,51 @@ class DbController extends Controller
     protected function applySelect($query, Request $request): void
     {
         if (! $request->filled('select')) return;
-        $cols = array_filter(array_map('trim', explode(',', (string) $request->query('select'))));
-        if ($cols && $cols !== ['*']) {
-            $query->select($cols);
+        // PostgREST-style: "col1, col2, alias:relation(col_a, col_b), rel2(*)"
+        // Split on commas at depth 0 only (parentheses preserve nesting).
+        $raw = (string) $request->query('select');
+        $parts = $this->splitTopLevel($raw, ',');
+        $cols = [];
+        $eager = [];
+        foreach ($parts as $part) {
+            $p = trim($part);
+            if ($p === '' || $p === '*') continue;
+            if (preg_match('/^([A-Za-z0-9_]+)(?::([A-Za-z0-9_]+))?\((.*)\)$/', $p, $m)) {
+                // alias:relation(cols)  OR  relation(cols)
+                $alias    = $m[2] !== '' ? $m[1] : null;
+                $relation = $m[2] !== '' ? $m[2] : $m[1];
+                $inner    = trim($m[3]);
+                $key = $alias ? "$alias as $relation" : $relation;
+                if ($inner === '' || $inner === '*') {
+                    $eager[] = $relation;
+                } else {
+                    $innerCols = array_filter(array_map('trim', explode(',', $inner)));
+                    $eager[$relation] = function ($q) use ($innerCols) {
+                        $q->select(array_merge(['id'], $innerCols));
+                    };
+                }
+            } else {
+                $cols[] = $p;
+            }
         }
+        if ($cols) $query->select($cols);
+        if ($eager) $query->with($eager);
+    }
+
+    protected function splitTopLevel(string $s, string $sep): array
+    {
+        $out = [];
+        $buf = '';
+        $depth = 0;
+        for ($i = 0, $n = strlen($s); $i < $n; $i++) {
+            $c = $s[$i];
+            if ($c === '(') { $depth++; $buf .= $c; continue; }
+            if ($c === ')') { $depth--; $buf .= $c; continue; }
+            if ($c === $sep && $depth === 0) { $out[] = $buf; $buf = ''; continue; }
+            $buf .= $c;
+        }
+        if ($buf !== '') $out[] = $buf;
+        return $out;
     }
 
     protected function applyOrder($query, Request $request): void
