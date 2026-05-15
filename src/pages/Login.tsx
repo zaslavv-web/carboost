@@ -4,7 +4,6 @@ import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "l
 import brandLogo from "@/assets/logo-growth-peak.png";
 import LandingHeader from "@/components/landing/LandingHeader";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import {
   clearPendingSocialSignup,
   ROLE_OPTIONS,
@@ -12,19 +11,6 @@ import {
   type RequestedAppRole,
 } from "@/lib/pendingSocialSignup";
 import { toast } from "sonner";
-
-/**
- * На Lovable-хостах (preview / *.lovable.app) используем managed Google OAuth
- * через `lovable.auth` — работает без настройки credentials.
- * На любом другом домене (self-hosted, кастомный VPS) идём напрямую через
- * `supabase.auth.signInWithOAuth` — там должны быть свои Google Client ID/Secret
- * прописаны в Supabase Auth провайдере.
- */
-const isLovableHost = (): boolean => {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname;
-  return host.endsWith(".lovable.app") || host.endsWith(".lovable.dev") || host === "localhost";
-};
 
 /**
  * Структурированное логирование OAuth-флоу. Никаких токенов/секретов —
@@ -40,7 +26,7 @@ const oauthLog = (
     event,
     host: typeof window !== "undefined" ? window.location.hostname : "ssr",
     origin: typeof window !== "undefined" ? window.location.origin : "ssr",
-    mode: isLovableHost() ? "lovable-managed" : "supabase-direct",
+    mode: "supabase-direct",
     ts: new Date().toISOString(),
     ...details,
   };
@@ -197,59 +183,34 @@ const Login = () => {
         redirectTo,
       });
 
-      if (isLovableHost()) {
-        // Managed OAuth — для Lovable preview/прод на *.lovable.app
-        const result = await lovable.auth.signInWithOAuth("google", {
-          redirect_uri: redirectTo,
-          extraParams: { prompt: "select_account" },
-        });
-        if (result.error) {
-          oauthLog("error", "lovable_managed_failed", {
-            provider: "google",
-            errorMessage: (result.error as any)?.message ?? String(result.error),
-            errorCode: (result.error as any)?.code ?? null,
-          });
-          if (isSignUp) clearPendingSocialSignup();
-          setErrorMessage("Ошибка входа через Google");
-          return;
-        }
-        if (result.redirected) {
-          oauthLog("info", "redirected_to_provider", { provider: "google", via: "lovable" });
-          return;
-        }
-        oauthLog("info", "signed_in_inline", { provider: "google", via: "lovable" });
-        navigate(isSignUp ? "/complete-registration" : "/dashboard");
-      } else {
-        // Self-hosted: свои Google credentials в Supabase Auth провайдере
-        const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          queryParams: { prompt: "select_account" },
+        },
+      });
+      if (error) {
+        const missingSecret = error.message.includes("missing OAuth secret");
+        oauthLog("error", "supabase_direct_failed", {
           provider: "google",
-          options: {
-            redirectTo,
-            queryParams: { prompt: "select_account" },
-          },
+          errorMessage: error.message,
+          errorStatus: (error as any)?.status ?? null,
+          errorName: error.name,
+          hint: missingSecret
+            ? "Google provider не настроен в Supabase Auth (нет Client ID/Secret для этого домена)"
+            : "Проверьте Authorized redirect URIs в Google Cloud и Site URL/Redirect URLs в Supabase Auth",
         });
-        if (error) {
-          const missingSecret = error.message.includes("missing OAuth secret");
-          oauthLog("error", "supabase_direct_failed", {
-            provider: "google",
-            errorMessage: error.message,
-            errorStatus: (error as any)?.status ?? null,
-            errorName: error.name,
-            hint: missingSecret
-              ? "Google provider не настроен в Supabase Auth (нет Client ID/Secret для этого домена)"
-              : "Проверьте Authorized redirect URIs в Google Cloud и Site URL/Redirect URLs в Supabase Auth",
-          });
-          if (isSignUp) clearPendingSocialSignup();
-          setErrorMessage(
-            missingSecret
-              ? "Google OAuth не настроен на этом домене. Обратитесь к администратору."
-              : "Ошибка входа через Google",
-          );
-          return;
-        }
-        oauthLog("info", "redirected_to_provider", { provider: "google", via: "supabase" });
-        // Браузер уйдёт на Google
+        if (isSignUp) clearPendingSocialSignup();
+        setErrorMessage(
+          missingSecret
+            ? "Google OAuth не настроен на этом домене. Обратитесь к администратору."
+            : "Ошибка входа через Google",
+        );
+        return;
       }
+      oauthLog("info", "redirected_to_provider", { provider: "google", via: "supabase" });
+      // Браузер уйдёт на Google
     } catch (e: any) {
       oauthLog("error", "unexpected_exception", {
         provider: "google",
