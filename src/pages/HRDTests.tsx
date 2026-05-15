@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
+import { aiInvoke } from "@/integrations/laravel/client";
 
 interface ParsedQuestion {
   id: string;
@@ -80,7 +81,7 @@ const HRDTests = () => {
       if (!signed?.signedUrl) throw new Error("Не удалось получить ссылку на файл");
 
       // Parse via edge function
-      const { data, error } = await supabase.functions.invoke("parse-test-document", {
+      const { data, error } = await aiInvoke("parse-test-document", {
         body: { fileUrl: signed.signedUrl, fileName: file.name },
       });
       if (error) throw error;

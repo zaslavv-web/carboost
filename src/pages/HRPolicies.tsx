@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { aiInvoke } from "@/integrations/laravel/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealPrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
@@ -106,7 +107,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
       if (insertError) throw insertError;
 
       // Trigger AI parsing
-      const { error: fnError } = await supabase.functions.invoke("parse-hr-document", {
+      const { error: fnError } = await aiInvoke("parse-hr-document", {
         body: { documentId: doc.id, fileUrl: signedData.signedUrl, fileName: file.name, documentType: docType },
       });
       if (fnError) console.error("Parse error:", fnError);

@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { aiInvoke } from "@/integrations/laravel/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
@@ -64,7 +65,7 @@ const Scenarios = () => {
         const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
         if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
 
-        const { data: result, error: fnError } = await supabase.functions.invoke("parse-hr-document", {
+        const { data: result, error: fnError } = await aiInvoke("parse-hr-document", {
           body: {
             documentId: null,
             fileUrl: signedData.signedUrl,
