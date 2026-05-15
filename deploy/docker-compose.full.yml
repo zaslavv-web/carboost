@@ -151,11 +151,38 @@ services:
       DEFAULT_ORGANIZATION_NAME: ${ORG_NAME:-Career Track}
       DEFAULT_PROJECT_NAME: ${PROJECT_NAME:-careertrack}
 
+  functions:
+    image: supabase/edge-runtime:v1.58.2
+    container_name: ct-functions
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${ANON_KEY:?required}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:?required}
+      SUPABASE_DB_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      JWT_SECRET: ${JWT_SECRET}
+      VERIFY_JWT: "false"
+      AI_API_URL: ${AI_API_URL:-https://api.openai.com/v1/chat/completions}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      LOVABLE_API_KEY: ${LOVABLE_API_KEY:-}
+    volumes:
+      - ../supabase/functions:/home/deno/functions:ro
+    command:
+      - start
+      - --main-service
+      - /home/deno/functions/_shared
+      - --port
+      - "9000"
+
   kong:
     image: kong:2.8.1
     container_name: ct-kong
     restart: unless-stopped
-    depends_on: [auth, rest, realtime, storage]
+    depends_on: [auth, rest, realtime, storage, functions]
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
