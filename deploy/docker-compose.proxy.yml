@@ -1,0 +1,33 @@
+# ============================================================
+# Минимальный compose для развёртывания фронтенда + Caddy-прокси.
+# БД и auth остаются на Lovable Cloud (Supabase) — но трафик
+# идёт через ваш домен, минуя блокировки.
+#
+# Запуск:
+#   1. Соберите фронт с переменной:
+#        VITE_SUPABASE_URL=https://growth-peak.pro npm run build
+#   2. Положите содержимое dist/ в ./www/
+#   3. APP_DOMAIN=growth-peak.pro \
+#      SUPABASE_HOST=wwmdzrzguicinvxibbqv.supabase.co \
+#      docker compose -f deploy/docker-compose.proxy.yml up -d
+# ============================================================
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN must be set, e.g. growth-peak.pro}
+      SUPABASE_HOST: ${SUPABASE_HOST:?SUPABASE_HOST must be set, e.g. wwmdzrzguicinvxibbqv.supabase.co}
+    volumes:
+      - ./Caddyfile.proxy:/etc/caddy/Caddyfile:ro
+      - ./www:/srv/www:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
