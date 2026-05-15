@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AchievementController;
+use App\Http\Controllers\Api\AiController;
 use App\Http\Controllers\Api\AssessmentController;
 use App\Http\Controllers\Api\AssessmentScenarioController;
 use App\Http\Controllers\Api\Auth\AuthController;
