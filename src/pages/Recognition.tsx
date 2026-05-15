@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -101,7 +102,7 @@ const Recognition = () => {
       if (!profile?.company_id || !profile?.user_id) throw new Error("Нет профиля");
       if (!recipientId) throw new Error("Выберите получателя");
       if (!message.trim()) throw new Error("Напишите сообщение");
-      const { error } = await supabase.from("peer_recognitions").insert({
+      const { error } = await laravelDb.from("peer_recognitions").insert({
         company_id: profile.company_id,
         from_user_id: profile.user_id,
         to_user_id: recipientId,
@@ -132,7 +133,7 @@ const Recognition = () => {
           .eq("user_id", profile.user_id)
           .eq("reaction", "like");
       } else {
-        await supabase.from("peer_recognition_reactions").insert({
+        await laravelDb.from("peer_recognition_reactions").insert({
           recognition_id: recId,
           user_id: profile.user_id,
           reaction: "like",
@@ -144,7 +145,7 @@ const Recognition = () => {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("peer_recognitions").delete().eq("id", id);
+      const { error } = await laravelDb.from("peer_recognitions").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

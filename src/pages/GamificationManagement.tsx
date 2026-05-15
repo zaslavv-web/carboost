@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
+import { laravelStorage } from "@/integrations/laravel/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import {
@@ -103,7 +105,7 @@ const GamificationManagement = () => {
   const { data: rewardTypes = [], isLoading } = useQuery({
     queryKey: ["gamification_reward_types", companyId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("gamification_reward_types").select("*").order("created_at", { ascending: false });
+      const { data, error } = await laravelDb.from("gamification_reward_types").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -112,7 +114,7 @@ const GamificationManagement = () => {
   const { data: employeeRewards = [] } = useQuery({
     queryKey: ["employee_rewards", companyId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("employee_rewards").select("*").order("awarded_at", { ascending: false });
+      const { data, error } = await laravelDb.from("employee_rewards").select("*").order("awarded_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -121,7 +123,7 @@ const GamificationManagement = () => {
   const { data: profiles = [] } = useQuery({
     queryKey: ["all_profiles_gam"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("user_id, full_name, position, department, hire_date");
+      const { data, error } = await laravelDb.from("profiles").select("user_id, full_name, position, department, hire_date");
       if (error) throw error;
       return data || [];
     },
@@ -151,10 +153,10 @@ const GamificationManagement = () => {
         created_by: user!.id,
       };
       if (editingId) {
-        const { error } = await supabase.from("gamification_reward_types").update(payload).eq("id", editingId);
+        const { error } = await laravelDb.from("gamification_reward_types").update(payload).eq("id", editingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("gamification_reward_types").insert(payload);
+        const { error } = await laravelDb.from("gamification_reward_types").insert(payload);
         if (error) throw error;
       }
     },
@@ -169,7 +171,7 @@ const GamificationManagement = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("gamification_reward_types").delete().eq("id", id);
+      const { error } = await laravelDb.from("gamification_reward_types").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["gamification_reward_types"] }); toast.success("Удалено"); },
@@ -184,7 +186,7 @@ const GamificationManagement = () => {
         awarded_by: user!.id,
         description: awardDesc || null,
       }));
-      const { error } = await supabase.from("employee_rewards").insert(rows);
+      const { error } = await laravelDb.from("employee_rewards").insert(rows);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -201,9 +203,9 @@ const GamificationManagement = () => {
     try {
       const ext = file.name.split(".").pop();
       const path = `${user.id}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("reward-images").upload(path, file, { upsert: false });
+      const { error: upErr } = await laravelStorage.from("reward-images").upload(path, file, { upsert: false });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("reward-images").getPublicUrl(path);
+      const { data: pub } = laravelStorage.from("reward-images").getPublicUrl(path);
       setForm(f => ({ ...f, image_url: pub.publicUrl }));
       toast.success("Изображение загружено");
     } catch (e: any) {

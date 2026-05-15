@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
+import { laravelStorage } from "@/integrations/laravel/storage";
 import { aiInvoke } from "@/integrations/laravel/client";
 
 interface ParsedQuestion {
@@ -75,9 +77,9 @@ const HRDTests = () => {
       // Upload to storage
       const ext = file.name.split(".").pop() || "bin";
       const path = `${profile.company_id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("hrd-tests").upload(path, file, { upsert: false });
+      const { error: upErr } = await laravelStorage.from("hrd-tests").upload(path, file, { upsert: false });
       if (upErr) throw upErr;
-      const { data: signed } = await supabase.storage.from("hrd-tests").createSignedUrl(path, 60 * 30);
+      const { data: signed } = await laravelStorage.from("hrd-tests").createSignedUrl(path, 60 * 30);
       if (!signed?.signedUrl) throw new Error("Не удалось получить ссылку на файл");
 
       // Parse via edge function
@@ -122,7 +124,7 @@ const HRDTests = () => {
 
   const toggleActive = useMutation({
     mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
-      const { error } = await supabase.from("closed_question_tests").update({ is_active: value }).eq("id", id);
+      const { error } = await laravelDb.from("closed_question_tests").update({ is_active: value }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hrd_tests"] }),
@@ -131,7 +133,7 @@ const HRDTests = () => {
 
   const deleteTest = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("closed_question_tests").delete().eq("id", id);
+      const { error } = await laravelDb.from("closed_question_tests").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

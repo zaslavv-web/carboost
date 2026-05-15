@@ -4,6 +4,7 @@ import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "l
 import brandLogo from "@/assets/logo-growth-peak.png";
 import LandingHeader from "@/components/landing/LandingHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelRpc } from "@/integrations/laravel/rpc";
 import {
   clearPendingSocialSignup,
   ROLE_OPTIONS,
@@ -75,13 +76,13 @@ const Login = () => {
     }
 
     if (isHRD) {
-      const { data, error } = await supabase.rpc("register_company", { _name: trimmed });
+      const { data, error } = await laravelRpc("register_company", { _name: trimmed });
       if (error) throw new Error(error.message);
       if (!data) throw new Error("Не удалось создать компанию");
       return data as string;
     }
 
-    const { data, error } = await supabase.rpc("find_company_by_name", { _name: trimmed });
+    const { data, error } = await laravelRpc("find_company_by_name", { _name: trimmed });
     if (error) throw new Error(error.message);
     if (!data) {
       throw new Error("Компания не найдена. Попросите HRD вашей компании зарегистрироваться первым.");

@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
+import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useNavigate } from "react-router-dom";
 import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2, UserPlus, X } from "lucide-react";
@@ -43,7 +45,7 @@ const UsersManagement = () => {
   const { data: companies = [] } = useQuery({
     queryKey: ["companies_list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("companies").select("id, name");
+      const { data, error } = await laravelDb.from("companies").select("id, name");
       if (error) return [];
       return data || [];
     },
@@ -54,8 +56,8 @@ const UsersManagement = () => {
     queryKey: ["admin_users_list"],
     queryFn: async () => {
       const [profilesRes, rolesRes] = await Promise.all([
-        supabase.from("profiles").select("*"),
-        supabase.from("user_roles").select("user_id, role"),
+        laravelDb.from("profiles").select("*"),
+        laravelDb.from("user_roles").select("user_id, role"),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (rolesRes.error) throw rolesRes.error;
@@ -78,7 +80,7 @@ const UsersManagement = () => {
 
   const verifyMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.rpc("verify_user", { _target_user_id: userId });
+      const { error } = await laravelRpc("verify_user", { _target_user_id: userId });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -91,7 +93,7 @@ const UsersManagement = () => {
 
   const rejectMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.rpc("reject_user", { _target_user_id: userId });
+      const { error } = await laravelRpc("reject_user", { _target_user_id: userId });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -106,7 +108,7 @@ const UsersManagement = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.rpc("delete_user", { _target_user_id: userId });
+      const { error } = await laravelRpc("delete_user", { _target_user_id: userId });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -121,7 +123,7 @@ const UsersManagement = () => {
 
   const assignRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: AppRole }) => {
-      const { error } = await supabase.rpc("assign_role", { _target_user_id: userId, _new_role: role });
+      const { error } = await laravelRpc("assign_role", { _target_user_id: userId, _new_role: role });
       if (error) throw error;
     },
     onSuccess: () => {

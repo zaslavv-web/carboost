@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { Check, Info, AlertTriangle, Award, Loader2, Route, ShoppingBag, GraduationCap, ClipboardCheck, XCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -55,7 +56,7 @@ const Notifications = () => {
 
   const markReadMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+      const { error } = await laravelDb.from("notifications").update({ is_read: true }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),

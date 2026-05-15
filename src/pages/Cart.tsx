@@ -1,6 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
+import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useMyBalance, useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
@@ -38,9 +40,9 @@ export default function Cart() {
   const updateQty = useMutation({
     mutationFn: async ({ id, quantity }: { id: string; quantity: number }) => {
       if (quantity <= 0) {
-        await supabase.from("shop_cart_items").delete().eq("id", id);
+        await laravelDb.from("shop_cart_items").delete().eq("id", id);
       } else {
-        await supabase.from("shop_cart_items").update({ quantity }).eq("id", id);
+        await laravelDb.from("shop_cart_items").update({ quantity }).eq("id", id);
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["shop_cart"] }),
@@ -49,7 +51,7 @@ export default function Cart() {
   const checkout = useMutation({
     mutationFn: async () => {
       const payload = items.map((i: any) => ({ product_id: i.product_id, quantity: i.quantity }));
-      const { data, error } = await supabase.rpc("create_shop_order", { _items: payload });
+      const { data, error } = await laravelRpc("create_shop_order", { _items: payload });
       if (error) throw error;
       return data;
     },

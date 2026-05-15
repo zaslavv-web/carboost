@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelRpc } from "@/integrations/laravel/rpc";
 import { toast } from "sonner";
 import LandingHeader from "@/components/landing/LandingHeader";
 
@@ -56,7 +57,7 @@ const Pricing = () => {
     e.preventDefault();
     if (!selected) return;
     setSubmitting(true);
-    const { error } = await supabase.rpc("submit_pricing_inquiry", {
+    const { error } = await laravelRpc("submit_pricing_inquiry", {
       _name: form.name,
       _email: form.email,
       _plan: selected,

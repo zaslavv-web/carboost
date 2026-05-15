@@ -1,6 +1,8 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
+import { laravelStorage } from "@/integrations/laravel/storage";
 import { aiInvoke } from "@/integrations/laravel/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -60,9 +62,9 @@ const Scenarios = () => {
         // Upload to storage and parse with AI
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const filePath = `scenarios/${Date.now()}_${safeName}`;
-        const { error: uploadError } = await supabase.storage.from("hr-documents").upload(filePath, file);
+        const { error: uploadError } = await laravelStorage.from("hr-documents").upload(filePath, file);
         if (uploadError) throw uploadError;
-        const { data: signedData, error: signError } = await supabase.storage.from("hr-documents").createSignedUrl(filePath, 600);
+        const { data: signedData, error: signError } = await laravelStorage.from("hr-documents").createSignedUrl(filePath, 600);
         if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
 
         const { data: result, error: fnError } = await aiInvoke("parse-hr-document", {
@@ -79,7 +81,7 @@ const Scenarios = () => {
         throw new Error("Поддерживаются форматы: CSV, XLSX, JSON, DOCX, PDF");
       }
 
-      const { error } = await supabase.from("assessment_scenarios").insert({
+      const { error } = await laravelDb.from("assessment_scenarios").insert({
         title: title || file.name,
         description,
         scenario_data: parsed,
@@ -113,7 +115,7 @@ const Scenarios = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("assessment_scenarios").delete().eq("id", id);
+      const { error } = await laravelDb.from("assessment_scenarios").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

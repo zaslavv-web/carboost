@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { Users, Clock, UserCheck, ShieldCheck, Building2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -10,9 +11,9 @@ const SuperadminDashboard = () => {
     queryKey: ["superadmin_profiles"],
     queryFn: async () => {
       const [profilesRes, rolesRes, companiesRes] = await Promise.all([
-        supabase.from("profiles").select("user_id, is_verified"),
-        supabase.from("user_roles").select("user_id, role"),
-        supabase.from("companies").select("id"),
+        laravelDb.from("profiles").select("user_id, is_verified"),
+        laravelDb.from("user_roles").select("user_id, role"),
+        laravelDb.from("companies").select("id"),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (rolesRes.error) throw rolesRes.error;

@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -76,7 +77,7 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
       }));
 
       // Save attempt
-      const { error: attemptErr } = await supabase.from("test_attempts").insert({
+      const { error: attemptErr } = await laravelDb.from("test_attempts").insert({
         user_id: user.id,
         company_id: profile?.company_id ?? null,
         test_id: test.testId ?? null,
@@ -89,7 +90,7 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
       if (attemptErr) throw attemptErr;
 
       // Save assessment + competencies (so career-track recompute works)
-      await supabase.from("assessments").insert({
+      await laravelDb.from("assessments").insert({
         user_id: user.id,
         company_id: profile?.company_id ?? null,
         assessment_type: test.source === "hrd" ? "closed_test_hrd" : "closed_test_ai",
@@ -105,9 +106,9 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
           .eq("skill_name", c.competency)
           .maybeSingle();
         if (existing) {
-          await supabase.from("competencies").update({ skill_value: c.score }).eq("id", existing.id);
+          await laravelDb.from("competencies").update({ skill_value: c.score }).eq("id", existing.id);
         } else {
-          await supabase.from("competencies").insert({
+          await laravelDb.from("competencies").insert({
             user_id: user.id,
             company_id: profile?.company_id ?? null,
             skill_name: c.competency,
@@ -116,7 +117,7 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
         }
       }
 
-      await supabase.from("profiles").update({ overall_score: scorePct }).eq("user_id", user.id);
+      await laravelDb.from("profiles").update({ overall_score: scorePct }).eq("user_id", user.id);
 
       queryClient.invalidateQueries({ queryKey: ["competencies"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });

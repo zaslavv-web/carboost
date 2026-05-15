@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,7 @@ export default function PricingInquiries() {
 
   const update = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: any }) => {
-      const { error } = await supabase.from("pricing_inquiries").update(patch).eq("id", id);
+      const { error } = await laravelDb.from("pricing_inquiries").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

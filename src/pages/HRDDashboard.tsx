@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
+import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useAuth } from "@/contexts/AuthContext";
 import { Users, TrendingUp, Shield, BarChart3, Search, ChevronDown, Loader2, GitCompareArrows, X, Briefcase, Mail, Plus, Trash2, Check, Route } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
@@ -51,8 +53,8 @@ const useEmployeesWithRoles = () =>
     queryKey: ["hrd_employees"],
     queryFn: async () => {
       const [profilesRes, rolesRes] = await Promise.all([
-        supabase.from("profiles").select("user_id, full_name, position, position_id, pending_position_id, department, overall_score, role_readiness"),
-        supabase.from("user_roles").select("user_id, role"),
+        laravelDb.from("profiles").select("user_id, full_name, position, position_id, pending_position_id, department, overall_score, role_readiness"),
+        laravelDb.from("user_roles").select("user_id, role"),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (rolesRes.error) throw rolesRes.error;
@@ -77,7 +79,7 @@ const usePositions = () =>
   useQuery({
     queryKey: ["positions"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("positions").select("*").order("title");
+      const { data, error } = await laravelDb.from("positions").select("*").order("title");
       if (error) throw error;
       return (data || []) as Position[];
     },
@@ -255,7 +257,7 @@ const HRDDashboard = () => {
     queryKey: ["my_profile_company", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle();
+      const { data, error } = await laravelDb.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -294,7 +296,7 @@ const HRDDashboard = () => {
 
   const rejectPositionMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.from("profiles").update({ pending_position_id: null } as any).eq("user_id", userId);
+      const { error } = await laravelDb.from("profiles").update({ pending_position_id: null } as any).eq("user_id", userId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -309,7 +311,7 @@ const HRDDashboard = () => {
       if (!newMapDomain.trim() || !newMapPositionId) throw new Error("Укажите домен и должность");
       if (!user || !myProfile?.company_id) throw new Error("Не определена компания");
       const domain = newMapDomain.trim().toLowerCase().replace(/^@/, "");
-      const { error } = await supabase.from("email_domain_position_mappings").insert({
+      const { error } = await laravelDb.from("email_domain_position_mappings").insert({
         company_id: myProfile.company_id,
         email_domain: domain,
         position_id: newMapPositionId,
@@ -328,7 +330,7 @@ const HRDDashboard = () => {
 
   const deleteMappingMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("email_domain_position_mappings").delete().eq("id", id);
+      const { error } = await laravelDb.from("email_domain_position_mappings").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -339,7 +341,7 @@ const HRDDashboard = () => {
 
   const assignRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
-      const { error } = await supabase.rpc("assign_role", {
+      const { error } = await laravelRpc("assign_role", {
         _target_user_id: userId,
         _new_role: newRole,
       });

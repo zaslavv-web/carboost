@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { aiInvoke } from "@/integrations/laravel/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrimaryRole } from "@/hooks/useUserProfile";
@@ -37,7 +38,7 @@ const TicketCard = ({ ticket, profiles, isAdmin, userId }: {
 
   const respondMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("support_tickets").update({
+      const { error } = await laravelDb.from("support_tickets").update({
         admin_response: response,
         responded_by: userId,
         responded_at: new Date().toISOString(),
@@ -62,7 +63,7 @@ const TicketCard = ({ ticket, profiles, isAdmin, userId }: {
       if (data?.suggestion) {
         setResponse(data.suggestion);
         // Save AI suggestion
-        await supabase.from("support_tickets").update({
+        await laravelDb.from("support_tickets").update({
           ai_suggestion: data.suggestion,
         } as any).eq("id", ticket.id);
         toast.success("AI сгенерировал предложение");
@@ -211,7 +212,7 @@ const Support = () => {
   const { data: profiles = [] } = useQuery({
     queryKey: ["all_profiles_support"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("user_id, full_name, position, department, avatar_url");
+      const { data, error } = await laravelDb.from("profiles").select("user_id, full_name, position, department, avatar_url");
       if (error) throw error;
       return data || [];
     },
@@ -220,7 +221,7 @@ const Support = () => {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("support_tickets").insert({
+      const { error } = await laravelDb.from("support_tickets").insert({
         user_id: user!.id,
         subject,
         description,

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { BarChart3, TrendingUp, Users, Target, Loader2, Download, ImageDown, FileSpreadsheet } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import {
@@ -16,11 +17,11 @@ const useAnalyticsData = () =>
     queryKey: ["analytics_data"],
     queryFn: async () => {
       const [profilesRes, rolesRes, assessmentsRes, competenciesRes, goalsRes] = await Promise.all([
-        supabase.from("profiles").select("user_id, full_name, department, overall_score, role_readiness"),
-        supabase.from("user_roles").select("user_id, role"),
-        supabase.from("assessments").select("user_id, score, assessment_type, created_at"),
-        supabase.from("competencies").select("user_id, skill_name, skill_value"),
-        supabase.from("career_goals").select("user_id, status, progress"),
+        laravelDb.from("profiles").select("user_id, full_name, department, overall_score, role_readiness"),
+        laravelDb.from("user_roles").select("user_id, role"),
+        laravelDb.from("assessments").select("user_id, score, assessment_type, created_at"),
+        laravelDb.from("competencies").select("user_id, skill_name, skill_value"),
+        laravelDb.from("career_goals").select("user_id, status, progress"),
       ]);
       return {
         profiles: profilesRes.data || [],
