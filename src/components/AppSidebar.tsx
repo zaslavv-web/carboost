@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
+import { useState } from "react";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -11,6 +12,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   X,
   Briefcase,
   Users,
@@ -41,6 +43,16 @@ interface NavItem {
   badge?: number;
 }
 
+interface NavGroup {
+  icon: any;
+  label: string;
+  children: NavItem[];
+}
+
+type NavEntry = NavItem | NavGroup;
+
+const isGroup = (e: NavEntry): e is NavGroup => "children" in e;
+
 interface AppSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
@@ -55,7 +67,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
   const role = usePrimaryRole();
   const { data: profile } = useUserProfile();
 
-  const getNavItems = (): NavItem[] => {
+  const getNavItems = (): NavEntry[] => {
     const common: NavItem[] = [
       { icon: LayoutDashboard, label: "Дашборд", path: "/dashboard" },
     ];
@@ -88,19 +100,49 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     if (role === "hrd") {
       return [
         ...common,
-        { icon: Rocket, label: "Запуск компании", path: "/onboarding" },
-        { icon: Mail, label: "Приглашения", path: "/invitations" },
-        { icon: Users, label: "Сотрудники", path: "/employees" },
-        { icon: BarChart3, label: "Аналитика", path: "/analytics" },
-        { icon: Activity, label: "Риски и удержание", path: "/risk-analytics" },
-        { icon: FileJson, label: "Сценарии оценки", path: "/scenarios" },
-        { icon: ClipboardList, label: "Тесты", path: "/tests" },
-        { icon: Briefcase, label: "Должности", path: "/positions" },
-        { icon: Route, label: "Карьерные треки", path: "/career-tracks-mgmt" },
-        { icon: ClipboardList, label: "Проверка этапов", path: "/career-reviews" },
-        { icon: Trophy, label: "Геймификация", path: "/gamification" },
-        { icon: Heart, label: "Лента признания", path: "/recognition" },
-        { icon: Store, label: "Магазин и валюта", path: "/shop-admin" },
+        {
+          icon: Users,
+          label: "Сотрудники",
+          children: [
+            { icon: Users, label: "Список сотрудников", path: "/employees" },
+            { icon: Mail, label: "Приглашения", path: "/invitations" },
+            { icon: Rocket, label: "Запуск компании", path: "/onboarding" },
+          ],
+        },
+        {
+          icon: BarChart3,
+          label: "Аналитика",
+          children: [
+            { icon: BarChart3, label: "Общая аналитика", path: "/analytics" },
+            { icon: Activity, label: "Риски и удержание", path: "/risk-analytics" },
+          ],
+        },
+        {
+          icon: ClipboardList,
+          label: "Оценка и тесты",
+          children: [
+            { icon: FileJson, label: "Сценарии оценки", path: "/scenarios" },
+            { icon: ClipboardList, label: "Тесты", path: "/tests" },
+            { icon: ClipboardList, label: "Проверка этапов", path: "/career-reviews" },
+          ],
+        },
+        {
+          icon: Route,
+          label: "Карьера",
+          children: [
+            { icon: Briefcase, label: "Должности", path: "/positions" },
+            { icon: Route, label: "Карьерные треки", path: "/career-tracks-mgmt" },
+          ],
+        },
+        {
+          icon: Trophy,
+          label: "Вовлечённость",
+          children: [
+            { icon: Trophy, label: "Геймификация", path: "/gamification" },
+            { icon: Heart, label: "Лента признания", path: "/recognition" },
+            { icon: Store, label: "Магазин и валюта", path: "/shop-admin" },
+          ],
+        },
         { icon: Shield, label: "Политики", path: "/hr-policies" },
         { icon: Settings, label: "Настройки", path: "/settings" },
       ];
@@ -130,6 +172,17 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 };
 
   const navItems = getNavItems();
+
+  // Группы, в которых открыт активный маршрут — раскрыты по умолчанию
+  const initialOpen: Record<string, boolean> = {};
+  navItems.forEach((e) => {
+    if (isGroup(e) && e.children.some((c) => c.path === location.pathname)) {
+      initialOpen[e.label] = true;
+    }
+  });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initialOpen);
+  const toggleGroup = (label: string) =>
+    setOpenGroups((p) => ({ ...p, [label]: !p[label] }));
 
   const roleLabels: Record<string, string> = {
     employee: "Сотрудник",
@@ -172,7 +225,66 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 
       {/* Nav */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {navItems.map((entry) => {
+          if (isGroup(entry)) {
+            const hasActive = entry.children.some((c) => c.path === location.pathname);
+            const isOpen = collapsed ? false : (openGroups[entry.label] ?? hasActive);
+            return (
+              <div key={"group:" + entry.label}>
+                <button
+                  onClick={() => {
+                    if (collapsed) {
+                      // в свёрнутом режиме клик по группе — переход к первому пункту
+                      navigate(entry.children[0].path);
+                      if (isMobile) onHide?.();
+                    } else {
+                      toggleGroup(entry.label);
+                    }
+                  }}
+                  title={collapsed ? entry.label : undefined}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    hasActive
+                      ? "text-sidebar-primary"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-primary/40 hover:text-sidebar-primary-foreground"
+                  } ${collapsed ? "justify-center" : ""}`}
+                >
+                  <entry.icon className="w-5 h-5 flex-shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 text-left">{entry.label}</span>
+                      <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                    </>
+                  )}
+                </button>
+                {!collapsed && isOpen && (
+                  <div className="mt-1 ml-3 pl-3 border-l border-sidebar-border space-y-1">
+                    {entry.children.map((child) => {
+                      const childActive = location.pathname === child.path;
+                      return (
+                        <button
+                          key={child.path + child.label}
+                          onClick={() => {
+                            navigate(child.path);
+                            if (isMobile) onHide?.();
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                            childActive
+                              ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                              : "text-sidebar-foreground/70 hover:bg-sidebar-primary hover:text-sidebar-primary-foreground"
+                          }`}
+                        >
+                          <child.icon className="w-4 h-4 flex-shrink-0" />
+                          <span>{child.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          const item = entry;
           const isActive = location.pathname === item.path;
           return (
             <button
