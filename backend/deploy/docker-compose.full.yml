@@ -193,7 +193,7 @@ services:
 
   web:
     build:
-      context: ..
+      context: ../..
       dockerfile: Dockerfile
       args:
         VITE_SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
