@@ -32,6 +32,13 @@ Route::post('/auth/login',    [AuthController::class, 'login']);
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 
+// Public RPCs used from landing/pricing forms (declared BEFORE the auth group
+// so they take precedence over the generic /rpc/{name} below).
+Route::post('/rpc/submit_demo_request',    fn (\Illuminate\Http\Request $r) =>
+    app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'submit_demo_request'));
+Route::post('/rpc/submit_pricing_inquiry', fn (\Illuminate\Http\Request $r) =>
+    app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'submit_pricing_inquiry'));
+
 // ---- Authenticated (Sanctum token) ----
 Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // Auth + impersonation
@@ -106,9 +113,4 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     });
 });
 
-// Public RPCs (no auth) — landing demo + pricing forms.
-Route::post('/rpc/submit_demo_request',    [\App\Http\Controllers\Api\RpcController::class, 'call'])
-    ->defaults('name', 'submit_demo_request');
-Route::post('/rpc/submit_pricing_inquiry', [\App\Http\Controllers\Api\RpcController::class, 'call'])
-    ->defaults('name', 'submit_pricing_inquiry');
 
