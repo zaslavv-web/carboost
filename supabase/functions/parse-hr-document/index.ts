@@ -10,6 +10,42 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // --- AuthZ: только аутентифицированные HRD/company_admin/superadmin ---
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Не авторизовано" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData.user) {
+      return new Response(JSON.stringify({ error: "Не авторизовано" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const callerId = userData.user.id;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    const { data: rolesRows } = await supabase
+      .from("user_roles").select("role").eq("user_id", callerId);
+    const roles = (rolesRows || []).map((r: any) => r.role);
+    if (!roles.some((r: string) => ["hrd","company_admin","superadmin"].includes(r))) {
+      return new Response(JSON.stringify({ error: "Недостаточно прав" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: callerProfile } = await supabase
+      .from("profiles").select("company_id").eq("user_id", callerId).maybeSingle();
+    const callerCompany = callerProfile?.company_id || null;
+
     const { documentId, fileUrl, fileName, documentType } = await req.json();
     if (!fileUrl) {
       return new Response(JSON.stringify({ error: "fileUrl required" }), {
@@ -17,9 +53,16 @@ serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
+    // Если передан documentId — проверяем, что документ принадлежит компании вызывающего
+    if (documentId && !roles.includes("superadmin")) {
+      const { data: doc } = await supabase
+        .from("hr_documents").select("company_id").eq("id", documentId).maybeSingle();
+      if (!doc || doc.company_id !== callerCompany) {
+        return new Response(JSON.stringify({ error: "Нет доступа к документу" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     // Update status to processing (if documentId provided)
     if (documentId) {
