@@ -73,5 +73,21 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
 
         // Teams
         Route::apiResource('team-members', TeamMemberController::class);
+
+        // ---- AI services (Phase 7, replaces Supabase Edge Functions) ----
+        Route::prefix('ai')->group(function () {
+            Route::post('assessment-chat',              [AiController::class, 'assessmentChat']);
+            Route::post('generate-closed-test',         [AiController::class, 'generateClosedTest']);
+            Route::post('generate-step-scenario',       [AiController::class, 'generateStepScenario']);
+            Route::post('generate-default-track-steps', [AiController::class, 'generateDefaultTrackSteps']);
+            Route::post('generate-career-paths',        [AiController::class, 'generateCareerPaths']);
+            Route::post('generate-positions-from-org',  [AiController::class, 'generatePositionsFromOrg']);
+            Route::post('generate-questionnaire-profile', [AiController::class, 'generateQuestionnaireProfile']);
+            Route::post('suggest-ticket-fix',           [AiController::class, 'suggestTicketFix']);
+            Route::post('parse-position-standards',     [AiController::class, 'parsePositionStandards']);
+            Route::post('parse-hr-document',            [AiController::class, 'parseHrDocument']);
+            Route::post('parse-org-structure',          [AiController::class, 'parseOrgStructure']);
+            Route::post('parse-test-document',          [AiController::class, 'parseTestDocument']);
+        });
     });
 });
