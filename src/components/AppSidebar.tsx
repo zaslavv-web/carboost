@@ -67,7 +67,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
   const role = usePrimaryRole();
   const { data: profile } = useUserProfile();
 
-  const getNavItems = (): NavItem[] => {
+  const getNavItems = (): NavEntry[] => {
     const common: NavItem[] = [
       { icon: LayoutDashboard, label: "Дашборд", path: "/dashboard" },
     ];
@@ -100,19 +100,49 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     if (role === "hrd") {
       return [
         ...common,
-        { icon: Rocket, label: "Запуск компании", path: "/onboarding" },
-        { icon: Mail, label: "Приглашения", path: "/invitations" },
-        { icon: Users, label: "Сотрудники", path: "/employees" },
-        { icon: BarChart3, label: "Аналитика", path: "/analytics" },
-        { icon: Activity, label: "Риски и удержание", path: "/risk-analytics" },
-        { icon: FileJson, label: "Сценарии оценки", path: "/scenarios" },
-        { icon: ClipboardList, label: "Тесты", path: "/tests" },
-        { icon: Briefcase, label: "Должности", path: "/positions" },
-        { icon: Route, label: "Карьерные треки", path: "/career-tracks-mgmt" },
-        { icon: ClipboardList, label: "Проверка этапов", path: "/career-reviews" },
-        { icon: Trophy, label: "Геймификация", path: "/gamification" },
-        { icon: Heart, label: "Лента признания", path: "/recognition" },
-        { icon: Store, label: "Магазин и валюта", path: "/shop-admin" },
+        {
+          icon: Users,
+          label: "Сотрудники",
+          children: [
+            { icon: Users, label: "Список сотрудников", path: "/employees" },
+            { icon: Mail, label: "Приглашения", path: "/invitations" },
+            { icon: Rocket, label: "Запуск компании", path: "/onboarding" },
+          ],
+        },
+        {
+          icon: BarChart3,
+          label: "Аналитика",
+          children: [
+            { icon: BarChart3, label: "Общая аналитика", path: "/analytics" },
+            { icon: Activity, label: "Риски и удержание", path: "/risk-analytics" },
+          ],
+        },
+        {
+          icon: ClipboardList,
+          label: "Оценка и тесты",
+          children: [
+            { icon: FileJson, label: "Сценарии оценки", path: "/scenarios" },
+            { icon: ClipboardList, label: "Тесты", path: "/tests" },
+            { icon: ClipboardList, label: "Проверка этапов", path: "/career-reviews" },
+          ],
+        },
+        {
+          icon: Route,
+          label: "Карьера",
+          children: [
+            { icon: Briefcase, label: "Должности", path: "/positions" },
+            { icon: Route, label: "Карьерные треки", path: "/career-tracks-mgmt" },
+          ],
+        },
+        {
+          icon: Trophy,
+          label: "Вовлечённость",
+          children: [
+            { icon: Trophy, label: "Геймификация", path: "/gamification" },
+            { icon: Heart, label: "Лента признания", path: "/recognition" },
+            { icon: Store, label: "Магазин и валюта", path: "/shop-admin" },
+          ],
+        },
         { icon: Shield, label: "Политики", path: "/hr-policies" },
         { icon: Settings, label: "Настройки", path: "/settings" },
       ];
@@ -142,6 +172,17 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 };
 
   const navItems = getNavItems();
+
+  // Группы, в которых открыт активный маршрут — раскрыты по умолчанию
+  const initialOpen: Record<string, boolean> = {};
+  navItems.forEach((e) => {
+    if (isGroup(e) && e.children.some((c) => c.path === location.pathname)) {
+      initialOpen[e.label] = true;
+    }
+  });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initialOpen);
+  const toggleGroup = (label: string) =>
+    setOpenGroups((p) => ({ ...p, [label]: !p[label] }));
 
   const roleLabels: Record<string, string> = {
     employee: "Сотрудник",
