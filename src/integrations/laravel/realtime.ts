@@ -35,7 +35,9 @@ const getEcho = async () => {
   if (echoPromise) return echoPromise;
   echoPromise = (async () => {
     const [{ default: Echo }, Pusher] = await Promise.all([
+      // @ts-ignore — optional peer deps, install via `bun add laravel-echo pusher-js`
       import(/* @vite-ignore */ "laravel-echo"),
+      // @ts-ignore
       import(/* @vite-ignore */ "pusher-js"),
     ]);
     (window as any).Pusher = (Pusher as any).default ?? Pusher;
