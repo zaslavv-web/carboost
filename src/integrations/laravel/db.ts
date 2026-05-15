@@ -34,8 +34,10 @@ class QueryBuilder<T = any> implements PromiseLike<LaravelInvokeResult<T> & { co
 
   constructor(private readonly table: string) {}
 
-  select(cols: string = "*") {
+  select(cols: string = "*", options: { count?: "exact" | "planned" | "estimated"; head?: boolean } = {}) {
     this.selectCols = cols;
+    if (options.count) this.countMode = options.count;
+    if (options.head) this.headOnly = true;
     return this;
   }
 
@@ -61,13 +63,17 @@ class QueryBuilder<T = any> implements PromiseLike<LaravelInvokeResult<T> & { co
   maybeSingle() { this.singleMode = "maybe";  return this; }
 
   insert(values: any | any[]) { this.mode = "insert"; this.payload = values; return this; }
-  upsert(values: any | any[]) { this.mode = "upsert"; this.payload = values; return this; }
+  upsert(values: any | any[], options: { onConflict?: string } = {}) {
+    this.mode = "upsert"; this.payload = values;
+    if (options.onConflict) this.upsertOnConflict = options.onConflict;
+    return this;
+  }
   update(values: any)         { this.mode = "update"; this.payload = values; return this; }
   delete()                    { this.mode = "delete"; return this; }
 
   // ---- Promise contract ----
-  then<TR1 = LaravelInvokeResult<T>, TR2 = never>(
-    onFulfilled?: ((v: LaravelInvokeResult<T>) => TR1 | PromiseLike<TR1>) | null,
+  then<TR1 = LaravelInvokeResult<T> & { count: number | null }, TR2 = never>(
+    onFulfilled?: ((v: LaravelInvokeResult<T> & { count: number | null }) => TR1 | PromiseLike<TR1>) | null,
     onRejected?: ((reason: any) => TR2 | PromiseLike<TR2>) | null,
   ): PromiseLike<TR1 | TR2> {
     return this.execute().then(onFulfilled as any, onRejected as any);
@@ -88,22 +94,35 @@ class QueryBuilder<T = any> implements PromiseLike<LaravelInvokeResult<T> & { co
     }
     if (this.singleMode === "single") params.set("single", "1");
     if (this.singleMode === "maybe")  params.set("maybeSingle", "1");
+    if (this.countMode) params.set("count", this.countMode);
+    if (this.headOnly) params.set("head", "1");
     for (const f of this.filters) params.append(`${f.op}.${f.col}`, String(f.value));
     const qs = params.toString();
     return qs ? `?${qs}` : "";
   }
 
-  private async execute(): Promise<LaravelInvokeResult<T>> {
+  private async execute(): Promise<LaravelInvokeResult<T> & { count: number | null }> {
     const path = `/db/${this.table}${this.buildQuery()}`;
-    const unwrap = (r: LaravelInvokeResult<{ data: T }>): LaravelInvokeResult<T> =>
-      r.error ? { data: null, error: r.error } : { data: (r.data as any)?.data ?? null, error: null };
+    const unwrap = (r: LaravelInvokeResult<any>): LaravelInvokeResult<T> & { count: number | null } => {
+      if (r.error) return { data: null, error: r.error, count: null };
+      const body = r.data as any;
+      return {
+        data: (body?.data ?? null) as T | null,
+        error: null,
+        count: typeof body?.count === "number" ? body.count : null,
+      };
+    };
 
     switch (this.mode) {
       case "select":
         return unwrap(await laravel.get(path));
       case "insert":
       case "upsert":
-        return unwrap(await laravel.post(path, { values: this.payload, upsert: this.mode === "upsert" }));
+        return unwrap(await laravel.post(path, {
+          values: this.payload,
+          upsert: this.mode === "upsert",
+          onConflict: this.upsertOnConflict,
+        }));
       case "update":
         return unwrap(await laravel.patch(path, { values: this.payload }));
       case "delete":
