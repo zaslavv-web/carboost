@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { laravelDb } from "@/integrations/laravel/db";
 import { BarChart3, TrendingUp, Users, Target, Loader2, Download, ImageDown, FileSpreadsheet } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
