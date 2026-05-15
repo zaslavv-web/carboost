@@ -105,7 +105,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Локальный выход — мгновенно чистит storage без сетевого запроса.
+    // Это критично для пользователей из регионов, где *.supabase.co
+    // блокируется/тротлится: глобальный signOut может висеть минутами.
+    try {
+      await Promise.race([
+        supabase.auth.signOut({ scope: "local" }),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
+    } catch (e) {
+      console.warn("signOut warning:", e);
+    }
+    // На всякий случай вычищаем локальное хранилище принудительно
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("sb-") || k.includes("supabase"))
+        .forEach((k) => localStorage.removeItem(k));
+    } catch {}
+    setSession(null);
+    // Фоновый глобальный signOut — не ждём, не блокирует UI
+    void supabase.auth.signOut().catch(() => {});
   };
 
   return (
