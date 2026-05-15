@@ -85,6 +85,17 @@ class DbController extends Controller
         $this->applySelect($query, $request);
         $this->applyOrder($query, $request);
 
+        // count + head (Supabase: .select('id', { count: 'exact', head: true }))
+        $countMode = $request->query('count');
+        $head = $request->boolean('head');
+        $count = null;
+        if ($countMode) {
+            $count = (clone $query)->toBase()->getCountForPagination();
+        }
+        if ($head) {
+            return response()->json(['data' => [], 'count' => $count]);
+        }
+
         if ($request->filled('range')) {
             [$from, $to] = array_map('intval', explode('-', $request->query('range')));
             $query->skip($from)->take(max(1, $to - $from + 1));
@@ -97,10 +108,10 @@ class DbController extends Controller
             if (! $row && $request->boolean('single')) {
                 return response()->json(['error' => 'Запись не найдена'], 404);
             }
-            return response()->json(['data' => $row]);
+            return response()->json(['data' => $row, 'count' => $count]);
         }
 
-        return response()->json(['data' => $query->get()]);
+        return response()->json(['data' => $query->get(), 'count' => $count]);
     }
 
     public function store(Request $request, string $table)
@@ -108,11 +119,21 @@ class DbController extends Controller
         $model = self::resolve($table);
         $payload = $request->input('values', $request->all());
         $rows = isset($payload[0]) ? $payload : [$payload];
+        $upsert = $request->boolean('upsert');
+        $onConflict = $request->input('onConflict');
 
         $created = [];
         foreach ($rows as $row) {
-            $instance = new $model();
-            $this->authorizeAny('create', $instance);
+            $instance = null;
+            if ($upsert && $onConflict && isset($row[$onConflict])) {
+                $instance = $model::query()->where($onConflict, $row[$onConflict])->first();
+            }
+            if (! $instance) {
+                $instance = new $model();
+                $this->authorizeAny('create', $instance);
+            } else {
+                $this->authorizeAny('update', $instance);
+            }
             $instance->fill($row);
             $instance->save();
             $created[] = $instance->fresh();
@@ -180,10 +201,51 @@ class DbController extends Controller
     protected function applySelect($query, Request $request): void
     {
         if (! $request->filled('select')) return;
-        $cols = array_filter(array_map('trim', explode(',', (string) $request->query('select'))));
-        if ($cols && $cols !== ['*']) {
-            $query->select($cols);
+        // PostgREST-style: "col1, col2, alias:relation(col_a, col_b), rel2(*)"
+        // Split on commas at depth 0 only (parentheses preserve nesting).
+        $raw = (string) $request->query('select');
+        $parts = $this->splitTopLevel($raw, ',');
+        $cols = [];
+        $eager = [];
+        foreach ($parts as $part) {
+            $p = trim($part);
+            if ($p === '' || $p === '*') continue;
+            if (preg_match('/^([A-Za-z0-9_]+)(?::([A-Za-z0-9_]+))?\((.*)\)$/', $p, $m)) {
+                // alias:relation(cols)  OR  relation(cols)
+                $alias    = $m[2] !== '' ? $m[1] : null;
+                $relation = $m[2] !== '' ? $m[2] : $m[1];
+                $inner    = trim($m[3]);
+                $key = $alias ? "$alias as $relation" : $relation;
+                if ($inner === '' || $inner === '*') {
+                    $eager[] = $relation;
+                } else {
+                    $innerCols = array_filter(array_map('trim', explode(',', $inner)));
+                    $eager[$relation] = function ($q) use ($innerCols) {
+                        $q->select(array_merge(['id'], $innerCols));
+                    };
+                }
+            } else {
+                $cols[] = $p;
+            }
         }
+        if ($cols) $query->select($cols);
+        if ($eager) $query->with($eager);
+    }
+
+    protected function splitTopLevel(string $s, string $sep): array
+    {
+        $out = [];
+        $buf = '';
+        $depth = 0;
+        for ($i = 0, $n = strlen($s); $i < $n; $i++) {
+            $c = $s[$i];
+            if ($c === '(') { $depth++; $buf .= $c; continue; }
+            if ($c === ')') { $depth--; $buf .= $c; continue; }
+            if ($c === $sep && $depth === 0) { $out[] = $buf; $buf = ''; continue; }
+            $buf .= $c;
+        }
+        if ($buf !== '') $out[] = $buf;
+        return $out;
     }
 
     protected function applyOrder($query, Request $request): void

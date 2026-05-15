@@ -57,10 +57,7 @@ class BucketClient {
   }
 
   async remove(paths: string[]): Promise<LaravelInvokeResult<{ deleted: number }>> {
-    const res = await laravel.delete<{ data: { deleted: number } }>(
-      `/storage/${this.bucket}`,
-    );
-    // delete with body is awkward; resend explicitly via fetch
+    // DELETE with JSON body — done via fetch directly (laravel.delete has no body arg).
     const token = laravelAuth.getToken();
     const headers: Record<string, string> = {
       "Content-Type": "application/json", Accept: "application/json",
