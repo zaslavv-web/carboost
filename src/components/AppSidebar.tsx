@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
+import { useState } from "react";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -11,6 +12,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   X,
   Briefcase,
   Users,
@@ -40,6 +42,16 @@ interface NavItem {
   path: string;
   badge?: number;
 }
+
+interface NavGroup {
+  icon: any;
+  label: string;
+  children: NavItem[];
+}
+
+type NavEntry = NavItem | NavGroup;
+
+const isGroup = (e: NavEntry): e is NavGroup => "children" in e;
 
 interface AppSidebarProps {
   collapsed: boolean;
