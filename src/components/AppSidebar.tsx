@@ -225,7 +225,66 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 
       {/* Nav */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {navItems.map((entry) => {
+          if (isGroup(entry)) {
+            const hasActive = entry.children.some((c) => c.path === location.pathname);
+            const isOpen = collapsed ? false : (openGroups[entry.label] ?? hasActive);
+            return (
+              <div key={"group:" + entry.label}>
+                <button
+                  onClick={() => {
+                    if (collapsed) {
+                      // в свёрнутом режиме клик по группе — переход к первому пункту
+                      navigate(entry.children[0].path);
+                      if (isMobile) onHide?.();
+                    } else {
+                      toggleGroup(entry.label);
+                    }
+                  }}
+                  title={collapsed ? entry.label : undefined}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    hasActive
+                      ? "text-sidebar-primary"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-primary/40 hover:text-sidebar-primary-foreground"
+                  } ${collapsed ? "justify-center" : ""}`}
+                >
+                  <entry.icon className="w-5 h-5 flex-shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 text-left">{entry.label}</span>
+                      <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                    </>
+                  )}
+                </button>
+                {!collapsed && isOpen && (
+                  <div className="mt-1 ml-3 pl-3 border-l border-sidebar-border space-y-1">
+                    {entry.children.map((child) => {
+                      const childActive = location.pathname === child.path;
+                      return (
+                        <button
+                          key={child.path + child.label}
+                          onClick={() => {
+                            navigate(child.path);
+                            if (isMobile) onHide?.();
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                            childActive
+                              ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                              : "text-sidebar-foreground/70 hover:bg-sidebar-primary hover:text-sidebar-primary-foreground"
+                          }`}
+                        >
+                          <child.icon className="w-4 h-4 flex-shrink-0" />
+                          <span>{child.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          const item = entry;
           const isActive = location.pathname === item.path;
           return (
             <button
