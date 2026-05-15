@@ -32,6 +32,13 @@ Route::post('/auth/login',    [AuthController::class, 'login']);
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 
+// Public RPCs used from landing/pricing forms (declared BEFORE the auth group
+// so they take precedence over the generic /rpc/{name} below).
+Route::post('/rpc/submit_demo_request',    fn (\Illuminate\Http\Request $r) =>
+    app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'submit_demo_request'));
+Route::post('/rpc/submit_pricing_inquiry', fn (\Illuminate\Http\Request $r) =>
+    app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'submit_pricing_inquiry'));
+
 // ---- Authenticated (Sanctum token) ----
 Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // Auth + impersonation
@@ -89,5 +96,21 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
             Route::post('parse-org-structure',          [AiController::class, 'parseOrgStructure']);
             Route::post('parse-test-document',          [AiController::class, 'parseTestDocument']);
         });
+
+        // ---- Generic CRUD bridge (Phase 10, replaces supabase.from(...)) ----
+        Route::get   ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'index']);
+        Route::post  ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'store']);
+        Route::patch ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'update']);
+        Route::delete('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'destroy']);
+
+        // ---- RPC bridge (Phase 10, replaces supabase.rpc(...)) ----
+        Route::post('/rpc/{name}', [\App\Http\Controllers\Api\RpcController::class, 'call']);
+
+        // ---- Storage bridge (Phase 11, replaces supabase.storage.from(bucket).*) ----
+        Route::post  ('/storage/{bucket}/upload', [\App\Http\Controllers\Api\StorageController::class, 'upload']);
+        Route::get   ('/storage/{bucket}/sign',   [\App\Http\Controllers\Api\StorageController::class, 'sign']);
+        Route::delete('/storage/{bucket}',        [\App\Http\Controllers\Api\StorageController::class, 'destroy']);
     });
 });
+
+
