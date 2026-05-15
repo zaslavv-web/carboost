@@ -85,6 +85,17 @@ class DbController extends Controller
         $this->applySelect($query, $request);
         $this->applyOrder($query, $request);
 
+        // count + head (Supabase: .select('id', { count: 'exact', head: true }))
+        $countMode = $request->query('count');
+        $head = $request->boolean('head');
+        $count = null;
+        if ($countMode) {
+            $count = (clone $query)->toBase()->getCountForPagination();
+        }
+        if ($head) {
+            return response()->json(['data' => [], 'count' => $count]);
+        }
+
         if ($request->filled('range')) {
             [$from, $to] = array_map('intval', explode('-', $request->query('range')));
             $query->skip($from)->take(max(1, $to - $from + 1));
@@ -97,10 +108,10 @@ class DbController extends Controller
             if (! $row && $request->boolean('single')) {
                 return response()->json(['error' => 'Запись не найдена'], 404);
             }
-            return response()->json(['data' => $row]);
+            return response()->json(['data' => $row, 'count' => $count]);
         }
 
-        return response()->json(['data' => $query->get()]);
+        return response()->json(['data' => $query->get(), 'count' => $count]);
     }
 
     public function store(Request $request, string $table)
@@ -108,11 +119,21 @@ class DbController extends Controller
         $model = self::resolve($table);
         $payload = $request->input('values', $request->all());
         $rows = isset($payload[0]) ? $payload : [$payload];
+        $upsert = $request->boolean('upsert');
+        $onConflict = $request->input('onConflict');
 
         $created = [];
         foreach ($rows as $row) {
-            $instance = new $model();
-            $this->authorizeAny('create', $instance);
+            $instance = null;
+            if ($upsert && $onConflict && isset($row[$onConflict])) {
+                $instance = $model::query()->where($onConflict, $row[$onConflict])->first();
+            }
+            if (! $instance) {
+                $instance = new $model();
+                $this->authorizeAny('create', $instance);
+            } else {
+                $this->authorizeAny('update', $instance);
+            }
             $instance->fill($row);
             $instance->save();
             $created[] = $instance->fresh();
