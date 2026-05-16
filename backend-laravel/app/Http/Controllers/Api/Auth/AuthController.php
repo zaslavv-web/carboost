@@ -1,99 +1,108 @@
 <?php
 
-namespace App\Services;
+namespace App\Http\Controllers\Api\Auth;
 
+use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\Profile;
-use Illuminate\Support\Facades\DB;
+use App\Services\AuthUserService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
-class AuthUserService
+class AuthController extends Controller
 {
-    public function createWithPassword(
-        string $email,
-        string $password,
-        string $fullName,
-        string $requestedRole = 'employee'
-    ): User {
-        $id = (string) Str::uuid();
+    public function __construct(private AuthUserService $users) {}
 
-        DB::table('users')->insert([
-            'id'                => $id,
-            'email'             => strtolower($email),
-            'password'          => Hash::make($password),
-            'email_verified_at' => null,
-            'created_at'        => now(),
-            'updated_at'        => now(),
-        ]);
-
-        DB::table('profiles')->insert([
-            'id'             => (string) Str::uuid(),
-            'user_id'        => $id,
-            'full_name'      => $fullName,
-            'requested_role' => $requestedRole,
-            'is_verified'    => false,
-            'overall_score'  => 0,
-            'role_readiness' => 0,
-            'created_at'     => now(),
-            'updated_at'     => now(),
-        ]);
-
-        DB::table('user_roles')->insert([
-            'id'         => (string) Str::uuid(),
-            'user_id'    => $id,
-            'role'       => $requestedRole,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        return User::findOrFail($id);
-    }
-
-    public function findOrCreateFromGoogle(array $googleUser): User
+    /** POST /api/auth/register */
+    public function register(Request $request): JsonResponse
     {
-        $email = strtolower($googleUser['email']);
+        $data = $request->validate([
+            'email'          => ['required', 'email', 'max:255'],
+            'password'       => ['required', 'string', 'min:8'],
+            'full_name'      => ['required', 'string', 'max:255'],
+            'requested_role' => ['nullable', 'in:employee,manager,hrd,company_admin'],
+        ]);
 
-        $existing = DB::table('users')->where('email', $email)->first();
-        if ($existing) {
-            DB::table('users')->where('id', $existing->id)->update([
-                'updated_at' => now(),
+        // Email-уникальность — на уровне auth.users
+        $exists = \DB::table('auth.users')->where('email', strtolower($data['email']))->exists();
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'email' => 'Пользователь с таким email уже существует',
             ]);
-            return User::findOrFail($existing->id);
         }
 
-        $id = (string) Str::uuid();
+        $user = $this->users->createWithPassword(
+            $data['email'],
+            $data['password'],
+            $data['full_name'],
+            $data['requested_role'] ?? 'employee'
+        );
 
-        DB::table('users')->insert([
-            'id'                => $id,
-            'email'             => $email,
-            'password'          => null,
-            'email_verified_at' => now(),
-            'created_at'        => now(),
-            'updated_at'        => now(),
+        $token = $user->createToken('spa')->plainTextToken;
+
+        return response()->json([
+            'user'  => $this->presentUser($user),
+            'token' => $token,
+        ], 201);
+    }
+
+    /** POST /api/auth/login */
+    public function login(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email'    => ['required', 'email'],
+            'password' => ['required', 'string'],
         ]);
 
-        DB::table('profiles')->insert([
-            'id'             => (string) Str::uuid(),
-            'user_id'        => $id,
-            'full_name'      => $googleUser['name']   ?? $email,
-            'avatar_url'     => $googleUser['avatar'] ?? null,
-            'requested_role' => 'employee',
-            'is_verified'    => false,
-            'overall_score'  => 0,
-            'role_readiness' => 0,
-            'created_at'     => now(),
-            'updated_at'     => now(),
-        ]);
+        $user = User::where('email', strtolower($data['email']))->first();
 
-        DB::table('user_roles')->insert([
-            'id'         => (string) Str::uuid(),
-            'user_id'    => $id,
-            'role'       => 'employee',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        if (!$user || !$user->password || !Hash::check($data['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => 'Неверный email или пароль',
+            ]);
+        }
 
-        return User::findOrFail($id);
+        $token = $user->createToken('spa')->plainTextToken;
+
+        return response()->json([
+            'user'  => $this->presentUser($user),
+            'token' => $token,
+        ]);
+    }
+
+    /** POST /api/auth/logout (auth:sanctum) */
+    public function logout(Request $request): JsonResponse
+    {
+        $request->user()->currentAccessToken()->delete();
+        return response()->json(['ok' => true]);
+    }
+
+    /** GET /api/auth/me (auth:sanctum) */
+    public function me(Request $request): JsonResponse
+    {
+        return response()->json($this->presentUser($request->user()));
+    }
+
+    private function presentUser(User $user): array
+    {
+        $profile = \DB::table('profiles')->where('user_id', $user->id)->first();
+        return [
+            'id'              => $user->id,
+            'email'           => $user->email,
+            'email_verified'  => (bool) $user->email_verified_at,
+            'full_name'       => $profile->full_name        ?? null,
+            'avatar_url'      => $profile->avatar_url       ?? ($user->meta['avatar_url'] ?? null),
+            'company_id'      => $profile->company_id       ?? null,
+            'is_verified'     => (bool) ($profile->is_verified ?? false),
+            'requested_role'  => $profile->requested_role   ?? null,
+            'role'            => $user->domainRole(),
+            'roles'           => \DB::table('user_roles')
+                ->where('user_id', $user->id)
+                ->pluck('role')
+                ->values()
+                ->all(),
+            'meta'            => $user->meta,
+        ];
     }
 }
