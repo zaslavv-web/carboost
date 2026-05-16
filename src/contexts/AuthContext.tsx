@@ -1,10 +1,10 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
+import { laravelDb } from "@/integrations/laravel/db";
 /**
  * Phase 13 — single auth backend.
  *
  * Раньше здесь жил Supabase-провайдер. Теперь это просто реэкспорт
  * LaravelAuthContext, чтобы все потребители `useAuth()` продолжали работать
- * без изменений. Никаких сетевых вызовов к *.supabase.co из фронтенда больше нет.
+ * без изменений. Никаких сетевых вызовов к *.laravelDb.co из фронтенда больше нет.
  */
 
 import {
