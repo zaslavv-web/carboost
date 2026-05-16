@@ -28,8 +28,7 @@ class GoogleAuthController extends Controller
     public function redirect(Request $request): RedirectResponse
     {
         $returnTo = $request->query('return_to', config('app.frontend_url') . '/auth/callback');
-        // Сохраняем return_to в state (через session — нужен SESSION_DRIVER=redis)
-        session(['oauth_return_to' => $returnTo]);
+        $request->session()->put('oauth_return_to', $returnTo);
 
         return Socialite::driver('google')
             ->scopes(['openid', 'profile', 'email'])
@@ -40,7 +39,7 @@ class GoogleAuthController extends Controller
     /** GET /api/auth/google/callback */
     public function callback(Request $request): RedirectResponse
     {
-        $returnTo = session('oauth_return_to', config('app.frontend_url') . '/auth/callback');
+        $returnTo = $request->session()->pull('oauth_return_to', config('app.frontend_url') . '/auth/callback');
 
         try {
             $google = Socialite::driver('google')->stateless()->user();
