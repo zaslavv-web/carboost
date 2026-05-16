@@ -23,8 +23,8 @@ POST /api/auth/register     -> { token, user }
 POST /api/auth/login        -> { token, user }
 POST /api/auth/logout       -> 204
 GET  /api/auth/me           -> { ...user, roles: [...] }
-GET  /api/auth/google/redirect?redirect=<url>
-GET  /api/auth/google/callback   -> 302 redirect=<url>?token=<sanctum>
+GET  /api/auth/google/redirect?return_to=<url>
+GET  /api/auth/google/callback   -> 302 redirect=<url>#access_token=<sanctum>
 
 GET  /api/profiles/me       -> UserProfile
 GET  /api/profiles/{id}     -> UserProfile (+ roles[])
@@ -67,7 +67,7 @@ GET  /api/profiles/{id}     -> UserProfile (+ roles[])
 ## OAuth (Google)
 
 `laravelAuthApi.signInWithGoogle()` редиректит на Laravel endpoint, бэкенд
-после успеха возвращает пользователя на фронт с `?token=...` в query.
+после успеха возвращает пользователя на фронт с `#access_token=...` в hash.
 `LaravelAuthProvider` на маунте автоматически вызывает `consumeOauthToken()`
 — токен сохраняется в `localStorage.laravel_token`, query чистится.
 

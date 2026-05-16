@@ -14,9 +14,19 @@
 {$APP_DOMAIN} {
 	encode gzip zstd
 
-	# --- Проксирование Supabase API ---
-	# Все запросы к Supabase (auth, db, storage, realtime, functions)
-	# идут на ваш домен и затем форвардятся на supabase.co.
+	# --- Проксирование Laravel API ---
+	@laravel {
+		path /api/* /sanctum/* /broadcasting/* /storage/* /oauth/* /login/* /logout
+	}
+	handle @laravel {
+		reverse_proxy {$LARAVEL_UPSTREAM} {
+			header_up Host {host}
+			header_up X-Forwarded-Host {host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# --- Legacy fallback: прокси старых API-путей, если они ещё остались в сборке ---
 	@supabase {
 		path /auth/v1/* /rest/v1/* /storage/v1/* /realtime/v1/* /functions/v1/* /pg/*
 	}

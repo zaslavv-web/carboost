@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import LandingHeader from "@/components/landing/LandingHeader";
+import { useAuth } from "@/contexts/AuthContext";
 import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import {
@@ -62,6 +63,7 @@ const Login = () => {
   const [companyName, setCompanyName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
+  const { signInWithPassword, signUp, signInWithGoogle } = useAuth();
 
   const isHRD = selectedRole === "hrd";
 
@@ -99,7 +101,7 @@ const Login = () => {
       if (isSignUp) {
         const companyId = await resolveCompanyId();
 
-        await laravelAuthApi.register({
+        await signUp({
           email,
           password,
           full_name: email.split("@")[0],
@@ -110,7 +112,7 @@ const Login = () => {
         toast.success("Регистрация прошла успешно. Ожидайте подтверждения суперадмина.");
         navigate("/dashboard");
       } else {
-        await laravelAuthApi.login(email, password);
+        await signInWithPassword(email, password);
         navigate("/dashboard");
       }
     } catch (error: any) {
@@ -167,7 +169,7 @@ const Login = () => {
       });
 
       // Redirects browser to Laravel /api/auth/google/redirect
-      laravelAuthApi.signInWithGoogle(redirectTo);
+      signInWithGoogle(redirectTo);
       oauthLog("info", "redirected_to_provider", { provider: "google", via: "laravel" });
       // Браузер уйдёт на Google
     } catch (e: any) {

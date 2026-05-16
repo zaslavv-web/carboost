@@ -71,7 +71,7 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    // Pick up a fresh token from Google OAuth callback (?token=...)
+    // Pick up a fresh token from Google OAuth callback (#access_token=...)
     laravelAuthApi.consumeOauthToken();
     void refresh();
 
