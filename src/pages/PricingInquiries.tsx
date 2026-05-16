@@ -26,7 +26,7 @@ export default function PricingInquiries() {
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["pricing_inquiries"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("pricing_inquiries")
         .select("*")
         .order("created_at", { ascending: false });

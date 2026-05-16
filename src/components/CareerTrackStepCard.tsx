@@ -65,7 +65,7 @@ const CareerTrackStepCard = ({ step, index, totalSteps, isCompleted, isCurrent, 
     queryKey: ["my_step_submission", assignmentId, index],
     queryFn: async () => {
       if (!assignmentId) return null;
-      const { data } = await supabase
+      const { data } = await laravelDb
         .from("career_step_submissions")
         .select("*")
         .eq("assignment_id", assignmentId)

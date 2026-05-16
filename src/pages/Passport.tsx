@@ -50,7 +50,7 @@ const Passport = () => {
   const { data: latestQuestionnaire } = useQuery({
     queryKey: ["latest_employee_questionnaire", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("employee_questionnaires" as any)
         .select("*")
         .eq("user_id", user!.id)

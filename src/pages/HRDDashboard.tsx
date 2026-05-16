@@ -98,7 +98,7 @@ const CompetencyComparisonModal = ({
   const { data: competencies = [], isLoading } = useQuery({
     queryKey: ["competencies", employee.user_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("competencies")
         .select("skill_name, skill_value")
         .eq("user_id", employee.user_id);
@@ -268,7 +268,7 @@ const HRDDashboard = () => {
   const { data: mappings = [] } = useQuery({
     queryKey: ["email_domain_mappings"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("email_domain_position_mappings")
         .select("id, email_domain, position_id, positions(title, department)")
         .order("email_domain");
@@ -281,7 +281,7 @@ const HRDDashboard = () => {
 
   const approvePositionMutation = useMutation({
     mutationFn: async ({ userId, positionId }: { userId: string; positionId: string }) => {
-      const { error } = await supabase
+      const { error } = await laravelDb
         .from("profiles")
         .update({ position_id: positionId, pending_position_id: null } as any)
         .eq("user_id", userId);
@@ -357,7 +357,7 @@ const HRDDashboard = () => {
 
   const assignPositionMutation = useMutation({
     mutationFn: async ({ userId, positionId }: { userId: string; positionId: string | null }) => {
-      const { error } = await supabase
+      const { error } = await laravelDb
         .from("profiles")
         .update({ position_id: positionId } as any)
         .eq("user_id", userId);

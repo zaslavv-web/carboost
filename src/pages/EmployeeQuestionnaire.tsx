@@ -91,7 +91,7 @@ const EmployeeQuestionnaire = () => {
   const { data: positions = [], isLoading: positionsLoading } = useQuery({
     queryKey: ["questionnaire_positions", profile?.company_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("positions")
         .select("*")
         .eq("company_id", profile?.company_id as string)
@@ -218,7 +218,7 @@ const EmployeeQuestionnaire = () => {
   const confirmDraftMutation = useMutation({
     mutationFn: async () => {
       if (!questionnaireId || !profileDraft) throw new Error("Черновик профиля не найден");
-      const { error } = await supabase
+      const { error } = await laravelDb
         .from("employee_questionnaires" as any)
         .update({
           status: "confirmed",

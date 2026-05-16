@@ -15,7 +15,7 @@ const Companies = () => {
   const { data: companies = [], isLoading } = useQuery({
     queryKey: ["companies"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("companies")
         .select("*")
         .order("created_at", { ascending: false });
@@ -27,7 +27,7 @@ const Companies = () => {
   const { data: companyCounts = {} } = useQuery({
     queryKey: ["company_user_counts"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("profiles")
         .select("company_id");
       if (error) throw error;
@@ -57,7 +57,7 @@ const Companies = () => {
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!editId) return;
-      const { error } = await supabase
+      const { error } = await laravelDb
         .from("companies")
         .update({ name, description: description || null })
         .eq("id", editId);

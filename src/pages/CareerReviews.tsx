@@ -17,7 +17,7 @@ const CareerReviews = () => {
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ["career_reviews_pending"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("career_step_submissions")
         .select("*")
         .order("created_at", { ascending: false });
@@ -54,7 +54,7 @@ const CareerReviews = () => {
     queryKey: ["review_files", submissionIds],
     queryFn: async () => {
       if (!submissionIds.length) return [];
-      const { data } = await supabase
+      const { data } = await laravelDb
         .from("career_step_submission_files")
         .select("*")
         .in("submission_id", submissionIds);

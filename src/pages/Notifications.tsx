@@ -27,7 +27,7 @@ const Notifications = () => {
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ["notifications", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("notifications")
         .select("*")
         .eq("user_id", user!.id)
@@ -42,7 +42,7 @@ const Notifications = () => {
     mutationFn: async () => {
       const unreadIds = notifications.filter((n) => !n.is_read).map((n) => n.id);
       if (unreadIds.length === 0) return;
-      const { error } = await supabase
+      const { error } = await laravelDb
         .from("notifications")
         .update({ is_read: true })
         .in("id", unreadIds);

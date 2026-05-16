@@ -28,7 +28,7 @@ const oauthLog = (
     event,
     host: typeof window !== "undefined" ? window.location.hostname : "ssr",
     origin: typeof window !== "undefined" ? window.location.origin : "ssr",
-    mode: "supabase-direct",
+    mode: "laravelDb-direct",
     ts: new Date().toISOString(),
     ...details,
   };

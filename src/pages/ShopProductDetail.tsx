@@ -41,7 +41,7 @@ export default function ShopProductDetail() {
   const addToCart = useMutation({
     mutationFn: async () => {
       if (!userId || !profile?.company_id || !product) throw new Error("Нет данных");
-      const { data: existing } = await supabase
+      const { data: existing } = await laravelDb
         .from("shop_cart_items").select("*")
         .eq("user_id", userId).eq("product_id", product.id).maybeSingle();
       if (existing) {

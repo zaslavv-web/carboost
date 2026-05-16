@@ -40,7 +40,7 @@ const Recognition = () => {
     queryKey: ["colleagues", profile?.company_id],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("profiles")
         .select("user_id, full_name, position, avatar_url")
         .eq("company_id", profile!.company_id!)
@@ -55,7 +55,7 @@ const Recognition = () => {
     queryKey: ["recognitions-feed", profile?.company_id],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("peer_recognitions")
         .select("id, from_user_id, to_user_id, category, message, coin_reward, created_at")
         .eq("company_id", profile!.company_id!)
@@ -68,7 +68,7 @@ const Recognition = () => {
         ...data.map((r) => r.to_user_id),
       ]));
       const { data: people = [] } = userIds.length
-        ? await supabase
+        ? await laravelDb
             .from("profiles")
             .select("user_id, full_name, position, avatar_url")
             .in("user_id", userIds)
@@ -77,7 +77,7 @@ const Recognition = () => {
 
       const ids = data.map((r) => r.id);
       const { data: reactions = [] } = ids.length
-        ? await supabase
+        ? await laravelDb
             .from("peer_recognition_reactions")
             .select("id, recognition_id, user_id, reaction")
             .in("recognition_id", ids)
@@ -126,7 +126,7 @@ const Recognition = () => {
     mutationFn: async ({ recId, liked }: { recId: string; liked: boolean }) => {
       if (!profile?.user_id) return;
       if (liked) {
-        await supabase
+        await laravelDb
           .from("peer_recognition_reactions")
           .delete()
           .eq("recognition_id", recId)

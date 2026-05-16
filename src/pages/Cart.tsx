@@ -27,7 +27,7 @@ export default function Cart() {
     queryKey: ["shop_cart", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("shop_cart_items")
         .select("*, product:shop_products(*)")
         .eq("user_id", userId);

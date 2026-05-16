@@ -55,7 +55,7 @@ const RiskAnalytics = () => {
     queryKey: ["company-employees", profile?.company_id],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("profiles")
         .select("user_id, full_name, position, department, avatar_url")
         .eq("company_id", profile!.company_id!)
@@ -69,7 +69,7 @@ const RiskAnalytics = () => {
     queryKey: ["risk-scores", profile?.company_id],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("employee_risk_scores")
         .select("*")
         .eq("company_id", profile!.company_id!);
@@ -113,7 +113,7 @@ const RiskAnalytics = () => {
               : ["Поддерживать текущий темп"],
         };
       });
-      const { error } = await supabase
+      const { error } = await laravelDb
         .from("employee_risk_scores")
         .upsert(upserts, { onConflict: "user_id" });
       if (error) throw error;

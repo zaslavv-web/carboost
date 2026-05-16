@@ -58,7 +58,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["hr_documents", docType],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("hr_documents")
         .select("*")
         .eq("document_type", docType)
@@ -94,7 +94,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
       if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
 
       // Create document record
-      const { data: doc, error: insertError } = await supabase
+      const { data: doc, error: insertError } = await laravelDb
         .from("hr_documents")
         .insert({
           document_type: docType,
@@ -143,7 +143,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
       if (error) throw error;
 
       // Link scenario
-      const { data: scenarios } = await supabase
+      const { data: scenarios } = await laravelDb
         .from("assessment_scenarios")
         .select("id")
         .eq("title", extracted.scenario.title || doc.title)

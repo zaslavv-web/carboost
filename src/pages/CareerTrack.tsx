@@ -45,12 +45,12 @@ const CareerTrack = () => {
     queryKey: ["career_goals_full", effectiveUserId],
     queryFn: async () => {
       if (!effectiveUserId) return [];
-      const { data: goalsData, error: goalsErr } = await supabase
+      const { data: goalsData, error: goalsErr } = await laravelDb
         .from("career_goals").select("*").eq("user_id", effectiveUserId).order("created_at", { ascending: true });
       if (goalsErr) throw goalsErr;
       const goalIds = (goalsData || []).map(g => g.id);
       if (!goalIds.length) return [];
-      const { data: items, error: itemsErr } = await supabase
+      const { data: items, error: itemsErr } = await laravelDb
         .from("goal_checklist_items").select("*").in("goal_id", goalIds).order("created_at", { ascending: true });
       if (itemsErr) throw itemsErr;
       return (goalsData || []).map(g => ({ ...g, checklist: (items || []).filter(i => i.goal_id === g.id) }));
@@ -63,7 +63,7 @@ const CareerTrack = () => {
     queryKey: ["my_career_assignments", effectiveUserId],
     queryFn: async () => {
       if (!effectiveUserId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("employee_career_assignments").select("*").eq("user_id", effectiveUserId);
       if (error) throw error;
       return data || [];

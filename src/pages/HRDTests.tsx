@@ -36,7 +36,7 @@ const HRDTests = () => {
     queryKey: ["hrd_tests", profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("closed_question_tests")
         .select("id, title, description, is_active, position_id, source_file_name, questions, created_at")
         .eq("company_id", profile.company_id)
@@ -51,7 +51,7 @@ const HRDTests = () => {
     queryKey: ["positions_for_tests", profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("positions")
         .select("id, title")
         .eq("company_id", profile.company_id)
@@ -90,7 +90,7 @@ const HRDTests = () => {
       if (!data?.questions?.length) throw new Error("AI не нашёл закрытых вопросов с правильными ответами");
 
       // Insert test
-      const { data: inserted, error: insErr } = await supabase
+      const { data: inserted, error: insErr } = await laravelDb
         .from("closed_question_tests")
         .insert({
           company_id: profile.company_id,

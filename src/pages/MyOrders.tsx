@@ -23,7 +23,7 @@ export default function MyOrders() {
     queryKey: ["shop_orders_my", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("shop_orders")
         .select("*, items:shop_order_items(*)")
         .eq("user_id", userId)

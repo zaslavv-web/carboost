@@ -17,7 +17,7 @@ export default function Shop() {
     queryKey: ["shop_products", profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("shop_products")
         .select("*")
         .eq("company_id", profile.company_id)

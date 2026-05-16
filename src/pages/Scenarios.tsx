@@ -25,7 +25,7 @@ const Scenarios = () => {
   const { data: scenarios = [], isLoading } = useQuery({
     queryKey: ["assessment_scenarios"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("assessment_scenarios")
         .select("*")
         .order("created_at", { ascending: false });
@@ -102,7 +102,7 @@ const Scenarios = () => {
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const { error } = await supabase
+      const { error } = await laravelDb
         .from("assessment_scenarios")
         .update({ is_active: active })
         .eq("id", id);

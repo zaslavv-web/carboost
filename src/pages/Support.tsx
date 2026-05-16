@@ -199,7 +199,7 @@ const Support = () => {
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ["support_tickets", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("support_tickets")
         .select("*")
         .order("created_at", { ascending: false });

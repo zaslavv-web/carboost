@@ -279,7 +279,7 @@ const PositionEditor = ({
   const loadFromHrDocuments = async () => {
     setLoadingFromDocs(true);
     try {
-      const { data: docs, error } = await supabase
+      const { data: docs, error } = await laravelDb
         .from("hr_documents")
         .select("title, document_type, extracted_data")
         .eq("processing_status", "completed")

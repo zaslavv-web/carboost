@@ -39,7 +39,7 @@ const Dashboard = () => {
   const { data: competencies = [] } = useQuery({
     queryKey: ["competencies", effectiveUserId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("competencies")
         .select("skill_name, skill_value")
         .eq("user_id", effectiveUserId!);
@@ -52,7 +52,7 @@ const Dashboard = () => {
   const { data: goals = [] } = useQuery({
     queryKey: ["career_goals", effectiveUserId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("career_goals")
         .select("*")
         .eq("user_id", effectiveUserId!)
@@ -66,7 +66,7 @@ const Dashboard = () => {
   const { data: achievements = [] } = useQuery({
     queryKey: ["achievements", effectiveUserId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("achievements")
         .select("*")
         .eq("user_id", effectiveUserId!);
@@ -79,7 +79,7 @@ const Dashboard = () => {
   const { data: notifications = [] } = useQuery({
     queryKey: ["recent_notifications", effectiveUserId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("notifications")
         .select("*")
         .eq("user_id", effectiveUserId!)

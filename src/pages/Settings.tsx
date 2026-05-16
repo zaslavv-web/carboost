@@ -23,7 +23,7 @@ const Settings = () => {
     queryKey: ["positions_for_settings", profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("positions")
         .select("id, title, department")
         .eq("company_id", profile.company_id)
@@ -75,7 +75,7 @@ const Settings = () => {
         avatarUrl = urlData.publicUrl;
       }
 
-      const { error } = await supabase
+      const { error } = await laravelDb
         .from("profiles")
         .update({
           full_name: fullName.trim(),

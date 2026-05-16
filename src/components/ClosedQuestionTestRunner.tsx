@@ -99,7 +99,7 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
       });
 
       for (const c of breakdown) {
-        const { data: existing } = await supabase
+        const { data: existing } = await laravelDb
           .from("competencies")
           .select("id")
           .eq("user_id", user.id)
