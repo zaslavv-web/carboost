@@ -82,9 +82,7 @@ jobs:
       - name: Generate APP_KEY
         id: appkey
         run: |
-          cd app-src
-          KEY=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-          echo "key=base64:$(echo -n $KEY | base64)" >> $GITHUB_OUTPUT
+          echo "key=base64:$(openssl rand -base64 32)" >> $GITHUB_OUTPUT
 
       - name: Create backend .env
         run: |
