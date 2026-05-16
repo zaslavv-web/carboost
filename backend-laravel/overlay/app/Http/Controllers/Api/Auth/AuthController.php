@@ -97,7 +97,7 @@ class AuthController extends Controller
             'is_verified'     => (bool) ($profile->is_verified ?? false),
             'requested_role'  => $profile->requested_role   ?? null,
             'role'            => $user->domainRole(),
-            'roles'           => \\DB::table('user_roles')
+            'roles'           => \DB::table('user_roles')
                 ->where('user_id', $user->id)
                 ->pluck('role')
                 ->values()
