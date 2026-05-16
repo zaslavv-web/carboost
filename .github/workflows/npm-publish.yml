@@ -79,23 +79,12 @@ jobs:
             spatie/laravel-permission predis/predis \
             guzzlehttp/guzzle --no-interaction
 
-      - name: Fix storage permissions
-        run: |
-          sudo chmod -R 777 app-src/storage
-          sudo chmod -R 777 app-src/bootstrap/cache
-          sudo mkdir -p app-src/storage/logs
-          sudo mkdir -p app-src/storage/app/public
-          sudo mkdir -p app-src/storage/framework/cache
-          sudo mkdir -p app-src/storage/framework/sessions
-          sudo mkdir -p app-src/storage/framework/views
-          sudo chmod -R 777 app-src/storage
-          sudo chmod -R 777 app-src/bootstrap/cache
-
       - name: Generate APP_KEY
         id: appkey
         run: |
           cd app-src
-          echo "key=$(php artisan key:generate --show)" >> $GITHUB_OUTPUT
+          KEY=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+          echo "key=base64:$(echo -n $KEY | base64)" >> $GITHUB_OUTPUT
 
       - name: Create backend .env
         run: |
@@ -134,12 +123,6 @@ jobs:
           FRONTEND_URL=${{ secrets.APP_URL }}
           EOF
 
-      - name: Optimize
-        run: |
-          cd app-src
-          php artisan config:cache
-          php artisan route:cache
-
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -164,10 +147,16 @@ jobs:
             app-src/ \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ secrets.TARGET_DIR }}/backend
 
-      - name: Migrate on server
+      - name: Setup on server
         run: |
           ssh -o StrictHostKeyChecking=no \
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-              "cd ${{ secrets.TARGET_DIR }}/backend && php artisan migrate --force && php artisan db:seed --class=RoleSeeder --force"
+              "cd ${{ secrets.TARGET_DIR }}/backend \
+              && mkdir -p storage/logs storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
+              && chmod -R 777 storage bootstrap/cache \
+              && php artisan migrate --force \
+              && php artisan db:seed --class=RoleSeeder --force \
+              && php artisan config:cache \
+              && php artisan route:cache"
