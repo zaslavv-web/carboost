@@ -166,33 +166,9 @@ const Login = () => {
         redirectTo,
       });
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          queryParams: { prompt: "select_account" },
-        },
-      });
-      if (error) {
-        const missingSecret = error.message.includes("missing OAuth secret");
-        oauthLog("error", "supabase_direct_failed", {
-          provider: "google",
-          errorMessage: error.message,
-          errorStatus: (error as any)?.status ?? null,
-          errorName: error.name,
-          hint: missingSecret
-            ? "Google provider не настроен в Supabase Auth (нет Client ID/Secret для этого домена)"
-            : "Проверьте Authorized redirect URIs в Google Cloud и Site URL/Redirect URLs в Supabase Auth",
-        });
-        if (isSignUp) clearPendingSocialSignup();
-        setErrorMessage(
-          missingSecret
-            ? "Google OAuth не настроен на этом домене. Обратитесь к администратору."
-            : "Ошибка входа через Google",
-        );
-        return;
-      }
-      oauthLog("info", "redirected_to_provider", { provider: "google", via: "supabase" });
+      // Redirects browser to Laravel /api/auth/google/redirect
+      laravelAuthApi.signInWithGoogle(redirectTo);
+      oauthLog("info", "redirected_to_provider", { provider: "google", via: "laravel" });
       // Браузер уйдёт на Google
     } catch (e: any) {
       oauthLog("error", "unexpected_exception", {
