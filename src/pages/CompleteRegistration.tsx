@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealPrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
-import { supabase } from "@/integrations/supabase/client";
 import { laravelDb } from "@/integrations/laravel/db";
 import {
   clearPendingSocialSignup,
@@ -137,21 +136,14 @@ const CompleteRegistration = () => {
       } else {
         const { error } = await laravelDb.from("profiles").insert({
           user_id: user.id,
-          full_name: user.user_metadata?.full_name ?? user.email ?? "",
+          full_name: (user as any).full_name ?? user.email ?? "",
           is_verified: false,
           ...payload,
         });
         if (error) throw error;
       }
-
-      const { error: authError } = await supabase.auth.updateUser({
-        data: {
-          ...user.user_metadata,
-          company_id: selectedCompanyId,
-          requested_role: selectedRole,
-        },
-      });
-      if (authError) console.error("Failed to update auth metadata", authError);
+      // В Phase 13 убрали supabase.auth.updateUser — профильные поля уже
+      // обновлены через laravelDb выше, отдельного хранилища "метаданных" нет.
     },
     onSuccess: async () => {
       clearPendingSocialSignup();
