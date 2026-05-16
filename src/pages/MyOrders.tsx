@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
 import { useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
 import { Card, CardContent } from "@/components/ui/card";

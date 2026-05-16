@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
 import { Check, Clock, ChevronDown, ChevronRight, Target, Loader2, Plus, X, Route, Award, Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";

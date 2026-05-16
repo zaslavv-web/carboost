@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { laravelDb } from "@/integrations/laravel/db";
 import { Building2, Plus, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";

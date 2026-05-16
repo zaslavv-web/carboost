@@ -5,7 +5,6 @@ import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { supabase } from "@/integrations/supabase/client";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravelStorage } from "@/integrations/laravel/storage";
 import { aiInvoke } from "@/integrations/laravel/client";

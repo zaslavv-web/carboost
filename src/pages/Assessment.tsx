@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, Sparkles, MessageSquare, ListChecks } from "lucide-react";
 import { toast } from "sonner";
 
-import { supabase } from "@/integrations/supabase/client";
 import { aiInvoke } from "@/integrations/laravel/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import ClosedQuestionTestRunner, { TestPayload } from "@/components/ClosedQuestionTestRunner";
