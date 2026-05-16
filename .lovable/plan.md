@@ -1,181 +1,89 @@
+## Цель
 
-# Миграция Career Track: Supabase → Laravel 11
+Полностью убрать из фронтенда любые упоминания `@supabase/*`, `supabase`, `VITE_SUPABASE_*` и каталог `src/integrations/supabase/`. После этого ни один запрос из браузера не должен идти на `*.supabase.co` — весь трафик пойдёт на собственный Laravel-домен (`api.<ваш-домен>`), который не блокируется в РФ.
 
-## Целевая архитектура
+Сейчас в репозитории 49 файлов с упоминанием Supabase (auth, realtime, functions.invoke, storage, types).
 
-```
-┌─────────────────────────────┐         ┌──────────────────────────────┐
-│  Frontend (React/Vite)      │  HTTPS  │  api.example.ru              │
-│  app.example.ru             │ ──────▶ │  ┌────────────────────────┐  │
-│  • supabase-js УДАЛЁН       │         │  │ Laravel 11 + PHP-FPM   │  │
-│  • src/lib/api/* (fetch)    │         │  │ • Sanctum (SPA tokens) │  │
-│  • src/lib/realtime         │         │  │ • Socialite (Google)   │  │
-│  │  (Echo + Reverb)         │         │  │ • Policies = бывш. RLS │  │
-│  • TanStack Query как есть  │         │  │ • Jobs (бывш. Edge fn) │  │
-└─────────────────────────────┘         │  │ • Reverb (WebSockets)  │  │
-                                        │  └─────────┬──────────────┘  │
-                                        │            ▼                 │
-                                        │  ┌────────────────────────┐  │
-                                        │  │ PostgreSQL 15 (тот же  │  │
-                                        │  │ дамп из Supabase)      │  │
-                                        │  └────────────────────────┘  │
-                                        └──────────────────────────────┘
-```
+## Что мигрируем (4 категории)
 
-Хостинг: один российский VPS, всё в Docker Compose.
+### 1. Auth (самый большой блок)
+Файлы: `AuthContext.tsx`, `Login.tsx`, `ResetPassword.tsx`, `CompleteRegistration.tsx`, `Settings.tsx`, `UsersManagement.tsx`, `useUserProfile.ts`, plus все страницы, использующие `useAuth()`.
 
-## Что сохраняется
+- `AuthContext.tsx` удаляется. В `main.tsx` остаётся только `LaravelAuthProvider`. Хук `useAuth` экспортируется из `LaravelAuthContext` (с тем же API: `session`, `user`, `loading`, `signOut`) — для нулевой ломки всех потребителей.
+- `supabase.auth.signInWithPassword` → `laravelAuthApi.login`
+- `supabase.auth.signUp` → `laravelAuthApi.register`
+- `supabase.auth.signInWithOAuth({provider:'google'})` → `laravelAuthApi.signInWithGoogle`
+- `supabase.auth.resetPasswordForEmail` / `updateUser({password})` → `laravelAuthApi.resetPasswordForEmail` / `updatePassword`
+- `supabase.auth.getUser/getSession/onAuthStateChange` → методы `LaravelAuthContext.refresh()` + storage event (уже реализовано)
+- `lovable.auth.signInWithOAuth` (`src/integrations/lovable/`) удаляется — он завязан на Supabase
 
-- **Пароли пользователей** — Supabase хранит bcrypt в `auth.users.encrypted_password`; Laravel читает bcrypt нативно. Существующие пользователи логинятся теми же паролями.
-- **Google SSO** — Socialite ищет пользователя по email; если есть — линкует google_id, если нет — создаёт. Пользователи, которые раньше входили через Google, продолжат входить через Google.
-- **Все данные** — `pg_dump`/`pg_restore` всей схемы `public`.
-- **Frontend UX** — те же страницы, роутинг, дизайн. Меняется только слой данных.
+### 2. Functions.invoke → Laravel endpoints
+Сейчас `supabase.functions.invoke("admin-create-user" | "career-ai-chat" | "ai-document-parse" | ...)` встречается в Support, Assessment, HRDTests, UsersManagement, Positions, Scenarios, HRPolicies, CareerTracksManagement, EmployeeQuestionnaire и т.д.
 
-## Что неизбежно сломается на момент переключения
+- Заменяем на универсальный helper `aiInvoke(name, body)` из `src/integrations/laravel/client.ts` (он уже умеет POST на `/api/ai/{name}` с авторизацией).
+- Для admin-функций (`admin-create-user`) — отдельный `POST /api/admin/users` (бэкенд-маршрут добавляется в Phase 13.1, см. ниже).
 
-- Активные сессии всех пользователей — нужен повторный вход (один раз).
-- Realtime-подписки на Supabase channels — заменяются на Laravel Echo + Reverb.
-- AI Edge Functions на Deno — переписываются как Laravel Jobs/Controllers.
+### 3. Realtime (`supabase.channel(...).on('postgres_changes', ...)`)
+Сейчас используется в `Notifications.tsx`, `UsersManagement.tsx`, `Cart.tsx`, `Shop.tsx`, и нескольких dashboard'ах.
 
-## Фазы (каждая — отдельное сообщение от вас «следующая фаза»)
+- Заменяем на `laravelRealtime.channel(table).on(event, cb).subscribe()` из `src/integrations/laravel/realtime.ts` (Reverb / Pusher-совместимый клиент, уже добавлен).
+- Если канал не критичен (например, индикатор корзины) — допускается фоллбэк на TanStack Query `refetchInterval`.
 
-### Фаза 1. Скелет Laravel-бэка в `backend-laravel/`
-- `composer.json`, `artisan`, базовая структура `app/`, `routes/`, `database/`, `config/`
-- `Dockerfile` (PHP 8.3-FPM + nginx), `docker-compose.yml`
-- `.env.example` со всеми переменными
-- Установка: Sanctum, Socialite, Reverb, Predis, Spatie/Permission (для ролей)
-- README с инструкцией поднятия
+### 4. Storage (`supabase.storage.from(...).upload/getPublicUrl/remove`)
+В `Settings.tsx`, `ShopAdmin.tsx`, `Onboarding.tsx`.
 
-### Фаза 2. Миграции БД (читают существующий дамп, не пересоздают)
-- `database/migrations/` — формальные миграции в стиле Laravel **поверх** существующей схемы (отметка «уже накатано» через `migrate:install` + ручной seed `migrations`-таблицы)
-- Скрипт переноса: `scripts/import-supabase-dump.sh` (pg_restore + создание ролей Laravel)
-- Маппинг таблиц: `auth.users` → используем как есть (Sanctum умеет любую таблицу users), `public.profiles`, `public.user_roles`, `public.companies` и т.д.
+- Заменяем на `laravelStorage.from(bucket).upload/getPublicUrl/remove` (уже реализовано в Phase 12).
 
-### Фаза 3. Auth
-- Eloquent-модель `User` поверх `auth.users` (с bcrypt-верификацией паролей Supabase)
-- `POST /api/auth/login` (email+пароль → Sanctum token)
-- `POST /api/auth/register`
-- `POST /api/auth/logout`
-- `GET /api/auth/me`
-- `GET /api/auth/google/redirect`, `GET /api/auth/google/callback` (Socialite, линковка по email)
-- `POST /api/auth/password/reset`, `POST /api/auth/password/update`
-- Middleware `auth:sanctum` + `EnsureVerified` (миграция логики `is_verified`)
+## Зачистка типов и инфраструктуры
 
-### Фаза 4. Роли и Policies (замена RLS)
-- Eloquent Policies: `CompanyPolicy`, `ProfilePolicy`, `CareerTrackPolicy` и т.д.
-- Глобальный scope `BelongsToCompany` — автоматическая фильтрация по `company_id` для всех запросов не-superadmin
-- Сохраняем RLS на уровне БД как **второй слой защиты** (defense-in-depth)
-- Импорт ролей из `public.user_roles`
+- `src/integrations/supabase/client.ts` и `src/integrations/supabase/types.ts` — **удаляются полностью**.
+- Типы БД (`Database`, `Tables<...>`) теперь живут в `src/integrations/laravel/types.ts`. Туда копируем структуру из бывшего `types.ts` (без `Database` обёртки от Supabase) — это просто TS-типы, никаких runtime-зависимостей.
+- Все импорты `from "@/integrations/supabase/types"` → `from "@/integrations/laravel/types"`.
+- Удаляются: каталог `src/integrations/lovable/`, пакет `@supabase/supabase-js` из `package.json`.
 
-### Фаза 5. CRUD-контроллеры (по группам)
-Группы в порядке приоритета:
-1. `companies`, `profiles`, `user_roles` — без них ничего не работает
-2. `career_tracks`, `career_track_steps`, `step_submissions`
-3. `positions`, `org_structure`, `scenarios`
-4. `tickets`, `notifications`, `messages`
-5. `shop_*`, `gamification_*`, `pricing_inquiries`
-6. `hrd_tests`, `assessments`
+## Конфигурация и инфраструктура
 
-Каждый контроллер: index/show/store/update/destroy + специфичные actions. Form Requests для валидации.
+- В `.env.example`: убираются `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`. Остаются только:
+  - `VITE_LARAVEL_API_URL=https://api.your-domain.tld/api`
+  - `VITE_REVERB_HOST`, `VITE_REVERB_KEY`, `VITE_REVERB_PORT` (для realtime)
+- `Dockerfile`: `ARG VITE_SUPABASE_*` удаляются, остаются только `ARG VITE_LARAVEL_API_URL` + Reverb-переменные.
+- `backend/deploy/nginx.conf`: блок прокси `^/(auth/v1|rest/v1|storage/v1|...)/` удаляется (больше не нужен). Вместо него — простой `proxy_pass` на Laravel-апстрим для `/api/*` и `/broadcasting/*`.
+- Папка `supabase/` в корне (config.toml, functions, migrations) остаётся только как **архив** для справки по логике RPC; в продакшен-сборку не попадает (уже в .dockerignore).
 
-### Фаза 6. AI-функции (Edge Functions → Jobs)
-13 функций переписываются на PHP с тем же контрактом запрос/ответ:
-- `assessment-chat` → `POST /api/ai/assessment-chat`
-- `generate-career-paths` → `POST /api/ai/career-paths`
-- `parse-org-structure`, `parse-hr-document`, `parse-test-document`, `parse-position-standards`
-- `generate-closed-test`, `generate-default-track-steps`, `generate-positions-from-org`, `generate-questionnaire-profile`, `generate-step-scenario`
-- `suggest-ticket-fix`
-- `admin-create-user`
+## Что нужно добавить на бэкенде (Phase 13.1, минимальный pre-req)
 
-Один общий `App\Services\AiClient` (HTTP-клиент к OpenAI-совместимому шлюзу), читает `AI_API_URL`/`AI_API_KEY`/`AI_MODEL` из `.env`.
+Если каких-то эндпоинтов в Laravel ещё нет — миграция страниц упадёт. До массовой замены проверяю и при отсутствии добавляю:
 
-### Фаза 7. Realtime (Reverb + Echo)
-- Поднимаем `php artisan reverb:start` в docker-compose
-- Broadcasting events для: `NotificationCreated`, `TicketUpdated`, `MessageSent` и других каналов, где сейчас используется Supabase Realtime
-- Frontend: `laravel-echo` + `pusher-js` вместо `supabase.channel(...)`
+1. `POST /api/admin/users` — создание пользователя суперадмином (аналог `admin-create-user`).
+2. `POST /api/auth/forgot-password` + `POST /api/auth/reset-password` — reset flow (упомянуто в README Phase 9 как «ещё не реализовано»).
+3. `POST /api/ai/{name}` — универсальный AI-роутер для бывших Edge Functions (career-ai-chat, ai-document-parse, ai-org-parse, ai-position-path, ai-scenario, ai-support-tip и т.д.). На стороне Laravel это один контроллер, проксирующий в Gemini через `AI_API_URL`/`AI_API_KEY`.
+4. `GET /broadcasting/auth` — для Reverb private/presence каналов (используется в Notifications).
 
-### Фаза 8. Storage (файлы)
-- Laravel Filesystem с локальным диском `storage/app/public` или S3-совместимым (Selectel Object Storage)
-- Замена `supabase.storage.from('hrd-tests')` на `POST /api/files/upload` + Policies для чтения
+## Порядок выполнения (одной серией коммитов)
 
-### Фаза 9. Frontend: убираем supabase-js
-Создаётся `src/lib/api/`:
-- `client.ts` — fetch-обёртка с auth-токеном из localStorage
-- `auth.ts` — login/logout/me/oauth (контракт совместим с текущим `AuthContext`)
-- `[entity].ts` — по файлу на каждую сущность, методы `list/get/create/update/remove`
-- `realtime.ts` — Echo-инстанс
+1. **Бэкенд-pre-req:** добавить недостающие маршруты выше.
+2. **Типы:** скопировать `src/integrations/supabase/types.ts` → `src/integrations/laravel/types.ts`, заменить все импорты.
+3. **Auth:** переключить `main.tsx` на `LaravelAuthProvider`, удалить `AuthContext.tsx` (re-export `useAuth` из Laravel-версии), мигрировать `Login`, `ResetPassword`, `CompleteRegistration`, `Settings`, `UsersManagement`.
+4. **Functions:** `supabase.functions.invoke` → `aiInvoke` во всех ~12 страницах.
+5. **Realtime:** `supabase.channel` → `laravelRealtime.channel` в ~6 страницах.
+6. **Storage:** `supabase.storage` → `laravelStorage` (3 страницы).
+7. **Удаление:** `src/integrations/supabase/`, `src/integrations/lovable/`, `@supabase/supabase-js` из `package.json`, build-args в Dockerfile, переменные в `.env.example`.
+8. **Проверка:** `rg -l "supabase|@supabase" src/` должен вернуть 0 файлов. `tsc --noEmit` — 0 ошибок.
 
-Замена в коде:
-- `supabase.from('x').select(...)` → `api.x.list(...)`
-- `supabase.auth.*` → `api.auth.*`
-- `supabase.functions.invoke('y', { body })` → `api.ai.y(body)`
-- `supabase.channel(...)` → `realtime.channel(...).listen(...)`
-- `supabase.storage.from(...)` → `api.files.*`
+## Риски
 
-Удаление: `@supabase/supabase-js`, `src/integrations/supabase/`. Файл `types.ts` заменяется на ручные типы `src/lib/api/types.ts` (или генерация из Laravel через `spatie/laravel-typescript-transformer`).
+- **Сломается preview в Lovable**: Lovable-окружение завязано на `VITE_SUPABASE_*` и автогенерируемые `src/integrations/supabase/{client,types}.ts`. После удаления preview на `*.lovable.app` перестанет работать — все правки нужно будет проверять только на собственном self-hosted билде (`growth-peak.pro`). Это осознанный выбор.
+- **Бэкенд должен быть готов**: если на Laravel нет нужного эндпоинта — страница вернёт 404. Поэтому Phase 13.1 обязательна до миграции страниц.
+- **Migration не reversible** в одной сессии: 49 файлов в одной серии правок. После старта нельзя «частично» откатиться без `View History`.
 
-### Фаза 10. Деплой и переключение
-- Финальный `docker-compose.prod.yml`: nginx + php-fpm + postgres + reverb + redis + frontend
-- Скрипт миграции данных в день переключения (последний `pg_dump` из Supabase → restore в новый Postgres)
-- Окно простоя: ~30 минут (дамп + restore + DNS-переключение)
-- Откат: DNS обратно на старый фронт (старый бэк не трогаем 1–2 недели)
+## Размер изменения
 
-## Срок и нагрузка
+- Правится: ~49 файлов в `src/`, 2 файла инфраструктуры (`Dockerfile`, `nginx.conf`, `.env.example`), `package.json`.
+- Добавляется: ~4 файла на Laravel (контроллеры/маршруты), `src/integrations/laravel/types.ts`.
+- Удаляется: каталоги `src/integrations/supabase/`, `src/integrations/lovable/`.
 
-Реалистично: **6–10 недель** активной работы. Каждая фаза — несколько сообщений (особенно фаза 5 — много контроллеров, и фаза 9 — много файлов фронта). Между фазами вы тестируете на своём VPS.
+## Подтверждение перед стартом
 
-## Технические детали
-
-**PHP-стек:**
-- PHP 8.3, Laravel 11
-- `laravel/sanctum` (auth tokens)
-- `laravel/socialite` (Google OAuth)
-- `laravel/reverb` (WebSockets)
-- `spatie/laravel-permission` (роли + права)
-- `predis/predis` (Redis cache)
-- `guzzlehttp/guzzle` (AI HTTP)
-
-**Структура `backend-laravel/`:**
-```
-backend-laravel/
-├── app/
-│   ├── Http/Controllers/Api/
-│   ├── Http/Requests/
-│   ├── Models/
-│   ├── Policies/
-│   ├── Services/AiClient.php
-│   ├── Jobs/
-│   └── Events/
-├── routes/api.php
-├── database/migrations/
-├── config/
-├── docker/
-│   ├── php-fpm/Dockerfile
-│   ├── nginx/default.conf
-│   └── reverb/Dockerfile
-├── docker-compose.yml
-├── composer.json
-├── artisan
-└── .env.example
-```
-
-**Frontend изменения:**
-- `src/integrations/supabase/` → удалить после фазы 10
-- Новый `src/lib/api/` — основной слой данных
-- `src/contexts/AuthContext.tsx` — переписать на `api.auth`
-- `package.json`: убрать `@supabase/supabase-js`, добавить `laravel-echo`, `pusher-js`
-
-**Важное предупреждение про Lovable:**
-- Я не могу запустить `php artisan` или протестировать PHP-код в песочнице. Каждая PHP-правка проверяется вами на VPS.
-- Lovable Cloud не управляет Laravel-бэком — это полностью ваша инфраструктура.
-- Папка `backend/` (текущий self-host Supabase) останется как страховка/для отката, удалим после успешного переключения.
-
-## Чего я **НЕ** буду делать без отдельного запроса
-
-- Менять дизайн/UX — все страницы остаются как есть.
-- Менять бизнес-логику ролей/верификации — переношу один-к-одному.
-- Удалять Supabase-код до фазы 10 — приложение продолжит работать на старом бэке весь период миграции.
-
----
-
-**Если план ОК — отвечайте «Фаза 1, поехали»**, и я создам скелет Laravel-проекта в `backend-laravel/`.
+Одобрите план, и я пройду по шагам 1-8 в одной серии. Особенно важно подтвердить:
+- готовы ли вы потерять Lovable-preview (`*.lovable.app`) — после Фазы 13 он перестанет открываться, проверяем только на своём домене;
+- какой реальный AI-провайдер крутится на Laravel (Gemini через `AI_API_URL`?) — чтобы я не сломал контракт `aiInvoke`.
