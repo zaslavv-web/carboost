@@ -27,7 +27,7 @@ class GoogleAuthController extends Controller
     /** GET /api/auth/google/redirect?return_to=https://app.example.ru/auth/callback */
     public function redirect(Request $request): RedirectResponse
     {
-        $returnTo = $request->query('return_to', config('app.frontend_url') . '/auth/callback');
+        $returnTo = $request->query('return_to', rtrim(env('APP_FRONTEND_URL', config('app.url')), '/') . '/auth/callback');
         $state = rtrim(strtr(base64_encode(json_encode(['return_to' => $returnTo])), '+/', '-_'), '=');
 
         return Socialite::driver('google')
@@ -62,7 +62,7 @@ class GoogleAuthController extends Controller
 
     private function returnToFromState(?string $state): string
     {
-        $fallback = config('app.frontend_url') . '/auth/callback';
+        $fallback = rtrim(env('APP_FRONTEND_URL', config('app.url')), '/') . '/auth/callback';
         if (!$state) return $fallback;
 
         $decoded = base64_decode(strtr($state, '-_', '+/'), true);
