@@ -40,14 +40,14 @@ jobs:
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-              "mkdir -p ${{ secrets.DEPLOY_PATH }}/frontend && chmod -R 755 ${{ secrets.DEPLOY_PATH }}/frontend"
+              "mkdir -p ${{ secrets.TARGET_DIR }}/frontend"
 
           rsync -avz --delete \
             -e "ssh -o StrictHostKeyChecking=no \
                     -o HostKeyAlgorithms=+ssh-rsa \
                     -o PubkeyAcceptedKeyTypes=+ssh-rsa" \
             dist/ \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ secrets.DEPLOY_PATH }}/frontend
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ secrets.TARGET_DIR }}/frontend
 
   # ─── БЭКЕНД ─────────────────────────────────────────────
   build-backend:
@@ -139,7 +139,7 @@ jobs:
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-              "mkdir -p ${{ secrets.DEPLOY_PATH }}/backend && chmod -R 755 ${{ secrets.DEPLOY_PATH }}/backend"
+              "mkdir -p ${{ secrets.TARGET_DIR }}/backend"
 
           rsync -avz --delete \
             --exclude='.git' \
@@ -148,7 +148,7 @@ jobs:
                     -o HostKeyAlgorithms=+ssh-rsa \
                     -o PubkeyAcceptedKeyTypes=+ssh-rsa" \
             app-src/ \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ secrets.DEPLOY_PATH }}/backend
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ secrets.TARGET_DIR }}/backend
 
       - name: Migrate on server
         run: |
@@ -156,4 +156,4 @@ jobs:
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-              "cd ${{ secrets.DEPLOY_PATH }}/backend && php artisan migrate --force && php artisan db:seed --class=RoleSeeder --force"
+              "cd ${{ secrets.TARGET_DIR }}/backend && php artisan migrate --force && php artisan db:seed --class=RoleSeeder --force"
