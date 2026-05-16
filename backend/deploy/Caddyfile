@@ -6,5 +6,5 @@
 
 {$API_DOMAIN} {
     encode gzip zstd
-    reverse_proxy kong:8000
+    reverse_proxy {$LARAVEL_UPSTREAM:ct-laravel-nginx:80}
 }
