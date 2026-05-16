@@ -29,9 +29,9 @@ FROM nginx:1.27-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 # Шаблон nginx-конфига; на старте подставляется LARAVEL_HOST через envsubst.
 COPY backend/deploy/nginx.conf /etc/nginx/templates/default.conf.template
-# По-умолчанию ходим в сервис `app` из docker-compose-сети.
+# По-умолчанию ходим в nginx Laravel из docker-compose-сети.
 # Переопределяется через docker run -e LARAVEL_HOST=host:port
-ENV LARAVEL_HOST="app:9000"
+ENV LARAVEL_HOST="ct-laravel-nginx:80"
 EXPOSE 80
 # nginx:alpine из коробки умеет /etc/nginx/templates/*.template + envsubst.
 CMD ["nginx", "-g", "daemon off;"]
