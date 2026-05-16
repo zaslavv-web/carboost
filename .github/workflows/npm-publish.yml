@@ -169,4 +169,4 @@ jobs:
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-              "cd ${{ secrets.TARGET_DIR }}/backend && php8.2 artisan migrate --force && php8.2 artisan db:seed --class=RoleSeeder --force"
+              "cd ${{ secrets.TARGET_DIR }}/backend && php artisan migrate --force && php artisan db:seed --class=RoleSeeder --force"
