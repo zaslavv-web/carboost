@@ -1,3 +1,4 @@
+import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Upload, Loader2, FileText, Trash2, Power, PowerOff, Eye } from "lucide-react";

@@ -1,3 +1,4 @@
+import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useQuery } from "@tanstack/react-query";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useEffectiveUserId } from "@/hooks/useEffectiveUser";

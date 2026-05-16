@@ -1,3 +1,4 @@
+import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
