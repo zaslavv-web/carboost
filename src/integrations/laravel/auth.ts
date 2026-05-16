@@ -75,7 +75,7 @@ export const laravelAuthApi = {
     const base =
       (import.meta.env.VITE_LARAVEL_API_URL as string | undefined)?.replace(/\/+$/, "") || "/api";
     const url = new URL(`${base}/auth/google/redirect`, window.location.origin);
-    if (redirectTo) url.searchParams.set("redirect", redirectTo);
+    if (redirectTo) url.searchParams.set("return_to", redirectTo);
     window.location.href = url.toString();
   },
 
@@ -85,12 +85,16 @@ export const laravelAuthApi = {
    */
   consumeOauthToken(): boolean {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const token = params.get("token") || params.get("access_token") || hash.get("access_token");
     if (!token) return false;
     laravelAuth.setToken(token);
     params.delete("token");
+    params.delete("access_token");
     const qs = params.toString();
-    const clean = window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash;
+    hash.delete("access_token");
+    const cleanHash = hash.toString();
+    const clean = window.location.pathname + (qs ? `?${qs}` : "") + (cleanHash ? `#${cleanHash}` : "");
     window.history.replaceState({}, "", clean);
     return true;
   },
