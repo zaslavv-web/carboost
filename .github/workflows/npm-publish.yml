@@ -40,7 +40,7 @@ jobs:
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-              "mkdir -p ${{ secrets.DEPLOY_PATH }}/frontend"
+              "mkdir -p ${{ secrets.DEPLOY_PATH }}/frontend && chmod -R 755 ${{ secrets.DEPLOY_PATH }}/frontend"
 
           rsync -avz --delete \
             -e "ssh -o StrictHostKeyChecking=no \
@@ -139,7 +139,7 @@ jobs:
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-              "mkdir -p ${{ secrets.DEPLOY_PATH }}/backend"
+              "mkdir -p ${{ secrets.DEPLOY_PATH }}/backend && chmod -R 755 ${{ secrets.DEPLOY_PATH }}/backend"
 
           rsync -avz --delete \
             --exclude='.git' \
