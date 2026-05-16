@@ -1,76 +1,48 @@
 # Career Track — Laravel 11 backend
 
-Этот каталог содержит **инфраструктуру и кастомный код** Laravel-бэка.
-Сам каркас Laravel (vendor, bootstrap, базовые config-файлы) генерируется
-командой `composer create-project` при первом подъёме — мы не коммитим
-~500 файлов фреймворка в репозиторий.
-
-## Стек
-
-- PHP 8.3 + Laravel 11
-- PostgreSQL 15 (тот же дамп, что был в Supabase)
-- Sanctum — аутентификация SPA-токенами (совместима с bcrypt-паролями Supabase)
-- Socialite — Google OAuth (линкует с существующими `auth.users` по email)
-- Reverb — WebSocket-сервер для realtime
-- Spatie/Permission — роли и права (импортируются из `public.user_roles`)
-- Redis (predis) — кэш и очереди
-- nginx + php-fpm в Docker
+Чистый Laravel-проект (без Docker). Файлы, ранее лежавшие в `overlay/`,
+теперь находятся прямо в корне `backend-laravel/` и накладываются поверх
+стандартного `composer create-project laravel/laravel`.
 
 ## Структура
 
-```
-backend-laravel/
-├── docker/
-│   ├── php-fpm/Dockerfile          # PHP 8.3-FPM + расширения (pdo_pgsql, redis, intl, gd...)
-│   ├── nginx/default.conf          # nginx → php-fpm
-│   └── reverb/Dockerfile           # отдельный контейнер под WebSockets
-├── overlay/                        # Кастомный код, копируется поверх свежего Laravel
-│   ├── app/                        # Models, Controllers, Policies, Services, Jobs, Events
-│   ├── config/                     # sanctum.php, services.php, broadcasting.php (наши)
-│   ├── database/migrations/        # формальные миграции поверх Supabase-дампа
-│   ├── routes/api.php              # все API-эндпоинты
-│   └── .env.example
-├── scripts/
-│   ├── bootstrap.sh                # composer create-project + установка пакетов + overlay
-│   └── import-supabase-dump.sh     # перенос данных из старого Supabase Postgres
-├── docker-compose.yml              # postgres + php-fpm + nginx + reverb + redis
-└── README.md
-```
+- `.env.example` — шаблон окружения
+- `app/` — Models, Controllers, Policies, Services
+- `bootstrap/app.php` — bootstrap Laravel 11
+- `config/` — переопределения `sanctum.php`, `services.php`, `filesystems.php`
+- `database/migrations/` — миграции поверх Supabase-дампа
+- `database/seeders/` — сидеры ролей Spatie
+- `routes/api.php` — все API-эндпоинты
+- `scripts/import-supabase-dump.sh` — импорт дампа Supabase в Postgres
 
-## Первый запуск на VPS
+## Запуск без Docker
+
+Требования: PHP 8.3+, Composer 2, Postgres 15+, Redis (опционально), Node 20+ для фронта.
 
 ```bash
-# 1. Клонируем репозиторий, переходим в backend-laravel/
-cd backend-laravel
+# 1. Создать свежий Laravel и наложить наши файлы поверх
+composer create-project laravel/laravel app-src "11.*"
+cp -r app bootstrap config database routes app-src/
+cp .env.example app-src/.env
 
-# 2. Поднимаем инфраструктуру (postgres + redis)
-cp overlay/.env.example .env
-# отредактируйте .env: DB_PASSWORD, APP_KEY (php artisan key:generate), GOOGLE_CLIENT_ID/SECRET, AI_API_KEY
-docker compose up -d postgres redis
+cd app-src
+composer require \
+  laravel/sanctum laravel/socialite laravel/reverb \
+  spatie/laravel-permission predis/predis guzzlehttp/guzzle
 
-# 3. Bootstrap Laravel + установка пакетов + overlay
-bash scripts/bootstrap.sh
+php artisan key:generate
+php artisan migrate
+php artisan db:seed --class=RoleSeeder
 
-# 4. Импорт данных из старого Supabase
-bash scripts/import-supabase-dump.sh /path/to/careertrack.dump
+# 2. (опционально) импорт боевых данных
+bash ../scripts/import-supabase-dump.sh /path/to/careertrack.dump
 
-# 5. Поднимаем приложение
-docker compose up -d
+# 3. Запуск
+php artisan serve --host=0.0.0.0 --port=8000
+php artisan queue:work &
+php artisan reverb:start --host=0.0.0.0 --port=8080 &
 ```
 
-После этого:
-- API доступно на `http://localhost:8000`
-- Reverb WebSocket — `ws://localhost:8080`
-- За nginx + Caddy/Traefik с TLS повесьте домен `api.example.ru → :8000`
-  и `reverb.example.ru → :8080`.
-
-## Дальнейшие фазы миграции
-
-См. корневой [`.lovable/plan.md`](../.lovable/plan.md). Текущий статус: **Фаза 1**
-(только инфраструктура и bootstrap). Эндпоинтов ещё нет — приходят в фазах 3–8.
-
-## Важно
-
-- Frontend (`src/`) **продолжает работать на старом Supabase** до Фазы 9. Этот бэк
-  пока разрабатывается параллельно и не подключён к фронту.
-- Песочница Lovable не запускает PHP. Все изменения проверяются вами на VPS.
+Прод-деплой — любой PHP-хостинг (nginx + php-fpm, FrankenPHP, Laravel Forge,
+ploi.io, Render и т.д.). Фронт собирается отдельно (`npm run build`) и кладётся
+за тот же домен с `/api` → Laravel.
