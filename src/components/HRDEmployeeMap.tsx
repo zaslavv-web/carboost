@@ -320,9 +320,9 @@ const HRDEmployeeMap = () => {
           .from("career_track_templates")
           .select("id, steps")
           .in("id", tplIds);
-        const tplMap = new Map((tpls || []).map((t: any) => [t.id, (t.steps as any[])?.length || 1]));
+        const tplMap = new Map<string, number>((tpls || []).map((t: any) => [t.id, (t.steps as any[])?.length || 1]));
         const totals = assignments.map((a) => {
-          const total = tplMap.get(a.template_id) || 1;
+          const total = tplMap.get(a.template_id) ?? 1;
           return Math.min(100, Math.round(((a.current_step || 0) / total) * 100));
         });
         trackProgress = Math.round(totals.reduce((s, n) => s + n, 0) / totals.length);
