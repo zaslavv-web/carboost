@@ -61,7 +61,7 @@ const CompleteRegistration = () => {
     queryKey: ["positions_for_registration", selectedCompanyId],
     queryFn: async () => {
       if (!selectedCompanyId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("positions")
         .select("id, title, department")
         .eq("company_id", selectedCompanyId)
@@ -80,7 +80,7 @@ const CompleteRegistration = () => {
         setAutoMatchedPosition(null);
         return;
       }
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("email_domain_position_mappings")
         .select("position_id, positions(id, title)")
         .eq("company_id", selectedCompanyId)
