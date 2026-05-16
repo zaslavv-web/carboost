@@ -1,7 +1,0 @@
-RewriteEngine On
-RewriteRule ^api(/.*)?$ backend/public/index.php [L,QSA]
-RewriteCond %{DOCUMENT_ROOT}/frontend/%{REQUEST_URI} -f
-RewriteRule ^(.*)$ frontend/$1 [L]
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ frontend/index.html [L]
