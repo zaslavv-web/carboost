@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "lucide-react";
@@ -28,7 +27,7 @@ const oauthLog = (
     event,
     host: typeof window !== "undefined" ? window.location.hostname : "ssr",
     origin: typeof window !== "undefined" ? window.location.origin : "ssr",
-    mode: "supabase-direct",
+    mode: "laravelDb-direct",
     ts: new Date().toISOString(),
     ...details,
   };

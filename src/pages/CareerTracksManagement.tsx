@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
@@ -64,7 +63,7 @@ const CareerTracksManagement = () => {
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["career_track_templates", companyId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("career_track_templates")
         .select("*")
         .order("created_at", { ascending: false });
@@ -78,7 +77,7 @@ const CareerTracksManagement = () => {
     queryFn: async () => {
       const templateIds = templates.map(t => t.id);
       if (!templateIds.length) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("career_level_actions")
         .select("*")
         .in("template_id", templateIds)
@@ -92,7 +91,7 @@ const CareerTracksManagement = () => {
   const { data: assignments = [] } = useQuery({
     queryKey: ["employee_career_assignments", companyId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("employee_career_assignments")
         .select("*")
         .order("assigned_at", { ascending: false });

@@ -1,4 +1,4 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -17,7 +17,7 @@ export default function Shop() {
     queryKey: ["shop_products", profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("shop_products")
         .select("*")
         .eq("company_id", profile.company_id)

@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -41,7 +40,7 @@ export default function ShopProductDetail() {
   const addToCart = useMutation({
     mutationFn: async () => {
       if (!userId || !profile?.company_id || !product) throw new Error("Нет данных");
-      const { data: existing } = await supabase
+      const { data: existing } = await laravelDb
         .from("shop_cart_items").select("*")
         .eq("user_id", userId).eq("product_id", product.id).maybeSingle();
       if (existing) {

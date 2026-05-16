@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -116,7 +115,7 @@ const HRDEmployeeMap = () => {
     queryKey: ["hrd_map_employees", companyId],
     queryFn: async () => {
       if (!companyId) return [] as Employee[];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("profiles")
         .select("user_id, full_name, position, department, avatar_url, overall_score, role_readiness")
         .eq("company_id", companyId);
@@ -131,7 +130,7 @@ const HRDEmployeeMap = () => {
     queryKey: ["hrd_map_team_links", companyId],
     queryFn: async () => {
       if (!companyId) return [] as TeamLink[];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("team_members")
         .select("manager_id, employee_id")
         .eq("company_id", companyId);
@@ -146,7 +145,7 @@ const HRDEmployeeMap = () => {
     queryKey: ["hrd_map_hr_tasks", companyId],
     queryFn: async () => {
       if (!companyId) return [] as HrTask[];
-      const { data: tasks, error } = await supabase
+      const { data: tasks, error } = await laravelDb
         .from("hr_tasks")
         .select("*")
         .eq("company_id", companyId)
@@ -155,7 +154,7 @@ const HRDEmployeeMap = () => {
       const ids = (tasks || []).map((t) => t.id);
       let assignees: any[] = [];
       if (ids.length > 0) {
-        const { data: a, error: aErr } = await supabase
+        const { data: a, error: aErr } = await laravelDb
           .from("hr_task_assignees")
           .select("task_id, user_id, individual_status, reward_paid")
           .in("task_id", ids);
@@ -181,7 +180,7 @@ const HRDEmployeeMap = () => {
     queryKey: ["hrd_map_balances", companyId],
     queryFn: async () => {
       if (!companyId) return [] as { user_id: string; balance: number }[];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("currency_balances")
         .select("user_id, balance")
         .eq("company_id", companyId);
@@ -310,20 +309,20 @@ const HRDEmployeeMap = () => {
     queryFn: async () => {
       if (!selectedEmployeeId || !companyId) return null;
       // Track progress
-      const { data: assignments } = await supabase
+      const { data: assignments } = await laravelDb
         .from("employee_career_assignments")
         .select("template_id, current_step, status")
         .eq("user_id", selectedEmployeeId);
       let trackProgress = 0;
       if (assignments && assignments.length > 0) {
         const tplIds = assignments.map((a) => a.template_id);
-        const { data: tpls } = await supabase
+        const { data: tpls } = await laravelDb
           .from("career_track_templates")
           .select("id, steps")
           .in("id", tplIds);
-        const tplMap = new Map((tpls || []).map((t: any) => [t.id, (t.steps as any[])?.length || 1]));
+        const tplMap = new Map<string, number>((tpls || []).map((t: any) => [t.id, (t.steps as any[])?.length || 1]));
         const totals = assignments.map((a) => {
-          const total = tplMap.get(a.template_id) || 1;
+          const total = tplMap.get(a.template_id) ?? 1;
           return Math.min(100, Math.round(((a.current_step || 0) / total) * 100));
         });
         trackProgress = Math.round(totals.reduce((s, n) => s + n, 0) / totals.length);
@@ -337,7 +336,7 @@ const HRDEmployeeMap = () => {
       const taskRatio = myTasks.length > 0 ? Math.round((completedTasks / myTasks.length) * 100) : 0;
 
       // Rewards count
-      const { count: rewardsCount } = await supabase
+      const { count: rewardsCount } = await laravelDb
         .from("employee_rewards")
         .select("*", { count: "exact", head: true })
         .eq("user_id", selectedEmployeeId);
@@ -360,7 +359,7 @@ const HRDEmployeeMap = () => {
     queryKey: ["hrd_map_shop", selectedEmployeeId],
     queryFn: async () => {
       if (!selectedEmployeeId) return null;
-      const { data: orders } = await supabase
+      const { data: orders } = await laravelDb
         .from("shop_orders")
         .select("id, status, total_amount, created_at")
         .eq("user_id", selectedEmployeeId)
@@ -368,7 +367,7 @@ const HRDEmployeeMap = () => {
       const orderIds = (orders || []).map((o) => o.id);
       let items: any[] = [];
       if (orderIds.length > 0) {
-        const { data: it } = await supabase
+        const { data: it } = await laravelDb
           .from("shop_order_items")
           .select("order_id, product_id, product_title, quantity, subtotal")
           .in("order_id", orderIds);
@@ -400,7 +399,7 @@ const HRDEmployeeMap = () => {
       assigneeIds: string[];
     }) => {
       if (!companyId || !user) throw new Error("Нет компании");
-      const { data: task, error } = await supabase
+      const { data: task, error } = await laravelDb
         .from("hr_tasks")
         .insert({
           company_id: companyId,
@@ -433,7 +432,7 @@ const HRDEmployeeMap = () => {
   const completeTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
       if (!user) return;
-      const { error } = await supabase
+      const { error } = await laravelDb
         .from("hr_tasks")
         .update({ status: "completed", reviewed_by: user.id, reviewed_at: new Date().toISOString() })
         .eq("id", taskId);
@@ -450,7 +449,7 @@ const HRDEmployeeMap = () => {
   const rejectTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
       if (!user) return;
-      const { error } = await supabase
+      const { error } = await laravelDb
         .from("hr_tasks")
         .update({ status: "rejected", reviewed_by: user.id, reviewed_at: new Date().toISOString() })
         .eq("id", taskId);

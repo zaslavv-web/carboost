@@ -1,4 +1,4 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelRpc } from "@/integrations/laravel/rpc";
@@ -49,7 +49,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
   const { data: lastAttempts = [] } = useQuery({
     queryKey: ["my_step_attempts", assignmentId, stepOrder],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("career_step_submissions")
         .select("attempt_no, status, rejection_reason")
         .eq("assignment_id", assignmentId)
@@ -66,7 +66,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
   const { data: scenario } = useQuery({
     queryKey: ["step_scenario", templateId, stepOrder],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("career_step_scenarios")
         .select("*")
         .eq("template_id", templateId)
@@ -81,7 +81,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
     queryKey: ["step_test", scenario?.test_id],
     queryFn: async () => {
       if (!scenario?.test_id) return null;
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("closed_question_tests")
         .select("*")
         .eq("id", scenario.test_id)
@@ -144,7 +144,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
       setAnswers({});
       return;
     }
-    const { data, error } = await supabase
+    const { data, error } = await laravelDb
       .from("test_attempts")
       .insert({
         user_id: user.id,

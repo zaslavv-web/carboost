@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
@@ -199,7 +198,7 @@ const Support = () => {
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ["support_tickets", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("support_tickets")
         .select("*")
         .order("created_at", { ascending: false });

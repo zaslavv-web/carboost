@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
@@ -17,7 +16,7 @@ const CareerReviews = () => {
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ["career_reviews_pending"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("career_step_submissions")
         .select("*")
         .order("created_at", { ascending: false });
@@ -54,7 +53,7 @@ const CareerReviews = () => {
     queryKey: ["review_files", submissionIds],
     queryFn: async () => {
       if (!submissionIds.length) return [];
-      const { data } = await supabase
+      const { data } = await laravelDb
         .from("career_step_submission_files")
         .select("*")
         .in("submission_id", submissionIds);

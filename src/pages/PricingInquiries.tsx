@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +25,7 @@ export default function PricingInquiries() {
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["pricing_inquiries"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("pricing_inquiries")
         .select("*")
         .order("created_at", { ascending: false });

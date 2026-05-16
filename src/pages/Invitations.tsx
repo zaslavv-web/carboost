@@ -1,4 +1,4 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelRpc } from "@/integrations/laravel/rpc";
@@ -30,7 +30,7 @@ const Invitations = () => {
     queryKey: ["positions_for_invite", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("positions")
         .select("id, title, department")
         .eq("company_id", companyId)
@@ -45,7 +45,7 @@ const Invitations = () => {
     queryKey: ["invitations", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("employee_invitations" as any)
         .select("*")
         .eq("company_id", companyId)
@@ -76,7 +76,7 @@ const Invitations = () => {
 
   const cancelMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await laravelDb
         .from("employee_invitations" as any)
         .update({ status: "cancelled" })
         .eq("id", id);

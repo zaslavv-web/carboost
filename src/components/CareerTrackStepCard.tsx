@@ -1,4 +1,4 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Clock, Target, CheckCircle2, Award, AlertTriangle, Gauge, Send, Gift, Hourglass, XCircle } from "lucide-react";
@@ -65,7 +65,7 @@ const CareerTrackStepCard = ({ step, index, totalSteps, isCompleted, isCurrent, 
     queryKey: ["my_step_submission", assignmentId, index],
     queryFn: async () => {
       if (!assignmentId) return null;
-      const { data } = await supabase
+      const { data } = await laravelDb
         .from("career_step_submissions")
         .select("*")
         .eq("assignment_id", assignmentId)

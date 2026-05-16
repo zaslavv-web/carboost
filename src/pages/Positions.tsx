@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useState, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
@@ -279,7 +278,7 @@ const PositionEditor = ({
   const loadFromHrDocuments = async () => {
     setLoadingFromDocs(true);
     try {
-      const { data: docs, error } = await supabase
+      const { data: docs, error } = await laravelDb
         .from("hr_documents")
         .select("title, document_type, extracted_data")
         .eq("processing_status", "completed")

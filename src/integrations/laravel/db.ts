@@ -51,6 +51,10 @@ class QueryBuilder<T = any> implements PromiseLike<LaravelInvokeResult<T> & { co
   ilike(col: string, p: string) { return this.add("ilike", col, p); }
   in(col: string, values: any[]) { return this.add("in", col, values.join(",")); }
   is(col: string, value: null | "null") { return this.add("is", col, "null"); }
+  not(col: string, op: string, value: any) { return this.add(`not.${op}`, col, value === null ? "null" : value); }
+  contains(col: string, value: any) { return this.add("cs", col, Array.isArray(value) ? `{${value.join(",")}}` : JSON.stringify(value)); }
+  containedBy(col: string, value: any) { return this.add("cd", col, Array.isArray(value) ? `{${value.join(",")}}` : JSON.stringify(value)); }
+  or(filters: string) { return this.add("or", "", `(${filters})`); }
 
   order(col: string, opts: { ascending?: boolean } = {}) {
     this.orderParts.push(`${col}.${opts.ascending === false ? "desc" : "asc"}`);

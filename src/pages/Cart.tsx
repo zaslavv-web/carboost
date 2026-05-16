@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
@@ -27,7 +26,7 @@ export default function Cart() {
     queryKey: ["shop_cart", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("shop_cart_items")
         .select("*, product:shop_products(*)")
         .eq("user_id", userId);

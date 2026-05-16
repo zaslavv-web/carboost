@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -50,7 +49,7 @@ const Onboarding = () => {
     queryKey: ["onboarding_settings", companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("company_onboarding_settings" as any)
         .select("*")
         .eq("company_id", companyId)
@@ -64,7 +63,7 @@ const Onboarding = () => {
   const updateSettings = useMutation({
     mutationFn: async (patch: Record<string, any>) => {
       if (!companyId) return;
-      const { error } = await supabase
+      const { error } = await laravelDb
         .from("company_onboarding_settings" as any)
         .upsert({ company_id: companyId, ...patch }, { onConflict: "company_id" });
       if (error) throw error;

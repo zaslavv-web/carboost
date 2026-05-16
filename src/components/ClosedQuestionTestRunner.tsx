@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -99,7 +98,7 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
       });
 
       for (const c of breakdown) {
-        const { data: existing } = await supabase
+        const { data: existing } = await laravelDb
           .from("competencies")
           .select("id")
           .eq("user_id", user.id)

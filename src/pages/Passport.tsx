@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -50,7 +49,7 @@ const Passport = () => {
   const { data: latestQuestionnaire } = useQuery({
     queryKey: ["latest_employee_questionnaire", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("employee_questionnaires" as any)
         .select("*")
         .eq("user_id", user!.id)

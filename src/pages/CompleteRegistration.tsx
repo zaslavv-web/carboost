@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -143,7 +142,7 @@ const CompleteRegistration = () => {
         });
         if (error) throw error;
       }
-      // В Phase 13 убрали supabase.auth.updateUser — профильные поля уже
+      // В Phase 13 убрали laravelDb.auth.updateUser — профильные поля уже
       // обновлены через laravelDb выше, отдельного хранилища "метаданных" нет.
     },
     onSuccess: async () => {

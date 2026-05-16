@@ -1,4 +1,3 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
@@ -30,7 +29,7 @@ const ManagerDashboard = () => {
   const { data: teamIds = [] } = useQuery({
     queryKey: ["team_members", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("team_members")
         .select("employee_id")
         .eq("manager_id", user!.id);
@@ -81,7 +80,7 @@ const ManagerDashboard = () => {
     queryKey: ["manager_team_competencies", teamIds],
     queryFn: async () => {
       if (teamIds.length === 0) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("competencies")
         .select("skill_name, skill_value")
         .in("user_id", teamIds);

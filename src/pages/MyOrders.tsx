@@ -1,4 +1,4 @@
-import { laravelDb as supabase } from "@/integrations/laravel/db";
+import { laravelDb } from "@/integrations/laravel/db";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
@@ -23,7 +23,7 @@ export default function MyOrders() {
     queryKey: ["shop_orders_my", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("shop_orders")
         .select("*, items:shop_order_items(*)")
         .eq("user_id", userId)
