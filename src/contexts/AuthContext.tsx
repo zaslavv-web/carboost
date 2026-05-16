@@ -1,4 +1,3 @@
-import { laravelDb } from "@/integrations/laravel/db";
 /**
  * Phase 13 — single auth backend.
  *
