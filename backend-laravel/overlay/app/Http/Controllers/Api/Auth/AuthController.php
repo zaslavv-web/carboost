@@ -81,7 +81,7 @@ class AuthController extends Controller
     /** GET /api/auth/me (auth:sanctum) */
     public function me(Request $request): JsonResponse
     {
-        return response()->json(['user' => $this->presentUser($request->user())]);
+        return response()->json($this->presentUser($request->user()));
     }
 
     private function presentUser(User $user): array
@@ -97,6 +97,11 @@ class AuthController extends Controller
             'is_verified'     => (bool) ($profile->is_verified ?? false),
             'requested_role'  => $profile->requested_role   ?? null,
             'role'            => $user->domainRole(),
+            'roles'           => \\DB::table('user_roles')
+                ->where('user_id', $user->id)
+                ->pluck('role')
+                ->values()
+                ->all(),
             'meta'            => $user->meta,
         ];
     }
