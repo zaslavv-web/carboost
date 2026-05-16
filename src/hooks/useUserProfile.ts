@@ -40,7 +40,7 @@ export const useUserProfile = () => {
     queryKey: ["profile", effectiveId],
     queryFn: async () => {
       if (!effectiveId) return null;
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("profiles")
         .select("*")
         .eq("user_id", effectiveId)
@@ -59,7 +59,7 @@ export const useUserRoles = () => {
     queryKey: ["user_roles", effectiveId],
     queryFn: async () => {
       if (!effectiveId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("user_roles")
         .select("role")
         .eq("user_id", effectiveId);
@@ -88,7 +88,7 @@ export const useRealPrimaryRole = (): AppRole => {
     queryKey: ["real_user_roles", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id);
