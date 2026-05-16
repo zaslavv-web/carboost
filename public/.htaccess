@@ -1,11 +1,7 @@
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-
-  # Если запрошенный файл или папка существуют — отдаём их
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-
-  # Все остальные запросы отправляем на index.html
-  RewriteRule . /index.html [L]
-</IfModule>
+RewriteEngine On
+RewriteRule ^api(/.*)?$ backend/public/index.php [L,QSA]
+RewriteCond %{DOCUMENT_ROOT}/frontend/%{REQUEST_URI} -f
+RewriteRule ^(.*)$ frontend/$1 [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ frontend/index.html [L]
