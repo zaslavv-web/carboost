@@ -1,30 +1,58 @@
 # Дампы базы данных
 
-Папка для бэкапов Postgres. Файлы вида `careertrack_public_YYYYMMDD_HHMMSS.dump`
-(формат `pg_dump -Fc`) и `.sql` (plain SQL).
+## Файлы
 
-## Что внутри
+- `careertrack_public_*.dump` / `.sql` — Postgres (родной формат Supabase, `pg_dump -Fc` и plain SQL).
+- `careertrack_mysql_*.sql` — **MySQL 8 дамп** схемы `public`, сконвертированный из Postgres.
+- `*.zip` — те же файлы в архиве.
 
-Содержит **полную схему `public`** со всеми данными:
-профили, роли, компании, должности, департаменты, цели, ассессменты,
-карьерные треки, тесты, гамификация, магазин, опросники и т.д.
+## MySQL дамп
 
-> Схемы `auth` и `storage` Supabase в этот дамп **не входят** — на них нет
-> прав у sandbox-роли. Их нужно выгружать отдельно через сервисную роль
-> Supabase, либо при миграции на чистый Laravel-стек экспортировать через
-> владельца БД.
+Содержит 45 таблиц схемы `public` с данными. Маппинг типов:
 
-## Восстановление
+| Postgres | MySQL |
+|---|---|
+| `uuid` | `CHAR(36)` |
+| `text` | `LONGTEXT` |
+| `jsonb` / `json` | `JSON` |
+| `timestamp[tz]` | `DATETIME(6)` |
+| `boolean` | `TINYINT(1)` |
+| `numeric(p,s)` | `DECIMAL(p,s)` |
+| `text[]` и др. массивы | `JSON` (массив элементов) |
+| `bytea` | `LONGBLOB` |
+| `USER-DEFINED` (enum) | `VARCHAR(64)` |
+
+### Что НЕ перенесено в MySQL дамп
+
+- Схемы `auth` и `storage` Supabase (нет прав, плюс это GoTrue/Storage специфика — в Laravel-стеке заменяются на Sanctum + локальный/S3 storage).
+- RLS-политики, триггеры, функции, последовательности, view — это Postgres-only. Логика реализована в Laravel Policies/Models.
+- Внешние ключи опущены (отключены `FOREIGN_KEY_CHECKS`), чтобы порядок INSERT не имел значения. При желании добавьте их после импорта.
+
+### Восстановление в MySQL
 
 ```bash
-# .dump (custom format) — рекомендуется
-pg_restore --no-owner --no-privileges --clean --if-exists \
-  -d "$DATABASE_URL" careertrack_public_YYYYMMDD_HHMMSS.dump
-
-# .sql (plain)
-psql "$DATABASE_URL" -f careertrack_public_YYYYMMDD_HHMMSS.sql
+mysql -u root -p -e "CREATE DATABASE careertrack CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p careertrack < careertrack_mysql_YYYYMMDD_HHMMSS.sql
 ```
 
-Перед загрузкой в чистую базу убедитесь, что созданы расширения
-`pgcrypto` и `uuid-ossp` и схемы `auth`, `storage` (см.
-`scripts/import-supabase-dump.sh`).
+В Laravel `.env`:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=careertrack
+DB_USERNAME=careertrack
+DB_PASSWORD=...
+```
+
+> ⚠️ Пароли пользователей в `auth.users` (bcrypt от Supabase GoTrue) **не входят** в MySQL дамп. После миграции на MySQL все юзеры должны зарегистрироваться/войти через сброс пароля.
+
+## Postgres дамп (для миграции 1-в-1)
+
+```bash
+pg_restore --no-owner --no-privileges --clean --if-exists \
+  -d "$DATABASE_URL" careertrack_public_YYYYMMDD_HHMMSS.dump
+```
+
+Подробнее см. `scripts/import-supabase-dump.sh`.
