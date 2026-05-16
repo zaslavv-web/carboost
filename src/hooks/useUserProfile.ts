@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
