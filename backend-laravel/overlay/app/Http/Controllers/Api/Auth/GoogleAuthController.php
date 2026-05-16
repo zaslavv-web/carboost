@@ -33,7 +33,7 @@ class GoogleAuthController extends Controller
 
         return Socialite::driver('google')
             ->scopes(['openid', 'profile', 'email'])
-            ->stateless(false)
+            ->stateless()
             ->redirect();
     }
 
@@ -43,7 +43,7 @@ class GoogleAuthController extends Controller
         $returnTo = session('oauth_return_to', config('app.frontend_url') . '/auth/callback');
 
         try {
-            $google = Socialite::driver('google')->user();
+            $google = Socialite::driver('google')->stateless()->user();
         } catch (\Throwable $e) {
             return redirect($returnTo . '#error=' . urlencode('Google OAuth failed'));
         }
