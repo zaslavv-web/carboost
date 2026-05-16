@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { laravelDb } from "@/integrations/laravel/db";
+import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useNavigate } from "react-router-dom";
