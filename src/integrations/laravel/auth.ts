@@ -80,7 +80,7 @@ export const laravelAuthApi = {
   },
 
   /**
-   * Consume the `?token=...` returned by GoogleAuthController::callback.
+   * Consume the `#access_token=...` returned by GoogleAuthController::callback.
    * Call this from your OAuth landing route once on mount.
    */
   consumeOauthToken(): boolean {
