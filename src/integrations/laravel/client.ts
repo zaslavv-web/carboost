@@ -52,14 +52,33 @@ async function request<T>(
 
   try {
     const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
+    const ctype = res.headers.get("content-type") || "";
     const text = await res.text();
     let body: any = null;
+    let parsedJson = false;
     if (text) {
       try {
         body = JSON.parse(text);
+        parsedJson = true;
       } catch {
         body = text;
       }
+    }
+    // Бэкенд недоступен: nginx отдал SPA-html вместо JSON от Laravel.
+    // Часто проявляется как 200 OK + index.html — фронт молча падает.
+    const looksLikeHtml =
+      !parsedJson &&
+      (ctype.includes("text/html") ||
+        (typeof body === "string" && body.trim().startsWith("<")));
+    if (looksLikeHtml) {
+      return {
+        data: null,
+        error: {
+          message:
+            "Backend недоступен: сервер вернул HTML вместо JSON. Проверьте, что Laravel-контейнер запущен и nginx проксирует /api на LARAVEL_HOST.",
+          status: res.status,
+        },
+      };
     }
     if (!res.ok) {
       const message =
