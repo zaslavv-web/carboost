@@ -32,6 +32,10 @@ Route::post('/auth/login',    [AuthController::class, 'login']);
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 
+// Phase 13: password reset (заменяет supabase.auth.resetPasswordForEmail/updateUser)
+Route::post('/auth/forgot-password', [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'forgot']);
+Route::post('/auth/reset-password',  [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'reset']);
+
 // Public RPCs used from landing/pricing forms (declared BEFORE the auth group
 // so they take precedence over the generic /rpc/{name} below).
 Route::post('/rpc/submit_demo_request',    fn (\Illuminate\Http\Request $r) =>
@@ -46,6 +50,10 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::post('/impersonation/start', [ImpersonationController::class, 'start']);
     Route::post('/impersonation/stop',  [ImpersonationController::class, 'stop']);
+
+    // Phase 13: admin создаёт пользователя (заменяет admin-create-user edge function)
+    Route::post('/admin/users', [\App\Http\Controllers\Api\Admin\UsersController::class, 'store']);
+
 
     // Профиль текущего пользователя — без has.company (нужен на CompleteRegistration)
     Route::get('/profiles/me', [ProfileController::class, 'me']);
