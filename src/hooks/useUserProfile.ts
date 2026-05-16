@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { laravel } from "@/integrations/laravel/client";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
@@ -33,12 +34,22 @@ export const useEffectiveUserId = (): string | null => {
 const useEffectiveId = useEffectiveUserId;
 
 export const useUserProfile = () => {
-  const effectiveId = useEffectiveId();
+  const { user } = useAuth();
+  const { impersonatedUserId } = useImpersonation();
+  const effectiveId = impersonatedUserId || user?.id || null;
 
   return useQuery({
     queryKey: ["profile", effectiveId],
     queryFn: async () => {
       if (!effectiveId) return null;
+      if (!impersonatedUserId || effectiveId === user?.id) {
+        const { data, error } = await laravel.get<UserProfile>("/profiles/me");
+        if (error) {
+          if (error.status === 404) return null;
+          throw new Error(error.message);
+        }
+        return data as UserProfile | null;
+      }
       const { data, error } = await laravelDb
         .from("profiles")
         .select("*")
@@ -53,11 +64,16 @@ export const useUserProfile = () => {
 
 export const useUserRoles = () => {
   const effectiveId = useEffectiveId();
+  const { user } = useAuth();
+  const { impersonatedUserId } = useImpersonation();
 
   return useQuery({
     queryKey: ["user_roles", effectiveId],
     queryFn: async () => {
       if (!effectiveId) return [];
+      if (!impersonatedUserId && effectiveId === user?.id && Array.isArray(user.roles)) {
+        return user.roles as AppRole[];
+      }
       const { data, error } = await laravelDb
         .from("user_roles")
         .select("role")
@@ -82,20 +98,7 @@ export const usePrimaryRole = (): AppRole => {
 /** Returns the REAL authenticated user's role, ignoring impersonation */
 export const useRealPrimaryRole = (): AppRole => {
   const { user } = useAuth();
-
-  const { data: roles } = useQuery({
-    queryKey: ["real_user_roles", user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      const { data, error } = await laravelDb
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-      if (error) throw error;
-      return (data || []).map((r) => r.role as AppRole);
-    },
-    enabled: !!user,
-  });
+  const roles = Array.isArray(user?.roles) ? (user.roles as AppRole[]) : [];
 
   if (!roles || roles.length === 0) return "employee";
   if (roles.includes("superadmin")) return "superadmin";
