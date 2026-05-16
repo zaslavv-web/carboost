@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         // API stateless — никаких CSRF/session кук в API-группе
-        $middleware->statefulApi();
+        $middleware->validateCsrfTokens(except: ['api/*']);
 
         $middleware->alias([
             'verified.user'  => \App\Http\Middleware\EnsureVerified::class,
