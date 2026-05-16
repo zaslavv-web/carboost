@@ -62,20 +62,32 @@ jobs:
           php-version: '8.2'
           extensions: pdo, pdo_mysql, redis
 
-      - name: Install Composer dependencies
+      - name: Create Laravel project and overlay our files
         run: |
-          cd backend-laravel
-          composer install --no-dev --optimize-autoloader
+          composer create-project laravel/laravel app-src "11.*" --prefer-dist --no-interaction
+          cp -r backend-laravel/app        app-src/
+          cp -r backend-laravel/bootstrap  app-src/
+          cp -r backend-laravel/config     app-src/
+          cp -r backend-laravel/database   app-src/
+          cp -r backend-laravel/routes     app-src/
+
+      - name: Install extra Laravel packages
+        run: |
+          cd app-src
+          composer require \
+            laravel/sanctum laravel/socialite \
+            spatie/laravel-permission predis/predis \
+            guzzlehttp/guzzle --no-interaction
 
       - name: Generate APP_KEY
         id: appkey
         run: |
-          cd backend-laravel
+          cd app-src
           echo "key=$(php artisan key:generate --show)" >> $GITHUB_OUTPUT
 
       - name: Create backend .env
         run: |
-          cat > backend-laravel/.env << EOF
+          cat > app-src/.env << EOF
           APP_NAME="Career Track API"
           APP_ENV=production
           APP_KEY=${{ steps.appkey.outputs.key }}
@@ -110,6 +122,12 @@ jobs:
           FRONTEND_URL=${{ secrets.APP_URL }}
           EOF
 
+      - name: Optimize
+        run: |
+          cd app-src
+          php artisan config:cache
+          php artisan route:cache
+
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -129,13 +147,13 @@ jobs:
             -e "ssh -o StrictHostKeyChecking=no \
                     -o HostKeyAlgorithms=+ssh-rsa \
                     -o PubkeyAcceptedKeyTypes=+ssh-rsa" \
-            backend-laravel/ \
+            app-src/ \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ secrets.DEPLOY_PATH }}/backend
 
-      - name: Migrate & optimize
+      - name: Migrate on server
         run: |
           ssh -o StrictHostKeyChecking=no \
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-              "cd ${{ secrets.DEPLOY_PATH }}/backend && php artisan migrate --force && php artisan config:cache && php artisan route:cache"
+              "cd ${{ secrets.DEPLOY_PATH }}/backend && php artisan migrate --force && php artisan db:seed --class=RoleSeeder --force"
