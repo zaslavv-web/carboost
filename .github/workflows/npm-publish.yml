@@ -79,6 +79,17 @@ jobs:
             spatie/laravel-permission predis/predis \
             guzzlehttp/guzzle --no-interaction
 
+      - name: Create storage directories
+        run: |
+          mkdir -p app-src/storage/logs
+          mkdir -p app-src/storage/app/public
+          mkdir -p app-src/storage/framework/cache
+          mkdir -p app-src/storage/framework/sessions
+          mkdir -p app-src/storage/framework/views
+          mkdir -p app-src/bootstrap/cache
+          chmod -R 775 app-src/storage
+          chmod -R 775 app-src/bootstrap/cache
+
       - name: Generate APP_KEY
         id: appkey
         run: |
@@ -144,6 +155,8 @@ jobs:
           rsync -avz --delete \
             --exclude='.git' \
             --exclude='tests' \
+            --exclude='storage/app/public' \
+            --exclude='storage/logs' \
             -e "ssh -o StrictHostKeyChecking=no \
                     -o HostKeyAlgorithms=+ssh-rsa \
                     -o PubkeyAcceptedKeyTypes=+ssh-rsa" \
@@ -156,4 +169,4 @@ jobs:
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-              "cd ${{ secrets.TARGET_DIR }}/backend && php artisan migrate --force && php artisan db:seed --class=RoleSeeder --force"
+              "cd ${{ secrets.TARGET_DIR }}/backend && php8.2 artisan migrate --force && php8.2 artisan db:seed --class=RoleSeeder --force"
