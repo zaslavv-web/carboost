@@ -87,8 +87,8 @@ jobs:
           mkdir -p app-src/storage/framework/sessions
           mkdir -p app-src/storage/framework/views
           mkdir -p app-src/bootstrap/cache
-          chmod -R 775 app-src/storage
-          chmod -R 775 app-src/bootstrap/cache
+          chmod -R 777 app-src/storage
+          chmod -R 777 app-src/bootstrap/cache
 
       - name: Generate APP_KEY
         id: appkey
