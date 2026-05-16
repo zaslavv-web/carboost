@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { laravelDb } from "@/integrations/laravel/db";
 import { useEffectiveUserId } from "./useEffectiveUser";
 import { useUserProfile } from "./useUserProfile";
 
@@ -11,7 +11,7 @@ export const useCurrencySettings = () => {
     queryKey: ["currency_settings", profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return null;
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("company_currency_settings")
         .select("*")
         .eq("company_id", profile.company_id)
@@ -30,7 +30,7 @@ export const useMyBalance = () => {
     queryKey: ["currency_balance", userId, profile?.company_id],
     queryFn: async () => {
       if (!userId || !profile?.company_id) return 0;
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("currency_balances")
         .select("balance")
         .eq("user_id", userId)
@@ -49,7 +49,7 @@ export const useMyTransactions = (limit = 50) => {
     queryKey: ["currency_tx_my", userId, limit],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("currency_transactions")
         .select("*")
         .eq("user_id", userId)

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { laravelDb } from "@/integrations/laravel/db";
+import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useNavigate } from "react-router-dom";
@@ -184,24 +184,13 @@ const UsersManagement = () => {
 
   const createUserMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("admin-create-user", {
-        body: {
-          full_name: newFullName.trim(),
-          email: newEmail.trim().toLowerCase(),
-          role: newRole,
-          company_id: isSuperadmin ? (newCompanyId || null) : undefined,
-        },
+      const { data, error } = await laravelAuthApi.adminCreateUser({
+        full_name: newFullName.trim(),
+        email: newEmail.trim().toLowerCase(),
+        role: newRole as any,
+        company_id: isSuperadmin ? (newCompanyId || null) : undefined,
       });
-      if (error) {
-        const ctx: any = (error as any).context;
-        let msg = error.message;
-        try {
-          const body = await ctx?.json?.();
-          if (body?.error) msg = body.error;
-        } catch {}
-        throw new Error(msg);
-      }
-      if ((data as any)?.error) throw new Error((data as any).error);
+      if (error) throw new Error(error.message);
       return data;
     },
     onSuccess: () => {

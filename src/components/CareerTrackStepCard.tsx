@@ -1,6 +1,6 @@
+import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Check, Clock, Target, CheckCircle2, Award, AlertTriangle, Gauge, Send, Gift, Hourglass, XCircle } from "lucide-react";
 import StepSubmissionDialog from "@/components/StepSubmissionDialog";
 

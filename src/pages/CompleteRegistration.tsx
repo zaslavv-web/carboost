@@ -1,3 +1,4 @@
+import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,7 +7,6 @@ import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealPrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
-import { supabase } from "@/integrations/supabase/client";
 import { laravelDb } from "@/integrations/laravel/db";
 import {
   clearPendingSocialSignup,
@@ -62,7 +62,7 @@ const CompleteRegistration = () => {
     queryKey: ["positions_for_registration", selectedCompanyId],
     queryFn: async () => {
       if (!selectedCompanyId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("positions")
         .select("id, title, department")
         .eq("company_id", selectedCompanyId)
@@ -81,7 +81,7 @@ const CompleteRegistration = () => {
         setAutoMatchedPosition(null);
         return;
       }
-      const { data, error } = await supabase
+      const { data, error } = await laravelDb
         .from("email_domain_position_mappings")
         .select("position_id, positions(id, title)")
         .eq("company_id", selectedCompanyId)
@@ -137,21 +137,14 @@ const CompleteRegistration = () => {
       } else {
         const { error } = await laravelDb.from("profiles").insert({
           user_id: user.id,
-          full_name: user.user_metadata?.full_name ?? user.email ?? "",
+          full_name: (user as any).full_name ?? user.email ?? "",
           is_verified: false,
           ...payload,
         });
         if (error) throw error;
       }
-
-      const { error: authError } = await supabase.auth.updateUser({
-        data: {
-          ...user.user_metadata,
-          company_id: selectedCompanyId,
-          requested_role: selectedRole,
-        },
-      });
-      if (authError) console.error("Failed to update auth metadata", authError);
+      // В Phase 13 убрали supabase.auth.updateUser — профильные поля уже
+      // обновлены через laravelDb выше, отдельного хранилища "метаданных" нет.
     },
     onSuccess: async () => {
       clearPendingSocialSignup();

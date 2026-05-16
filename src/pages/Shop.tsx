@@ -1,6 +1,6 @@
+import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useMyBalance, useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
 import { Card, CardContent } from "@/components/ui/card";

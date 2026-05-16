@@ -1,32 +1,30 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Briefcase, Lock, Eye, EyeOff } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Lock, Eye, EyeOff } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
-import { supabase } from "@/integrations/supabase/client";
+import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { toast } from "sonner";
 
+/**
+ * Phase 13: reset password via Laravel password broker.
+ * Письмо со сбросом приходит со ссылкой вида:
+ *   /reset-password?token=<broker-token>&email=<email>
+ */
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isRecovery, setIsRecovery] = useState(false);
+  const [params] = useSearchParams();
   const navigate = useNavigate();
 
+  const token = params.get("token") ?? "";
+  const email = params.get("email") ?? "";
+  const isRecovery = !!token && !!email;
+
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash && hash.includes("type=recovery")) {
-      setIsRecovery(true);
-    }
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setIsRecovery(true);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    if (!isRecovery) return;
+  }, [isRecovery]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,16 +32,15 @@ const ResetPassword = () => {
       toast.error("Пароли не совпадают");
       return;
     }
-    if (password.length < 6) {
-      toast.error("Пароль должен содержать минимум 6 символов");
+    if (password.length < 8) {
+      toast.error("Пароль должен содержать минимум 8 символов");
       return;
     }
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-      toast.success("Пароль успешно обновлён");
+      await laravelAuthApi.updatePassword({ token, email, password });
+      toast.success("Пароль успешно обновлён. Войдите с новым паролем.");
       navigate("/login");
     } catch (error: any) {
       toast.error(error.message || "Ошибка при обновлении пароля");
@@ -61,10 +58,7 @@ const ResetPassword = () => {
           <p className="text-muted-foreground text-sm mb-6">
             Перейдите по ссылке из письма для сброса пароля
           </p>
-          <button
-            onClick={() => navigate("/login")}
-            className="text-primary hover:underline text-sm"
-          >
+          <button onClick={() => navigate("/login")} className="text-primary hover:underline text-sm">
             Вернуться к входу
           </button>
         </div>
@@ -84,7 +78,7 @@ const ResetPassword = () => {
         </div>
 
         <h2 className="text-2xl font-bold text-foreground">Новый пароль</h2>
-        <p className="text-muted-foreground text-sm mt-2">Введите новый пароль для вашего аккаунта</p>
+        <p className="text-muted-foreground text-sm mt-2">Введите новый пароль для аккаунта {email}</p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
           <div>
@@ -97,7 +91,7 @@ const ResetPassword = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                minLength={6}
+                minLength={8}
                 className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -116,7 +110,7 @@ const ResetPassword = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                minLength={6}
+                minLength={8}
                 className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
               />
             </div>

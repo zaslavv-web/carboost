@@ -1,9 +1,10 @@
+import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Briefcase, Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import LandingHeader from "@/components/landing/LandingHeader";
-import { supabase } from "@/integrations/supabase/client";
+import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import {
   clearPendingSocialSignup,
@@ -99,33 +100,18 @@ const Login = () => {
       if (isSignUp) {
         const companyId = await resolveCompanyId();
 
-        const { data, error } = await supabase.auth.signUp({
+        await laravelAuthApi.register({
           email,
           password,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: { requested_role: selectedRole, company_id: companyId },
-          },
+          full_name: email.split("@")[0],
+          company_id: companyId,
+          requested_role: selectedRole,
         });
-        if (error) throw error;
 
-        const identities = (data.user as any)?.identities;
-        if (data.user && Array.isArray(identities) && identities.length === 0) {
-          setErrorMessage(
-            "Этот email уже зарегистрирован. Войдите в систему или восстановите пароль."
-          );
-          return;
-        }
-
-        if (data.session) {
-          toast.success("Регистрация прошла успешно. Ожидайте подтверждения суперадмина.");
-          navigate("/dashboard");
-        } else {
-          toast.success(`Письмо для подтверждения отправлено на ${email}. Проверьте папку «Спам».`);
-        }
+        toast.success("Регистрация прошла успешно. Ожидайте подтверждения суперадмина.");
+        navigate("/dashboard");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        await laravelAuthApi.login(email, password);
         navigate("/dashboard");
       }
     } catch (error: any) {
@@ -143,10 +129,7 @@ const Login = () => {
     }
     setErrorMessage("");
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (error) throw error;
+      await laravelAuthApi.resetPasswordForEmail(email, `${window.location.origin}/reset-password`);
       toast.success("Письмо для сброса пароля отправлено на " + email);
     } catch (error: any) {
       setErrorMessage(translateError(error.message || "Ошибка отправки письма"));
@@ -184,33 +167,9 @@ const Login = () => {
         redirectTo,
       });
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          queryParams: { prompt: "select_account" },
-        },
-      });
-      if (error) {
-        const missingSecret = error.message.includes("missing OAuth secret");
-        oauthLog("error", "supabase_direct_failed", {
-          provider: "google",
-          errorMessage: error.message,
-          errorStatus: (error as any)?.status ?? null,
-          errorName: error.name,
-          hint: missingSecret
-            ? "Google provider не настроен в Supabase Auth (нет Client ID/Secret для этого домена)"
-            : "Проверьте Authorized redirect URIs в Google Cloud и Site URL/Redirect URLs в Supabase Auth",
-        });
-        if (isSignUp) clearPendingSocialSignup();
-        setErrorMessage(
-          missingSecret
-            ? "Google OAuth не настроен на этом домене. Обратитесь к администратору."
-            : "Ошибка входа через Google",
-        );
-        return;
-      }
-      oauthLog("info", "redirected_to_provider", { provider: "google", via: "supabase" });
+      // Redirects browser to Laravel /api/auth/google/redirect
+      laravelAuthApi.signInWithGoogle(redirectTo);
+      oauthLog("info", "redirected_to_provider", { provider: "google", via: "laravel" });
       // Браузер уйдёт на Google
     } catch (e: any) {
       oauthLog("error", "unexpected_exception", {

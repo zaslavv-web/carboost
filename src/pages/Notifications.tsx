@@ -1,5 +1,5 @@
+import { laravelDb as supabase } from "@/integrations/laravel/db";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { Check, Info, AlertTriangle, Award, Loader2, Route, ShoppingBag, GraduationCap, ClipboardCheck, XCircle } from "lucide-react";

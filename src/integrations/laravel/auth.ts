@@ -99,7 +99,17 @@ export const laravelAuthApi = {
     unwrap(await laravel.post("/auth/forgot-password", { email, redirectTo }));
   },
 
-  async updatePassword(token: string, password: string): Promise<void> {
-    unwrap(await laravel.post("/auth/reset-password", { token, password }));
+  async updatePassword(payload: { token: string; email: string; password: string }): Promise<void> {
+    unwrap(await laravel.post("/auth/reset-password", payload));
+  },
+
+  /** Phase 13: admin creates user (replaces admin-create-user edge function). */
+  async adminCreateUser(payload: {
+    full_name: string;
+    email: string;
+    role: "employee" | "manager" | "hrd" | "company_admin";
+    company_id?: string | null;
+  }) {
+    return laravel.post<{ user: LaravelUser }>("/admin/users", payload);
   },
 };

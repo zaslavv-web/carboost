@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import { toast } from "sonner";
 import LandingHeader from "@/components/landing/LandingHeader";
