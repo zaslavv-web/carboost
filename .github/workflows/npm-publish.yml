@@ -79,16 +79,17 @@ jobs:
             spatie/laravel-permission predis/predis \
             guzzlehttp/guzzle --no-interaction
 
-      - name: Create storage directories
+      - name: Fix storage permissions
         run: |
-          mkdir -p app-src/storage/logs
-          mkdir -p app-src/storage/app/public
-          mkdir -p app-src/storage/framework/cache
-          mkdir -p app-src/storage/framework/sessions
-          mkdir -p app-src/storage/framework/views
-          mkdir -p app-src/bootstrap/cache
-          chmod -R 777 app-src/storage
-          chmod -R 777 app-src/bootstrap/cache
+          sudo chmod -R 777 app-src/storage
+          sudo chmod -R 777 app-src/bootstrap/cache
+          sudo mkdir -p app-src/storage/logs
+          sudo mkdir -p app-src/storage/app/public
+          sudo mkdir -p app-src/storage/framework/cache
+          sudo mkdir -p app-src/storage/framework/sessions
+          sudo mkdir -p app-src/storage/framework/views
+          sudo chmod -R 777 app-src/storage
+          sudo chmod -R 777 app-src/bootstrap/cache
 
       - name: Generate APP_KEY
         id: appkey
