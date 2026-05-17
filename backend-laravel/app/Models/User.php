@@ -27,7 +27,9 @@ use Spatie\Permission\Traits\HasRoles;
  */
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasUuids, HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, HasUuids, HasRoles {
+        hasRole as protected hasSpatieRole;
+    }
 
     protected $table = 'users';
     protected $keyType = 'string';
@@ -82,6 +84,42 @@ class User extends Authenticatable
     {
         $row = DB::table('user_roles')->where('user_id', $this->id)->value('role');
         return $row;
+    }
+
+    /**
+     * Роли в проекте хранятся в public.user_roles — это источник истины.
+     * Spatie-таблицы могут быть не синхронизированы после импорта/миграций,
+     * поэтому все policy/gate проверки должны сначала смотреть user_roles.
+     */
+    public function hasRole($roles, ?string $guard = null): bool
+    {
+        $expectedRoles = collect(is_array($roles) ? $roles : [$roles])
+            ->map(function ($role) {
+                if ($role instanceof \BackedEnum) {
+                    return (string) $role->value;
+                }
+                if (is_object($role) && isset($role->name)) {
+                    return (string) $role->name;
+                }
+                return (string) $role;
+            })
+            ->filter()
+            ->values();
+
+        if ($expectedRoles->isEmpty()) {
+            return false;
+        }
+
+        $domainRoles = DB::table('user_roles')
+            ->where('user_id', $this->id)
+            ->pluck('role')
+            ->map(fn ($role) => (string) $role);
+
+        if ($domainRoles->intersect($expectedRoles)->isNotEmpty()) {
+            return true;
+        }
+
+        return $this->hasSpatieRole($roles, $guard);
     }
 
     /** Удобный геттер: верифицирован ли пользователь суперадмином */
