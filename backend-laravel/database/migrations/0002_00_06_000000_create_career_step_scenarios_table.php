@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('career_step_scenarios', function (Blueprint $table) {
+        if (!Schema::hasTable('career_step_scenarios')) {
+            Schema::create('career_step_scenarios', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('template_id');
             $table->integer('step_order');
@@ -24,6 +25,7 @@ return new class extends Migration {
             $table->primary('id');
             $table->unique(["template_id", "step_order"]);
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('career_step_scenarios'); }
 };

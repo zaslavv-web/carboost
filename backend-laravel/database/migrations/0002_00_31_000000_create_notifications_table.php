@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('notifications', function (Blueprint $table) {
+        if (!Schema::hasTable('notifications')) {
+            Schema::create('notifications', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('user_id');
             $table->text('title');
@@ -18,6 +19,7 @@ return new class extends Migration {
             $table->timestamps(6);
             $table->primary('id');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('notifications'); }
 };

@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('shop_cart_items', function (Blueprint $table) {
+        if (!Schema::hasTable('shop_cart_items')) {
+            Schema::create('shop_cart_items', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('user_id');
             $table->uuid('company_id');
@@ -17,6 +18,7 @@ return new class extends Migration {
             $table->primary('id');
             $table->unique(["user_id", "product_id"]);
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('shop_cart_items'); }
 };

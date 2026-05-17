@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('team_members', function (Blueprint $table) {
+        if (!Schema::hasTable('team_members')) {
+            Schema::create('team_members', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('manager_id');
             $table->uuid('employee_id');
@@ -17,6 +18,7 @@ return new class extends Migration {
             $table->index('company_id');
             $table->unique(["manager_id", "employee_id"]);
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('team_members'); }
 };

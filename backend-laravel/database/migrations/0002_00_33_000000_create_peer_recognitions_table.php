@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('peer_recognitions', function (Blueprint $table) {
+        if (!Schema::hasTable('peer_recognitions')) {
+            Schema::create('peer_recognitions', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('company_id');
             $table->uuid('from_user_id');
@@ -21,6 +22,7 @@ return new class extends Migration {
             $table->index('from_user_id');
             $table->index('to_user_id');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('peer_recognitions'); }
 };

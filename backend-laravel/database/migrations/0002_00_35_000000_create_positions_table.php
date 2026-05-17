@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('positions', function (Blueprint $table) {
+        if (!Schema::hasTable('positions')) {
+            Schema::create('positions', function (Blueprint $table) {
             $table->uuid('id');
             $table->text('title');
             $table->text('description')->nullable();
@@ -26,6 +27,7 @@ return new class extends Migration {
             $table->index('company_id');
             $table->index(["company_id", "profile_status"]);
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('positions'); }
 };

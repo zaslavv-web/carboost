@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('support_tickets', function (Blueprint $table) {
+        if (!Schema::hasTable('support_tickets')) {
+            Schema::create('support_tickets', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('user_id');
             $table->text('subject');
@@ -22,6 +23,7 @@ return new class extends Migration {
             $table->timestamps(6);
             $table->primary('id');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('support_tickets'); }
 };

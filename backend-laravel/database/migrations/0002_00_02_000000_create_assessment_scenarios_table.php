@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('assessment_scenarios', function (Blueprint $table) {
+        if (!Schema::hasTable('assessment_scenarios')) {
+            Schema::create('assessment_scenarios', function (Blueprint $table) {
             $table->uuid('id');
             $table->text('title');
             $table->text('description')->nullable();
@@ -20,6 +21,7 @@ return new class extends Migration {
             $table->primary('id');
             $table->index('company_id');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('assessment_scenarios'); }
 };

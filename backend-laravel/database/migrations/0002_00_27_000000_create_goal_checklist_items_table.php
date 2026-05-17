@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('goal_checklist_items', function (Blueprint $table) {
+        if (!Schema::hasTable('goal_checklist_items')) {
+            Schema::create('goal_checklist_items', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('goal_id');
             $table->text('text');
@@ -17,6 +18,7 @@ return new class extends Migration {
             $table->timestamps(6);
             $table->primary('id');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('goal_checklist_items'); }
 };

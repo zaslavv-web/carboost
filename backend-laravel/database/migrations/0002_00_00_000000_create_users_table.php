@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
+        if (!Schema::hasTable('users')) {
+            Schema::create('users', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('email')->unique();
             $table->string('password'); // bcrypt из Supabase
@@ -21,6 +22,7 @@ return new class extends Migration {
             $table->timestamps(6);
             $table->index('email');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('users'); }
 };

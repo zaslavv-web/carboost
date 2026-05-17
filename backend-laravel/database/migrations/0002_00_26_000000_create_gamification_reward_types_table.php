@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('gamification_reward_types', function (Blueprint $table) {
+        if (!Schema::hasTable('gamification_reward_types')) {
+            Schema::create('gamification_reward_types', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('company_id')->nullable();
             $table->text('title');
@@ -29,6 +30,7 @@ return new class extends Migration {
             $table->timestamps(6);
             $table->primary('id');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('gamification_reward_types'); }
 };

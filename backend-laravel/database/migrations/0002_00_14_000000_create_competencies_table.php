@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('competencies', function (Blueprint $table) {
+        if (!Schema::hasTable('competencies')) {
+            Schema::create('competencies', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('user_id');
             $table->text('skill_name');
@@ -17,6 +18,7 @@ return new class extends Migration {
             $table->primary('id');
             $table->index('company_id');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('competencies'); }
 };
