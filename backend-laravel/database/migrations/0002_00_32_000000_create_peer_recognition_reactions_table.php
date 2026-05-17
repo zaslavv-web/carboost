@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('peer_recognition_reactions', function (Blueprint $table) {
+        if (!Schema::hasTable('peer_recognition_reactions')) {
+            Schema::create('peer_recognition_reactions', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('recognition_id');
             $table->uuid('user_id');
@@ -17,6 +18,7 @@ return new class extends Migration {
             $table->index('recognition_id');
             $table->unique(["recognition_id", "user_id", "reaction"]);
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('peer_recognition_reactions'); }
 };

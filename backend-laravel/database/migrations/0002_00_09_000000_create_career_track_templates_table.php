@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('career_track_templates', function (Blueprint $table) {
+        if (!Schema::hasTable('career_track_templates')) {
+            Schema::create('career_track_templates', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('company_id')->nullable();
             $table->uuid('from_position_id')->nullable();
@@ -22,6 +23,7 @@ return new class extends Migration {
             $table->timestamps(6);
             $table->primary('id');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('career_track_templates'); }
 };

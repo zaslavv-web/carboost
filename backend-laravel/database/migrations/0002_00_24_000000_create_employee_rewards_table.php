@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('employee_rewards', function (Blueprint $table) {
+        if (!Schema::hasTable('employee_rewards')) {
+            Schema::create('employee_rewards', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('company_id')->nullable();
             $table->uuid('user_id');
@@ -18,6 +19,7 @@ return new class extends Migration {
             $table->timestamps(6);
             $table->primary('id');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('employee_rewards'); }
 };

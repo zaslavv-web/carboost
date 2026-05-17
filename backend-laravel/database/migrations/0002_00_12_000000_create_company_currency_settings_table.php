@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('company_currency_settings', function (Blueprint $table) {
+        if (!Schema::hasTable('company_currency_settings')) {
+            Schema::create('company_currency_settings', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('company_id');
             $table->text('currency_name')->default('Монеты');
@@ -16,6 +17,7 @@ return new class extends Migration {
             $table->primary('id');
             $table->unique('company_id');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('company_currency_settings'); }
 };

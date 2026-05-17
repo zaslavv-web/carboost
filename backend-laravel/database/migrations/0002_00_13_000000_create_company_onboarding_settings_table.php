@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('company_onboarding_settings', function (Blueprint $table) {
+        if (!Schema::hasTable('company_onboarding_settings')) {
+            Schema::create('company_onboarding_settings', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('company_id');
             $table->boolean('auto_assign_tests')->default(true);
@@ -18,6 +19,7 @@ return new class extends Migration {
             $table->primary('id');
             $table->unique('company_id');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('company_onboarding_settings'); }
 };

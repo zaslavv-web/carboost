@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('profiles', function (Blueprint $table) {
+        if (!Schema::hasTable('profiles')) {
+            Schema::create('profiles', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('user_id');
             $table->text('full_name')->default('');
@@ -27,6 +28,7 @@ return new class extends Migration {
             $table->index('company_id');
             $table->unique('user_id');
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('profiles'); }
 };

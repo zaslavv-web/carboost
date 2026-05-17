@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('impersonation_audit', function (Blueprint $table) {
+        if (!Schema::hasTable('impersonation_audit')) {
+            Schema::create('impersonation_audit', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('actor_user_id');
             $table->uuid('target_user_id');
@@ -18,6 +19,7 @@ return new class extends Migration {
             $table->index(['actor_user_id', 'started_at']);
             $table->index('target_user_id');
         });
+        }
     }
 
     public function down(): void

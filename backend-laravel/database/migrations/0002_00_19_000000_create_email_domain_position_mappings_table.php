@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('email_domain_position_mappings', function (Blueprint $table) {
+        if (!Schema::hasTable('email_domain_position_mappings')) {
+            Schema::create('email_domain_position_mappings', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('company_id')->nullable();
             $table->text('email_domain');
@@ -17,6 +18,7 @@ return new class extends Migration {
             $table->primary('id');
             $table->unique(["company_id", "email_domain"]);
         });
+        }
     }
     public function down(): void { Schema::dropIfExists('email_domain_position_mappings'); }
 };
