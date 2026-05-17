@@ -28,7 +28,7 @@ RUN npm run build
 FROM nginx:1.27-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 # Шаблон nginx-конфига; на старте подставляется LARAVEL_HOST через envsubst.
-COPY backend/deploy/nginx.conf /etc/nginx/templates/default.conf.template
+COPY deploy/nginx.conf /etc/nginx/templates/default.conf.template
 # По-умолчанию ходим в nginx Laravel из docker-compose-сети.
 # Переопределяется через docker run -e LARAVEL_HOST=host:port
 ENV LARAVEL_HOST="ct-laravel-nginx:80"
