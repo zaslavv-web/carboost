@@ -130,11 +130,12 @@ class DbController extends Controller
             }
             if (! $instance) {
                 $instance = new $model();
+                $instance->fill($row);
                 $this->authorizeAny('create', $instance);
             } else {
                 $this->authorizeAny('update', $instance);
+                $instance->fill($row);
             }
-            $instance->fill($row);
             $instance->save();
             $created[] = $instance->fresh();
         }
