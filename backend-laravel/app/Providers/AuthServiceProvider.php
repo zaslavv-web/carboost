@@ -12,6 +12,7 @@ use App\Policies\OwnedRecordPolicy;
 use App\Policies\ProfilePolicy;
 use App\Policies\TeamMemberPolicy;
 use App\Policies\UserRolePolicy;
+use App\Support\RuntimeEnv;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
@@ -80,7 +81,7 @@ class AuthServiceProvider extends ServiceProvider
         // Письмо со сбросом пароля должно вести на фронтенд, а не на API-домен.
         // Берём FRONTEND_URL из .env, fallback — APP_URL.
         ResetPassword::createUrlUsing(function ($user, string $token) {
-            $frontend = rtrim((string) (env('FRONTEND_URL') ?: config('app.url')), '/');
+            $frontend = RuntimeEnv::frontendUrl();
             $email = urlencode($user->getEmailForPasswordReset());
             return "{$frontend}/reset-password?token={$token}&email={$email}";
         });
