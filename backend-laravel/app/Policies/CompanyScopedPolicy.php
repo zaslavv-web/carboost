@@ -17,7 +17,9 @@ class CompanyScopedPolicy extends BasePolicy
 {
     public function viewAny(User $user): bool
     {
-        return (bool) $user->companyId();
+        // Любой аутентифицированный пользователь может листать справочники.
+        // Фильтрация по company_id выполняется на уровне запроса/UI.
+        return true;
     }
 
     public function view(User $user, $model): bool
