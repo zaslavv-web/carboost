@@ -260,8 +260,31 @@ class DbController extends Controller
 
     protected function authorizeAny(string $ability, $modelOrClass): void
     {
-        if (! Gate::allows($ability, $modelOrClass)) {
-            abort(response()->json(['error' => 'Недостаточно прав'], 403));
+        if (Gate::allows($ability, $modelOrClass)) {
+            return;
         }
+
+        $user = auth()->user();
+        $modelClass = is_object($modelOrClass) ? get_class($modelOrClass) : (string) $modelOrClass;
+
+        $diagnostics = [
+            'ability'    => $ability,
+            'model'      => $modelClass,
+            'user_id'    => $user?->id,
+            'email'      => $user?->email,
+            'company_id' => $user?->companyId(),
+            'roles'      => $user
+                ? \Illuminate\Support\Facades\DB::table('user_roles')
+                    ->where('user_id', $user->id)->pluck('role')->all()
+                : [],
+            'is_verified' => $user?->isVerified(),
+        ];
+
+        \Illuminate\Support\Facades\Log::warning('Authorization denied', $diagnostics);
+
+        abort(response()->json([
+            'error'   => 'Недостаточно прав',
+            'details' => $diagnostics,
+        ], 403));
     }
 }
