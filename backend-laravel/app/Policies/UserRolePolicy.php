@@ -22,16 +22,16 @@ class UserRolePolicy extends BasePolicy
 
     public function create(User $user): bool
     {
-        return $user->hasRole(['hrd', 'company_admin', 'superadmin']);
+        return false;
     }
 
     public function update(User $user, UserRole $role): bool
     {
-        return $this->create($user) && $this->view($user, $role);
+        return false;
     }
 
     public function delete(User $user, UserRole $role): bool
     {
-        return $this->update($user, $role);
+        return false;
     }
 }
