@@ -12,6 +12,7 @@ use App\Policies\OwnedRecordPolicy;
 use App\Policies\ProfilePolicy;
 use App\Policies\TeamMemberPolicy;
 use App\Policies\UserRolePolicy;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
@@ -75,6 +76,14 @@ class AuthServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerPolicies();
+
+        // Письмо со сбросом пароля должно вести на фронтенд, а не на API-домен.
+        // Берём FRONTEND_URL из .env, fallback — APP_URL.
+        ResetPassword::createUrlUsing(function ($user, string $token) {
+            $frontend = rtrim((string) (env('FRONTEND_URL') ?: config('app.url')), '/');
+            $email = urlencode($user->getEmailForPasswordReset());
+            return "{$frontend}/reset-password?token={$token}&email={$email}";
+        });
 
         // Superadmin должен проходить любые Gate-проверки, включая модели без policy.
         Gate::before(fn ($user, string $ability) =>
