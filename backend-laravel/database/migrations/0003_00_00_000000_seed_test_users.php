@@ -14,6 +14,17 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 return new class extends Migration {
+    private function tableIdIsInteger(string $table): bool
+    {
+        $column = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE 'id'");
+        return $column && str_contains(strtolower((string) $column->Type), 'int');
+    }
+
+    private function newIdFor(string $table): ?string
+    {
+        return $this->tableIdIsInteger($table) ? null : (string) Str::uuid();
+    }
+
     public function up(): void
     {
         if (!Schema::hasTable('users') || !Schema::hasTable('profiles') || !Schema::hasTable('user_roles')) {
@@ -51,10 +62,9 @@ return new class extends Migration {
                 continue;
             }
 
-            $userId = (string) Str::uuid();
+            $userId = $this->newIdFor('users');
 
-            DB::table('users')->insert([
-                'id'                => $userId,
+            $userRow = [
                 'email'             => $u['email'],
                 'password'          => $password,
                 'email_verified_at' => $now,
@@ -66,10 +76,18 @@ return new class extends Migration {
                 ], JSON_UNESCAPED_UNICODE),
                 'created_at'        => $now,
                 'updated_at'        => $now,
-            ]);
+            ];
 
-            DB::table('profiles')->insert([
-                'id'             => (string) Str::uuid(),
+            if ($userId !== null) {
+                $userRow['id'] = $userId;
+            }
+
+            DB::table('users')->insert($userRow);
+
+            $userId = DB::table('users')->where('email', $u['email'])->value('id');
+
+            $profileId = $this->newIdFor('profiles');
+            $profileRow = [
                 'user_id'        => $userId,
                 'full_name'      => $u['full_name'],
                 'position'       => $u['position'],
@@ -81,13 +99,25 @@ return new class extends Migration {
                 'company_id'     => $companyId,
                 'created_at'     => $now,
                 'updated_at'     => $now,
-            ]);
+            ];
 
-            DB::table('user_roles')->insert([
-                'id'      => (string) Str::uuid(),
+            if ($profileId !== null) {
+                $profileRow['id'] = $profileId;
+            }
+
+            DB::table('profiles')->insert($profileRow);
+
+            $roleId = $this->newIdFor('user_roles');
+            $roleRow = [
                 'user_id' => $userId,
                 'role'    => $u['role'],
-            ]);
+            ];
+
+            if ($roleId !== null) {
+                $roleRow['id'] = $roleId;
+            }
+
+            DB::table('user_roles')->insert($roleRow);
         }
     }
 
