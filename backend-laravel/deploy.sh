@@ -17,14 +17,25 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-# 1) .env
-if [ ! -f .env ] && [ -f .env.production ]; then
+# 1) .env — всегда синхронизируем с .env.production из git,
+#    но сохраняем уже сгенерированный APP_KEY, чтобы не разлогинить всех.
+if [ -f .env.production ]; then
+  EXISTING_APP_KEY=""
+  if [ -f .env ]; then
+    EXISTING_APP_KEY="$(grep -E '^APP_KEY=' .env | head -n1 | cut -d= -f2-)"
+  fi
   cp .env.production .env
-  echo "[deploy] .env создан из .env.production"
+  if [ -n "$EXISTING_APP_KEY" ] && [ "$EXISTING_APP_KEY" != "" ]; then
+    # подставляем сохранённый APP_KEY обратно
+    sed -i.bak -E "s|^APP_KEY=.*|APP_KEY=${EXISTING_APP_KEY}|" .env && rm -f .env.bak
+    echo "[deploy] .env обновлён из .env.production (APP_KEY сохранён)"
+  else
+    echo "[deploy] .env создан из .env.production"
+  fi
 fi
 
 # 2) APP_KEY
-if grep -q '^APP_KEY=$' .env 2>/dev/null; then
+if grep -qE '^APP_KEY=\s*$' .env 2>/dev/null; then
   php artisan key:generate --force
   echo "[deploy] APP_KEY сгенерирован"
 fi
