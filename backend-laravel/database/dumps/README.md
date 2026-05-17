@@ -33,23 +33,14 @@ mysql -u root -p careertrack < careertrack_data_20260517_083114.sql
 
 ### ⚠️ Пароли пользователей
 
-bcrypt-хеши **НЕ переносятся** в этот дамп — Supabase Admin API их не отдаёт
-(security by design). В дампе `users.password = NULL` для всех 16 учёток.
+В дампе **bcrypt-хеши перенесены как есть** из `auth.users` Supabase. Laravel
+читает bcrypt нативно — после импорта юзеры заходят со своими старыми паролями
+без сброса.
 
-Варианты восстановления:
-
-**A. Перенести хеши из исходной БД** (если есть admin-доступ к Postgres Supabase):
-```sql
--- На стороне Supabase Postgres (роль с доступом к schema auth):
-SELECT id, encrypted_password FROM auth.users;
--- Сохранить как CSV, импортировать в MySQL и:
-UPDATE users u JOIN tmp_pwd t ON u.id=t.id SET u.password=t.encrypted_password;
-```
-
-**B. Принудительный сброс паролей** (если admin-доступа нет):
-- Отправить всем пользователям ссылку «установить новый пароль» через
-  `POST /api/auth/forgot-password` (Laravel password broker).
-- До установки пароля логин/пароль не работает — только OAuth (Google).
+Из 16 учёток:
+- **10** имеют bcrypt-пароль (вход email + password).
+- **6** созданы через Google OAuth (`password = NULL`) — им нужно либо логиниться
+  через Google, либо сбросить пароль через `POST /api/auth/forgot-password`.
 
 ## Архивные дампы (Postgres / старый MySQL)
 
