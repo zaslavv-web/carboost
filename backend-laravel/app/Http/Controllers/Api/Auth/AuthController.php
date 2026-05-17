@@ -8,6 +8,7 @@ use App\Services\AuthUserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -57,7 +58,20 @@ class AuthController extends Controller
 
         $user = User::where('email', strtolower($data['email']))->first();
 
-        if (!$user || !$user->password || !Hash::check($data['password'], $user->password)) {
+        $passwordMatches = false;
+        if ($user && $user->password) {
+            try {
+                $passwordMatches = Hash::check($data['password'], $user->password);
+            } catch (\RuntimeException $e) {
+                Log::warning('Auth login rejected because stored password hash is invalid', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'reason' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if (!$user || !$passwordMatches) {
             throw ValidationException::withMessages([
                 'email' => 'Неверный email или пароль',
             ]);
