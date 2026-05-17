@@ -1,58 +1,60 @@
-# Дампы базы данных
+# Дампы базы данных Career Track
 
-## Файлы
+## Актуальный набор (MySQL + Laravel migrations)
 
-- `careertrack_public_*.dump` / `.sql` — Postgres (родной формат Supabase, `pg_dump -Fc` и plain SQL).
-- `careertrack_mysql_*.sql` — **MySQL 8 дамп** схемы `public`, сконвертированный из Postgres.
-- `*.zip` — те же файлы в архиве.
+Подход: **схема создаётся миграциями Laravel**, данные подгружаются отдельным
+INSERT-дампом.
 
-## MySQL дамп
+### 1. Схема — `backend-laravel/database/migrations/`
 
-Содержит 45 таблиц схемы `public` с данными. Маппинг типов:
+- `0001_01_01_000001…000005` — служебные таблицы Laravel
+  (Sanctum personal_access_tokens, sessions/cache/jobs, Spatie permissions, impersonation_audit).
+- `0002_00_00_000000_create_users_table.php` — `public.users`
+  (перенос `auth.users` из Supabase: email, password (bcrypt), email_verified_at, meta, remember_token).
+- `0002_00_01…0002_00_45_*` — по одной миграции на каждую из 45 таблиц `public.*`,
+  сгенерированы автоматически из схемы Supabase Postgres.
 
-| Postgres | MySQL |
-|---|---|
-| `uuid` | `CHAR(36)` |
-| `text` | `LONGTEXT` |
-| `jsonb` / `json` | `JSON` |
-| `timestamp[tz]` | `DATETIME(6)` |
-| `boolean` | `TINYINT(1)` |
-| `numeric(p,s)` | `DECIMAL(p,s)` |
-| `text[]` и др. массивы | `JSON` (массив элементов) |
-| `bytea` | `LONGBLOB` |
-| `USER-DEFINED` (enum) | `VARCHAR(64)` |
+Запуск:
+```bash
+cd backend-laravel
+cp .env.example .env
+# в .env: DB_CONNECTION=mysql, DB_DATABASE=careertrack и т.д.
+php artisan migrate
+```
 
-### Что НЕ перенесено в MySQL дамп
+### 2. Данные — `careertrack_data_<TS>.sql` (+ .zip)
 
-- Схемы `auth` и `storage` Supabase (нет прав, плюс это GoTrue/Storage специфика — в Laravel-стеке заменяются на Sanctum + локальный/S3 storage).
-- RLS-политики, триггеры, функции, последовательности, view — это Postgres-only. Логика реализована в Laravel Policies/Models.
-- Внешние ключи опущены (отключены `FOREIGN_KEY_CHECKS`), чтобы порядок INSERT не имел значения. При желании добавьте их после импорта.
-
-### Восстановление в MySQL
+INSERT-ы для `users` и всех 45 таблиц `public.*`, в кодировке utf8mb4.
+Используется ПОСЛЕ `php artisan migrate`:
 
 ```bash
-mysql -u root -p -e "CREATE DATABASE careertrack CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -u root -p careertrack < careertrack_mysql_YYYYMMDD_HHMMSS.sql
+mysql -u root -p careertrack < careertrack_data_20260517_083114.sql
 ```
 
-В Laravel `.env`:
+### ⚠️ Пароли пользователей
 
-```env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=careertrack
-DB_USERNAME=careertrack
-DB_PASSWORD=...
+bcrypt-хеши **НЕ переносятся** в этот дамп — Supabase Admin API их не отдаёт
+(security by design). В дампе `users.password = NULL` для всех 16 учёток.
+
+Варианты восстановления:
+
+**A. Перенести хеши из исходной БД** (если есть admin-доступ к Postgres Supabase):
+```sql
+-- На стороне Supabase Postgres (роль с доступом к schema auth):
+SELECT id, encrypted_password FROM auth.users;
+-- Сохранить как CSV, импортировать в MySQL и:
+UPDATE users u JOIN tmp_pwd t ON u.id=t.id SET u.password=t.encrypted_password;
 ```
 
-> ⚠️ Пароли пользователей в `auth.users` (bcrypt от Supabase GoTrue) **не входят** в MySQL дамп. После миграции на MySQL все юзеры должны зарегистрироваться/войти через сброс пароля.
+**B. Принудительный сброс паролей** (если admin-доступа нет):
+- Отправить всем пользователям ссылку «установить новый пароль» через
+  `POST /api/auth/forgot-password` (Laravel password broker).
+- До установки пароля логин/пароль не работает — только OAuth (Google).
 
-## Postgres дамп (для миграции 1-в-1)
+## Архивные дампы (Postgres / старый MySQL)
 
-```bash
-pg_restore --no-owner --no-privileges --clean --if-exists \
-  -d "$DATABASE_URL" careertrack_public_YYYYMMDD_HHMMSS.dump
-```
+Эти файлы оставлены для справки, но **в работе использовать не нужно**:
 
-Подробнее см. `scripts/import-supabase-dump.sh`.
+- `careertrack_public_20260516_124825.{dump,sql,zip}` — pg_dump схемы public (PostgreSQL).
+- `careertrack_mysql_20260516_140607.{sql,zip}` — предыдущий MySQL-дамп, включавший
+  CREATE TABLE (теперь заменены миграциями Laravel).
