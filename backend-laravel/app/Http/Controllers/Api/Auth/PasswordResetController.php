@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Support\RuntimeEnv;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Auth\Events\PasswordReset;
@@ -34,24 +32,7 @@ class PasswordResetController extends Controller
             cache()->put('pwd_reset_redirect:'.strtolower($data['email']), $data['redirectTo'], 3600);
         }
 
-        RuntimeEnv::applyMailConfig();
-
-        try {
-            $status = Password::sendResetLink(['email' => strtolower($data['email'])]);
-        } catch (\Throwable $e) {
-            Log::error('password reset email failed', [
-                'email' => strtolower($data['email']),
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'ok' => false,
-                'status' => 'mail_send_failed',
-                'message' => app()->isProduction()
-                    ? 'Не удалось отправить письмо для сброса пароля. Попробуйте позже.'
-                    : $e->getMessage(),
-            ], 500);
-        }
+        $status = Password::sendResetLink(['email' => strtolower($data['email'])]);
 
         // Не раскрываем существует ли email — всегда 200.
         return response()->json(['ok' => true, 'status' => $status]);

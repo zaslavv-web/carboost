@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\AuthUserService;
-use App\Support\RuntimeEnv;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Laravel\Socialite\Facades\Socialite;
@@ -28,19 +27,8 @@ class GoogleAuthController extends Controller
     /** GET /api/auth/google/redirect?return_to=https://app.example.ru/auth/callback */
     public function redirect(Request $request): RedirectResponse
     {
-        $googleConfig = RuntimeEnv::applyGoogleConfig();
-        $returnTo = $request->query('return_to', RuntimeEnv::frontendUrl() . '/auth/callback');
+        $returnTo = $request->query('return_to', rtrim(env('APP_FRONTEND_URL', config('app.url')), '/') . '/auth/callback');
         $state = rtrim(strtr(base64_encode(json_encode(['return_to' => $returnTo])), '+/', '-_'), '=');
-
-        if (empty($googleConfig['client_id']) || empty($googleConfig['client_secret']) || empty($googleConfig['redirect'])) {
-            \Log::error('google oauth config missing', [
-                'has_client_id' => !empty($googleConfig['client_id']),
-                'has_secret'    => !empty($googleConfig['client_secret']),
-                'redirect'      => $googleConfig['redirect'] ?? null,
-            ]);
-
-            return redirect($returnTo . '#error=' . urlencode('Google OAuth is not configured'));
-        }
 
         return Socialite::driver('google')
             ->scopes(['openid', 'profile', 'email'])
@@ -52,7 +40,6 @@ class GoogleAuthController extends Controller
     /** GET /api/auth/google/callback */
     public function callback(Request $request): RedirectResponse
     {
-        RuntimeEnv::applyGoogleConfig();
         $returnTo = $this->returnToFromState($request->query('state'));
 
         try {
@@ -75,7 +62,7 @@ class GoogleAuthController extends Controller
 
     private function returnToFromState(?string $state): string
     {
-        $fallback = RuntimeEnv::frontendUrl() . '/auth/callback';
+        $fallback = rtrim(env('APP_FRONTEND_URL', config('app.url')), '/') . '/auth/callback';
         if (!$state) return $fallback;
 
         $decoded = base64_decode(strtr($state, '-_', '+/'), true);
