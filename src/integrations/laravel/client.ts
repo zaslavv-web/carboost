@@ -81,7 +81,12 @@ async function request<T>(
       };
     }
     if (!res.ok) {
+      const validationErrors =
+        body && typeof body === "object" && body.errors && typeof body.errors === "object"
+          ? Object.values(body.errors).flat().filter(Boolean).join("\n")
+          : "";
       const message =
+        validationErrors ||
         (body && typeof body === "object" && (body.error || body.message)) ||
         res.statusText ||
         "Ошибка запроса";
