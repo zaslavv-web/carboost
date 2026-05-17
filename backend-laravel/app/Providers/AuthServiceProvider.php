@@ -66,6 +66,11 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
+        // Superadmin должен проходить любые Gate-проверки, включая модели без policy.
+        Gate::before(fn ($user, string $ability) =>
+            $user->hasRole('superadmin') ? true : null
+        );
+
         // Глобальные доменные Gates (mirror функций verify_user / assign_role / reject_user)
         Gate::define('verify-users', fn ($user) =>
             $user->hasRole('superadmin') || $user->hasRole('company_admin')
