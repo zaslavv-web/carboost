@@ -25,6 +25,40 @@ return new class extends Migration {
         return $this->tableIdIsInteger($table) ? null : (string) Str::uuid();
     }
 
+    /**
+     * Дозаполняем строку значениями для всех NOT NULL колонок без default,
+     * которые ещё не заданы. Это спасает, если в таблице есть legacy-поля
+     * (например, `name` у дефолтной Laravel users).
+     */
+    private function fillRequiredColumns(string $table, array $row, array $hints = []): array
+    {
+        $columns = DB::select("SHOW COLUMNS FROM `{$table}`");
+        foreach ($columns as $col) {
+            $field = $col->Field;
+            if (array_key_exists($field, $row)) continue;
+            if (strtolower($col->Null) === 'yes') continue;
+            if ($col->Default !== null) continue;
+            if (stripos((string) $col->Extra, 'auto_increment') !== false) continue;
+
+            if (array_key_exists($field, $hints)) {
+                $row[$field] = $hints[$field];
+                continue;
+            }
+
+            $type = strtolower((string) $col->Type);
+            if (str_contains($type, 'int') || str_contains($type, 'decimal') || str_contains($type, 'float') || str_contains($type, 'double')) {
+                $row[$field] = 0;
+            } elseif (str_contains($type, 'json')) {
+                $row[$field] = json_encode(new \stdClass());
+            } elseif (str_contains($type, 'date') || str_contains($type, 'time')) {
+                $row[$field] = now();
+            } else {
+                $row[$field] = '';
+            }
+        }
+        return $row;
+    }
+
     public function up(): void
     {
         if (!Schema::hasTable('users') || !Schema::hasTable('profiles') || !Schema::hasTable('user_roles')) {
@@ -82,6 +116,13 @@ return new class extends Migration {
                 $userRow['id'] = $userId;
             }
 
+            $userRow = $this->fillRequiredColumns('users', $userRow, [
+                'name'       => $u['full_name'],
+                'full_name'  => $u['full_name'],
+                'is_active'  => 1,
+                'is_verified'=> 1,
+            ]);
+
             DB::table('users')->insert($userRow);
 
             $userId = DB::table('users')->where('email', $u['email'])->value('id');
@@ -105,6 +146,11 @@ return new class extends Migration {
                 $profileRow['id'] = $profileId;
             }
 
+            $profileRow = $this->fillRequiredColumns('profiles', $profileRow, [
+                'name'      => $u['full_name'],
+                'email'     => $u['email'],
+            ]);
+
             DB::table('profiles')->insert($profileRow);
 
             $roleId = $this->newIdFor('user_roles');
@@ -116,6 +162,8 @@ return new class extends Migration {
             if ($roleId !== null) {
                 $roleRow['id'] = $roleId;
             }
+
+            $roleRow = $this->fillRequiredColumns('user_roles', $roleRow);
 
             DB::table('user_roles')->insert($roleRow);
         }
