@@ -33,19 +33,26 @@ mysql -u root -p careertrack < careertrack_data_20260517_083114.sql
 
 ### ⚠️ Пароли пользователей
 
-В дампе **bcrypt-хеши перенесены как есть** из `auth.users` Supabase. Laravel
-читает bcrypt нативно — после импорта юзеры заходят со своими старыми паролями
+В дампе **bcrypt-хеши перенесены как есть** из исходной БД. Laravel читает
+bcrypt нативно — после импорта юзеры заходят со своими старыми паролями
 без сброса.
 
-Из 16 учёток:
+Из 16 «боевых» учёток:
 - **10** имеют bcrypt-пароль (вход email + password).
 - **6** созданы через Google OAuth (`password = NULL`) — им нужно либо логиниться
   через Google, либо сбросить пароль через `POST /api/auth/forgot-password`.
 
-## Архивные дампы (Postgres / старый MySQL)
+### 🧪 Тестовые пользователи
 
-Эти файлы оставлены для справки, но **в работе использовать не нужно**:
+В конец дампа добавлены 5 тестовых учёток (по одной на каждую роль). Пароль
+у всех **одинаковый: `password123`**. Компания —
+`a0000000-0000-0000-0000-000000000001` («Компания по умолчанию»),
+`is_verified = 1`, готовы к входу сразу после импорта дампа.
 
-- `careertrack_public_20260516_124825.{dump,sql,zip}` — pg_dump схемы public (PostgreSQL).
-- `careertrack_mysql_20260516_140607.{sql,zip}` — предыдущий MySQL-дамп, включавший
-  CREATE TABLE (теперь заменены миграциями Laravel).
+| Email                     | Роль            |
+|---------------------------|-----------------|
+| `employee@test.local`     | employee        |
+| `manager@test.local`      | manager         |
+| `hrd@test.local`          | hrd             |
+| `admin@test.local`        | company_admin   |
+| `superadmin@test.local`   | superadmin      |
