@@ -3,11 +3,15 @@
 namespace App\Providers;
 
 use App\Models;
+use App\Policies\CareerLevelActionPolicy;
 use App\Policies\CompanyPolicy;
 use App\Policies\CompanyScopedPolicy;
+use App\Policies\DemoRequestPolicy;
+use App\Policies\GoalChecklistItemPolicy;
 use App\Policies\OwnedRecordPolicy;
 use App\Policies\ProfilePolicy;
 use App\Policies\TeamMemberPolicy;
+use App\Policies\UserRolePolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
@@ -57,6 +61,12 @@ class AuthServiceProvider extends ServiceProvider
         Models\CareerStepSubmission::class     => OwnedRecordPolicy::class,
         Models\CurrencyBalance::class          => OwnedRecordPolicy::class,
         Models\CurrencyTransaction::class      => OwnedRecordPolicy::class,
+
+        // Child/admin bridge models used by /api/db/*
+        Models\CareerLevelAction::class        => CareerLevelActionPolicy::class,
+        Models\GoalChecklistItem::class        => GoalChecklistItemPolicy::class,
+        Models\DemoRequest::class              => DemoRequestPolicy::class,
+        Models\UserRole::class                 => UserRolePolicy::class,
 
         // Teams
         Models\TeamMember::class               => TeamMemberPolicy::class,
