@@ -24,7 +24,7 @@ return new class extends Migration {
         $now = now();
 
         // bcrypt('password123') — генерится статически, чтобы миграция была воспроизводима
-        $password = '$2y$10$wH8QH/2pSx4hN8nQ7Z0Q1uM9rJ3kVqLrTfYpZ8hLpA2bxr3Wn1f9C';
+        $password = '$2b$10$kC9h5.XCE7qX/klbGvHty.2miZ2hKi.1pK3GydRUVSWO2uyleuZjq';
 
         $users = [
             ['email' => 'employee@test.local',    'role' => 'employee',      'full_name' => 'Тест Сотрудник',  'position' => 'Сотрудник',             'department' => 'Тестовый отдел'],
