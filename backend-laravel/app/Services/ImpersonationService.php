@@ -30,7 +30,28 @@ class ImpersonationService
             throw new RuntimeException('Only superadmin can impersonate.');
         }
 
-        $target = User::findOrFail($targetUserId);
+        // На проде встречаются legacy-профили, где profiles.user_id не равно users.id
+        // (рассинхрон uuid/integer-схем). Поэтому ищем юзера в несколько шагов:
+        //   1) напрямую по users.id;
+        //   2) по profiles.user_id → users.id;
+        //   3) по profiles.id → profiles.user_id → users.id.
+        $target = User::find($targetUserId);
+        if (! $target) {
+            $viaUserId = DB::table('users')
+                ->whereIn('id', function ($q) use ($targetUserId) {
+                    $q->select('user_id')->from('profiles')->where('id', $targetUserId);
+                })
+                ->orWhere('id', function ($q) use ($targetUserId) {
+                    $q->select('user_id')->from('profiles')->where('user_id', $targetUserId);
+                })
+                ->value('id');
+            if ($viaUserId) {
+                $target = User::find($viaUserId);
+            }
+        }
+        if (! $target) {
+            throw new RuntimeException('Target user not found (profile/user link is broken).');
+        }
 
         $abilities = [
             self::ABILITY_PREFIX_AS . $target->id,
