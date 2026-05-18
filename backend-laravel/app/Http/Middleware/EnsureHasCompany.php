@@ -18,6 +18,9 @@ class EnsureHasCompany
         if (!$user) {
             return response()->json(['message' => 'Не авторизован'], 401);
         }
+        if (method_exists($user, 'hasRole') && $user->hasRole('superadmin')) {
+            return $next($request);
+        }
         if (!$user->companyId()) {
             return response()->json([
                 'message' => 'Не указана компания. Завершите регистрацию.',

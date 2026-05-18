@@ -1,17 +1,12 @@
 /* Self-hosted шрифты — не используем Google Fonts CDN, т.к. он
-   нестабильно работает в РФ без VPN. Подключаем веса через @fontsource. */
+   нестабильно работает в РФ без VPN. Подключаем только Inter, чтобы не
+   плодить десятки font-request ошибок в продакшене. */
 @import '@fontsource/inter/300.css';
 @import '@fontsource/inter/400.css';
 @import '@fontsource/inter/500.css';
 @import '@fontsource/inter/600.css';
 @import '@fontsource/inter/700.css';
 @import '@fontsource/inter/800.css';
-@import '@fontsource/golos-text/400.css';
-@import '@fontsource/golos-text/500.css';
-@import '@fontsource/golos-text/600.css';
-@import '@fontsource/golos-text/700.css';
-@import '@fontsource/golos-text/800.css';
-@import '@fontsource/golos-text/900.css';
 
 @tailwind base;
 @tailwind components;
@@ -156,12 +151,12 @@ section[id] { scroll-margin-top: 80px; }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Golos Text', 'Inter', system-ui, sans-serif;
-    letter-spacing: 0.005em;
+    font-family: 'Inter', system-ui, sans-serif;
+    letter-spacing: 0;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Golos Text', 'Inter', system-ui, sans-serif;
-    letter-spacing: -0.01em;
+    font-family: 'Inter', system-ui, sans-serif;
+    letter-spacing: 0;
   }
 }
 
