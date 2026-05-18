@@ -15,7 +15,14 @@ class RuntimeEnv
 
     public static function get(string $key, ?string $fallback = null): ?string
     {
-        $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: self::fileEnv()[$key] ?? $fallback;
+        $value = $_ENV[$key] ?? $_SERVER[$key] ?? null;
+        if ($value === null || $value === '') {
+            $processValue = getenv($key);
+            $value = $processValue !== false ? $processValue : null;
+        }
+        if ($value === null || $value === '') {
+            $value = self::fileEnv()[$key] ?? $fallback;
+        }
         if (! is_string($value)) {
             return $fallback;
         }
