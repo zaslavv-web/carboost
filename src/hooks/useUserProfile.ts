@@ -102,7 +102,12 @@ export const usePrimaryRole = (): AppRole => {
 /** Returns the REAL authenticated user's role, ignoring impersonation */
 export const useRealPrimaryRole = (): AppRole => {
   const { user } = useAuth();
-  const roles = Array.isArray(user?.roles) ? (user.roles as AppRole[]) : [];
+  const { impersonatedUserId, originalUser } = useImpersonation();
+
+  // While impersonating, useAuth().user is the target user (backend swap),
+  // so fall back to the snapshot captured at impersonation start.
+  const source = impersonatedUserId && originalUser ? originalUser.roles : user?.roles;
+  const roles = Array.isArray(source) ? (source as AppRole[]) : [];
 
   if (!roles || roles.length === 0) return "employee";
   if (roles.includes("superadmin")) return "superadmin";
@@ -111,6 +116,7 @@ export const useRealPrimaryRole = (): AppRole => {
   if (roles.includes("manager")) return "manager";
   return "employee";
 };
+
 
 export const useAllProfiles = () => {
   return useQuery({
