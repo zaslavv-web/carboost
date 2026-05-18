@@ -132,6 +132,54 @@ class AuthUserService
         }
     }
 
+    /**
+     * Для MySQL: пробегаемся по NOT NULL колонкам без DEFAULT и подставляем
+     * безопасные значения, чтобы insert не падал на старых схемах,
+     * где таблицы создавались без миграций нашего проекта.
+     */
+    private function fillMissingDefaults(string $table, array &$row): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
+        try {
+            $columns = DB::select("SHOW COLUMNS FROM `{$table}`");
+        } catch (\Throwable) {
+            return;
+        }
+
+        foreach ($columns as $col) {
+            $name = $col->Field;
+            if (array_key_exists($name, $row)) {
+                continue;
+            }
+            // Колонка nullable или имеет DEFAULT — пропускаем.
+            if (strtoupper((string) $col->Null) === 'YES') {
+                continue;
+            }
+            if ($col->Default !== null) {
+                continue;
+            }
+            // auto_increment / generated — пропускаем.
+            if (str_contains(strtolower((string) $col->Extra), 'auto_increment')
+                || str_contains(strtolower((string) $col->Extra), 'generated')) {
+                continue;
+            }
+
+            $type = strtolower((string) $col->Type);
+            $row[$name] = match (true) {
+                str_contains($type, 'int'), str_contains($type, 'decimal'),
+                str_contains($type, 'float'), str_contains($type, 'double') => 0,
+                str_contains($type, 'bool'), str_contains($type, 'tinyint(1)') => false,
+                str_contains($type, 'json') => '{}',
+                str_contains($type, 'date'), str_contains($type, 'time') => now(),
+                default => '',
+            };
+        }
+    }
+
+
     private function ensureDomainRows(User $user, array $googleUser, bool $isNewUser): void
     {
         $profile = DB::table('profiles')->where('user_id', $user->id)->first();
