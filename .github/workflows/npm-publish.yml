@@ -81,13 +81,41 @@ jobs:
           echo "key=base64:$(openssl rand -base64 32)" >> $GITHUB_OUTPUT
 
       - name: Create backend .env
+        env:
+          APP_URL_SECRET: ${{ secrets.APP_URL }}
+          DB_HOST_SECRET: ${{ secrets.DB_HOST }}
+          DB_DATABASE_SECRET: ${{ secrets.DB_DATABASE }}
+          DB_USERNAME_SECRET: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD_SECRET: ${{ secrets.DB_PASSWORD }}
+          AI_API_KEY_SECRET: ${{ secrets.AI_API_KEY }}
+          GOOGLE_CLIENT_ID_SECRET: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI_SECRET: ${{ secrets.GOOGLE_REDIRECT_URI }}
         run: |
+          APP_URL_VALUE="$APP_URL_SECRET"
+          if [[ "$APP_URL_VALUE" != http://* && "$APP_URL_VALUE" != https://* ]]; then
+            APP_URL_VALUE="https://$APP_URL_VALUE"
+          fi
+          APP_URL_VALUE="${APP_URL_VALUE%/}"
+
+          APP_HOST_VALUE="${APP_URL_VALUE#http://}"
+          APP_HOST_VALUE="${APP_HOST_VALUE#https://}"
+          APP_HOST_VALUE="${APP_HOST_VALUE%%/*}"
+
+          GOOGLE_REDIRECT_URI_VALUE="$GOOGLE_REDIRECT_URI_SECRET"
+          if [[ -z "$GOOGLE_REDIRECT_URI_VALUE" ]]; then
+            GOOGLE_REDIRECT_URI_VALUE="$APP_URL_VALUE/api/auth/google/callback"
+          elif [[ "$GOOGLE_REDIRECT_URI_VALUE" != http://* && "$GOOGLE_REDIRECT_URI_VALUE" != https://* ]]; then
+            GOOGLE_REDIRECT_URI_VALUE="https://$GOOGLE_REDIRECT_URI_VALUE"
+          fi
+          GOOGLE_REDIRECT_URI_VALUE="${GOOGLE_REDIRECT_URI_VALUE%/}"
+
           cat > app-src/.env << EOF
           APP_NAME="Career Track API"
           APP_ENV=production
           APP_KEY=${{ steps.appkey.outputs.key }}
           APP_DEBUG=false
-          APP_URL=${{ secrets.APP_URL }}
+          APP_URL=${APP_URL_VALUE}
           APP_TIMEZONE=UTC
           APP_LOCALE=ru
 
@@ -95,11 +123,11 @@ jobs:
           LOG_LEVEL=info
 
           DB_CONNECTION=mysql
-          DB_HOST=${{ secrets.DB_HOST }}
+          DB_HOST=${DB_HOST_SECRET}
           DB_PORT=3306
-          DB_DATABASE=${{ secrets.DB_DATABASE }}
-          DB_USERNAME=${{ secrets.DB_USERNAME }}
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_DATABASE=${DB_DATABASE_SECRET}
+          DB_USERNAME=${DB_USERNAME_SECRET}
+          DB_PASSWORD=${DB_PASSWORD_SECRET}
 
           CACHE_STORE=file
           QUEUE_CONNECTION=sync
@@ -107,19 +135,19 @@ jobs:
 
           FILESYSTEM_DISK=local
 
-          SANCTUM_STATEFUL_DOMAINS=${{ secrets.APP_URL }}
-          SESSION_DOMAIN=${{ secrets.APP_URL }}
+          SANCTUM_STATEFUL_DOMAINS=${APP_HOST_VALUE}
+          SESSION_DOMAIN=.${APP_HOST_VALUE}
 
           AI_API_URL=https://api.openai.com/v1/chat/completions
-          AI_API_KEY=${{ secrets.AI_API_KEY }}
+          AI_API_KEY=${AI_API_KEY_SECRET}
           AI_MODEL=gpt-4o-mini
 
-          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REDIRECT_URI=${{ secrets.GOOGLE_REDIRECT_URI }}
+          GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID_SECRET}
+          GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET_SECRET}
+          GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI_VALUE}
 
-          FRONTEND_URL=${{ secrets.APP_URL }}
-          APP_FRONTEND_URL=${{ secrets.APP_URL }}
+          FRONTEND_URL=${APP_URL_VALUE}
+          APP_FRONTEND_URL=${APP_URL_VALUE}
           EOF
 
       - name: Setup SSH agent
