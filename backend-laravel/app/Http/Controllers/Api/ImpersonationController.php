@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Services\ImpersonationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class ImpersonationController extends Controller
 {
@@ -21,12 +23,27 @@ class ImpersonationController extends Controller
             'target_user_id' => 'required|string',
             'ttl_minutes'    => 'nullable|integer|min:1|max:480',
         ]);
-        $result = $this->svc->start(
-            $request->user(),
-            $data['target_user_id'],
-            $data['ttl_minutes'] ?? 60,
-        );
-        return response()->json($result, 201);
+
+        try {
+            $result = $this->svc->start(
+                $request->user(),
+                $data['target_user_id'],
+                $data['ttl_minutes'] ?? 60,
+                $request->bearerToken(),
+            );
+            return response()->json($result, 201);
+        } catch (RuntimeException $e) {
+            $message = $e->getMessage();
+            $status = str_contains($message, 'superadmin') ? 403 : (str_contains($message, 'not found') ? 404 : 422);
+            return response()->json(['message' => $message], $status);
+        } catch (\Throwable $e) {
+            Log::error('Impersonation start failed', [
+                'actor_user_id' => optional($request->user())->id,
+                'target_user_id' => $data['target_user_id'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json(['message' => 'Не удалось перейти под выбранного пользователя'], 422);
+        }
     }
 
     /** POST /api/impersonation/stop — отзывает все impersonation-токены актора. */
