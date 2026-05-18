@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -71,6 +74,10 @@ class RpcController extends Controller
         $payload = $request->input('params', $request->all());
         if (! is_array($payload)) {
             $payload = [];
+        }
+
+        if (in_array($name, ['verify_user', 'reject_user', 'delete_user', 'assign_role'], true)) {
+            return $this->callLocalUserAdminFunction($request, $name, $payload);
         }
 
         $args = [];
