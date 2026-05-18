@@ -56,7 +56,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pdo, pdo_mysql, redis
+          extensions: pdo, pdo_pgsql, pdo_mysql, redis
 
       - name: Create Laravel project and overlay our files
         run: |
@@ -84,6 +84,7 @@ jobs:
         env:
           APP_URL_SECRET: ${{ secrets.APP_URL }}
           DB_HOST_SECRET: ${{ secrets.DB_HOST }}
+          DB_PORT_SECRET: ${{ secrets.DB_PORT }}
           DB_DATABASE_SECRET: ${{ secrets.DB_DATABASE }}
           DB_USERNAME_SECRET: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD_SECRET: ${{ secrets.DB_PASSWORD }}
@@ -91,6 +92,13 @@ jobs:
           GOOGLE_CLIENT_ID_SECRET: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI_SECRET: ${{ secrets.GOOGLE_REDIRECT_URI }}
+          MAIL_HOST_SECRET: ${{ secrets.MAIL_HOST }}
+          MAIL_PORT_SECRET: ${{ secrets.MAIL_PORT }}
+          MAIL_USERNAME_SECRET: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD_SECRET: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_ENCRYPTION_SECRET: ${{ secrets.MAIL_ENCRYPTION }}
+          MAIL_FROM_ADDRESS_SECRET: ${{ secrets.MAIL_FROM_ADDRESS }}
+          MAIL_FROM_NAME_SECRET: ${{ secrets.MAIL_FROM_NAME }}
         run: |
           APP_URL_VALUE="$APP_URL_SECRET"
           if [[ "$APP_URL_VALUE" != http://* && "$APP_URL_VALUE" != https://* ]]; then
@@ -110,8 +118,14 @@ jobs:
           fi
           GOOGLE_REDIRECT_URI_VALUE="${GOOGLE_REDIRECT_URI_VALUE%/}"
 
+          DB_PORT_VALUE="${DB_PORT_SECRET:-5432}"
+          MAIL_PORT_VALUE="${MAIL_PORT_SECRET:-587}"
+          MAIL_ENCRYPTION_VALUE="${MAIL_ENCRYPTION_SECRET:-tls}"
+          MAIL_FROM_ADDRESS_VALUE="${MAIL_FROM_ADDRESS_SECRET:-noreply@${APP_HOST_VALUE}}"
+          MAIL_FROM_NAME_VALUE="${MAIL_FROM_NAME_SECRET:-Пик Роста}"
+
           cat > app-src/.env << EOF
-          APP_NAME="Career Track API"
+          APP_NAME="Пик Роста"
           APP_ENV=production
           APP_KEY=${{ steps.appkey.outputs.key }}
           APP_DEBUG=false
@@ -122,9 +136,9 @@ jobs:
           LOG_CHANNEL=stack
           LOG_LEVEL=info
 
-          DB_CONNECTION=mysql
+          DB_CONNECTION=pgsql
           DB_HOST=${DB_HOST_SECRET}
-          DB_PORT=3306
+          DB_PORT=${DB_PORT_VALUE}
           DB_DATABASE=${DB_DATABASE_SECRET}
           DB_USERNAME=${DB_USERNAME_SECRET}
           DB_PASSWORD=${DB_PASSWORD_SECRET}
@@ -148,6 +162,15 @@ jobs:
 
           FRONTEND_URL=${APP_URL_VALUE}
           APP_FRONTEND_URL=${APP_URL_VALUE}
+
+          MAIL_MAILER=smtp
+          MAIL_HOST=${MAIL_HOST_SECRET}
+          MAIL_PORT=${MAIL_PORT_VALUE}
+          MAIL_USERNAME=${MAIL_USERNAME_SECRET}
+          MAIL_PASSWORD=${MAIL_PASSWORD_SECRET}
+          MAIL_ENCRYPTION=${MAIL_ENCRYPTION_VALUE}
+          MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS_VALUE}
+          MAIL_FROM_NAME="${MAIL_FROM_NAME_VALUE}"
           EOF
 
       - name: Setup SSH agent
