@@ -7,6 +7,8 @@ import { toast } from "sonner";
 
 const IMPERSONATION_USER_ID_KEY = "impersonatedUserId";
 const IMPERSONATION_NAME_KEY = "impersonatedName";
+const IMPERSONATION_ROLES_KEY = "impersonatedRoles";
+const IMPERSONATION_PROFILE_KEY = "impersonatedProfile";
 const ORIGINAL_TOKEN_KEY = "impersonationOriginalToken";
 const ORIGINAL_USER_KEY = "impersonationOriginalUser";
 
@@ -20,14 +22,18 @@ export interface OriginalUserSnapshot {
 interface ImpersonationContextType {
   impersonatedUserId: string | null;
   impersonatedName: string | null;
+  impersonatedRoles: string[];
+  impersonatedProfile: Record<string, unknown> | null;
   originalUser: OriginalUserSnapshot | null;
-  startImpersonation: (userId: string, name: string) => Promise<void>;
+  startImpersonation: (userId: string, name: string, snapshot?: { roles?: string[]; profile?: Record<string, unknown> | null }) => Promise<void>;
   stopImpersonation: () => Promise<void>;
 }
 
 const ImpersonationContext = createContext<ImpersonationContextType>({
   impersonatedUserId: null,
   impersonatedName: null,
+  impersonatedRoles: [],
+  impersonatedProfile: null,
   originalUser: null,
   startImpersonation: async () => {},
   stopImpersonation: async () => {},
@@ -35,27 +41,33 @@ const ImpersonationContext = createContext<ImpersonationContextType>({
 
 export const useImpersonation = () => useContext(ImpersonationContext);
 
-const readOriginalUser = (): OriginalUserSnapshot | null => {
+const readJson = <T,>(key: string, fallback: T): T => {
   try {
-    const raw = sessionStorage.getItem(ORIGINAL_USER_KEY);
-    return raw ? (JSON.parse(raw) as OriginalUserSnapshot) : null;
+    const raw = sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
-    return null;
+    return fallback;
   }
+};
+
+const readOriginalUser = (): OriginalUserSnapshot | null => {
+  return readJson<OriginalUserSnapshot | null>(ORIGINAL_USER_KEY, null);
 };
 
 export const ImpersonationProvider = ({ children }: { children: ReactNode }) => {
   const [impersonatedUserId, setUserId] = useState<string | null>(() => sessionStorage.getItem(IMPERSONATION_USER_ID_KEY));
   const [impersonatedName, setName] = useState<string | null>(() => sessionStorage.getItem(IMPERSONATION_NAME_KEY));
+  const [impersonatedRoles, setRoles] = useState<string[]>(() => readJson<string[]>(IMPERSONATION_ROLES_KEY, []));
+  const [impersonatedProfile, setProfile] = useState<Record<string, unknown> | null>(() => readJson<Record<string, unknown> | null>(IMPERSONATION_PROFILE_KEY, null));
   const [originalUser, setOriginalUser] = useState<OriginalUserSnapshot | null>(() => readOriginalUser());
   const queryClient = useQueryClient();
   const { refresh, user } = useAuth();
 
-  const startImpersonation = useCallback(async (userId: string, name: string) => {
+  const startImpersonation = useCallback(async (userId: string, name: string, targetSnapshot?: { roles?: string[]; profile?: Record<string, unknown> | null }) => {
     try {
       // Save current (superadmin) token so we can restore it on stop.
       const originalToken = laravelAuth.getToken();
-      const snapshot: OriginalUserSnapshot | null = user
+      const originalSnapshot: OriginalUserSnapshot | null = user
         ? {
             id: user.id,
             roles: Array.isArray(user.roles) ? (user.roles as string[]) : [],
@@ -64,7 +76,7 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
           }
         : null;
       if (originalToken) sessionStorage.setItem(ORIGINAL_TOKEN_KEY, originalToken);
-      if (snapshot) sessionStorage.setItem(ORIGINAL_USER_KEY, JSON.stringify(snapshot));
+      if (originalSnapshot) sessionStorage.setItem(ORIGINAL_USER_KEY, JSON.stringify(originalSnapshot));
 
       const { token } = await laravelAuthApi.startImpersonation(userId);
 
@@ -75,9 +87,14 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
 
       sessionStorage.setItem(IMPERSONATION_USER_ID_KEY, userId);
       sessionStorage.setItem(IMPERSONATION_NAME_KEY, name);
+      sessionStorage.setItem(IMPERSONATION_ROLES_KEY, JSON.stringify(targetSnapshot?.roles ?? []));
+      if (targetSnapshot?.profile) sessionStorage.setItem(IMPERSONATION_PROFILE_KEY, JSON.stringify(targetSnapshot.profile));
+      else sessionStorage.removeItem(IMPERSONATION_PROFILE_KEY);
       setUserId(userId);
       setName(name);
-      setOriginalUser(snapshot);
+      setRoles(targetSnapshot?.roles ?? []);
+      setProfile(targetSnapshot?.profile ?? null);
+      setOriginalUser(originalSnapshot);
 
       await refresh();
       await queryClient.invalidateQueries();
@@ -89,8 +106,12 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
       sessionStorage.removeItem(ORIGINAL_USER_KEY);
       sessionStorage.removeItem(IMPERSONATION_USER_ID_KEY);
       sessionStorage.removeItem(IMPERSONATION_NAME_KEY);
+      sessionStorage.removeItem(IMPERSONATION_ROLES_KEY);
+      sessionStorage.removeItem(IMPERSONATION_PROFILE_KEY);
       setUserId(null);
       setName(null);
+      setRoles([]);
+      setProfile(null);
       setOriginalUser(null);
       toast.error(e?.message || "Не удалось войти под пользователем");
       throw e;
@@ -107,8 +128,12 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
       sessionStorage.removeItem(ORIGINAL_USER_KEY);
       sessionStorage.removeItem(IMPERSONATION_USER_ID_KEY);
       sessionStorage.removeItem(IMPERSONATION_NAME_KEY);
+      sessionStorage.removeItem(IMPERSONATION_ROLES_KEY);
+      sessionStorage.removeItem(IMPERSONATION_PROFILE_KEY);
       setUserId(null);
       setName(null);
+      setRoles([]);
+      setProfile(null);
       setOriginalUser(null);
       await refresh();
       await queryClient.invalidateQueries();
@@ -117,7 +142,7 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
 
   return (
     <ImpersonationContext.Provider
-      value={{ impersonatedUserId, impersonatedName, originalUser, startImpersonation, stopImpersonation }}
+      value={{ impersonatedUserId, impersonatedName, impersonatedRoles, impersonatedProfile, originalUser, startImpersonation, stopImpersonation }}
     >
       {children}
     </ImpersonationContext.Provider>

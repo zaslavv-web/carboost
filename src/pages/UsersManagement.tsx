@@ -164,9 +164,12 @@ const UsersManagement = () => {
 
   const pendingCount = users.filter((u: any) => !u.is_verified).length;
 
-  const handleImpersonate = async (userId: string, name: string) => {
+  const handleImpersonate = async (user: any) => {
     try {
-      await startImpersonation(userId, name);
+      await startImpersonation(user.user_id, user.full_name, {
+        roles: [user.role],
+        profile: user,
+      });
       navigate("/dashboard");
     } catch {
       /* toast shown inside startImpersonation */
@@ -375,7 +378,7 @@ const UsersManagement = () => {
                   </td>
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => handleImpersonate(u.user_id, u.full_name)}
+                      onClick={() => handleImpersonate(u)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5" /> Войти как
