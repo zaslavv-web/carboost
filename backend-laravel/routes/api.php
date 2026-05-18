@@ -19,6 +19,8 @@ use App\Http\Controllers\Api\PositionController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SupportTicketController;
 use App\Http\Controllers\Api\TeamMemberController;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -27,6 +29,27 @@ use Illuminate\Support\Facades\Route;
 */
 
 // ---- Public ----
+Route::get('/health', function () {
+    $checks = ['api' => 'ok'];
+
+    try {
+        DB::select('select 1');
+        $checks['db'] = 'ok';
+    } catch (\Throwable $e) {
+        $checks['db'] = 'error: ' . $e->getMessage();
+    }
+
+    try {
+        Redis::connection()->ping();
+        $checks['redis'] = 'ok';
+    } catch (\Throwable $e) {
+        $checks['redis'] = 'error: ' . $e->getMessage();
+    }
+
+    $ok = $checks['db'] === 'ok' && $checks['redis'] === 'ok';
+    return response()->json(['status' => $ok ? 'ok' : 'degraded', 'checks' => $checks], $ok ? 200 : 503);
+});
+
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login',    [AuthController::class, 'login']);
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
