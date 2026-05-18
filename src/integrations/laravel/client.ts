@@ -94,7 +94,16 @@ async function request<T>(
     }
     return { data: body as T, error: null };
   } catch (e: any) {
-    return { data: null, error: { message: e?.message || "Network error" } };
+    const rawMessage = String(e?.message || "Network error");
+    const isClosedConnection = /ERR_CONNECTION_CLOSED|Failed to fetch|NetworkError|Load failed/i.test(rawMessage);
+    return {
+      data: null,
+      error: {
+        message: isClosedConnection
+          ? "Backend разорвал соединение. Проверьте, что Laravel/PHP-FPM запущен, миграции применены, а nginx корректно проксирует /api."
+          : rawMessage,
+      },
+    };
   }
 }
 
