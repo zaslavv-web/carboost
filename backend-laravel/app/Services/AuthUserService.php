@@ -186,30 +186,68 @@ class AuthUserService
         }
     }
 
+    /**
+     * На легаси MySQL-схемах profiles.company_id может быть DOUBLE/INT,
+     * а текущий код работает с UUID-компаниями. Не пишем несовместимый UUID в
+     * числовую колонку — иначе MySQL падает с "Truncated incorrect DOUBLE value".
+     */
+    private function canWriteColumnValue(string $table, string $column, mixed $value): bool
+    {
+        if ($value === null || $value === '') {
+            return true;
+        }
+
+        if (DB::getDriverName() !== 'mysql') {
+            return true;
+        }
+
+        try {
+            $meta = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE ?", [$column]);
+        } catch (\Throwable) {
+            return true;
+        }
+
+        $type = strtolower((string) ($meta->Type ?? ''));
+        $isNumeric = str_contains($type, 'int')
+            || str_contains($type, 'decimal')
+            || str_contains($type, 'float')
+            || str_contains($type, 'double');
+
+        return !$isNumeric || is_numeric($value);
+    }
+
 
     private function ensureDomainRows(User $user, array $googleUser, bool $isNewUser, string $role = 'employee', ?string $companyId = null, bool $isVerified = false): void
     {
         $profile = DB::table('profiles')->where('user_id', $user->id)->first();
         if ($profile) {
-            DB::table('profiles')->where('user_id', $user->id)->update([
+            $updates = [
                 'full_name' => $profile->full_name ?: ($googleUser['name'] ?? $user->email),
                 'avatar_url' => $googleUser['avatar'] ?? $profile->avatar_url,
-                'company_id' => $companyId ?: $profile->company_id,
-                'requested_role' => $role ?: ($profile->requested_role ?? 'employee'),
+                'requested_role' => $profile->requested_role ?: ($role ?: 'employee'),
                 'is_verified' => $isVerified || (bool) $profile->is_verified,
                 'updated_at' => now(),
-            ]);
+            ];
+
+            if ($this->canWriteColumnValue('profiles', 'company_id', $companyId)) {
+                $updates['company_id'] = $companyId;
+            }
+
+            DB::table('profiles')->where('user_id', $user->id)->update($updates);
         } else {
             $profileRow = [
                 'user_id' => $user->id,
                 'full_name' => $googleUser['name'] ?? $user->email,
                 'avatar_url' => $googleUser['avatar'] ?? null,
                 'requested_role' => $role,
-                'company_id' => $companyId,
                 'is_verified' => $isVerified,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
+
+            if ($this->canWriteColumnValue('profiles', 'company_id', $companyId)) {
+                $profileRow['company_id'] = $companyId;
+            }
 
             if (!$this->tableIdIsInteger('profiles')) {
                 $profileRow['id'] = (string) Str::uuid();
