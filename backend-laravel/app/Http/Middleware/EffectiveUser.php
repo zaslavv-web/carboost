@@ -23,6 +23,7 @@ class EffectiveUser
             $actor = $request->user();
             $target = User::find($targetId);
             if ($target) {
+                $target->setAttribute('impersonator', $actor);
                 auth()->setUser($target);
                 $request->setUserResolver(fn () => $target);
                 $request->attributes->set('impersonator', $actor);

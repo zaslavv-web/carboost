@@ -27,6 +27,11 @@ class CompanyScope implements Scope
             return;
         }
 
+        $impersonator = method_exists($user, 'getAttribute') ? $user->getAttribute('impersonator') : null;
+        if ($impersonator && method_exists($impersonator, 'hasRole') && $impersonator->hasRole('superadmin')) {
+            return;
+        }
+
         $companyId = method_exists($user, 'companyId') ? $user->companyId() : null;
 
         if (!$companyId) {
