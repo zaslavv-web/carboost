@@ -100,41 +100,52 @@ class ImpersonationService
 
     private function resolveTargetUser(string $targetUserId): ?User
     {
-        $target = User::query()->whereKey($targetUserId)->first();
-        if ($target) {
-            return $target;
-        }
+        $tryFind = function (callable $fn) {
+            try { return $fn(); } catch (\Throwable $e) { return null; }
+        };
 
-        $profile = DB::table('profiles')
-            ->where('id', $targetUserId)
-            ->orWhere('user_id', $targetUserId)
-            ->first();
+        $target = $tryFind(fn () => User::query()->whereKey($targetUserId)->first());
+        if ($target) return $target;
 
-        if (! $profile) {
-            return null;
-        }
+        // legacy: users.meta может содержать sub = UUID из старого Supabase
+        $target = $tryFind(function () use ($targetUserId) {
+            if (! Schema::hasColumn('users', 'meta')) return null;
+            return User::query()
+                ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.sub')) = ?", [$targetUserId])
+                ->first();
+        });
+        if ($target) return $target;
+
+        $profile = $tryFind(function () use ($targetUserId) {
+            return DB::table('profiles')
+                ->where(function ($q) use ($targetUserId) {
+                    try { $q->orWhere('id', $targetUserId); } catch (\Throwable $e) {}
+                    try { $q->orWhere('user_id', $targetUserId); } catch (\Throwable $e) {}
+                })
+                ->first();
+        });
+
+        if (! $profile) return null;
 
         $candidateIds = array_values(array_filter([
             $profile->user_id ?? null,
             $profile->id ?? null,
         ], fn ($id) => $id !== null && $id !== ''));
 
-        if ($candidateIds) {
-            $target = User::query()->whereIn('id', $candidateIds)->first();
-            if ($target) {
-                return $target;
-            }
+        foreach ($candidateIds as $cid) {
+            $found = $tryFind(fn () => User::query()->whereKey($cid)->first());
+            if ($found) return $found;
         }
 
         $email = $profile->email ?? null;
         if ($email && Schema::hasColumn('users', 'email')) {
-            return User::query()->where('email', $email)->first();
+            return $tryFind(fn () => User::query()->where('email', $email)->first());
         }
 
         return null;
     }
 
-    private function writeAuditStart(User $actor, User $target, $tokenId): void
+    private function writeAuditStart(User $actor, ?User $target, string $targetUserId, $tokenId): void
     {
         if (! Schema::hasTable('impersonation_audit')) {
             return;
@@ -144,14 +155,14 @@ class ImpersonationService
             DB::table('impersonation_audit')->insert([
                 'id'              => (string) Str::uuid(),
                 'actor_user_id'   => (string) $actor->id,
-                'target_user_id'  => (string) $target->id,
+                'target_user_id'  => (string) ($target?->id ?? $targetUserId),
                 'token_id'        => $tokenId,
                 'started_at'      => now(),
             ]);
         } catch (\Throwable $e) {
             Log::warning('Impersonation audit write failed', [
                 'actor_user_id' => (string) $actor->id,
-                'target_user_id' => (string) $target->id,
+                'target_user_id' => (string) ($target?->id ?? $targetUserId),
                 'error' => $e->getMessage(),
             ]);
         }
