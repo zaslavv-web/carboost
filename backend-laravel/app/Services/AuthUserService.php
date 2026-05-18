@@ -107,7 +107,10 @@ class AuthUserService
             $userRow['id'] = (string) Str::uuid();
         }
 
+        $this->fillMissingDefaults('users', $userRow);
+
         DB::table('users')->insert($userRow);
+
 
         $user = User::where('email', $email)->firstOrFail();
 
