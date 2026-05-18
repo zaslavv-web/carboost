@@ -90,6 +90,10 @@ class User extends Authenticatable
      */
     public function domainRole(): ?string
     {
+        if (! $this->canCompareColumnValue('user_roles', 'user_id', $this->domainUserId())) {
+            return null;
+        }
+
         $row = DB::table('user_roles')->where('user_id', $this->domainUserId())->value('role');
         return $row;
     }
@@ -145,13 +149,35 @@ class User extends Authenticatable
     /** Удобный геттер: верифицирован ли пользователь суперадмином */
     public function isVerified(): bool
     {
+        if (! $this->canCompareColumnValue('profiles', 'user_id', $this->domainUserId())) {
+            return false;
+        }
+
         return (bool) DB::table('profiles')->where('user_id', $this->domainUserId())->value('is_verified');
     }
 
     public function companyId(): ?string
     {
+        if (! $this->canCompareColumnValue('profiles', 'user_id', $this->domainUserId())) {
+            return null;
+        }
+
         $value = DB::table('profiles')->where('user_id', $this->domainUserId())->value('company_id');
         return $value === null ? null : (string) $value;
+    }
+
+    private function canCompareColumnValue(string $table, string $column, mixed $value): bool
+    {
+        if ($value === null || $value === '') return false;
+        if (DB::getDriverName() !== 'mysql') return true;
+        try {
+            $meta = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE ?", [$column]);
+            $type = strtolower((string) ($meta->Type ?? ''));
+            $isNumeric = str_contains($type, 'int') || str_contains($type, 'decimal') || str_contains($type, 'float') || str_contains($type, 'double');
+            return !$isNumeric || is_numeric($value);
+        } catch (\Throwable) {
+            return true;
+        }
     }
 
     public function sendPasswordResetNotification($token): void
