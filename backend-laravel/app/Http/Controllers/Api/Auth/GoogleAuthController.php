@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\AuthUserService;
+use App\Support\RuntimeEnv;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Laravel\Socialite\Facades\Socialite;
@@ -27,9 +28,9 @@ class GoogleAuthController extends Controller
     /** GET /api/auth/google/redirect?return_to=https://app.example.ru/auth/callback */
     public function redirect(Request $request): RedirectResponse
     {
-        $returnTo = $request->query('return_to', rtrim($this->urlValue('APP_FRONTEND_URL', config('app.url')), '/') . '/auth/callback');
+        $returnTo = $request->query('return_to', rtrim($this->frontendUrl(), '/') . '/auth/callback');
         if (!$this->ensureGoogleConfig()) {
-            return redirect($returnTo . '#error=' . urlencode('Google OAuth не настроен: отсутствует GOOGLE_CLIENT_ID'));
+            return redirect($returnTo . '#error=' . urlencode('Google OAuth не настроен на сервере: отсутствуют GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET'));
         }
 
         $state = rtrim(strtr(base64_encode(json_encode(['return_to' => $returnTo])), '+/', '-_'), '=');
@@ -47,7 +48,7 @@ class GoogleAuthController extends Controller
         $returnTo = $this->returnToFromState($request->query('state'));
 
         if (!$this->ensureGoogleConfig()) {
-            return redirect($returnTo . '#error=' . urlencode('Google OAuth не настроен: отсутствует GOOGLE_CLIENT_ID'));
+            return redirect($returnTo . '#error=' . urlencode('Google OAuth не настроен на сервере: отсутствуют GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET'));
         }
 
         try {
@@ -86,7 +87,7 @@ class GoogleAuthController extends Controller
 
     private function returnToFromState(?string $state): string
     {
-        $fallback = rtrim($this->urlValue('APP_FRONTEND_URL', config('app.url')), '/') . '/auth/callback';
+        $fallback = rtrim($this->frontendUrl(), '/') . '/auth/callback';
         if (!$state) return $fallback;
 
         $decoded = base64_decode(strtr($state, '-_', '+/'), true);
@@ -100,13 +101,12 @@ class GoogleAuthController extends Controller
      */
     private function ensureGoogleConfig(): bool
     {
-        $fileEnv = $this->readDotEnv();
-        $clientId = $this->envValue('GOOGLE_CLIENT_ID', $fileEnv) ?: config('services.google.client_id');
-        $clientSecret = $this->envValue('GOOGLE_CLIENT_SECRET', $fileEnv) ?: config('services.google.client_secret');
-        $redirect = $this->absoluteUrl(
-            $this->envValue('GOOGLE_REDIRECT_URI', $fileEnv)
+        $clientId = RuntimeEnv::get('GOOGLE_CLIENT_ID') ?: config('services.google.client_id');
+        $clientSecret = RuntimeEnv::get('GOOGLE_CLIENT_SECRET') ?: config('services.google.client_secret');
+        $redirect = RuntimeEnv::absoluteUrl(
+            RuntimeEnv::get('GOOGLE_REDIRECT_URI')
                 ?: config('services.google.redirect')
-                ?: rtrim($this->urlValue('APP_URL', config('app.url')), '/') . '/api/auth/google/callback'
+                ?: rtrim(RuntimeEnv::url('APP_URL', config('app.url')), '/') . '/api/auth/google/callback'
         );
 
         config([
@@ -118,39 +118,8 @@ class GoogleAuthController extends Controller
         return !empty($clientId) && !empty($clientSecret) && !empty($redirect);
     }
 
-    private function envValue(string $key, array $fileEnv): ?string
+    private function frontendUrl(): string
     {
-        $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: ($fileEnv[$key] ?? null);
-        return is_string($value) && trim($value) !== '' ? trim($value) : null;
-    }
-
-    private function urlValue(string $key, ?string $fallback = null): string
-    {
-        $value = $this->envValue($key, $this->readDotEnv()) ?: $fallback ?: '';
-        return $this->absoluteUrl($value);
-    }
-
-    private function absoluteUrl(string $url): string
-    {
-        $url = trim($url);
-        if ($url === '') return $url;
-        $normalized = preg_match('/^https?:\/\//i', $url) ? rtrim($url, '/') : 'https://' . ltrim(rtrim($url, '/'), '/');
-        return preg_replace('#/api/auth/google/callbac$#', '/api/auth/google/callback', $normalized) ?: $normalized;
-    }
-
-    private function readDotEnv(): array
-    {
-        $path = base_path('.env');
-        if (!is_readable($path)) return [];
-
-        $values = [];
-        foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
-            $line = trim($line);
-            if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) continue;
-
-            [$key, $value] = explode('=', $line, 2);
-            $values[trim($key)] = trim(trim($value), "\"'");
-        }
-        return $values;
+        return RuntimeEnv::url('FRONTEND_URL', RuntimeEnv::url('APP_FRONTEND_URL', config('app.url')));
     }
 }
