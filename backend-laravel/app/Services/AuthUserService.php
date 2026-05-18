@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -79,6 +80,7 @@ class AuthUserService
         }
 
         $userRow = [
+            'name' => $googleUser['name'] ?? $email,
             'email' => $email,
             'password' => Hash::make(Str::random(64)),
             'email_verified_at' => now(),
@@ -92,6 +94,12 @@ class AuthUserService
             'created_at' => now(),
             'updated_at' => now(),
         ];
+
+        // Если в таблице users нет колонки `name` (наша «новая» схема) — убираем её,
+        // чтобы insert не падал. На «старой» Laravel-схеме колонка обязательная.
+        if (!Schema::hasColumn('users', 'name')) {
+            unset($userRow['name']);
+        }
 
         // На некоторых прод-серверах таблица users осталась от Laravel с integer id.
         // В таком случае не передаём UUID вручную — пусть БД выдаст auto_increment id.
