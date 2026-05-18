@@ -92,10 +92,24 @@ class AuthController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /** GET /api/auth/me (auth:sanctum) */
+    /**
+     * GET /api/auth/me
+     * Намеренно вынесен из auth:sanctum: фронт всегда дёргает /auth/me на старте,
+     * а Sanctum при сломанном токене/таблице бросал 500. Теперь явно: нет
+     * валидного юзера → 401 JSON, любой внутренний throw → залогировать и 401.
+     */
     public function me(Request $request): JsonResponse
     {
-        return response()->json($this->presentUser($request->user()));
+        try {
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['message' => 'Не авторизован'], 401);
+            }
+            return response()->json($this->presentUser($user));
+        } catch (\Throwable $e) {
+            Log::error('auth/me failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['message' => 'Не авторизован', 'code' => 'me_failed'], 401);
+        }
     }
 
     private function presentUser(User $user): array
