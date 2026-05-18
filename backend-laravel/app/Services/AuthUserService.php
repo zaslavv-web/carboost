@@ -63,42 +63,66 @@ class AuthUserService
     {
         $email = strtolower($googleUser['email']);
 
-        $existingId = DB::table('auth.users')->where('email', $email)->value('id');
-        if ($existingId) {
-            // Линкуем google_id в meta, не трогаем пароль
-            DB::statement(
-                "UPDATE auth.users
-                 SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb)
-                     || jsonb_build_object('google_id', ?::text, 'avatar_url', ?::text),
-                     email_confirmed_at = COALESCE(email_confirmed_at, now()),
-                     updated_at = now()
-                 WHERE id = ?",
-                [$googleUser['id'], $googleUser['avatar'] ?? null, $existingId]
-            );
-            return User::findOrFail($existingId);
+        $existing = User::where('email', $email)->first();
+        if ($existing) {
+            $meta = array_merge($existing->meta ?? [], [
+                'google_id' => $googleUser['id'],
+                'avatar_url' => $googleUser['avatar'] ?? null,
+                'provider' => 'google',
+            ]);
+            $existing->forceFill([
+                'email_verified_at' => $existing->email_verified_at ?? now(),
+                'meta' => $meta,
+            ])->save();
+            $this->ensureDomainRows($existing, $googleUser, false);
+            return $existing->refresh();
         }
 
         $id = (string) Str::uuid();
-        DB::statement(
-            "INSERT INTO auth.users
-                (id, email, encrypted_password, email_confirmed_at,
-                 raw_user_meta_data, created_at, updated_at,
-                 aud, role, instance_id)
-             VALUES (?, ?, NULL, now(), ?::jsonb, now(), now(),
-                     'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000')",
-            [
-                $id,
-                $email,
-                json_encode([
-                    'full_name'      => $googleUser['name']   ?? $email,
-                    'avatar_url'     => $googleUser['avatar'] ?? null,
-                    'google_id'      => $googleUser['id'],
-                    'requested_role' => 'employee',
-                    'provider'       => 'google',
-                ]),
-            ]
-        );
+        $user = User::forceCreate([
+            'id' => $id,
+            'email' => $email,
+            'password' => Hash::make(Str::random(64)),
+            'email_verified_at' => now(),
+            'meta' => [
+                'full_name'      => $googleUser['name']   ?? $email,
+                'avatar_url'     => $googleUser['avatar'] ?? null,
+                'google_id'      => $googleUser['id'],
+                'requested_role' => 'employee',
+                'provider'       => 'google',
+            ],
+        ]);
 
-        return User::findOrFail($id);
+        $this->ensureDomainRows($user, $googleUser, true);
+        return $user->refresh();
+    }
+
+    private function ensureDomainRows(User $user, array $googleUser, bool $isNewUser): void
+    {
+        $profile = DB::table('profiles')->where('user_id', $user->id)->first();
+        if ($profile) {
+            DB::table('profiles')->where('user_id', $user->id)->update([
+                'full_name' => $profile->full_name ?: ($googleUser['name'] ?? $user->email),
+                'avatar_url' => $googleUser['avatar'] ?? $profile->avatar_url,
+                'updated_at' => now(),
+            ]);
+        } else {
+            DB::table('profiles')->insert([
+                'id' => (string) Str::uuid(),
+                'user_id' => $user->id,
+                'full_name' => $googleUser['name'] ?? $user->email,
+                'avatar_url' => $googleUser['avatar'] ?? null,
+                'requested_role' => 'employee',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        if ($isNewUser || !DB::table('user_roles')->where('user_id', $user->id)->exists()) {
+            DB::table('user_roles')->updateOrInsert(
+                ['user_id' => $user->id, 'role' => 'employee'],
+                ['id' => DB::table('user_roles')->where('user_id', $user->id)->where('role', 'employee')->value('id') ?: (string) Str::uuid()]
+            );
+        }
     }
 }
