@@ -10,6 +10,7 @@ class Achievement extends Model
 {
     use HasUuids, BelongsToCompany;
 
+    
     protected $table = 'achievements';
     public $timestamps = false; // только created_at
     protected $fillable = ['user_id', 'company_id', 'title', 'description', 'icon', 'achievement_date'];
