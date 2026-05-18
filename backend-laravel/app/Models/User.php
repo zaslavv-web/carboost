@@ -90,8 +90,24 @@ class User extends Authenticatable
      */
     public function domainRole(): ?string
     {
-        $row = DB::table('user_roles')->where('user_id', $this->id)->value('role');
+        if (! $this->canCompareColumnValue('user_roles', 'user_id', $this->domainUserId())) {
+            return null;
+        }
+
+        $row = DB::table('user_roles')->where('user_id', $this->domainUserId())->value('role');
         return $row;
+    }
+
+    /** ID, которым пользователь связан с legacy domain-таблицами. */
+    public function domainUserId(): string
+    {
+        $meta = is_array($this->meta) ? $this->meta : [];
+        $metaSub = $meta['sub'] ?? null;
+        if (is_string($metaSub) && preg_match('/^[0-9a-f-]{36}$/i', $metaSub)) {
+            return $metaSub;
+        }
+
+        return (string) $this->getAuthIdentifier();
     }
 
     /**
@@ -119,7 +135,7 @@ class User extends Authenticatable
         }
 
         $domainRoles = DB::table('user_roles')
-            ->where('user_id', $this->id)
+            ->where('user_id', $this->domainUserId())
             ->pluck('role')
             ->map(fn ($role) => (string) $role);
 
@@ -133,12 +149,35 @@ class User extends Authenticatable
     /** Удобный геттер: верифицирован ли пользователь суперадмином */
     public function isVerified(): bool
     {
-        return (bool) DB::table('profiles')->where('user_id', $this->id)->value('is_verified');
+        if (! $this->canCompareColumnValue('profiles', 'user_id', $this->domainUserId())) {
+            return false;
+        }
+
+        return (bool) DB::table('profiles')->where('user_id', $this->domainUserId())->value('is_verified');
     }
 
     public function companyId(): ?string
     {
-        return DB::table('profiles')->where('user_id', $this->id)->value('company_id');
+        if (! $this->canCompareColumnValue('profiles', 'user_id', $this->domainUserId())) {
+            return null;
+        }
+
+        $value = DB::table('profiles')->where('user_id', $this->domainUserId())->value('company_id');
+        return $value === null ? null : (string) $value;
+    }
+
+    private function canCompareColumnValue(string $table, string $column, mixed $value): bool
+    {
+        if ($value === null || $value === '') return false;
+        if (DB::getDriverName() !== 'mysql') return true;
+        try {
+            $meta = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE ?", [$column]);
+            $type = strtolower((string) ($meta->Type ?? ''));
+            $isNumeric = str_contains($type, 'int') || str_contains($type, 'decimal') || str_contains($type, 'float') || str_contains($type, 'double');
+            return !$isNumeric || is_numeric($value);
+        } catch (\Throwable) {
+            return true;
+        }
     }
 
     public function sendPasswordResetNotification($token): void

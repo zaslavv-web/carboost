@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -73,6 +76,10 @@ class RpcController extends Controller
             $payload = [];
         }
 
+        if (in_array($name, ['verify_user', 'reject_user', 'delete_user', 'assign_role'], true)) {
+            return $this->callLocalUserAdminFunction($request, $name, $payload);
+        }
+
         $args = [];
         $placeholders = [];
         foreach ($signature as $param => $type) {
@@ -105,6 +112,165 @@ class RpcController extends Controller
         } catch (Throwable $e) {
             $msg = self::localize($e->getMessage());
             return response()->json(['error' => $msg], 422);
+        }
+    }
+
+    private function callLocalUserAdminFunction(Request $request, string $name, array $payload)
+    {
+        $actor = $request->user();
+        $targetId = (string) ($payload['_target_user_id'] ?? $payload['target_user_id'] ?? '');
+        $role = (string) ($payload['_role'] ?? $payload['role'] ?? $payload['_new_role'] ?? $payload['new_role'] ?? '');
+
+        if ($targetId === '') {
+            return response()->json(['error' => 'Не указан пользователь'], 422);
+        }
+
+        try {
+            $profile = $this->findProfileByDomainId($targetId);
+            if (!$profile) {
+                return response()->json(['error' => 'Пользователь не найден'], 404);
+            }
+
+            if (!$this->canManageTarget($actor, $profile)) {
+                return response()->json(['error' => 'Недостаточно прав'], 403);
+            }
+
+            return match ($name) {
+                'verify_user' => $this->verifyUser($profile),
+                'reject_user' => $this->rejectUser($profile),
+                'assign_role' => $this->assignRole($actor, $profile, $role),
+                'delete_user' => $this->deleteUser($actor, $profile),
+            };
+        } catch (Throwable $e) {
+            return response()->json(['error' => self::localize($e->getMessage())], 422);
+        }
+    }
+
+    private function verifyUser(object $profile)
+    {
+        DB::table('profiles')->where('id', $profile->id)->update(['is_verified' => true, 'updated_at' => now()]);
+        return response()->json(['data' => true]);
+    }
+
+    private function rejectUser(object $profile)
+    {
+        DB::table('profiles')->where('id', $profile->id)->update(['is_verified' => false, 'updated_at' => now()]);
+        return response()->json(['data' => true]);
+    }
+
+    private function assignRole($actor, object $profile, string $role)
+    {
+        $allowed = ['employee', 'manager', 'hrd', 'company_admin', 'superadmin'];
+        if (!in_array($role, $allowed, true)) {
+            return response()->json(['error' => 'Недопустимая роль'], 422);
+        }
+        if (!$actor?->hasRole('superadmin') && in_array($role, ['superadmin', 'company_admin'], true)) {
+            return response()->json(['error' => 'Недостаточно прав для назначения этой роли'], 403);
+        }
+
+        $userId = (string) $profile->user_id;
+        DB::transaction(function () use ($profile, $userId, $role) {
+            DB::table('user_roles')->where('user_id', $userId)->delete();
+            $row = ['user_id' => $userId, 'role' => $role];
+            if (Schema::hasColumn('user_roles', 'id') && !$this->idColumnIsInteger('user_roles')) {
+                $row['id'] = (string) Str::uuid();
+            }
+            if (Schema::hasColumn('user_roles', 'created_at')) $row['created_at'] = now();
+            if (Schema::hasColumn('user_roles', 'updated_at')) $row['updated_at'] = now();
+            DB::table('user_roles')->insert($row);
+            DB::table('profiles')->where('id', $profile->id)->update(['requested_role' => $role, 'updated_at' => now()]);
+        });
+
+        return response()->json(['data' => true]);
+    }
+
+    private function deleteUser($actor, object $profile)
+    {
+        if ((string) $profile->user_id === (string) ($actor?->domainUserId() ?? $actor?->id)) {
+            return response()->json(['error' => 'Нельзя удалить свою учетную запись'], 422);
+        }
+
+        $domainUserId = (string) $profile->user_id;
+        $authUserId = $this->findAuthUserId($domainUserId, $profile);
+
+        DB::transaction(function () use ($profile, $domainUserId, $authUserId) {
+            if (Schema::hasTable('personal_access_tokens') && $authUserId !== null) {
+                DB::table('personal_access_tokens')->where('tokenable_id', (string) $authUserId)->delete();
+            }
+            DB::table('user_roles')->where('user_id', $domainUserId)->delete();
+            DB::table('profiles')->where('id', $profile->id)->delete();
+            if ($authUserId !== null) {
+                DB::table('users')->where('id', $authUserId)->delete();
+            }
+        });
+
+        return response()->json(['data' => true]);
+    }
+
+    private function findProfileByDomainId(string $id): ?object
+    {
+        $query = DB::table('profiles');
+        $hasCondition = false;
+
+        if ($this->canCompareColumnValue('profiles', 'user_id', $id)) {
+            $query->where('user_id', $id);
+            $hasCondition = true;
+        }
+        if ($this->canCompareColumnValue('profiles', 'id', $id)) {
+            $hasCondition ? $query->orWhere('id', $id) : $query->where('id', $id);
+            $hasCondition = true;
+        }
+
+        return $hasCondition ? $query->first() : null;
+    }
+
+    private function findAuthUserId(string $domainUserId, object $profile): mixed
+    {
+        if ($this->canCompareColumnValue('users', 'id', $domainUserId)) {
+            $id = DB::table('users')->where('id', $domainUserId)->value('id');
+            if ($id !== null) return $id;
+        }
+
+        if (Schema::hasColumn('users', 'meta')) {
+            $compact = '%"sub":"' . addcslashes($domainUserId, '%_\\') . '"%';
+            $spaced = '%"sub": "' . addcslashes($domainUserId, '%_\\') . '"%';
+            $id = DB::table('users')->where('meta', 'like', $compact)->orWhere('meta', 'like', $spaced)->value('id');
+            if ($id !== null) return $id;
+        }
+
+        return null;
+    }
+
+    private function canManageTarget($actor, object $profile): bool
+    {
+        if (!$actor) return false;
+        if ($actor->hasRole('superadmin')) return true;
+        if (!$actor->hasRole(['company_admin', 'hrd'])) return false;
+        return (string) $actor->companyId() !== '' && (string) $actor->companyId() === (string) ($profile->company_id ?? '');
+    }
+
+    private function canCompareColumnValue(string $table, string $column, mixed $value): bool
+    {
+        if ($value === null || $value === '') return false;
+        if (DB::getDriverName() !== 'mysql') return true;
+        try {
+            $meta = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE ?", [$column]);
+            $type = strtolower((string) ($meta->Type ?? ''));
+            $isNumeric = str_contains($type, 'int') || str_contains($type, 'decimal') || str_contains($type, 'float') || str_contains($type, 'double');
+            return !$isNumeric || is_numeric($value);
+        } catch (Throwable) {
+            return true;
+        }
+    }
+
+    private function idColumnIsInteger(string $table): bool
+    {
+        if (DB::getDriverName() !== 'mysql') return false;
+        try {
+            $column = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE 'id'");
+            return $column && str_contains(strtolower((string) $column->Type), 'int');
+        } catch (Throwable) {
+            return false;
         }
     }
 

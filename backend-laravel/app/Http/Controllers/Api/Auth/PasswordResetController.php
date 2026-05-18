@@ -34,6 +34,7 @@ class PasswordResetController extends Controller
         }
 
         try {
+            app(\App\Services\EmailConfigService::class)->apply();
             $status = Password::sendResetLink(['email' => strtolower($data['email'])]);
         } catch (\Throwable $e) {
             Log::error('Password reset email failed', ['email' => strtolower($data['email']), 'exception' => $e]);

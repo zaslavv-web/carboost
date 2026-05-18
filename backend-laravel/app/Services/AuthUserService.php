@@ -82,7 +82,9 @@ class AuthUserService
                 'email_verified_at' => $existing->email_verified_at ?? now(),
                 'meta' => $meta,
             ])->save();
-            $this->ensureDomainRows($existing, $googleUser, false);
+            $existingRole = $this->normalizeRole($existing->domainRole() ?? ($existing->meta['requested_role'] ?? null));
+            $existingCompanyId = $this->stringOrNull($existing->companyId() ?? ($existing->meta['company_id'] ?? null));
+            $this->ensureDomainRows($existing, $googleUser, false, $existingRole, $existingCompanyId, $existing->isVerified() || (bool) $existing->email_verified_at);
             return $existing->refresh();
         }
 
@@ -123,6 +125,43 @@ class AuthUserService
 
         $this->ensureDomainRows($user, $googleUser, true);
         return $user->refresh();
+    }
+
+    /**
+     * Лечит доменные строки старых аккаунтов при обычном логине: после миграций
+     * часть users могла остаться без связанного profiles/user_roles или с legacy id.
+     */
+    public function repairDomainRowsForLogin(User $user): void
+    {
+        $meta = is_array($user->meta) ? $user->meta : [];
+        $role = $this->normalizeRole($user->domainRole() ?? ($meta['requested_role'] ?? null));
+        $this->ensureDomainRows($user, [
+            'name' => $meta['full_name'] ?? $meta['name'] ?? $user->email,
+            'email' => $user->email,
+            'avatar' => $meta['avatar_url'] ?? $meta['picture'] ?? null,
+        ], false, $role, $this->stringOrNull($meta['company_id'] ?? null), $user->isVerified() || (bool) $user->email_verified_at);
+    }
+
+    private function normalizeRole(?string $role): string
+    {
+        return in_array($role, ['employee', 'manager', 'hrd', 'company_admin', 'superadmin'], true)
+            ? $role
+            : 'employee';
+    }
+
+    private function stringOrNull(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        return (string) $value;
+    }
+
+    private function domainUserId(User $user): string
+    {
+        return method_exists($user, 'domainUserId')
+            ? (string) $user->domainUserId()
+            : (string) $user->getAuthIdentifier();
     }
 
     private function tableIdIsInteger(string $table): bool
@@ -194,7 +233,7 @@ class AuthUserService
     private function canWriteColumnValue(string $table, string $column, mixed $value): bool
     {
         if ($value === null || $value === '') {
-            return true;
+            return false;
         }
 
         if (DB::getDriverName() !== 'mysql') {
@@ -219,7 +258,10 @@ class AuthUserService
 
     private function ensureDomainRows(User $user, array $googleUser, bool $isNewUser, string $role = 'employee', ?string $companyId = null, bool $isVerified = false): void
     {
-        $profile = DB::table('profiles')->where('user_id', $user->id)->first();
+        $userId = $this->domainUserId($user);
+        $role = $this->normalizeRole($role);
+
+        $profile = DB::table('profiles')->where('user_id', $userId)->first();
         if ($profile) {
             $updates = [
                 'full_name' => $profile->full_name ?: ($googleUser['name'] ?? $user->email),
@@ -229,14 +271,14 @@ class AuthUserService
                 'updated_at' => now(),
             ];
 
-            if ($this->canWriteColumnValue('profiles', 'company_id', $companyId)) {
+            if (!$profile->company_id && $this->canWriteColumnValue('profiles', 'company_id', $companyId)) {
                 $updates['company_id'] = $companyId;
             }
 
-            DB::table('profiles')->where('user_id', $user->id)->update($updates);
+            DB::table('profiles')->where('user_id', $userId)->update($updates);
         } else {
             $profileRow = [
-                'user_id' => $user->id,
+                'user_id' => $userId,
                 'full_name' => $googleUser['name'] ?? $user->email,
                 'avatar_url' => $googleUser['avatar'] ?? null,
                 'requested_role' => $role,
@@ -259,14 +301,14 @@ class AuthUserService
         }
 
 
-        if ($isNewUser || !DB::table('user_roles')->where('user_id', $user->id)->exists()) {
+        if ($isNewUser || !DB::table('user_roles')->where('user_id', $userId)->exists()) {
             $roleValues = [];
             if (!$this->tableIdIsInteger('user_roles')) {
-                $roleValues['id'] = DB::table('user_roles')->where('user_id', $user->id)->where('role', $role)->value('id') ?: (string) Str::uuid();
+                $roleValues['id'] = DB::table('user_roles')->where('user_id', $userId)->where('role', $role)->value('id') ?: (string) Str::uuid();
             }
 
             DB::table('user_roles')->updateOrInsert(
-                ['user_id' => $user->id, 'role' => $role],
+                ['user_id' => $userId, 'role' => $role],
                 $roleValues
             );
         }
