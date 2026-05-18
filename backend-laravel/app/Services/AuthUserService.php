@@ -186,6 +186,36 @@ class AuthUserService
         }
     }
 
+    /**
+     * На легаси MySQL-схемах profiles.company_id может быть DOUBLE/INT,
+     * а текущий код работает с UUID-компаниями. Не пишем несовместимый UUID в
+     * числовую колонку — иначе MySQL падает с "Truncated incorrect DOUBLE value".
+     */
+    private function canWriteColumnValue(string $table, string $column, mixed $value): bool
+    {
+        if ($value === null || $value === '') {
+            return true;
+        }
+
+        if (DB::getDriverName() !== 'mysql') {
+            return true;
+        }
+
+        try {
+            $meta = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE ?", [$column]);
+        } catch (\Throwable) {
+            return true;
+        }
+
+        $type = strtolower((string) ($meta->Type ?? ''));
+        $isNumeric = str_contains($type, 'int')
+            || str_contains($type, 'decimal')
+            || str_contains($type, 'float')
+            || str_contains($type, 'double');
+
+        return !$isNumeric || is_numeric($value);
+    }
+
 
     private function ensureDomainRows(User $user, array $googleUser, bool $isNewUser, string $role = 'employee', ?string $companyId = null, bool $isVerified = false): void
     {
