@@ -72,7 +72,17 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Pick up a fresh token from Google OAuth callback (#access_token=...)
-    laravelAuthApi.consumeOauthToken();
+    const consumed = laravelAuthApi.consumeOauthToken();
+    if (consumed.error) {
+      // Динамический импорт чтобы не тянуть toast в auth-контекст напрямую
+      import("sonner").then(({ toast }) => {
+        toast.error("Ошибка входа через Google", {
+          description: consumed.error,
+        });
+      }).catch(() => {
+        console.error("OAuth error:", consumed.error);
+      });
+    }
     void refresh();
 
     // Cross-tab sync via storage events

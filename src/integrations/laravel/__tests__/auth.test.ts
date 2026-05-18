@@ -70,8 +70,8 @@ describe("laravelAuthApi", () => {
       value: { origin: "https://app.local", pathname: "/auth/callback", search: "?token=g-1", hash: "" },
       writable: true,
     });
-    const ok = laravelAuthApi.consumeOauthToken();
-    expect(ok).toBe(true);
+    const res = laravelAuthApi.consumeOauthToken();
+    expect(res.ok).toBe(true);
     expect(laravelAuth.getToken()).toBe("g-1");
   });
 
@@ -80,12 +80,12 @@ describe("laravelAuthApi", () => {
       value: { origin: "https://app.local", pathname: "/auth/callback", search: "", hash: "#access_token=h-1" },
       writable: true,
     });
-    const ok = laravelAuthApi.consumeOauthToken();
-    expect(ok).toBe(true);
+    const res = laravelAuthApi.consumeOauthToken();
+    expect(res.ok).toBe(true);
     expect(laravelAuth.getToken()).toBe("h-1");
   });
 
-  it("consumeOauthToken returns false when no token present", () => {
-    expect(laravelAuthApi.consumeOauthToken()).toBe(false);
+  it("consumeOauthToken returns ok=false when no token present", () => {
+    expect(laravelAuthApi.consumeOauthToken().ok).toBe(false);
   });
 });

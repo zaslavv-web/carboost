@@ -83,20 +83,31 @@ export const laravelAuthApi = {
    * Consume the `#access_token=...` returned by GoogleAuthController::callback.
    * Call this from your OAuth landing route once on mount.
    */
-  consumeOauthToken(): boolean {
+  consumeOauthToken(): { ok: boolean; error?: string } {
     const params = new URLSearchParams(window.location.search);
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const token = params.get("token") || params.get("access_token") || hash.get("access_token");
-    if (!token) return false;
-    laravelAuth.setToken(token);
+    const error = params.get("error") || hash.get("error");
+
+    if (!token && !error) return { ok: false };
+
+    if (token) laravelAuth.setToken(token);
+
     params.delete("token");
     params.delete("access_token");
-    const qs = params.toString();
+    params.delete("error");
     hash.delete("access_token");
+    hash.delete("error");
+    const qs = params.toString();
     const cleanHash = hash.toString();
     const clean = window.location.pathname + (qs ? `?${qs}` : "") + (cleanHash ? `#${cleanHash}` : "");
     window.history.replaceState({}, "", clean);
-    return true;
+
+    if (error) {
+      try { console.error("[oauth] backend error:", error); } catch {}
+      return { ok: false, error };
+    }
+    return { ok: true };
   },
 
   async resetPasswordForEmail(email: string, redirectTo?: string): Promise<void> {
