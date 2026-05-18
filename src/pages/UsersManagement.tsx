@@ -164,10 +164,15 @@ const UsersManagement = () => {
 
   const pendingCount = users.filter((u: any) => !u.is_verified).length;
 
-  const handleImpersonate = (userId: string, name: string) => {
-    startImpersonation(userId, name);
-    navigate("/dashboard");
+  const handleImpersonate = async (userId: string, name: string) => {
+    try {
+      await startImpersonation(userId, name);
+      navigate("/dashboard");
+    } catch {
+      /* toast shown inside startImpersonation */
+    }
   };
+
 
   const statusFilters: { value: StatusFilter; label: string; count?: number }[] = [
     { value: "all", label: "Все", count: users.length },
