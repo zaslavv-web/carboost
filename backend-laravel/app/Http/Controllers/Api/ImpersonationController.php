@@ -16,7 +16,8 @@ class ImpersonationController extends Controller
     public function start(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'target_user_id' => 'required|uuid|exists:users,id',
+            // ID может быть UUID (новая схема) или integer (легаси Laravel-схема на проде).
+            'target_user_id' => 'required|string|exists:users,id',
             'ttl_minutes'    => 'nullable|integer|min:1|max:480',
         ]);
         $result = $this->svc->start(

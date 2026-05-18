@@ -27,11 +27,18 @@ use Spatie\Permission\Traits\HasRoles;
  */
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasUuids, HasRoles {
+    // HasUuids убран намеренно: на легаси-схемах прод-БД users.id может быть
+    // integer auto_increment. Мы никогда не создаём пользователей через
+    // Eloquent (см. AuthUserService → DB::table('users')->insert(...)),
+    // поэтому генерация UUID-PK здесь не нужна.
+    use HasApiTokens, HasFactory, Notifiable, HasRoles {
         hasRole as protected hasSpatieRole;
     }
 
     protected $table = 'users';
+
+    // keyType=string + incrementing=false безопасны и для UUID, и для int-PK:
+    // findOrFail($id) корректно сравнит обе схемы (MySQL делает implicit cast).
     protected $keyType = 'string';
     public $incrementing = false;
 
