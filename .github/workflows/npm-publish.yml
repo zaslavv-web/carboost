@@ -83,6 +83,7 @@ jobs:
       - name: Create backend .env
         env:
           APP_URL_SECRET: ${{ secrets.APP_URL }}
+          DB_CONNECTION_SECRET: ${{ secrets.DB_CONNECTION }}
           DB_HOST_SECRET: ${{ secrets.DB_HOST }}
           DB_PORT_SECRET: ${{ secrets.DB_PORT }}
           DB_DATABASE_SECRET: ${{ secrets.DB_DATABASE }}
@@ -118,7 +119,17 @@ jobs:
           fi
           GOOGLE_REDIRECT_URI_VALUE="${GOOGLE_REDIRECT_URI_VALUE%/}"
 
-          DB_PORT_VALUE="${DB_PORT_SECRET:-5432}"
+          DB_CONNECTION_VALUE="${DB_CONNECTION_SECRET:-mysql}"
+          if [[ "$DB_CONNECTION_VALUE" != "mysql" && "$DB_CONNECTION_VALUE" != "pgsql" ]]; then
+            DB_CONNECTION_VALUE="mysql"
+          fi
+          if [[ -n "$DB_PORT_SECRET" ]]; then
+            DB_PORT_VALUE="$DB_PORT_SECRET"
+          elif [[ "$DB_CONNECTION_VALUE" == "pgsql" ]]; then
+            DB_PORT_VALUE="5432"
+          else
+            DB_PORT_VALUE="3306"
+          fi
           MAIL_PORT_VALUE="${MAIL_PORT_SECRET:-587}"
           MAIL_ENCRYPTION_VALUE="${MAIL_ENCRYPTION_SECRET:-tls}"
           MAIL_FROM_ADDRESS_VALUE="${MAIL_FROM_ADDRESS_SECRET:-noreply@${APP_HOST_VALUE}}"
@@ -136,7 +147,7 @@ jobs:
           LOG_CHANNEL=stack
           LOG_LEVEL=info
 
-          DB_CONNECTION=pgsql
+          DB_CONNECTION=${DB_CONNECTION_VALUE}
           DB_HOST=${DB_HOST_SECRET}
           DB_PORT=${DB_PORT_VALUE}
           DB_DATABASE=${DB_DATABASE_SECRET}
