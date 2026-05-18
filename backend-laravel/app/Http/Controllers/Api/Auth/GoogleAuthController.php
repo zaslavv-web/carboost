@@ -53,17 +53,33 @@ class GoogleAuthController extends Controller
         try {
             $google = Socialite::driver('google')->stateless()->user();
         } catch (\Throwable $e) {
-            return redirect($returnTo . '#error=' . urlencode('Google OAuth failed'));
+            \Log::error('Google OAuth Socialite failed', ['exception' => $e]);
+            return redirect($returnTo . '#error=' . urlencode('Google OAuth failed: ' . $e->getMessage()));
         }
 
-        $user = $this->users->findOrCreateFromGoogle([
-            'id'     => $google->getId(),
-            'email'  => $google->getEmail(),
-            'name'   => $google->getName(),
-            'avatar' => $google->getAvatar(),
-        ]);
+        try {
+            $user = $this->users->findOrCreateFromGoogle([
+                'id'     => $google->getId(),
+                'email'  => $google->getEmail(),
+                'name'   => $google->getName(),
+                'avatar' => $google->getAvatar(),
+            ]);
 
-        $token = $user->createToken('google-sso')->plainTextToken;
+            $token = $user->createToken('google-sso')->plainTextToken;
+        } catch (\Throwable $e) {
+            \Log::error('Google OAuth user provisioning failed', [
+                'exception' => $e,
+                'email'     => $google->getEmail(),
+            ]);
+            $detail = sprintf(
+                '%s: %s @ %s:%d',
+                class_basename($e),
+                $e->getMessage(),
+                basename($e->getFile()),
+                $e->getLine()
+            );
+            return redirect($returnTo . '#error=' . urlencode('Google OAuth provisioning failed: ' . $detail));
+        }
 
         return redirect($returnTo . '#access_token=' . urlencode($token));
     }
