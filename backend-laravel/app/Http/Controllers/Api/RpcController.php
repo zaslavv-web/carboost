@@ -210,11 +210,18 @@ class RpcController extends Controller
     private function findProfileByDomainId(string $id): ?object
     {
         $query = DB::table('profiles');
-        $query->where(function ($q) use ($id) {
-            if ($this->canCompareColumnValue('profiles', 'user_id', $id)) $q->orWhere('user_id', $id);
-            if ($this->canCompareColumnValue('profiles', 'id', $id)) $q->orWhere('id', $id);
-        });
-        return $query->first();
+        $hasCondition = false;
+
+        if ($this->canCompareColumnValue('profiles', 'user_id', $id)) {
+            $query->where('user_id', $id);
+            $hasCondition = true;
+        }
+        if ($this->canCompareColumnValue('profiles', 'id', $id)) {
+            $hasCondition ? $query->orWhere('id', $id) : $query->where('id', $id);
+            $hasCondition = true;
+        }
+
+        return $hasCondition ? $query->first() : null;
     }
 
     private function findAuthUserId(string $domainUserId, object $profile): mixed
