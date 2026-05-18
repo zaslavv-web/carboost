@@ -11,6 +11,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use App\Notifications\ResetPasswordNotification;
 
 /**
  * Eloquent-модель поверх VIEW public.users (см. миграцию 0001_..._laravel_compat_on_auth_users).
@@ -138,5 +139,10 @@ class User extends Authenticatable
     public function companyId(): ?string
     {
         return DB::table('profiles')->where('user_id', $this->id)->value('company_id');
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }
