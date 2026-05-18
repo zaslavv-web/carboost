@@ -27,13 +27,37 @@ use Spatie\Permission\Traits\HasRoles;
  */
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasUuids, HasRoles {
+    use HasApiTokens, HasFactory, Notifiable, HasRoles {
         hasRole as protected hasSpatieRole;
     }
 
     protected $table = 'users';
+
+    /**
+     * Тип PK определяется в boot() в зависимости от схемы БД:
+     *   - UUID-схема (новая)         → keyType=string, incrementing=false
+     *   - integer-схема (легаси)    → keyType=int,    incrementing=true
+     */
     protected $keyType = 'string';
     public $incrementing = false;
+
+    protected static function booted(): void
+    {
+        try {
+            $col = DB::selectOne("SHOW COLUMNS FROM `users` LIKE 'id'");
+            if ($col && str_contains(strtolower((string) $col->Type), 'int')) {
+                (new static)->setKeyType('int');
+                // Eloquent читает $incrementing с инстанса — переопределим на статическое поведение через property override:
+                // Для integer-PK безопасно оставить incrementing=true.
+                static::creating(function ($model) {
+                    $model->incrementing = true;
+                    $model->setKeyType('int');
+                });
+            }
+        } catch (\Throwable) {
+            // если SHOW COLUMNS не сработал — оставляем дефолты (UUID)
+        }
+    }
 
     protected $fillable = [
         'email',
