@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\EmailSetting;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Mail\MailManager;
 
 class EmailConfigService
 {
