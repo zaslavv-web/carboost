@@ -78,12 +78,7 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
       if (originalToken) sessionStorage.setItem(ORIGINAL_TOKEN_KEY, originalToken);
       if (originalSnapshot) sessionStorage.setItem(ORIGINAL_USER_KEY, JSON.stringify(originalSnapshot));
 
-      const { token } = await laravelAuthApi.startImpersonation(userId);
-
-      // Swap to impersonation token. EffectiveUser middleware on the backend
-      // re-binds auth()->user() to the target, so /auth/me, /profiles/me and
-      // user_roles queries now return the impersonated user's data.
-      laravelAuth.setToken(token);
+      await laravelAuthApi.startImpersonation(userId);
 
       sessionStorage.setItem(IMPERSONATION_USER_ID_KEY, userId);
       sessionStorage.setItem(IMPERSONATION_NAME_KEY, name);
@@ -96,7 +91,6 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
       setProfile(targetSnapshot?.profile ?? null);
       setOriginalUser(originalSnapshot);
 
-      await refresh();
       await queryClient.invalidateQueries();
     } catch (e: any) {
       // Roll back partial state.
@@ -135,7 +129,6 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
       setRoles([]);
       setProfile(null);
       setOriginalUser(null);
-      await refresh();
       await queryClient.invalidateQueries();
     }
   }, [queryClient, refresh]);
