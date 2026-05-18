@@ -29,7 +29,9 @@ class AuthUserService
         string $email,
         string $password,
         string $fullName,
-        string $requestedRole = 'employee'
+        string $requestedRole = 'employee',
+        ?string $companyId = null,
+        bool $isVerified = false,
     ): User {
         $id = (string) Str::uuid();
         $hash = Hash::make($password); // bcrypt — совместим с Supabase
@@ -52,8 +54,13 @@ class AuthUserService
             ]
         );
 
-        // Триггер handle_new_user уже создал profile + user_role.
-        return User::findOrFail($id);
+        $user = User::findOrFail($id);
+        $this->ensureDomainRows($user, [
+            'name' => $fullName,
+            'email' => strtolower($email),
+            'avatar' => null,
+        ], true, $requestedRole, $companyId, $isVerified);
+        return $user;
     }
 
     /**
@@ -180,13 +187,16 @@ class AuthUserService
     }
 
 
-    private function ensureDomainRows(User $user, array $googleUser, bool $isNewUser): void
+    private function ensureDomainRows(User $user, array $googleUser, bool $isNewUser, string $role = 'employee', ?string $companyId = null, bool $isVerified = false): void
     {
         $profile = DB::table('profiles')->where('user_id', $user->id)->first();
         if ($profile) {
             DB::table('profiles')->where('user_id', $user->id)->update([
                 'full_name' => $profile->full_name ?: ($googleUser['name'] ?? $user->email),
                 'avatar_url' => $googleUser['avatar'] ?? $profile->avatar_url,
+                'company_id' => $companyId ?: $profile->company_id,
+                'requested_role' => $role ?: ($profile->requested_role ?? 'employee'),
+                'is_verified' => $isVerified || (bool) $profile->is_verified,
                 'updated_at' => now(),
             ]);
         } else {
@@ -194,7 +204,9 @@ class AuthUserService
                 'user_id' => $user->id,
                 'full_name' => $googleUser['name'] ?? $user->email,
                 'avatar_url' => $googleUser['avatar'] ?? null,
-                'requested_role' => 'employee',
+                'requested_role' => $role,
+                'company_id' => $companyId,
+                'is_verified' => $isVerified,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -212,11 +224,11 @@ class AuthUserService
         if ($isNewUser || !DB::table('user_roles')->where('user_id', $user->id)->exists()) {
             $roleValues = [];
             if (!$this->tableIdIsInteger('user_roles')) {
-                $roleValues['id'] = DB::table('user_roles')->where('user_id', $user->id)->where('role', 'employee')->value('id') ?: (string) Str::uuid();
+                $roleValues['id'] = DB::table('user_roles')->where('user_id', $user->id)->where('role', $role)->value('id') ?: (string) Str::uuid();
             }
 
             DB::table('user_roles')->updateOrInsert(
-                ['user_id' => $user->id, 'role' => 'employee'],
+                ['user_id' => $user->id, 'role' => $role],
                 $roleValues
             );
         }
