@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\EmailSetting;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Mail\MailManager;
 
 class EmailConfigService
 {
@@ -92,6 +93,17 @@ class EmailConfigService
             'address' => $setting->reply_to_address,
             'name' => $setting->from_name ?: config('app.name', 'Career Track'),
         ] : null);
+
+        // Сбросить кеш уже инстанцированных мейлеров (важно после смены настроек в рантайме):
+        // MailManager хранит резолвнутые драйверы в массиве и игнорирует обновления Config.
+        try {
+            $manager = app('mail.manager');
+            if ($manager instanceof MailManager) {
+                $manager->forgetMailers();
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
     }
 
     public function sendTest(EmailSetting $setting, string $to): void
