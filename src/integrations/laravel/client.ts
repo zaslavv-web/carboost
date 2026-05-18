@@ -134,6 +134,8 @@ export const laravel = {
   get: <T = any>(path: string) => request<T>(path, { method: "GET" }),
   post: <T = any>(path: string, body?: any) =>
     request<T>(path, { method: "POST", body: JSON.stringify(body ?? {}) }),
+  put: <T = any>(path: string, body?: any) =>
+    request<T>(path, { method: "PUT", body: JSON.stringify(body ?? {}) }),
   patch: <T = any>(path: string, body?: any) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body ?? {}) }),
   delete: <T = any>(path: string) => request<T>(path, { method: "DELETE" }),

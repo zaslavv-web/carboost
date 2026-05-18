@@ -41,6 +41,7 @@ import Invitations from "@/pages/Invitations";
 import Landing from "@/pages/Landing";
 import Pricing from "@/pages/Pricing";
 import PricingInquiries from "@/pages/PricingInquiries";
+import EmailSettingsManagement from "@/pages/EmailSettingsManagement";
 import FeaturePage from "@/pages/FeaturePage";
 import NotFound from "@/pages/NotFound";
 import Recognition from "@/pages/Recognition";
@@ -99,6 +100,7 @@ const App = () => (
                 <Route path="/recognition" element={<Recognition />} />
                 <Route path="/risk-analytics" element={<RiskAnalytics />} />
                 <Route path="/pricing-inquiries" element={<PricingInquiries />} />
+                <Route path="/email-settings" element={<EmailSettingsManagement />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -79,6 +79,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { icon: UserCog, label: "Пользователи", path: "/users" },
         { icon: LifeBuoy, label: "Обращения", path: "/support" },
         { icon: Banknote, label: "Заявки на тарифы", path: "/pricing-inquiries" },
+        { icon: Mail, label: "Почтовый сервис", path: "/email-settings" },
         { icon: Settings, label: "Настройки", path: "/settings" },
       ];
     }
