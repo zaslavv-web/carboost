@@ -191,25 +191,33 @@ class AuthUserService
     {
         $profile = DB::table('profiles')->where('user_id', $user->id)->first();
         if ($profile) {
-            DB::table('profiles')->where('user_id', $user->id)->update([
+            $updates = [
                 'full_name' => $profile->full_name ?: ($googleUser['name'] ?? $user->email),
                 'avatar_url' => $googleUser['avatar'] ?? $profile->avatar_url,
-                'company_id' => $companyId ?: $profile->company_id,
-                'requested_role' => $role ?: ($profile->requested_role ?? 'employee'),
+                'requested_role' => $profile->requested_role ?: ($role ?: 'employee'),
                 'is_verified' => $isVerified || (bool) $profile->is_verified,
                 'updated_at' => now(),
-            ]);
+            ];
+
+            if ($this->canWriteColumnValue('profiles', 'company_id', $companyId)) {
+                $updates['company_id'] = $companyId;
+            }
+
+            DB::table('profiles')->where('user_id', $user->id)->update($updates);
         } else {
             $profileRow = [
                 'user_id' => $user->id,
                 'full_name' => $googleUser['name'] ?? $user->email,
                 'avatar_url' => $googleUser['avatar'] ?? null,
                 'requested_role' => $role,
-                'company_id' => $companyId,
                 'is_verified' => $isVerified,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
+
+            if ($this->canWriteColumnValue('profiles', 'company_id', $companyId)) {
+                $profileRow['company_id'] = $companyId;
+            }
 
             if (!$this->tableIdIsInteger('profiles')) {
                 $profileRow['id'] = (string) Str::uuid();
