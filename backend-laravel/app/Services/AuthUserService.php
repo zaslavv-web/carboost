@@ -78,23 +78,47 @@ class AuthUserService
             return $existing->refresh();
         }
 
-        $id = (string) Str::uuid();
-        $user = User::forceCreate([
-            'id' => $id,
+        $userRow = [
             'email' => $email,
             'password' => Hash::make(Str::random(64)),
             'email_verified_at' => now(),
-            'meta' => [
+            'meta' => json_encode([
                 'full_name'      => $googleUser['name']   ?? $email,
                 'avatar_url'     => $googleUser['avatar'] ?? null,
                 'google_id'      => $googleUser['id'],
                 'requested_role' => 'employee',
                 'provider'       => 'google',
-            ],
-        ]);
+            ], JSON_UNESCAPED_UNICODE),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        // На некоторых прод-серверах таблица users осталась от Laravel с integer id.
+        // В таком случае не передаём UUID вручную — пусть БД выдаст auto_increment id.
+        if (!$this->tableIdIsInteger('users')) {
+            $userRow['id'] = (string) Str::uuid();
+        }
+
+        DB::table('users')->insert($userRow);
+
+        $user = User::where('email', $email)->firstOrFail();
 
         $this->ensureDomainRows($user, $googleUser, true);
         return $user->refresh();
+    }
+
+    private function tableIdIsInteger(string $table): bool
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            return false;
+        }
+
+        try {
+            $column = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE 'id'");
+            return $column && str_contains(strtolower((string) $column->Type), 'int');
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     private function ensureDomainRows(User $user, array $googleUser, bool $isNewUser): void
@@ -107,21 +131,31 @@ class AuthUserService
                 'updated_at' => now(),
             ]);
         } else {
-            DB::table('profiles')->insert([
-                'id' => (string) Str::uuid(),
+            $profileRow = [
                 'user_id' => $user->id,
                 'full_name' => $googleUser['name'] ?? $user->email,
                 'avatar_url' => $googleUser['avatar'] ?? null,
                 'requested_role' => 'employee',
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ];
+
+            if (!$this->tableIdIsInteger('profiles')) {
+                $profileRow['id'] = (string) Str::uuid();
+            }
+
+            DB::table('profiles')->insert($profileRow);
         }
 
         if ($isNewUser || !DB::table('user_roles')->where('user_id', $user->id)->exists()) {
+            $roleValues = [];
+            if (!$this->tableIdIsInteger('user_roles')) {
+                $roleValues['id'] = DB::table('user_roles')->where('user_id', $user->id)->where('role', 'employee')->value('id') ?: (string) Str::uuid();
+            }
+
             DB::table('user_roles')->updateOrInsert(
                 ['user_id' => $user->id, 'role' => 'employee'],
-                ['id' => DB::table('user_roles')->where('user_id', $user->id)->where('role', 'employee')->value('id') ?: (string) Str::uuid()]
+                $roleValues
             );
         }
     }
