@@ -95,7 +95,7 @@ class AuthUserService
 
         // На некоторых прод-серверах таблица users осталась от Laravel с integer id.
         // В таком случае не передаём UUID вручную — пусть БД выдаст auto_increment id.
-        if (!$this->usersIdIsInteger()) {
+        if (!$this->tableIdIsInteger('users')) {
             $userRow['id'] = (string) Str::uuid();
         }
 
@@ -107,14 +107,14 @@ class AuthUserService
         return $user->refresh();
     }
 
-    private function usersIdIsInteger(): bool
+    private function tableIdIsInteger(string $table): bool
     {
         if (DB::getDriverName() !== 'mysql') {
             return false;
         }
 
         try {
-            $column = DB::selectOne("SHOW COLUMNS FROM `users` LIKE 'id'");
+            $column = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE 'id'");
             return $column && str_contains(strtolower((string) $column->Type), 'int');
         } catch (\Throwable) {
             return false;
@@ -131,21 +131,31 @@ class AuthUserService
                 'updated_at' => now(),
             ]);
         } else {
-            DB::table('profiles')->insert([
-                'id' => (string) Str::uuid(),
+            $profileRow = [
                 'user_id' => $user->id,
                 'full_name' => $googleUser['name'] ?? $user->email,
                 'avatar_url' => $googleUser['avatar'] ?? null,
                 'requested_role' => 'employee',
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ];
+
+            if (!$this->tableIdIsInteger('profiles')) {
+                $profileRow['id'] = (string) Str::uuid();
+            }
+
+            DB::table('profiles')->insert($profileRow);
         }
 
         if ($isNewUser || !DB::table('user_roles')->where('user_id', $user->id)->exists()) {
+            $roleValues = [];
+            if (!$this->tableIdIsInteger('user_roles')) {
+                $roleValues['id'] = DB::table('user_roles')->where('user_id', $user->id)->where('role', 'employee')->value('id') ?: (string) Str::uuid();
+            }
+
             DB::table('user_roles')->updateOrInsert(
                 ['user_id' => $user->id, 'role' => 'employee'],
-                ['id' => DB::table('user_roles')->where('user_id', $user->id)->where('role', 'employee')->value('id') ?: (string) Str::uuid()]
+                $roleValues
             );
         }
     }
