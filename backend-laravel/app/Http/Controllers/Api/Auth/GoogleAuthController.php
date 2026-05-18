@@ -118,7 +118,8 @@ class GoogleAuthController extends Controller
     {
         $url = trim($url);
         if ($url === '') return $url;
-        return preg_match('/^https?:\/\//i', $url) ? rtrim($url, '/') : 'https://' . ltrim(rtrim($url, '/'), '/');
+        $normalized = preg_match('/^https?:\/\//i', $url) ? rtrim($url, '/') : 'https://' . ltrim(rtrim($url, '/'), '/');
+        return preg_replace('#/api/auth/google/callbac$#', '/api/auth/google/callback', $normalized) ?: $normalized;
     }
 
     private function readDotEnv(): array
