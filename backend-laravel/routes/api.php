@@ -66,11 +66,11 @@ Route::post('/rpc/submit_demo_request',    fn (\Illuminate\Http\Request $r) =>
 Route::post('/rpc/submit_pricing_inquiry', fn (\Illuminate\Http\Request $r) =>
     app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'submit_pricing_inquiry'));
 
-// /auth/me доступен и без auth-группы: если токена нет — отдаст 401 JSON, а не 500.
-Route::middleware('auth:sanctum')->get('/auth/me', [AuthController::class, 'me'])
-    ->withoutMiddleware(['auth:sanctum']); // принимаем токен если есть, иначе 401 от контроллера
-// На случай если выше не сработает (разные версии Laravel) — дублирующий публичный alias
-Route::get('/auth/me-safe', [AuthController::class, 'me']);
+// /auth/me публичный: если sanctum-токен есть и валиден — контроллер прочитает его
+// через Auth::guard('sanctum')->user(); если нет — отдаст чистый 401 JSON.
+// До этого роут стоял в auth:sanctum-группе и при любом сбое Sanctum (легаси-схема
+// personal_access_tokens, отсутствующая колонка) возвращал 500.
+Route::get('/auth/me', [AuthController::class, 'me']);
 
 // Диагностика прод-окружения (без секретов): git-коммит, миграции, конфиг почты, OAuth.
 Route::get('/diag', function () {
