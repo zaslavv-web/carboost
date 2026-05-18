@@ -22,6 +22,11 @@ $COMPOSER_BIN install --no-dev --prefer-dist --optimize-autoloader --no-interact
 echo "==> .env проверка"
 [ -f .env ] || { echo "FATAL: .env отсутствует в $APP_DIR"; exit 1; }
 
+echo "==> очистка старых кешей Laravel"
+$PHP_BIN artisan optimize:clear || true
+$PHP_BIN artisan config:clear || true
+$PHP_BIN artisan cache:clear || true
+
 echo "==> миграции"
 $PHP_BIN artisan migrate --force
 
