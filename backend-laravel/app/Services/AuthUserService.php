@@ -258,7 +258,10 @@ class AuthUserService
 
     private function ensureDomainRows(User $user, array $googleUser, bool $isNewUser, string $role = 'employee', ?string $companyId = null, bool $isVerified = false): void
     {
-        $profile = DB::table('profiles')->where('user_id', $user->id)->first();
+        $userId = $this->domainUserId($user);
+        $role = $this->normalizeRole($role);
+
+        $profile = DB::table('profiles')->where('user_id', $userId)->first();
         if ($profile) {
             $updates = [
                 'full_name' => $profile->full_name ?: ($googleUser['name'] ?? $user->email),
@@ -268,14 +271,14 @@ class AuthUserService
                 'updated_at' => now(),
             ];
 
-            if ($this->canWriteColumnValue('profiles', 'company_id', $companyId)) {
+            if (!$profile->company_id && $this->canWriteColumnValue('profiles', 'company_id', $companyId)) {
                 $updates['company_id'] = $companyId;
             }
 
-            DB::table('profiles')->where('user_id', $user->id)->update($updates);
+            DB::table('profiles')->where('user_id', $userId)->update($updates);
         } else {
             $profileRow = [
-                'user_id' => $user->id,
+                'user_id' => $userId,
                 'full_name' => $googleUser['name'] ?? $user->email,
                 'avatar_url' => $googleUser['avatar'] ?? null,
                 'requested_role' => $role,
@@ -298,14 +301,14 @@ class AuthUserService
         }
 
 
-        if ($isNewUser || !DB::table('user_roles')->where('user_id', $user->id)->exists()) {
+        if ($isNewUser || !DB::table('user_roles')->where('user_id', $userId)->exists()) {
             $roleValues = [];
             if (!$this->tableIdIsInteger('user_roles')) {
-                $roleValues['id'] = DB::table('user_roles')->where('user_id', $user->id)->where('role', $role)->value('id') ?: (string) Str::uuid();
+                $roleValues['id'] = DB::table('user_roles')->where('user_id', $userId)->where('role', $role)->value('id') ?: (string) Str::uuid();
             }
 
             DB::table('user_roles')->updateOrInsert(
-                ['user_id' => $user->id, 'role' => $role],
+                ['user_id' => $userId, 'role' => $role],
                 $roleValues
             );
         }
