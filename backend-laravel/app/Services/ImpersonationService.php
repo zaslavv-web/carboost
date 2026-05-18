@@ -44,14 +44,45 @@ class ImpersonationService
         ];
 
         // Токен выпускается на actor, чтобы revoke легко найти по user_id актора.
-        $token = $actor->createToken(self::TOKEN_NAME, $abilities, now()->addMinutes($ttlMinutes));
+        // Используем ручную запись в Sanctum-таблицу: на проде встречаются разные
+        // версии/схемы Sanctum, и createToken() уже приводил к 500 на impersonation.
+        $token = $this->createImpersonationToken($actor, $abilities, $ttlMinutes);
 
-        $this->writeAuditStart($actor, $target, $token->accessToken->id);
+        $this->writeAuditStart($actor, $target, $token['id']);
 
         return [
-            'token'        => $token->plainTextToken,
-            'expires_at'   => $token->accessToken->expires_at,
+            'token'        => $token['plain_text_token'],
+            'expires_at'   => $token['expires_at'],
             'target_user'  => ['id' => $target->id, 'email' => $target->email],
+        ];
+    }
+
+    private function createImpersonationToken(User $actor, array $abilities, int $ttlMinutes): array
+    {
+        if (! Schema::hasTable('personal_access_tokens')) {
+            throw new RuntimeException('Таблица токенов не найдена. Примените миграции backend.');
+        }
+
+        $plain = Str::random(40);
+        $expiresAt = now()->addMinutes($ttlMinutes);
+        $row = [
+            'tokenable_type' => $actor->getMorphClass(),
+            'tokenable_id'   => (string) $actor->getAuthIdentifier(),
+            'name'           => self::TOKEN_NAME,
+            'token'          => hash('sha256', $plain),
+            'abilities'      => json_encode($abilities, JSON_UNESCAPED_UNICODE),
+            'expires_at'     => $expiresAt,
+        ];
+
+        if (Schema::hasColumn('personal_access_tokens', 'created_at')) $row['created_at'] = now();
+        if (Schema::hasColumn('personal_access_tokens', 'updated_at')) $row['updated_at'] = now();
+
+        $id = DB::table('personal_access_tokens')->insertGetId($row);
+
+        return [
+            'id' => $id,
+            'plain_text_token' => $id . '|' . $plain,
+            'expires_at' => $expiresAt,
         ];
     }
 
