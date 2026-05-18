@@ -63,11 +63,11 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
   const queryClient = useQueryClient();
   const { refresh, user } = useAuth();
 
-  const startImpersonation = useCallback(async (userId: string, name: string, snapshot?: { roles?: string[]; profile?: Record<string, unknown> | null }) => {
+  const startImpersonation = useCallback(async (userId: string, name: string, targetSnapshot?: { roles?: string[]; profile?: Record<string, unknown> | null }) => {
     try {
       // Save current (superadmin) token so we can restore it on stop.
       const originalToken = laravelAuth.getToken();
-      const snapshot: OriginalUserSnapshot | null = user
+      const originalSnapshot: OriginalUserSnapshot | null = user
         ? {
             id: user.id,
             roles: Array.isArray(user.roles) ? (user.roles as string[]) : [],
@@ -76,7 +76,7 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
           }
         : null;
       if (originalToken) sessionStorage.setItem(ORIGINAL_TOKEN_KEY, originalToken);
-      if (snapshot) sessionStorage.setItem(ORIGINAL_USER_KEY, JSON.stringify(snapshot));
+      if (originalSnapshot) sessionStorage.setItem(ORIGINAL_USER_KEY, JSON.stringify(originalSnapshot));
 
       const { token } = await laravelAuthApi.startImpersonation(userId);
 
@@ -87,14 +87,14 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
 
       sessionStorage.setItem(IMPERSONATION_USER_ID_KEY, userId);
       sessionStorage.setItem(IMPERSONATION_NAME_KEY, name);
-      sessionStorage.setItem(IMPERSONATION_ROLES_KEY, JSON.stringify(snapshot?.roles ?? []));
-      if (snapshot?.profile) sessionStorage.setItem(IMPERSONATION_PROFILE_KEY, JSON.stringify(snapshot.profile));
+      sessionStorage.setItem(IMPERSONATION_ROLES_KEY, JSON.stringify(targetSnapshot?.roles ?? []));
+      if (targetSnapshot?.profile) sessionStorage.setItem(IMPERSONATION_PROFILE_KEY, JSON.stringify(targetSnapshot.profile));
       else sessionStorage.removeItem(IMPERSONATION_PROFILE_KEY);
       setUserId(userId);
       setName(name);
-      setRoles(snapshot?.roles ?? []);
-      setProfile(snapshot?.profile ?? null);
-      setOriginalUser(snapshot);
+      setRoles(targetSnapshot?.roles ?? []);
+      setProfile(targetSnapshot?.profile ?? null);
+      setOriginalUser(originalSnapshot);
 
       await refresh();
       await queryClient.invalidateQueries();
