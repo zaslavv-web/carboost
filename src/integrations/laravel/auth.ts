@@ -116,4 +116,24 @@ export const laravelAuthApi = {
   }) {
     return laravel.post<{ user: LaravelUser }>("/admin/users", payload);
   },
+
+  /**
+   * Superadmin impersonation. Issues a backend-scoped token whose Sanctum
+   * abilities re-bind `auth()->user()` to the target via EffectiveUser
+   * middleware, so subsequent `/auth/me`, `/profiles/me` and policy checks
+   * see the impersonated user.
+   */
+  async startImpersonation(targetUserId: string): Promise<{ token: string; expires_at: string | null }> {
+    const res = unwrap(
+      await laravel.post<{ token: string; expires_at: string | null }>(
+        "/impersonation/start",
+        { target_user_id: targetUserId },
+      ),
+    );
+    return res;
+  },
+
+  async stopImpersonation(): Promise<void> {
+    await laravel.post("/impersonation/stop").catch(() => undefined);
+  },
 };
