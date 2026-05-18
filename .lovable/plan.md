@@ -1,18 +1,33 @@
-Причина ошибки: фронт использует Laravel Socialite (`/api/auth/google/redirect`), а в Google Console сейчас добавлен только Cloud callback `https://wwmdzrzguicinvxibbqv.supabase.co/auth/v1/callback`. Для текущего кода Google должен видеть Laravel callback.
+## Проблема
 
-Что нужно сделать вручную в Google Console:
-1. Открыть тот же OAuth Client ID, который записан в GitHub Actions secret `GOOGLE_CLIENT_ID`.
-2. В `Authorized JavaScript origins` оставить:
-   - `https://growth-peak.pro`
-   - `https://www.growth-peak.pro`
-3. В `Authorized redirect URIs` добавить именно эти URI:
-   - `https://growth-peak.pro/api/auth/google/callback`
-   - `https://www.growth-peak.pro/api/auth/google/callback` если вход может стартовать с `www`.
-4. URI `https://wwmdzrzguicinvxibbqv.supabase.co/auth/v1/callback` относится к другому OAuth-флоу и не помогает Laravel Socialite. Его можно оставить, но он не заменяет `/api/auth/google/callback`.
-5. Проверить GitHub Actions secrets:
-   - `APP_URL=https://growth-peak.pro`
-   - `GOOGLE_REDIRECT_URI=https://growth-peak.pro/api/auth/google/callback`
-   - `GOOGLE_CLIENT_ID` должен быть от того же OAuth Client, где добавлен callback выше.
-6. Перезапустить GitHub Actions deploy, потому что `.env` на сервере создаётся из Actions secrets во время деплоя.
+При импersonации из `UsersManagement` (`startImpersonation(user_id, name)`) меняется `impersonatedUserId` и `effectiveId`, но `usePrimaryRole()` всё равно отдаёт `superadmin` — поэтому сайдбар остаётся прежним.
 
-Если после этого останется mismatch, я добавлю диагностический временный endpoint/лог в Laravel, который покажет фактический `services.google.redirect`, не раскрывая client secret.
+Причина в `useUserRoles` (`src/hooks/useUserProfile.ts`): для импersonированного пользователя роли запрашиваются через `laravelDb.from("user_roles").select("role").eq("user_id", effectiveId)`. Этот «псевдо-Supabase» слой ходит в Laravel, и для большинства таблиц фильтр `eq("user_id", ...)` либо игнорируется (возвращаются роли текущего токена = superadmin), либо запрос падает с 403, и мы тихо ловим в TanStack Query.
+
+## План правок
+
+1) **Бэкенд (Laravel)** — добавить явный read-only endpoint:
+   - `GET /api/admin/users/{id}/roles` — доступен только `superadmin`, возвращает массив строк (`["hrd"]`).
+   - `GET /api/admin/users/{id}/profile` — то же для профиля (используется уже сейчас через `laravelDb`, но лучше явный маршрут).
+
+2) **Фронтенд** — в `src/hooks/useUserProfile.ts`:
+   - В `useUserRoles`: если `impersonatedUserId` задан, дёргать `laravel.get(/admin/users/${effectiveId}/roles)` вместо `laravelDb`.
+   - В `useUserProfile`: аналогично для профиля импersonированного пользователя.
+   - Оставить fallback на `useAuth().user.roles` только когда импersonации нет.
+
+3) **Инвалидация кеша при старте/остановке импersonации** — в `ImpersonationContext`:
+   - В `startImpersonation` / `stopImpersonation` вызывать `queryClient.invalidateQueries({ queryKey: ["user_roles"] })` и `["profile"]`, чтобы сайдбар обновился мгновенно.
+
+4) **Защита от мигания** — в `AppSidebar`:
+   - Пока `useUserRoles().isLoading`, показывать тонкий skeleton вместо меню «employee» по умолчанию.
+
+## Технические детали
+
+- Файлы фронта: `src/hooks/useUserProfile.ts`, `src/contexts/ImpersonationContext.tsx`, `src/components/AppSidebar.tsx`.
+- Файлы бэка: `backend-laravel/routes/api.php`, `backend-laravel/app/Http/Controllers/Api/Admin/UserAdminController.php` (новый), middleware `role:superadmin`.
+- RLS-аналог: в контроллере проверяем `auth()->user()->hasRole('superadmin')`, иначе 403.
+
+## Что НЕ меняем
+
+- Логику самих ролей и список пунктов меню в `AppSidebar` (они уже различаются для HRD и superadmin).
+- `ImpersonationBanner` — он работает корректно.
