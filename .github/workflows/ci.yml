@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  frontend-tests:
+    name: Frontend (vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: latest }
+      - run: bun install --frozen-lockfile
+      - run: bunx vitest run --reporter=default
+
+  backend-tests:
+    name: Backend (phpunit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-laravel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, sqlite3, pdo_sqlite, pdo_pgsql, intl, redis
+          coverage: none
+      # Базовый Laravel-скелет, поверх которого живёт overlay backend-laravel/.
+      # Если в репозитории нет composer.json — пропускаем (overlay-режим).
+      - name: Composer install (skip if no composer.json)
+        run: |
+          if [ -f composer.json ]; then
+            composer install --no-interaction --prefer-dist
+          else
+            echo "::warning::composer.json отсутствует — backend-laravel это overlay, тесты должны запускаться поверх базового Laravel."
+            exit 0
+          fi
+      - name: Run PHPUnit
+        run: |
+          if [ -f vendor/bin/phpunit ]; then
+            vendor/bin/phpunit --colors=always
+          fi
