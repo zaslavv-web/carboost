@@ -11,10 +11,9 @@ return new class extends Migration
         if (!Schema::hasTable('personal_access_tokens')) {
             Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
-            // tokenable: ссылается на auth.users (UUID) или иную модель.
-            // Используем строковый morph — Sanctum хранит class+id.
+            // tokenable: legacy-схемы могут хранить users.id как UUID или integer.
             $table->string('tokenable_type');
-            $table->uuid('tokenable_id');
+            $table->string('tokenable_id', 64);
             $table->index(['tokenable_type', 'tokenable_id']);
             $table->string('name');
             $table->string('token', 64)->unique();
