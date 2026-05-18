@@ -92,10 +92,30 @@ class AuthController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /** GET /api/auth/me (auth:sanctum) */
+    /**
+     * GET /api/auth/me — публичный роут.
+     * Сам читает sanctum-токен; нет токена или ошибка — 401 JSON (а не 500).
+     * Также применяет impersonation вручную (т.к. вне effective.user middleware).
+     */
     public function me(Request $request): JsonResponse
     {
-        return response()->json($this->presentUser($request->user()));
+        try {
+            $user = \Auth::guard('sanctum')->user();
+            if (!$user) {
+                return response()->json(['message' => 'Не авторизован'], 401);
+            }
+            // Применяем impersonation вручную (роут вне effective.user группы)
+            $token = $user->currentAccessToken();
+            $targetId = $token ? \App\Services\ImpersonationService::targetFromToken($token) : null;
+            if ($targetId) {
+                $target = User::find($targetId);
+                if ($target) $user = $target;
+            }
+            return response()->json($this->presentUser($user));
+        } catch (\Throwable $e) {
+            Log::error('auth/me failed', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Не авторизован', 'code' => 'me_failed'], 401);
+        }
     }
 
     private function presentUser(User $user): array
