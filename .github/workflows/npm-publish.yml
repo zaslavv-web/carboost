@@ -123,7 +123,11 @@ jobs:
           if [[ "$DB_CONNECTION_VALUE" != "mysql" && "$DB_CONNECTION_VALUE" != "pgsql" ]]; then
             DB_CONNECTION_VALUE="mysql"
           fi
-          if [[ -n "$DB_PORT_SECRET" ]]; then
+          if [[ -n "$DB_PORT_SECRET" && "$DB_CONNECTION_VALUE" == "mysql" && "$DB_PORT_SECRET" == "5432" ]]; then
+            DB_PORT_VALUE="3306"
+          elif [[ -n "$DB_PORT_SECRET" && "$DB_CONNECTION_VALUE" == "pgsql" && "$DB_PORT_SECRET" == "3306" ]]; then
+            DB_PORT_VALUE="5432"
+          elif [[ -n "$DB_PORT_SECRET" ]]; then
             DB_PORT_VALUE="$DB_PORT_SECRET"
           elif [[ "$DB_CONNECTION_VALUE" == "pgsql" ]]; then
             DB_PORT_VALUE="5432"
