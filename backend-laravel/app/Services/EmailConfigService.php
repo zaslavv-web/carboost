@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\EmailSetting;
+use App\Support\RuntimeEnv;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Mail\MailManager;
@@ -71,6 +72,7 @@ class EmailConfigService
         $setting ??= $this->active();
 
         if (!$setting || !$setting->is_active || !$setting->host || !$setting->from_address) {
+            $this->applyRuntimeEnv();
             return;
         }
 
@@ -96,6 +98,40 @@ class EmailConfigService
 
         // Сбросить кеш уже инстанцированных мейлеров (важно после смены настроек в рантайме):
         // MailManager хранит резолвнутые драйверы в массиве и игнорирует обновления Config.
+        try {
+            $manager = app('mail.manager');
+            if ($manager instanceof MailManager) {
+                $manager->forgetMailers();
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+    }
+
+    private function applyRuntimeEnv(): void
+    {
+        $host = RuntimeEnv::get('MAIL_HOST');
+        $from = RuntimeEnv::get('MAIL_FROM_ADDRESS');
+        if (!$host || !$from) {
+            return;
+        }
+
+        Config::set('mail.default', RuntimeEnv::get('MAIL_MAILER', 'smtp'));
+        Config::set('mail.mailers.smtp', [
+            'transport' => 'smtp',
+            'host' => $host,
+            'port' => (int) (RuntimeEnv::get('MAIL_PORT', '587') ?: 587),
+            'encryption' => RuntimeEnv::get('MAIL_ENCRYPTION') ?: null,
+            'username' => RuntimeEnv::get('MAIL_USERNAME'),
+            'password' => RuntimeEnv::get('MAIL_PASSWORD'),
+            'timeout' => null,
+            'local_domain' => RuntimeEnv::get('MAIL_EHLO_DOMAIN'),
+        ]);
+        Config::set('mail.from', [
+            'address' => $from,
+            'name' => RuntimeEnv::get('MAIL_FROM_NAME', config('app.name', 'Career Track')),
+        ]);
+
         try {
             $manager = app('mail.manager');
             if ($manager instanceof MailManager) {

@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\TeamMemberController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
+use App\Support\RuntimeEnv;
 
 /*
 | API routes (Phase 6 — full CRUD).
@@ -74,11 +75,12 @@ Route::get('/auth/me', [AuthController::class, 'me']);
 
 // Диагностика прод-окружения (без секретов): git-коммит, миграции, конфиг почты, OAuth.
 Route::get('/diag', function () {
-    $env = function (string $k) { $v = env($k); return $v ? 'set' : 'missing'; };
     $migrations = [];
     try {
         $migrations = \DB::table('migrations')->orderByDesc('id')->limit(5)->pluck('migration')->all();
     } catch (\Throwable $e) { $migrations = ['error' => $e->getMessage()]; }
+    $frontendUrl = RuntimeEnv::url('FRONTEND_URL', RuntimeEnv::url('APP_FRONTEND_URL', config('app.url')));
+    $googleRedirect = RuntimeEnv::url('GOOGLE_REDIRECT_URI', rtrim(RuntimeEnv::url('APP_URL', config('app.url')), '/') . '/api/auth/google/callback');
     return response()->json([
         'app_env'   => app()->environment(),
         'app_debug' => (bool) config('app.debug'),
@@ -93,10 +95,10 @@ Route::get('/diag', function () {
             'from'     => config('mail.from.address'),
         ],
         'google'    => [
-            'client_id'     => $env('GOOGLE_CLIENT_ID'),
-            'client_secret' => $env('GOOGLE_CLIENT_SECRET'),
-            'redirect'      => env('GOOGLE_REDIRECT_URI'),
-            'frontend_url'  => env('FRONTEND_URL'),
+            'client_id'     => RuntimeEnv::status('GOOGLE_CLIENT_ID'),
+            'client_secret' => RuntimeEnv::status('GOOGLE_CLIENT_SECRET'),
+            'redirect'      => $googleRedirect,
+            'frontend_url'  => $frontendUrl,
         ],
         'migrations_tail' => $migrations,
     ]);
