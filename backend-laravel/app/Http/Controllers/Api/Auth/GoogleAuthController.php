@@ -27,7 +27,7 @@ class GoogleAuthController extends Controller
     /** GET /api/auth/google/redirect?return_to=https://app.example.ru/auth/callback */
     public function redirect(Request $request): RedirectResponse
     {
-        $returnTo = $request->query('return_to', rtrim(env('APP_FRONTEND_URL', config('app.url')), '/') . '/auth/callback');
+        $returnTo = $request->query('return_to', rtrim($this->urlValue('APP_FRONTEND_URL', config('app.url')), '/') . '/auth/callback');
         if (!$this->ensureGoogleConfig()) {
             return redirect($returnTo . '#error=' . urlencode('Google OAuth не настроен: отсутствует GOOGLE_CLIENT_ID'));
         }
@@ -70,7 +70,7 @@ class GoogleAuthController extends Controller
 
     private function returnToFromState(?string $state): string
     {
-        $fallback = rtrim(env('APP_FRONTEND_URL', config('app.url')), '/') . '/auth/callback';
+        $fallback = rtrim($this->urlValue('APP_FRONTEND_URL', config('app.url')), '/') . '/auth/callback';
         if (!$state) return $fallback;
 
         $decoded = base64_decode(strtr($state, '-_', '+/'), true);
@@ -87,9 +87,11 @@ class GoogleAuthController extends Controller
         $fileEnv = $this->readDotEnv();
         $clientId = $this->envValue('GOOGLE_CLIENT_ID', $fileEnv) ?: config('services.google.client_id');
         $clientSecret = $this->envValue('GOOGLE_CLIENT_SECRET', $fileEnv) ?: config('services.google.client_secret');
-        $redirect = $this->envValue('GOOGLE_REDIRECT_URI', $fileEnv)
-            ?: config('services.google.redirect')
-            ?: rtrim(config('app.url'), '/') . '/api/auth/google/callback';
+        $redirect = $this->absoluteUrl(
+            $this->envValue('GOOGLE_REDIRECT_URI', $fileEnv)
+                ?: config('services.google.redirect')
+                ?: rtrim($this->urlValue('APP_URL', config('app.url')), '/') . '/api/auth/google/callback'
+        );
 
         config([
             'services.google.client_id' => $clientId,
@@ -104,6 +106,19 @@ class GoogleAuthController extends Controller
     {
         $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: ($fileEnv[$key] ?? null);
         return is_string($value) && trim($value) !== '' ? trim($value) : null;
+    }
+
+    private function urlValue(string $key, ?string $fallback = null): string
+    {
+        $value = $this->envValue($key, $this->readDotEnv()) ?: $fallback ?: '';
+        return $this->absoluteUrl($value);
+    }
+
+    private function absoluteUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') return $url;
+        return preg_match('/^https?:\/\//i', $url) ? rtrim($url, '/') : 'https://' . ltrim(rtrim($url, '/'), '/');
     }
 
     private function readDotEnv(): array
