@@ -93,21 +93,27 @@ class AuthController extends Controller
     }
 
     /**
-     * GET /api/auth/me
-     * Намеренно вынесен из auth:sanctum: фронт всегда дёргает /auth/me на старте,
-     * а Sanctum при сломанном токене/таблице бросал 500. Теперь явно: нет
-     * валидного юзера → 401 JSON, любой внутренний throw → залогировать и 401.
+     * GET /api/auth/me — публичный роут.
+     * Сам читает sanctum-токен; нет токена или ошибка — 401 JSON (а не 500).
+     * Также применяет impersonation вручную (т.к. вне effective.user middleware).
      */
     public function me(Request $request): JsonResponse
     {
         try {
-            $user = $request->user();
+            $user = \Auth::guard('sanctum')->user();
             if (!$user) {
                 return response()->json(['message' => 'Не авторизован'], 401);
             }
+            // Применяем impersonation вручную (роут вне effective.user группы)
+            $token = $user->currentAccessToken();
+            $targetId = $token ? \App\Services\ImpersonationService::targetFromToken($token) : null;
+            if ($targetId) {
+                $target = User::find($targetId);
+                if ($target) $user = $target;
+            }
             return response()->json($this->presentUser($user));
         } catch (\Throwable $e) {
-            Log::error('auth/me failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            Log::error('auth/me failed', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Не авторизован', 'code' => 'me_failed'], 401);
         }
     }
