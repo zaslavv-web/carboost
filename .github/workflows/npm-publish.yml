@@ -149,7 +149,7 @@ jobs:
 
           FILESYSTEM_DISK=local
 
-          SANCTUM_STATEFUL_DOMAINS=${APP_HOST_VALUE}
+          SANCTUM_STATEFUL_DOMAINS=${APP_HOST_VALUE},www.${APP_HOST_VALUE},localhost:8080
           SESSION_DOMAIN=.${APP_HOST_VALUE}
 
           AI_API_URL=https://api.openai.com/v1/chat/completions
