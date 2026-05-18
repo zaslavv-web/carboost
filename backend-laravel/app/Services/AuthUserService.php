@@ -152,8 +152,11 @@ class AuthUserService
                 $profileRow['id'] = (string) Str::uuid();
             }
 
+            $this->fillMissingDefaults('profiles', $profileRow);
+
             DB::table('profiles')->insert($profileRow);
         }
+
 
         if ($isNewUser || !DB::table('user_roles')->where('user_id', $user->id)->exists()) {
             $roleValues = [];
