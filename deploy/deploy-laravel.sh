@@ -23,7 +23,8 @@ echo "==> .env проверка"
 [ -f .env ] || { echo "FATAL: .env отсутствует в $APP_DIR"; exit 1; }
 
 echo "==> обязательные production-настройки"
-$PHP_BIN -r '
+$PHP_BIN <<'PHP'
+<?php
 $env = parse_ini_file(".env", false, INI_SCANNER_RAW) ?: [];
 $required = ["APP_KEY", "APP_URL", "FRONTEND_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI", "MAIL_HOST", "MAIL_PORT", "MAIL_FROM_ADDRESS"];
 $mailer = trim($env["MAIL_MAILER"] ?? "smtp", " \t\n\r\0\x0B\"'");
@@ -38,7 +39,7 @@ if ($missing) {
     fwrite(STDERR, "Подсказка: используйте backend-laravel/.env.production.example как шаблон для growth-peak.pro." . PHP_EOL);
     exit(1);
 }
-'
+PHP
 
 echo "==> очистка старых кешей Laravel"
 $PHP_BIN artisan optimize:clear || true
