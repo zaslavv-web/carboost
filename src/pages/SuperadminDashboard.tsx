@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
-import { Users, Clock, UserCheck, ShieldCheck, Building2 } from "lucide-react";
+import { Users, Clock, UserCheck, ShieldCheck, Building2, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const SuperadminDashboard = () => {
@@ -32,6 +32,7 @@ const SuperadminDashboard = () => {
     { icon: Clock, label: "Ожидают", value: stats?.pending ?? 0, bg: "bg-warning/10", fg: "text-warning", link: "/users" },
     { icon: UserCheck, label: "Верифицированы", value: stats?.verified ?? 0, bg: "bg-success/10", fg: "text-success", link: "/users" },
     { icon: ShieldCheck, label: "Суперадмины", value: stats?.superadmins ?? 0, bg: "bg-info/10", fg: "text-info", link: "/users" },
+    { icon: Mail, label: "Почтовый сервис", value: "SMTP", bg: "bg-primary/10", fg: "text-primary", link: "/email-settings" },
   ];
 
   return (
@@ -41,7 +42,7 @@ const SuperadminDashboard = () => {
         <p className="text-muted-foreground text-sm mt-1">Обзор системы</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {metrics.map((m) => (
           <div
             key={m.label}
