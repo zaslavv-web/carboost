@@ -74,7 +74,7 @@ class AuthUserService
                 'email_verified_at' => $existing->email_verified_at ?? now(),
                 'meta' => $meta,
             ])->save();
-            $this->ensureDomainRows($existing, $googleUser);
+            $this->ensureDomainRows($existing, $googleUser, false);
             return $existing->refresh();
         }
 
@@ -82,7 +82,7 @@ class AuthUserService
         $user = User::forceCreate([
             'id' => $id,
             'email' => $email,
-            'password' => null,
+            'password' => Hash::make(Str::random(64)),
             'email_verified_at' => now(),
             'meta' => [
                 'full_name'      => $googleUser['name']   ?? $email,
@@ -93,27 +93,36 @@ class AuthUserService
             ],
         ]);
 
-        $this->ensureDomainRows($user, $googleUser);
+        $this->ensureDomainRows($user, $googleUser, true);
         return $user->refresh();
     }
 
-    private function ensureDomainRows(User $user, array $googleUser): void
+    private function ensureDomainRows(User $user, array $googleUser, bool $isNewUser): void
     {
-        DB::table('profiles')->updateOrInsert(
-            ['user_id' => $user->id],
-            [
-                'id' => DB::table('profiles')->where('user_id', $user->id)->value('id') ?: (string) Str::uuid(),
+        $profile = DB::table('profiles')->where('user_id', $user->id)->first();
+        if ($profile) {
+            DB::table('profiles')->where('user_id', $user->id)->update([
+                'full_name' => $profile->full_name ?: ($googleUser['name'] ?? $user->email),
+                'avatar_url' => $googleUser['avatar'] ?? $profile->avatar_url,
+                'updated_at' => now(),
+            ]);
+        } else {
+            DB::table('profiles')->insert([
+                'id' => (string) Str::uuid(),
+                'user_id' => $user->id,
                 'full_name' => $googleUser['name'] ?? $user->email,
                 'avatar_url' => $googleUser['avatar'] ?? null,
                 'requested_role' => 'employee',
+                'created_at' => now(),
                 'updated_at' => now(),
-                'created_at' => DB::table('profiles')->where('user_id', $user->id)->value('created_at') ?: now(),
-            ]
-        );
+            ]);
+        }
 
-        DB::table('user_roles')->updateOrInsert(
-            ['user_id' => $user->id, 'role' => 'employee'],
-            ['id' => DB::table('user_roles')->where('user_id', $user->id)->where('role', 'employee')->value('id') ?: (string) Str::uuid()]
-        );
+        if ($isNewUser || !DB::table('user_roles')->where('user_id', $user->id)->exists()) {
+            DB::table('user_roles')->updateOrInsert(
+                ['user_id' => $user->id, 'role' => 'employee'],
+                ['id' => DB::table('user_roles')->where('user_id', $user->id)->where('role', 'employee')->value('id') ?: (string) Str::uuid()]
+            );
+        }
     }
 }
