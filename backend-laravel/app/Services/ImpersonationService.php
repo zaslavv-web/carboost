@@ -27,7 +27,7 @@ class ImpersonationService
     private const ABILITY_PREFIX_AS = 'impersonate-as:';
     private const ABILITY_PREFIX_BY = 'impersonated-by:';
 
-    public function start(User $actor, string $targetUserId, int $ttlMinutes = 60): array
+    public function start(User $actor, string $targetUserId, int $ttlMinutes = 60, ?string $currentBearerToken = null): array
     {
         if (! $actor->hasRole('superadmin')) {
             throw new RuntimeException('Only superadmin can impersonate.');
@@ -38,21 +38,22 @@ class ImpersonationService
             throw new RuntimeException('Target user not found (profile/user link is broken).');
         }
 
-        $abilities = [
-            self::ABILITY_PREFIX_AS . $target->id,
-            self::ABILITY_PREFIX_BY . $actor->id,
-        ];
+        // В Supabase-версии impersonation был клиентским режимом поверх прав
+        // superadmin, без выпуска второго auth-токена. На продовой Laravel-схеме
+        // создание второго Sanctum-токена ломается из-за различий legacy-таблиц,
+        // поэтому endpoint только серверно проверяет право superadmin и наличие
+        // target, а фронт продолжает работать со снимком target-профиля.
+        if (! $currentBearerToken) {
+            throw new RuntimeException('Current auth token is missing.');
+        }
 
-        // Токен выпускается на actor, чтобы revoke легко найти по user_id актора.
-        // Используем ручную запись в Sanctum-таблицу: на проде встречаются разные
-        // версии/схемы Sanctum, и createToken() уже приводил к 500 на impersonation.
-        $token = $this->createImpersonationToken($actor, $abilities, $ttlMinutes);
+        $this->writeAuditStart($actor, $target, null);
 
-        $this->writeAuditStart($actor, $target, $token['id']);
+        $expiresAt = now()->addMinutes($ttlMinutes);
 
         return [
-            'token'        => $token['plain_text_token'],
-            'expires_at'   => $token['expires_at'],
+            'token'        => $currentBearerToken,
+            'expires_at'   => $expiresAt,
             'target_user'  => ['id' => $target->id, 'email' => $target->email],
         ];
     }
