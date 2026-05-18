@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\RuntimeEnv;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -40,10 +41,7 @@ class ResetPasswordNotification extends Notification
             $redirect = null;
         }
 
-        $frontend = rtrim(
-            (string) (env('FRONTEND_URL') ?: env('APP_FRONTEND_URL') ?: config('app.url')),
-            '/',
-        );
+        $frontend = rtrim(RuntimeEnv::url('FRONTEND_URL', RuntimeEnv::url('APP_FRONTEND_URL', config('app.url'))), '/');
 
         $base = rtrim((string) ($redirect ?: $frontend . '/reset-password'), '/');
         $separator = str_contains($base, '?') ? '&' : '?';
