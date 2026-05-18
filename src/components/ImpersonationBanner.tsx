@@ -8,10 +8,11 @@ const ImpersonationBanner = () => {
 
   if (!impersonatedName) return null;
 
-  const handleReturn = () => {
-    stopImpersonation();
+  const handleReturn = async () => {
+    await stopImpersonation();
     navigate("/users");
   };
+
 
   return (
     <div className="bg-warning/10 border-b border-warning/30 px-4 py-2 flex items-center justify-between">
