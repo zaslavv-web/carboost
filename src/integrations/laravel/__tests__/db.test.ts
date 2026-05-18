@@ -30,7 +30,7 @@ describe("laravelDb query builder", () => {
     const [url, init] = lastCall();
     expect(init.method).toBe("GET");
     expect(url).toContain("/db/departments?");
-    expect(url).toContain("select=%2A");
+    expect(url).toContain("select=*");
     expect(url).toContain("order=created_at.asc");
     expect(url).toContain("limit=10");
     expect(url).toContain("eq.company_id=c1");
