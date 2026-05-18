@@ -90,8 +90,20 @@ class User extends Authenticatable
      */
     public function domainRole(): ?string
     {
-        $row = DB::table('user_roles')->where('user_id', $this->id)->value('role');
+        $row = DB::table('user_roles')->where('user_id', $this->domainUserId())->value('role');
         return $row;
+    }
+
+    /** ID, которым пользователь связан с legacy domain-таблицами. */
+    public function domainUserId(): string
+    {
+        $meta = is_array($this->meta) ? $this->meta : [];
+        $metaSub = $meta['sub'] ?? null;
+        if (is_string($metaSub) && preg_match('/^[0-9a-f-]{36}$/i', $metaSub)) {
+            return $metaSub;
+        }
+
+        return (string) $this->getAuthIdentifier();
     }
 
     /**
@@ -119,7 +131,7 @@ class User extends Authenticatable
         }
 
         $domainRoles = DB::table('user_roles')
-            ->where('user_id', $this->id)
+            ->where('user_id', $this->domainUserId())
             ->pluck('role')
             ->map(fn ($role) => (string) $role);
 
@@ -133,12 +145,13 @@ class User extends Authenticatable
     /** Удобный геттер: верифицирован ли пользователь суперадмином */
     public function isVerified(): bool
     {
-        return (bool) DB::table('profiles')->where('user_id', $this->id)->value('is_verified');
+        return (bool) DB::table('profiles')->where('user_id', $this->domainUserId())->value('is_verified');
     }
 
     public function companyId(): ?string
     {
-        return DB::table('profiles')->where('user_id', $this->id)->value('company_id');
+        $value = DB::table('profiles')->where('user_id', $this->domainUserId())->value('company_id');
+        return $value === null ? null : (string) $value;
     }
 
     public function sendPasswordResetNotification($token): void
