@@ -68,10 +68,13 @@ export const useUserRoles = () => {
   const { impersonatedUserId } = useImpersonation();
 
   return useQuery({
-    queryKey: ["user_roles", effectiveId],
+    queryKey: ["user_roles", effectiveId, impersonatedUserId],
     queryFn: async () => {
       if (!effectiveId) return [];
-      if (!impersonatedUserId && effectiveId === user?.id && Array.isArray(user.roles)) {
+      // With backend-issued impersonation tokens, `/auth/me` already returns
+      // the impersonated user's roles via the EffectiveUser middleware, so
+      // useAuth().user.roles is authoritative for both cases.
+      if (effectiveId === user?.id && Array.isArray(user?.roles)) {
         return user.roles as AppRole[];
       }
       const { data, error } = await laravelDb
@@ -84,6 +87,7 @@ export const useUserRoles = () => {
     enabled: !!effectiveId,
   });
 };
+
 
 export const usePrimaryRole = (): AppRole => {
   const { data: roles } = useUserRoles();
