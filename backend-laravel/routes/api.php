@@ -66,10 +66,45 @@ Route::post('/rpc/submit_demo_request',    fn (\Illuminate\Http\Request $r) =>
 Route::post('/rpc/submit_pricing_inquiry', fn (\Illuminate\Http\Request $r) =>
     app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'submit_pricing_inquiry'));
 
+// /auth/me доступен и без auth-группы: если токена нет — отдаст 401 JSON, а не 500.
+Route::middleware('auth:sanctum')->get('/auth/me', [AuthController::class, 'me'])
+    ->withoutMiddleware(['auth:sanctum']); // принимаем токен если есть, иначе 401 от контроллера
+// На случай если выше не сработает (разные версии Laravel) — дублирующий публичный alias
+Route::get('/auth/me-safe', [AuthController::class, 'me']);
+
+// Диагностика прод-окружения (без секретов): git-коммит, миграции, конфиг почты, OAuth.
+Route::get('/diag', function () {
+    $env = function (string $k) { $v = env($k); return $v ? 'set' : 'missing'; };
+    $migrations = [];
+    try {
+        $migrations = \DB::table('migrations')->orderByDesc('id')->limit(5)->pluck('migration')->all();
+    } catch (\Throwable $e) { $migrations = ['error' => $e->getMessage()]; }
+    return response()->json([
+        'app_env'   => app()->environment(),
+        'app_debug' => (bool) config('app.debug'),
+        'php'       => PHP_VERSION,
+        'laravel'   => app()->version(),
+        'commit'    => trim(@file_get_contents(base_path('VERSION')) ?: 'unknown'),
+        'mail'      => [
+            'mailer'   => config('mail.default'),
+            'host'     => config('mail.mailers.smtp.host'),
+            'port'     => config('mail.mailers.smtp.port'),
+            'username' => config('mail.mailers.smtp.username') ? 'set' : 'missing',
+            'from'     => config('mail.from.address'),
+        ],
+        'google'    => [
+            'client_id'     => $env('GOOGLE_CLIENT_ID'),
+            'client_secret' => $env('GOOGLE_CLIENT_SECRET'),
+            'redirect'      => env('GOOGLE_REDIRECT_URI'),
+            'frontend_url'  => env('FRONTEND_URL'),
+        ],
+        'migrations_tail' => $migrations,
+    ]);
+});
+
 // ---- Authenticated (Sanctum token) ----
 Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // Auth + impersonation
-    Route::get('/auth/me',      [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::post('/impersonation/start', [ImpersonationController::class, 'start']);
     Route::post('/impersonation/stop',  [ImpersonationController::class, 'stop']);
