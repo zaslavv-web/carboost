@@ -68,10 +68,13 @@ export const useUserRoles = () => {
   const { impersonatedUserId } = useImpersonation();
 
   return useQuery({
-    queryKey: ["user_roles", effectiveId],
+    queryKey: ["user_roles", effectiveId, impersonatedUserId],
     queryFn: async () => {
       if (!effectiveId) return [];
-      if (!impersonatedUserId && effectiveId === user?.id && Array.isArray(user.roles)) {
+      // With backend-issued impersonation tokens, `/auth/me` already returns
+      // the impersonated user's roles via the EffectiveUser middleware, so
+      // useAuth().user.roles is authoritative for both cases.
+      if (effectiveId === user?.id && Array.isArray(user?.roles)) {
         return user.roles as AppRole[];
       }
       const { data, error } = await laravelDb
@@ -84,6 +87,7 @@ export const useUserRoles = () => {
     enabled: !!effectiveId,
   });
 };
+
 
 export const usePrimaryRole = (): AppRole => {
   const { data: roles } = useUserRoles();
@@ -98,7 +102,12 @@ export const usePrimaryRole = (): AppRole => {
 /** Returns the REAL authenticated user's role, ignoring impersonation */
 export const useRealPrimaryRole = (): AppRole => {
   const { user } = useAuth();
-  const roles = Array.isArray(user?.roles) ? (user.roles as AppRole[]) : [];
+  const { impersonatedUserId, originalUser } = useImpersonation();
+
+  // While impersonating, useAuth().user is the target user (backend swap),
+  // so fall back to the snapshot captured at impersonation start.
+  const source = impersonatedUserId && originalUser ? originalUser.roles : user?.roles;
+  const roles = Array.isArray(source) ? (source as AppRole[]) : [];
 
   if (!roles || roles.length === 0) return "employee";
   if (roles.includes("superadmin")) return "superadmin";
@@ -107,6 +116,7 @@ export const useRealPrimaryRole = (): AppRole => {
   if (roles.includes("manager")) return "manager";
   return "employee";
 };
+
 
 export const useAllProfiles = () => {
   return useQuery({
