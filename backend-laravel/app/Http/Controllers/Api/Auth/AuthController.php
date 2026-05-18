@@ -77,6 +77,17 @@ class AuthController extends Controller
             ]);
         }
 
+        try {
+            $this->users->repairDomainRowsForLogin($user);
+            $user = $user->refresh();
+        } catch (\Throwable $e) {
+            Log::warning('Auth login domain repair skipped', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'reason' => $e->getMessage(),
+            ]);
+        }
+
         $token = $user->createToken('spa')->plainTextToken;
 
         return response()->json([
@@ -120,9 +131,11 @@ class AuthController extends Controller
 
     private function presentUser(User $user): array
     {
-        $profile = \DB::table('profiles')->where('user_id', $user->id)->first();
+        $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
+        $profile = \DB::table('profiles')->where('user_id', $domainUserId)->first();
         return [
-            'id'              => $user->id,
+            'id'              => $domainUserId,
+            'auth_id'         => $user->id,
             'email'           => $user->email,
             'email_verified'  => (bool) $user->email_verified_at,
             'full_name'       => $profile->full_name        ?? null,
@@ -132,7 +145,7 @@ class AuthController extends Controller
             'requested_role'  => $profile->requested_role   ?? null,
             'role'            => $user->domainRole(),
             'roles'           => \DB::table('user_roles')
-                ->where('user_id', $user->id)
+                ->where('user_id', $domainUserId)
                 ->pluck('role')
                 ->values()
                 ->all(),
