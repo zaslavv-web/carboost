@@ -113,7 +113,7 @@ describe("smoke-тесты критичных кнопок продукта", ()
     renderWithProviders(<UsersManagement />);
 
     expect(await screen.findByText("HRD User")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Войти как/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Войти как/i })[0]);
     await waitFor(() => expect(mocks.startImpersonation).toHaveBeenCalledWith("hrd-1", "HRD User", expect.objectContaining({ roles: ["hrd"] })));
     expect(mocks.navigate).toHaveBeenCalledWith("/dashboard");
 
