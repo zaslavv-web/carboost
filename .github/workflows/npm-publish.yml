@@ -114,7 +114,12 @@ jobs:
           AI_API_KEY=${{ secrets.AI_API_KEY }}
           AI_MODEL=gpt-4o-mini
 
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI=${{ secrets.GOOGLE_REDIRECT_URI }}
+
           FRONTEND_URL=${{ secrets.APP_URL }}
+          APP_FRONTEND_URL=${{ secrets.APP_URL }}
           EOF
 
       - name: Setup SSH agent
@@ -150,6 +155,8 @@ jobs:
               "cd ${{ secrets.TARGET_DIR }}/backend \
               && mkdir -p storage/logs storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
               && chmod -R 777 storage bootstrap/cache \
+              && php artisan optimize:clear \
+              && php artisan config:clear \
               && php artisan migrate --force \
               && php artisan db:seed --class=RoleSeeder --force \
               && php artisan config:cache \
