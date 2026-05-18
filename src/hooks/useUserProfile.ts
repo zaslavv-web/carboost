@@ -35,13 +35,16 @@ const useEffectiveId = useEffectiveUserId;
 
 export const useUserProfile = () => {
   const { user } = useAuth();
-  const { impersonatedUserId } = useImpersonation();
+  const { impersonatedUserId, impersonatedProfile } = useImpersonation();
   const effectiveId = impersonatedUserId || user?.id || null;
 
   return useQuery({
     queryKey: ["profile", effectiveId],
     queryFn: async () => {
       if (!effectiveId) return null;
+      if (impersonatedUserId && impersonatedProfile) {
+        return impersonatedProfile as unknown as UserProfile;
+      }
       if (!impersonatedUserId || effectiveId === user?.id) {
         const { data, error } = await laravel.get<UserProfile>("/profiles/me");
         if (error) {
@@ -65,12 +68,15 @@ export const useUserProfile = () => {
 export const useUserRoles = () => {
   const effectiveId = useEffectiveId();
   const { user } = useAuth();
-  const { impersonatedUserId } = useImpersonation();
+  const { impersonatedUserId, impersonatedRoles } = useImpersonation();
 
   return useQuery({
     queryKey: ["user_roles", effectiveId, impersonatedUserId],
     queryFn: async () => {
       if (!effectiveId) return [];
+      if (impersonatedUserId && impersonatedRoles.length > 0) {
+        return impersonatedRoles as AppRole[];
+      }
       // With backend-issued impersonation tokens, `/auth/me` already returns
       // the impersonated user's roles via the EffectiveUser middleware, so
       // useAuth().user.roles is authoritative for both cases.
