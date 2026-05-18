@@ -27,37 +27,20 @@ use Spatie\Permission\Traits\HasRoles;
  */
 class User extends Authenticatable
 {
+    // HasUuids убран намеренно: на легаси-схемах прод-БД users.id может быть
+    // integer auto_increment. Мы никогда не создаём пользователей через
+    // Eloquent (см. AuthUserService → DB::table('users')->insert(...)),
+    // поэтому генерация UUID-PK здесь не нужна.
     use HasApiTokens, HasFactory, Notifiable, HasRoles {
         hasRole as protected hasSpatieRole;
     }
 
     protected $table = 'users';
 
-    /**
-     * Тип PK определяется в boot() в зависимости от схемы БД:
-     *   - UUID-схема (новая)         → keyType=string, incrementing=false
-     *   - integer-схема (легаси)    → keyType=int,    incrementing=true
-     */
+    // keyType=string + incrementing=false безопасны и для UUID, и для int-PK:
+    // findOrFail($id) корректно сравнит обе схемы (MySQL делает implicit cast).
     protected $keyType = 'string';
     public $incrementing = false;
-
-    protected static function booted(): void
-    {
-        try {
-            $col = DB::selectOne("SHOW COLUMNS FROM `users` LIKE 'id'");
-            if ($col && str_contains(strtolower((string) $col->Type), 'int')) {
-                (new static)->setKeyType('int');
-                // Eloquent читает $incrementing с инстанса — переопределим на статическое поведение через property override:
-                // Для integer-PK безопасно оставить incrementing=true.
-                static::creating(function ($model) {
-                    $model->incrementing = true;
-                    $model->setKeyType('int');
-                });
-            }
-        } catch (\Throwable) {
-            // если SHOW COLUMNS не сработал — оставляем дефолты (UUID)
-        }
-    }
 
     protected $fillable = [
         'email',
