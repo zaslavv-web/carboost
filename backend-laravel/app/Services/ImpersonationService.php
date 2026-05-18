@@ -32,29 +32,40 @@ class ImpersonationService
         if (! $actor->hasRole('superadmin')) {
             throw new RuntimeException('Only superadmin can impersonate.');
         }
-
-        $target = $this->resolveTargetUser($targetUserId);
-        if (! $target) {
-            throw new RuntimeException('Target user not found (profile/user link is broken).');
+        if (trim($targetUserId) === '') {
+            throw new RuntimeException('Target user id is required.');
         }
 
-        // В Supabase-версии impersonation был клиентским режимом поверх прав
-        // superadmin, без выпуска второго auth-токена. На продовой Laravel-схеме
-        // создание второго Sanctum-токена ломается из-за различий legacy-таблиц,
-        // поэтому endpoint только серверно проверяет право superadmin и наличие
-        // target, а фронт продолжает работать со снимком target-профиля.
+        // В Supabase-версии impersonation — клиентский режим поверх прав
+        // superadmin. На MySQL-схеме поиск по UUID в integer-колонке может
+        // упасть с SQLSTATE[22007], поэтому resolveTargetUser обёрнут в try
+        // и failure не блокирует endpoint — фронт всё равно работает со
+        // снимком профиля target из списка пользователей.
+        $target = null;
+        try {
+            $target = $this->resolveTargetUser($targetUserId);
+        } catch (\Throwable $e) {
+            Log::warning('Impersonation resolveTargetUser failed', [
+                'target_user_id' => $targetUserId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         if (! $currentBearerToken) {
             throw new RuntimeException('Current auth token is missing.');
         }
 
-        $this->writeAuditStart($actor, $target, null);
+        $this->writeAuditStart($actor, $target, $targetUserId, null);
 
         $expiresAt = now()->addMinutes($ttlMinutes);
 
         return [
             'token'        => $currentBearerToken,
             'expires_at'   => $expiresAt,
-            'target_user'  => ['id' => $target->id, 'email' => $target->email],
+            'target_user'  => [
+                'id'    => $target?->id ?? $targetUserId,
+                'email' => $target?->email,
+            ],
         ];
     }
 
