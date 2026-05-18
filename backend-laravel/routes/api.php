@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\SupportTicketController;
 use App\Http\Controllers\Api\TeamMemberController;
 use Illuminate\Support\Facades\Route;
 
+
+
 /*
 | API routes (Phase 6 — full CRUD).
 | Префикс /api добавляется автоматически (bootstrap/app.php).
