@@ -39,13 +39,26 @@ class PasswordResetController extends Controller
         } catch (\Throwable $e) {
             Log::error('Password reset email failed', ['email' => strtolower($data['email']), 'exception' => $e]);
             return response()->json([
-                'error' => 'Не удалось отправить письмо восстановления. Проверьте SMTP-настройки и миграции backend.',
+                'error' => $this->localizeSmtpError($e->getMessage()),
             ], 422);
         }
 
         // Не раскрываем существует ли email — всегда 200.
         return response()->json(['ok' => true, 'status' => $status]);
     }
+
+    private function localizeSmtpError(string $message): string
+    {
+        if (preg_match('/authentication|535|534|invalid user or password|auth/i', $message)) {
+            return 'SMTP-сервер отклонил логин или пароль. Для Яндекс.Почты используйте пароль приложения, host smtp.yandex.ru, порт 465 с шифрованием ssl.';
+        }
+        if (preg_match('/connection|timed? out|refused|could not connect|network|stream_socket|TLS|SSL/i', $message)) {
+            return 'Не удалось подключиться к SMTP-серверу. Проверьте host, port и encryption (465/ssl или 587/tls).';
+        }
+        if (preg_match('/sender|from|relay|verified|not allowed/i', $message)) {
+            return 'SMTP-сервер отклонил отправителя. MAIL_FROM_ADDRESS должен совпадать с авторизованным ящиком.';
+        }
+        return 'Не удалось отправить письмо восстановления: ' . $message;
 
     /** POST /api/auth/reset-password { token, email, password } */
     public function reset(Request $request): JsonResponse
