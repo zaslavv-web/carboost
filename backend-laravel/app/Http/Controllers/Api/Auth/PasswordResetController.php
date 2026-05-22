@@ -47,7 +47,7 @@ class PasswordResetController extends Controller
 
             $status = Password::sendResetLink(['email' => strtolower($data['email'])]);
         } catch (\Throwable $e) {
-            if (\App\Services\EmailConfigService::isSmtpAuthFailure($e) && ! $mail->hasActiveStoredSettings()) {
+            if (\App\Services\EmailConfigService::isSmtpAuthFailure($e)) {
                 try {
                     Log::warning('Password reset SMTP auth failed, retrying with runtime env credentials', [
                         'email' => strtolower($data['email']),
@@ -60,14 +60,12 @@ class PasswordResetController extends Controller
                     Log::error('Password reset email runtime retry failed', ['email' => strtolower($data['email']), 'exception' => $retryException]);
                     return response()->json([
                         'error' => $this->localizeSmtpError($retryException->getMessage()),
-                        'smtp' => $mail->currentSmtpSummary(),
                     ], 422);
                 }
             } else {
                 Log::error('Password reset email failed', ['email' => strtolower($data['email']), 'exception' => $e]);
                 return response()->json([
                     'error' => $this->localizeSmtpError($e->getMessage()),
-                    'smtp' => $smtp ?? $mail->currentSmtpSummary(),
                 ], 422);
             }
         }
