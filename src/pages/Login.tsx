@@ -37,6 +37,10 @@ const oauthLog = (
 };
 
 const translateError = (msg: string): string => {
+  if (/SMTP|smtp|пароль приложения|Почтовые программы|расшифровывается/i.test(msg)) {
+    return "Не удалось отправить письмо восстановления. Попробуйте позже или обратитесь к администратору.";
+  }
+
   const map: Record<string, string> = {
     "Invalid login credentials": "Неверный email или пароль. Проверьте данные и попробуйте снова.",
     "Email not confirmed": "Email не подтверждён. Проверьте почту для подтверждения.",
