@@ -1,33 +1,35 @@
-## Проблема
+Нашёл две вероятные причины текущей проблемы с почтой:
 
-При импersonации из `UsersManagement` (`startImpersonation(user_id, name)`) меняется `impersonatedUserId` и `effectiveId`, но `usePrimaryRole()` всё равно отдаёт `superadmin` — поэтому сайдбар остаётся прежним.
+1. На backend сейчас настроен SMTP `smtp.yandex.com:465`, но для Яндекс.Почты обычно нужен `smtp.yandex.ru` и для порта `465` — шифрование `ssl`. В текущей CI-конфигурации шифрование по умолчанию остаётся `tls`, если secret `MAIL_ENCRYPTION` не задан.
+2. `/api/health` в production возвращает `503` из-за проверки Redis: `Class "Redis" not found`. При этом workflow уже деплоит backend с `CACHE_STORE=file`, `QUEUE_CONNECTION=sync`, `SESSION_DRIVER=file`, то есть Redis не должен быть обязательным. Этот 503 может вводить nginx/monitoring/фронт в состояние “backend недоступен”, хотя DB работает.
 
-Причина в `useUserRoles` (`src/hooks/useUserProfile.ts`): для импersonированного пользователя роли запрашиваются через `laravelDb.from("user_roles").select("role").eq("user_id", effectiveId)`. Этот «псевдо-Supabase» слой ходит в Laravel, и для большинства таблиц фильтр `eq("user_id", ...)` либо игнорируется (возвращаются роли текущего токена = superadmin), либо запрос падает с 403, и мы тихо ловим в TanStack Query.
+План исправления:
 
-## План правок
+1. Сделать health-check честным для текущего Laravel backend
+   - Убрать обязательную Redis-проверку из `/api/health`, если cache/session/queue не используют Redis.
+   - Оставить обязательными только `api` и `db`.
+   - Добавить безопасную диагностику `cache/session/queue`, чтобы видеть режимы без падения health-check.
 
-1) **Бэкенд (Laravel)** — добавить явный read-only endpoint:
-   - `GET /api/admin/users/{id}/roles` — доступен только `superadmin`, возвращает массив строк (`["hrd"]`).
-   - `GET /api/admin/users/{id}/profile` — то же для профиля (используется уже сейчас через `laravelDb`, но лучше явный маршрут).
+2. Защитить SMTP-конфигурацию от неправильных сочетаний host/port/encryption
+   - В `.github/workflows/npm-publish.yml` нормализовать Яндекс SMTP:
+     - если host задан как `smtp.yandex.com`, заменить на `smtp.yandex.ru`;
+     - если порт `465` и encryption не задан, ставить `ssl`;
+     - если порт `587` и encryption не задан, ставить `tls`.
+   - Не трогать секреты и не выводить их в логи.
 
-2) **Фронтенд** — в `src/hooks/useUserProfile.ts`:
-   - В `useUserRoles`: если `impersonatedUserId` задан, дёргать `laravel.get(/admin/users/${effectiveId}/roles)` вместо `laravelDb`.
-   - В `useUserProfile`: аналогично для профиля импersonированного пользователя.
-   - Оставить fallback на `useAuth().user.roles` только когда импersonации нет.
+3. Устранить расхождение между runtime SMTP и восстановлением пароля
+   - В `PasswordResetController` оставить применение runtime SMTP перед отправкой.
+   - В `Admin\UsersController` добавить такое же применение SMTP перед `Password::sendResetLink`, чтобы приглашения/сбросы от админа использовали актуальные настройки.
 
-3) **Инвалидация кеша при старте/остановке импersonации** — в `ImpersonationContext`:
-   - В `startImpersonation` / `stopImpersonation` вызывать `queryClient.invalidateQueries({ queryKey: ["user_roles"] })` и `["profile"]`, чтобы сайдбар обновился мгновенно.
+4. Улучшить диагностику почты без раскрытия секретов
+   - В `/api/diag` показывать `encryption`, `from`, `username: set/missing`, `host`, `port`.
+   - Добавить локализацию типичных SMTP-ошибок восстановления пароля: неверный пароль приложения, неправильный host/port/encryption, rejected sender.
 
-4) **Защита от мигания** — в `AppSidebar`:
-   - Пока `useUserRoles().isLoading`, показывать тонкий skeleton вместо меню «employee» по умолчанию.
+5. Проверка после правок
+   - Проверить PHP-синтаксис изменённых backend-файлов.
+   - После деплоя проверить:
+     - `https://growth-peak.pro/api/health` должен вернуть `200`;
+     - `https://growth-peak.pro/api/diag` должен показать `smtp.yandex.ru`, `465`, `ssl`, `username: set`;
+     - кнопка “Забыли пароль?” должна либо отправить письмо, либо вернуть точную русскую причину ошибки SMTP.
 
-## Технические детали
-
-- Файлы фронта: `src/hooks/useUserProfile.ts`, `src/contexts/ImpersonationContext.tsx`, `src/components/AppSidebar.tsx`.
-- Файлы бэка: `backend-laravel/routes/api.php`, `backend-laravel/app/Http/Controllers/Api/Admin/UserAdminController.php` (новый), middleware `role:superadmin`.
-- RLS-аналог: в контроллере проверяем `auth()->user()->hasRole('superadmin')`, иначе 403.
-
-## Что НЕ меняем
-
-- Логику самих ролей и список пунктов меню в `AppSidebar` (они уже различаются для HRD и superadmin).
-- `ImpersonationBanner` — он работает корректно.
+Важно: в Lovable Cloud email-доменов сейчас не настроено, но опубликованный сайт `growth-peak.pro` использует внешний Laravel backend и SMTP из GitHub secrets, поэтому чинить нужно именно Laravel/CI-конфигурацию, а не Cloud-почту.
