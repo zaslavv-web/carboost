@@ -67,9 +67,12 @@ class EmailConfigService
         return EmailSetting::active()->latest('updated_at')->first();
     }
 
-    public static function normalizeHost(?string $host): string
+    public static function normalizeHost(?string $host, ?string $provider = null): string
     {
         $host = strtolower(trim((string) $host));
+        if (strtolower(trim((string) $provider)) === 'yandex' && $host === '') {
+            return 'smtp.yandex.ru';
+        }
         return $host === 'smtp.yandex.com' ? 'smtp.yandex.ru' : $host;
     }
 
@@ -150,12 +153,16 @@ class EmailConfigService
 
         // Если БД-настройки нет, неактивна, либо пароль не расшифровывается (APP_KEY сменился) —
         // используем SMTP из окружения, чтобы письма продолжали ходить.
-        if (!$setting || !$setting->is_active || !$setting->host || !$setting->from_address || !$setting->hasUsablePassword()) {
+        if ($setting && $setting->is_active && (!$setting->host || !$setting->from_address || !$setting->hasUsablePassword())) {
+            throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново.');
+        }
+
+        if (!$setting || !$setting->is_active) {
             $this->applyRuntimeEnv();
             return;
         }
 
-        $host = self::normalizeHost($setting->host);
+        $host = self::normalizeHost($setting->host, $setting->provider);
         $port = self::normalizePort($host, $setting->port, $setting->provider);
         $encryption = self::normalizeEncryption($host, $port, $setting->encryption);
 
