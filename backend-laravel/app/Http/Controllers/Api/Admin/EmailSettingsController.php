@@ -49,8 +49,9 @@ class EmailSettingsController extends Controller
             }
 
             $host = EmailConfigService::normalizeHost($data['host']);
-            $port = (int) $data['port'];
+            $port = EmailConfigService::normalizePort($host, $data['port'], $data['provider']);
             $encryption = EmailConfigService::normalizeEncryption($host, $port, $data['encryption'] ?? null);
+            $username = EmailConfigService::normalizeUsername($host, $data['username'], $data['from_address']);
 
             $setting ??= new EmailSetting();
             $setting->fill([
@@ -58,7 +59,7 @@ class EmailSettingsController extends Controller
                 'host' => $host,
                 'port' => $port,
                 'encryption' => $encryption,
-                'username' => $data['username'],
+                'username' => $username ?: '',
                 'from_address' => strtolower($data['from_address']),
                 'from_name' => $data['from_name'],
                 'reply_to_address' => isset($data['reply_to_address']) && $data['reply_to_address'] !== ''
@@ -69,7 +70,7 @@ class EmailSettingsController extends Controller
             ]);
 
             if (!empty($data['password'])) {
-                $setting->password = $data['password'];
+                $setting->password = EmailConfigService::normalizePassword($host, $data['password'], $data['provider']);
             }
 
             $setting->save();
