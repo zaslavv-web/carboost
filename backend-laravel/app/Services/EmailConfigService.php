@@ -130,7 +130,7 @@ class EmailConfigService
             'username' => self::normalizeUsername($host, $setting->username, $setting->from_address),
             'password' => $setting->password,
             'timeout' => null,
-            'local_domain' => env('MAIL_EHLO_DOMAIN'),
+            'local_domain' => RuntimeEnv::get('MAIL_EHLO_DOMAIN'),
         ]);
         Config::set('mail.from', [
             'address' => $setting->from_address,
@@ -143,14 +143,7 @@ class EmailConfigService
 
         // Сбросить кеш уже инстанцированных мейлеров (важно после смены настроек в рантайме):
         // MailManager хранит резолвнутые драйверы в массиве и игнорирует обновления Config.
-        try {
-            $manager = app('mail.manager');
-            if ($manager instanceof MailManager) {
-                $manager->forgetMailers();
-            }
-        } catch (\Throwable $e) {
-            // ignore
-        }
+        $this->forgetResolvedMailers();
     }
 
     public function applyRuntimeEnv(): void
@@ -158,6 +151,22 @@ class EmailConfigService
         $host = self::normalizeHost(RuntimeEnv::get('MAIL_HOST'));
         $from = RuntimeEnv::get('MAIL_FROM_ADDRESS');
         if (!$host || !$from) {
+            Config::set('mail.default', 'log');
+            Config::set('mail.mailers.smtp', [
+                'transport' => 'smtp',
+                'host' => $host ?: '',
+                'port' => 0,
+                'encryption' => null,
+                'username' => null,
+                'password' => null,
+                'timeout' => null,
+                'local_domain' => RuntimeEnv::get('MAIL_EHLO_DOMAIN'),
+            ]);
+            Config::set('mail.from', [
+                'address' => $from ?: 'noreply@example.local',
+                'name' => RuntimeEnv::get('MAIL_FROM_NAME', config('app.name', 'Career Track')),
+            ]);
+            $this->forgetResolvedMailers();
             return;
         }
 
@@ -180,14 +189,7 @@ class EmailConfigService
             'name' => RuntimeEnv::get('MAIL_FROM_NAME', config('app.name', 'Career Track')),
         ]);
 
-        try {
-            $manager = app('mail.manager');
-            if ($manager instanceof MailManager) {
-                $manager->forgetMailers();
-            }
-        } catch (\Throwable $e) {
-            // ignore
-        }
+        $this->forgetResolvedMailers();
     }
 
     public function sendTest(EmailSetting $setting, string $to): void
