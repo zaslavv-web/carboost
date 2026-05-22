@@ -50,9 +50,9 @@ const emptyForm = {
 };
 
 const normalizeYandexSmtp = (next: typeof emptyForm) => {
-  const host = next.host.trim().toLowerCase() === "smtp.yandex.com" ? "smtp.yandex.ru" : next.host.trim();
-  return host.toLowerCase() === "smtp.yandex.ru" && Number(next.port) === 465
-    ? { ...next, host, encryption: "ssl" as const }
+  const host = next.host.trim().toLowerCase() === "smtp.yandex.com" || next.provider === "yandex" ? "smtp.yandex.ru" : next.host.trim();
+  return host.toLowerCase() === "smtp.yandex.ru"
+    ? { ...next, host, port: 465, encryption: "ssl" as const, username: next.username.trim(), password: next.password.replace(/[\s\u00A0\u200B-\u200D\uFEFF]+/g, "") }
     : { ...next, host };
 };
 
