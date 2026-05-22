@@ -69,10 +69,28 @@ class UsersController extends Controller
         );
 
         // Шлём письмо для установки пароля (через стандартный broker)
+        $mail = app(\App\Services\EmailConfigService::class);
         try {
-            app(\App\Services\EmailConfigService::class)->apply();
+            $mail->apply();
             \Illuminate\Support\Facades\Password::sendResetLink(['email' => $email]);
         } catch (\Throwable $e) {
+            if (\App\Services\EmailConfigService::isSmtpAuthFailure($e)) {
+                try {
+                    $mail->applyRuntimeEnv();
+                    \Illuminate\Support\Facades\Password::sendResetLink(['email' => $email]);
+                    return response()->json([
+                        'user' => [
+                            'id'         => $user->id,
+                            'email'      => $user->email,
+                            'full_name'  => $data['full_name'],
+                            'role'       => $data['role'],
+                            'company_id' => $companyId,
+                        ],
+                    ], 201);
+                } catch (\Throwable $retryException) {
+                    \Log::warning('admin user invite runtime retry failed', ['email' => $email, 'err' => $retryException->getMessage()]);
+                }
+            }
             // не фатально — администратор может скинуть ссылку вручную
             \Log::warning('admin user invite email failed', ['email' => $email, 'err' => $e->getMessage()]);
         }

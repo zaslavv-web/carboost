@@ -87,6 +87,25 @@ class EmailConfigService
         return $encryption;
     }
 
+    public static function normalizeUsername(?string $host, ?string $username, ?string $fromAddress = null): ?string
+    {
+        $host = self::normalizeHost($host);
+        $username = trim((string) $username);
+        $fromAddress = strtolower(trim((string) $fromAddress));
+
+        if ($host === 'smtp.yandex.ru' && str_ends_with($fromAddress, '@yandex.ru')) {
+            return $fromAddress;
+        }
+
+        return $username !== '' ? $username : null;
+    }
+
+    public static function isSmtpAuthFailure(
+        \Throwable $e
+    ): bool {
+        return (bool) preg_match('/authentication|auth|login|password|535|534|invalid user or password/i', $e->getMessage());
+    }
+
     public function apply(?EmailSetting $setting = null): void
     {
         $setting ??= $this->active();
@@ -108,7 +127,7 @@ class EmailConfigService
             'host' => $host,
             'port' => $port,
             'encryption' => $encryption,
-            'username' => $setting->username ?: null,
+            'username' => self::normalizeUsername($host, $setting->username, $setting->from_address),
             'password' => $setting->password,
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN'),
@@ -134,7 +153,7 @@ class EmailConfigService
         }
     }
 
-    private function applyRuntimeEnv(): void
+    public function applyRuntimeEnv(): void
     {
         $host = self::normalizeHost(RuntimeEnv::get('MAIL_HOST'));
         $from = RuntimeEnv::get('MAIL_FROM_ADDRESS');
@@ -151,7 +170,7 @@ class EmailConfigService
             'host' => $host,
             'port' => $port,
             'encryption' => $encryption,
-            'username' => RuntimeEnv::get('MAIL_USERNAME'),
+            'username' => self::normalizeUsername($host, RuntimeEnv::get('MAIL_USERNAME'), $from),
             'password' => RuntimeEnv::get('MAIL_PASSWORD'),
             'timeout' => null,
             'local_domain' => RuntimeEnv::get('MAIL_EHLO_DOMAIN'),
