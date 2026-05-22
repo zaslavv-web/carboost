@@ -106,6 +106,13 @@ class EmailConfigService
         return (bool) preg_match('/authentication|auth|login|password|535|534|invalid user or password/i', $e->getMessage());
     }
 
+    public function hasActiveStoredSettings(): bool
+    {
+        $setting = $this->active();
+
+        return (bool) ($setting && $setting->is_active && $setting->host && $setting->from_address && $setting->hasUsablePassword());
+    }
+
     public function apply(?EmailSetting $setting = null): void
     {
         $setting ??= $this->active();
@@ -202,6 +209,18 @@ class EmailConfigService
                 $message->to($to)->subject('Тест SMTP Career Track');
             }
         );
+    }
+
+    private function forgetResolvedMailers(): void
+    {
+        try {
+            $manager = app('mail.manager');
+            if ($manager instanceof MailManager) {
+                $manager->forgetMailers();
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
     }
 
     /**
