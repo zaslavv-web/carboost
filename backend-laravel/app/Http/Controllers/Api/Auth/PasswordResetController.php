@@ -59,6 +59,9 @@ class PasswordResetController extends Controller
             return 'SMTP-сервер отклонил отправителя. MAIL_FROM_ADDRESS должен совпадать с авторизованным ящиком.';
         }
         return 'Не удалось отправить письмо восстановления: ' . $message;
+    }
+
+
 
     /** POST /api/auth/reset-password { token, email, password } */
     public function reset(Request $request): JsonResponse
