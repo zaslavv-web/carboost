@@ -36,6 +36,7 @@ class PasswordResetController extends Controller
         $mail = app(\App\Services\EmailConfigService::class);
 
         try {
+            $mail->autoRepairActiveSettings();
             $mail->apply();
             $smtp = $mail->currentSmtpSummary();
 
