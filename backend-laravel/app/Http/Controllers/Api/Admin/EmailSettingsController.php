@@ -48,7 +48,7 @@ class EmailSettingsController extends Controller
                 EmailSetting::query()->update(['is_active' => false]);
             }
 
-            $host = EmailConfigService::normalizeHost($data['host']);
+            $host = EmailConfigService::normalizeHost($data['host'], $data['provider']);
             $port = EmailConfigService::normalizePort($host, $data['port'], $data['provider']);
             $encryption = EmailConfigService::normalizeEncryption($host, $port, $data['encryption'] ?? null);
             $username = EmailConfigService::normalizeUsername($host, $data['username'], $data['from_address']);
@@ -87,7 +87,7 @@ class EmailSettingsController extends Controller
             'to' => ['required', 'email', 'max:255'],
         ]);
 
-        $setting = $this->mail->active();
+        $setting = $this->mail->autoRepairActiveSettings();
         if (!$setting) {
             return response()->json(['error' => 'Сначала сохраните активные SMTP-настройки'], 422);
         }
@@ -119,6 +119,7 @@ class EmailSettingsController extends Controller
     {
         $this->ensureSuperadmin($request);
 
+        $this->mail->autoRepairActiveSettings();
         $this->mail->apply();
         $result = $this->mail->preflightSafe();
 
