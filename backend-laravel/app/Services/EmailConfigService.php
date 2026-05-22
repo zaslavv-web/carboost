@@ -136,18 +136,21 @@ class EmailConfigService
 
     private function applyRuntimeEnv(): void
     {
-        $host = RuntimeEnv::get('MAIL_HOST');
+        $host = self::normalizeHost(RuntimeEnv::get('MAIL_HOST'));
         $from = RuntimeEnv::get('MAIL_FROM_ADDRESS');
         if (!$host || !$from) {
             return;
         }
 
+        $port = (int) (RuntimeEnv::get('MAIL_PORT', '587') ?: 587);
+        $encryption = self::normalizeEncryption($host, $port, RuntimeEnv::get('MAIL_ENCRYPTION'));
+
         Config::set('mail.default', RuntimeEnv::get('MAIL_MAILER', 'smtp'));
         Config::set('mail.mailers.smtp', [
             'transport' => 'smtp',
             'host' => $host,
-            'port' => (int) (RuntimeEnv::get('MAIL_PORT', '587') ?: 587),
-            'encryption' => RuntimeEnv::get('MAIL_ENCRYPTION') ?: null,
+            'port' => $port,
+            'encryption' => $encryption,
             'username' => RuntimeEnv::get('MAIL_USERNAME'),
             'password' => RuntimeEnv::get('MAIL_PASSWORD'),
             'timeout' => null,
