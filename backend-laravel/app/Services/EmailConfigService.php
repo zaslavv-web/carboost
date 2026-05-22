@@ -224,6 +224,23 @@ class EmailConfigService
     }
 
     /**
+     * Безопасное описание текущей SMTP-конфигурации — без пароля.
+     *
+     * @return array{host:string,port:int,encryption:?string,username:?string}
+     */
+    public function currentSmtpSummary(): array
+    {
+        $cfg = config('mail.mailers.smtp', []);
+
+        return [
+            'host' => (string) ($cfg['host'] ?? ''),
+            'port' => (int) ($cfg['port'] ?? 0),
+            'encryption' => $cfg['encryption'] ?? null,
+            'username' => $cfg['username'] ?? null,
+        ];
+    }
+
+    /**
      * Открывает реальное SMTP-соединение (TCP → EHLO → STARTTLS → AUTH) и сразу закрывает.
      * Бросает то же исключение Symfony Mailer, что и реальный send.
      *
@@ -281,7 +298,7 @@ class EmailConfigService
         try {
             return ['ok' => true] + $this->preflight();
         } catch (\Throwable $e) {
-            return [
+            return $this->currentSmtpSummary() + [
                 'ok' => false,
                 'error' => $e->getMessage(),
             ];
