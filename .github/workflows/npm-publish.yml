@@ -134,8 +134,20 @@ jobs:
           else
             DB_PORT_VALUE="3306"
           fi
+          MAIL_HOST_VALUE="${MAIL_HOST_SECRET}"
+          # Яндекс часто указывают как smtp.yandex.com, но рабочий хост — smtp.yandex.ru
+          if [[ "$MAIL_HOST_VALUE" == "smtp.yandex.com" ]]; then
+            MAIL_HOST_VALUE="smtp.yandex.ru"
+          fi
           MAIL_PORT_VALUE="${MAIL_PORT_SECRET:-587}"
-          MAIL_ENCRYPTION_VALUE="${MAIL_ENCRYPTION_SECRET:-tls}"
+          # Автодетект шифрования по порту, если secret MAIL_ENCRYPTION не задан
+          if [[ -n "$MAIL_ENCRYPTION_SECRET" ]]; then
+            MAIL_ENCRYPTION_VALUE="$MAIL_ENCRYPTION_SECRET"
+          elif [[ "$MAIL_PORT_VALUE" == "465" ]]; then
+            MAIL_ENCRYPTION_VALUE="ssl"
+          else
+            MAIL_ENCRYPTION_VALUE="tls"
+          fi
           MAIL_FROM_ADDRESS_VALUE="${MAIL_FROM_ADDRESS_SECRET:-noreply@${APP_HOST_VALUE}}"
           MAIL_FROM_NAME_VALUE="${MAIL_FROM_NAME_SECRET:-Пик Роста}"
 
@@ -179,7 +191,7 @@ jobs:
           APP_FRONTEND_URL=${APP_URL_VALUE}
 
           MAIL_MAILER=smtp
-          MAIL_HOST=${MAIL_HOST_SECRET}
+          MAIL_HOST=${MAIL_HOST_VALUE}
           MAIL_PORT=${MAIL_PORT_VALUE}
           MAIL_USERNAME=${MAIL_USERNAME_SECRET}
           MAIL_PASSWORD=${MAIL_PASSWORD_SECRET}

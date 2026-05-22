@@ -70,6 +70,7 @@ class UsersController extends Controller
 
         // Шлём письмо для установки пароля (через стандартный broker)
         try {
+            app(\App\Services\EmailConfigService::class)->apply();
             \Illuminate\Support\Facades\Password::sendResetLink(['email' => $email]);
         } catch (\Throwable $e) {
             // не фатально — администратор может скинуть ссылку вручную
