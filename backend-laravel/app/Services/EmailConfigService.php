@@ -71,7 +71,9 @@ class EmailConfigService
     {
         $setting ??= $this->active();
 
-        if (!$setting || !$setting->is_active || !$setting->host || !$setting->from_address) {
+        // Если БД-настройки нет, неактивна, либо пароль не расшифровывается (APP_KEY сменился) —
+        // используем SMTP из окружения, чтобы письма продолжали ходить.
+        if (!$setting || !$setting->is_active || !$setting->host || !$setting->from_address || !$setting->hasUsablePassword()) {
             $this->applyRuntimeEnv();
             return;
         }

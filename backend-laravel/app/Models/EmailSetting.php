@@ -47,7 +47,19 @@ class EmailSetting extends Model
             return null;
         }
 
-        return Crypt::decryptString($this->password_encrypted);
+        try {
+            return Crypt::decryptString($this->password_encrypted);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            \Illuminate\Support\Facades\Log::warning('EmailSetting password decrypt failed (APP_KEY changed?), falling back', [
+                'id' => $this->id ?? null,
+            ]);
+            return null;
+        }
+    }
+
+    public function hasUsablePassword(): bool
+    {
+        return $this->password !== null && $this->password !== '';
     }
 
     public function setPasswordAttribute(?string $value): void
