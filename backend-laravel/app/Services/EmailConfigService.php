@@ -73,15 +73,29 @@ class EmailConfigService
         return $host === 'smtp.yandex.com' ? 'smtp.yandex.ru' : $host;
     }
 
+    public static function isYandexConfig(?string $host, ?string $provider = null): bool
+    {
+        return strtolower(trim((string) $provider)) === 'yandex' || self::normalizeHost($host) === 'smtp.yandex.ru';
+    }
+
+    public static function normalizePort(?string $host, int|string|null $port, ?string $provider = null): int
+    {
+        if (self::isYandexConfig($host, $provider)) {
+            return 465;
+        }
+
+        return (int) ($port ?: 587);
+    }
+
     public static function normalizeEncryption(?string $host, int|string|null $port, ?string $encryption): ?string
     {
         $host = self::normalizeHost($host);
-        $port = (int) ($port ?: 587);
+        $port = self::normalizePort($host, $port);
         $encryption = strtolower(trim((string) $encryption));
         $encryption = $encryption === 'none' || $encryption === '' ? null : $encryption;
 
         if ($host === 'smtp.yandex.ru') {
-            return $port === 465 ? 'ssl' : 'tls';
+            return 'ssl';
         }
 
         return $encryption;
@@ -93,11 +107,28 @@ class EmailConfigService
         $username = trim((string) $username);
         $fromAddress = strtolower(trim((string) $fromAddress));
 
-        if ($host === 'smtp.yandex.ru' && str_ends_with($fromAddress, '@yandex.ru')) {
+        if ($host === 'smtp.yandex.ru' && $username === '' && filter_var($fromAddress, FILTER_VALIDATE_EMAIL)) {
             return $fromAddress;
         }
 
         return $username !== '' ? $username : null;
+    }
+
+    public static function normalizePassword(?string $host, ?string $password, ?string $provider = null): ?string
+    {
+        if ($password === null) {
+            return null;
+        }
+
+        $password = trim($password);
+
+        // Пароли приложений Яндекса часто копируют с пробелами/невидимыми разделителями.
+        // SMTP AUTH воспринимает их как часть секрета и возвращает 535.
+        if (self::isYandexConfig($host, $provider)) {
+            $password = preg_replace('/[\s\x{00A0}\x{200B}-\x{200D}\x{FEFF}]+/u', '', $password) ?? $password;
+        }
+
+        return $password !== '' ? $password : null;
     }
 
     public static function isSmtpAuthFailure(
