@@ -39,24 +39,13 @@ class PasswordResetController extends Controller
             $mail->apply();
 
             // Preflight: реальное SMTP-рукопожатие (TCP → EHLO → STARTTLS → AUTH).
-            // Падает с той же ошибкой, что и реальный send, но без рендера письма.
-            try {
-                $mail->preflight();
-            } catch (\Throwable $pe) {
-                if (\App\Services\EmailConfigService::isSmtpAuthFailure($pe)) {
-                    Log::warning('SMTP preflight auth failed, switching to runtime env', [
-                        'phase' => 'preflight', 'err' => $pe->getMessage(),
-                    ]);
-                    $mail->applyRuntimeEnv();
-                    $mail->preflight();
-                } else {
-                    throw $pe;
-                }
-            }
+            // Не подменяем сохранённые админом SMTP-настройки .env-фолбэком: иначе UI
+            // показывает «активно», а восстановление может уйти через другие креды.
+            $mail->preflight();
 
             $status = Password::sendResetLink(['email' => strtolower($data['email'])]);
         } catch (\Throwable $e) {
-            if (\App\Services\EmailConfigService::isSmtpAuthFailure($e)) {
+            if (\App\Services\EmailConfigService::isSmtpAuthFailure($e) && ! $mail->hasActiveStoredSettings()) {
                 try {
                     Log::warning('Password reset SMTP auth failed, retrying with runtime env credentials', [
                         'email' => strtolower($data['email']),
