@@ -218,12 +218,7 @@ jobs:
               exit 1
             fi
             export APP_KEY_VALUE
-            python3 - <<'PY'
-          from pathlib import Path
-          import os
-          path = Path('app-src/.env')
-          path.write_text(path.read_text().replace('__PRESERVE_SERVER_APP_KEY__', os.environ['APP_KEY_VALUE']))
-          PY
+            python3 -c "from pathlib import Path; import os; p=Path('app-src/.env'); p.write_text(p.read_text().replace('__PRESERVE_SERVER_APP_KEY__', os.environ['APP_KEY_VALUE']))"
           fi
 
           ssh -o StrictHostKeyChecking=no \
