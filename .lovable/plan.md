@@ -1,35 +1,73 @@
-Нашёл две вероятные причины текущей проблемы с почтой:
+# Предварительная проверка SMTP перед отправкой письма восстановления
 
-1. На backend сейчас настроен SMTP `smtp.yandex.com:465`, но для Яндекс.Почты обычно нужен `smtp.yandex.ru` и для порта `465` — шифрование `ssl`. В текущей CI-конфигурации шифрование по умолчанию остаётся `tls`, если secret `MAIL_ENCRYPTION` не задан.
-2. `/api/health` в production возвращает `503` из-за проверки Redis: `Class "Redis" not found`. При этом workflow уже деплоит backend с `CACHE_STORE=file`, `QUEUE_CONNECTION=sync`, `SESSION_DRIVER=file`, то есть Redis не должен быть обязательным. Этот 503 может вводить nginx/monitoring/фронт в состояние “backend недоступен”, хотя DB работает.
+## Цель
 
-План исправления:
+Перед `Password::sendResetLink()` выполнять быстрый «ping» SMTP-сервера: открыть соединение, выполнить EHLO, STARTTLS (если нужно) и `AUTH LOGIN`. Если шаг падает — сразу вернуть локализованную ошибку (как сейчас), но без попытки рендеринга/постановки письма в очередь. Это даёт чёткий ответ: «коннект есть/нет, авторизация прошла/нет».
 
-1. Сделать health-check честным для текущего Laravel backend
-   - Убрать обязательную Redis-проверку из `/api/health`, если cache/session/queue не используют Redis.
-   - Оставить обязательными только `api` и `db`.
-   - Добавить безопасную диагностику `cache/session/queue`, чтобы видеть режимы без падения health-check.
+## Что меняется
 
-2. Защитить SMTP-конфигурацию от неправильных сочетаний host/port/encryption
-   - В `.github/workflows/npm-publish.yml` нормализовать Яндекс SMTP:
-     - если host задан как `smtp.yandex.com`, заменить на `smtp.yandex.ru`;
-     - если порт `465` и encryption не задан, ставить `ssl`;
-     - если порт `587` и encryption не задан, ставить `tls`.
-   - Не трогать секреты и не выводить их в логи.
+### 1. `backend-laravel/app/Services/EmailConfigService.php`
 
-3. Устранить расхождение между runtime SMTP и восстановлением пароля
-   - В `PasswordResetController` оставить применение runtime SMTP перед отправкой.
-   - В `Admin\UsersController` добавить такое же применение SMTP перед `Password::sendResetLink`, чтобы приглашения/сбросы от админа использовали актуальные настройки.
+Добавить публичный метод `preflight(): array`, который:
 
-4. Улучшить диагностику почты без раскрытия секретов
-   - В `/api/diag` показывать `encryption`, `from`, `username: set/missing`, `host`, `port`.
-   - Добавить локализацию типичных SMTP-ошибок восстановления пароля: неверный пароль приложения, неправильный host/port/encryption, rejected sender.
+- Берёт текущую активную конфигурацию (БД или runtime env) через уже существующий `apply()`.
+- Читает `config('mail.mailers.smtp')` (host/port/encryption/username/password) — те же значения, что реально использует Mailer.
+- Строит `Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport` руками с теми же параметрами:
+  - `new EsmtpTransport($host, $port, $encryption === 'ssl')`
+  - `->setUsername($username)`, `->setPassword($password)`
+  - `->setLocalDomain($ehlo)` если задан
+- Вызывает `$transport->start()` — это и есть полный handshake: TCP-коннект → EHLO → STARTTLS (для 587/tls) → AUTH.
+- Сразу после успеха — `$transport->stop()`.
+- Оборачивает в try/catch:
+  - На `TransportExceptionInterface` / `\Throwable` пробрасывает исключение наружу, **не глотая**, чтобы контроллер мог отработать существующую логику ретрая на runtime env (`isSmtpAuthFailure`) и локализацию ошибки.
+- Возвращает массив `['host' => ..., 'port' => ..., 'encryption' => ..., 'username' => ..., 'source' => 'db'|'env']` для логов/диагностики.
 
-5. Проверка после правок
-   - Проверить PHP-синтаксис изменённых backend-файлов.
-   - После деплоя проверить:
-     - `https://growth-peak.pro/api/health` должен вернуть `200`;
-     - `https://growth-peak.pro/api/diag` должен показать `smtp.yandex.ru`, `465`, `ssl`, `username: set`;
-     - кнопка “Забыли пароль?” должна либо отправить письмо, либо вернуть точную русскую причину ошибки SMTP.
+Дополнительно: метод `preflightSafe(): array` — обёртка, которая ловит исключение и возвращает `['ok' => false, 'error' => ..., 'raw' => ...]` или `['ok' => true, ...]`. Нужна для диагностического эндпоинта (см. ниже).
 
-Важно: в Lovable Cloud email-доменов сейчас не настроено, но опубликованный сайт `growth-peak.pro` использует внешний Laravel backend и SMTP из GitHub secrets, поэтому чинить нужно именно Laravel/CI-конфигурацию, а не Cloud-почту.
+### 2. `backend-laravel/app/Http/Controllers/Api/Auth/PasswordResetController.php`
+
+В методе `forgot()` перед `Password::sendResetLink`:
+
+```text
+$mail->apply();
+try {
+    $mail->preflight();                 // ← новый шаг
+} catch (\Throwable $e) {
+    if (EmailConfigService::isSmtpAuthFailure($e)) {
+        $mail->applyRuntimeEnv();
+        $mail->preflight();             // повторная проверка на runtime env
+    } else {
+        throw $e;                       // упадёт в существующий catch ниже
+    }
+}
+$status = Password::sendResetLink(...);
+```
+
+Логика ретрая и `localizeSmtpError()` остаются прежними — preflight просто бросает то же исключение, что бросил бы реальный send, только раньше и без полезной нагрузки. Логи получают пометку `phase => 'preflight'` vs `phase => 'send'`.
+
+### 3. (Опционально, но полезно) Диагностический эндпоинт
+
+`POST /api/admin/email/preflight` (защищён существующим superadmin middleware, как `EmailSettingsController`):
+
+- Вызывает `EmailConfigService::preflightSafe()`.
+- Отдаёт `{ ok, host, port, encryption, username, source, error? }`.
+- Позволяет на странице Email Settings нажать кнопку «Проверить соединение» и увидеть результат, не отправляя реальное письмо.
+
+Если нужно — добавлю кнопку в `src/pages/EmailSettingsManagement.tsx` (POST на новый эндпоинт + сонер с результатом). Скажите, нужна ли UI-часть, или достаточно бэкенда + автоматический preflight внутри `forgot()`.
+
+## Что НЕ меняется
+
+- Существующая нормализация Yandex (host/port/encryption/username) — preflight использует уже нормализованный конфиг из `apply()`.
+- Логика ретрая на runtime env при auth-ошибке.
+- `localizeSmtpError()` — та же функция отрабатывает и preflight, и реальный send.
+- Очередь / шаблон `reset.blade.php` / `reset()` метод.
+
+## Почему именно так
+
+- `EsmtpTransport::start()` — это нативный путь Symfony Mailer; он выполняет ровно то же рукопожатие, что и реальный send, включая AUTH. Если сервер примет креды для start(), он примет их и для send().
+- Не используем `fsockopen`/`stream_socket_client` вручную: это даст «коннект есть», но не проверит TLS/AUTH — то есть не закроет основную боль (auth 535).
+- Preflight быстрый (~100–500 мс) и выполняется до постановки в очередь, поэтому ошибка возвращается синхронно в HTTP-ответе.
+
+## Вопрос к вам
+
+Нужна ли UI-кнопка «Проверить соединение» в админке Email Settings (пункт 3), или ограничиться автоматическим preflight внутри `/api/auth/forgot-password` (пункты 1–2)?

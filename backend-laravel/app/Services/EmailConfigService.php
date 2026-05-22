@@ -201,4 +201,69 @@ class EmailConfigService
             }
         );
     }
+
+    /**
+     * Открывает реальное SMTP-соединение (TCP → EHLO → STARTTLS → AUTH) и сразу закрывает.
+     * Бросает то же исключение Symfony Mailer, что и реальный send.
+     *
+     * @return array{host:string,port:int,encryption:?string,username:?string}
+     */
+    public function preflight(): array
+    {
+        $cfg = config('mail.mailers.smtp', []);
+        $host = (string) ($cfg['host'] ?? '');
+        $port = (int) ($cfg['port'] ?? 0);
+        $encryption = $cfg['encryption'] ?? null;
+        $username = $cfg['username'] ?? null;
+        $password = $cfg['password'] ?? null;
+        $ehlo = $cfg['local_domain'] ?? null;
+
+        if ($host === '' || $port === 0) {
+            throw new \RuntimeException('SMTP не сконфигурирован: пустой host или port.');
+        }
+
+        $tls = strtolower((string) $encryption) === 'ssl';
+
+        $transport = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport($host, $port, $tls);
+
+        if ($username !== null && $username !== '') {
+            $transport->setUsername($username);
+        }
+        if ($password !== null && $password !== '') {
+            $transport->setPassword($password);
+        }
+        if ($ehlo) {
+            $transport->setLocalDomain($ehlo);
+        }
+
+        try {
+            $transport->start();
+        } finally {
+            try { $transport->stop(); } catch (\Throwable $e) { /* ignore */ }
+        }
+
+        return [
+            'host' => $host,
+            'port' => $port,
+            'encryption' => $encryption,
+            'username' => $username,
+        ];
+    }
+
+    /**
+     * Безопасная диагностическая обёртка: не бросает исключение.
+     *
+     * @return array{ok:bool,host?:string,port?:int,encryption?:?string,username?:?string,error?:string}
+     */
+    public function preflightSafe(): array
+    {
+        try {
+            return ['ok' => true] + $this->preflight();
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
 }

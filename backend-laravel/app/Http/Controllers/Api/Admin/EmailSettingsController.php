@@ -111,6 +111,26 @@ class EmailSettingsController extends Controller
         }
     }
 
+    /**
+     * Preflight: открыть SMTP-соединение и выполнить AUTH без отправки письма.
+     */
+    public function preflight(Request $request): JsonResponse
+    {
+        $this->ensureSuperadmin($request);
+
+        $this->mail->apply();
+        $result = $this->mail->preflightSafe();
+
+        if (!($result['ok'] ?? false)) {
+            $result['error'] = $this->localizeMailError($result['error'] ?? '');
+            return response()->json($result, 422);
+        }
+
+        return response()->json($result);
+    }
+
+
+
     public function activate(Request $request): JsonResponse
     {
         $this->ensureSuperadmin($request);

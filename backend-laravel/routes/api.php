@@ -135,6 +135,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     Route::get('/admin/email-settings', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'index']);
     Route::put('/admin/email-settings', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'update']);
     Route::post('/admin/email-settings/test', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'test']);
+    Route::post('/admin/email-settings/preflight', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'preflight']);
     Route::post('/admin/email-settings/activate', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'activate']);
 
 
