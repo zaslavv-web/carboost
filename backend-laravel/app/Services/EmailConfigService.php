@@ -156,7 +156,7 @@ class EmailConfigService
         }
 
         $host = self::normalizeHost($setting->host);
-        $port = (int) $setting->port;
+        $port = self::normalizePort($host, $setting->port, $setting->provider);
         $encryption = self::normalizeEncryption($host, $port, $setting->encryption);
 
         Config::set('mail.default', 'smtp');
@@ -166,7 +166,7 @@ class EmailConfigService
             'port' => $port,
             'encryption' => $encryption,
             'username' => self::normalizeUsername($host, $setting->username, $setting->from_address),
-            'password' => $setting->password,
+            'password' => self::normalizePassword($host, $setting->password, $setting->provider),
             'timeout' => null,
             'local_domain' => RuntimeEnv::get('MAIL_EHLO_DOMAIN'),
         ]);
@@ -208,7 +208,7 @@ class EmailConfigService
             return;
         }
 
-        $port = (int) (RuntimeEnv::get('MAIL_PORT', '587') ?: 587);
+        $port = self::normalizePort($host, RuntimeEnv::get('MAIL_PORT', '587'));
         $encryption = self::normalizeEncryption($host, $port, RuntimeEnv::get('MAIL_ENCRYPTION'));
 
         Config::set('mail.default', RuntimeEnv::get('MAIL_MAILER', 'smtp'));
@@ -218,7 +218,7 @@ class EmailConfigService
             'port' => $port,
             'encryption' => $encryption,
             'username' => self::normalizeUsername($host, RuntimeEnv::get('MAIL_USERNAME'), $from),
-            'password' => RuntimeEnv::get('MAIL_PASSWORD'),
+            'password' => self::normalizePassword($host, RuntimeEnv::get('MAIL_PASSWORD')),
             'timeout' => null,
             'local_domain' => RuntimeEnv::get('MAIL_EHLO_DOMAIN'),
         ]);
