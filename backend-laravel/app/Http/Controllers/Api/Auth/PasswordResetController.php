@@ -54,10 +54,10 @@ class PasswordResetController extends Controller
                     ], 422);
                 }
             } else {
-            Log::error('Password reset email failed', ['email' => strtolower($data['email']), 'exception' => $e]);
-            return response()->json([
-                'error' => $this->localizeSmtpError($e->getMessage()),
-            ], 422);
+                Log::error('Password reset email failed', ['email' => strtolower($data['email']), 'exception' => $e]);
+                return response()->json([
+                    'error' => $this->localizeSmtpError($e->getMessage()),
+                ], 422);
             }
         }
 
