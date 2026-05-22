@@ -47,9 +47,9 @@ class PasswordResetController extends Controller
 
             $status = Password::sendResetLink(['email' => strtolower($data['email'])]);
         } catch (\Throwable $e) {
-            if (\App\Services\EmailConfigService::isSmtpAuthFailure($e)) {
+            if (\App\Services\EmailConfigService::shouldFallbackToRuntimeEnv($e)) {
                 try {
-                    Log::warning('Password reset SMTP auth failed, retrying with runtime env credentials', [
+                    Log::warning('Password reset stored SMTP failed, retrying with runtime env credentials', [
                         'email' => strtolower($data['email']),
                         'err' => $e->getMessage(),
                     ]);

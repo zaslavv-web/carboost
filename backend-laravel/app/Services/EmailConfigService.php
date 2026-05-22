@@ -140,6 +140,14 @@ class EmailConfigService
         return (bool) preg_match('/authentication|auth|login|password|535|534|invalid user or password/i', $e->getMessage());
     }
 
+    public static function shouldFallbackToRuntimeEnv(\Throwable $e): bool
+    {
+        $message = $e->getMessage();
+
+        return self::isSmtpAuthFailure($e)
+            || (bool) preg_match('/неполные|расшифровывается|пароль больше не расшифровывается|Сохраните SMTP-пароль/i', $message);
+    }
+
     public function hasActiveStoredSettings(): bool
     {
         $setting = $this->active();
