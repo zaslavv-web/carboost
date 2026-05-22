@@ -85,16 +85,12 @@ async function request<T>(
         body && typeof body === "object" && body.errors && typeof body.errors === "object"
           ? Object.values(body.errors).flat().filter(Boolean).join("\n")
           : "";
-      const smtpDetails =
-        body && typeof body === "object" && body.smtp && typeof body.smtp === "object"
-          ? `\nSMTP: ${body.smtp.host || "host?"}:${body.smtp.port || "port?"}, ${body.smtp.encryption || "none"}, login ${body.smtp.username || "missing"}`
-          : "";
       const message =
         validationErrors ||
         (body && typeof body === "object" && (body.error || body.message)) ||
         res.statusText ||
         "Ошибка запроса";
-      return { data: null, error: { message: `${String(message)}${smtpDetails}`, status: res.status } };
+      return { data: null, error: { message: String(message), status: res.status } };
     }
     return { data: body as T, error: null };
   } catch (e: any) {
