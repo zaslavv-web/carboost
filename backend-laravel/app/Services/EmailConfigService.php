@@ -67,6 +67,26 @@ class EmailConfigService
         return EmailSetting::active()->latest('updated_at')->first();
     }
 
+    public static function normalizeHost(?string $host): string
+    {
+        $host = strtolower(trim((string) $host));
+        return $host === 'smtp.yandex.com' ? 'smtp.yandex.ru' : $host;
+    }
+
+    public static function normalizeEncryption(?string $host, int|string|null $port, ?string $encryption): ?string
+    {
+        $host = self::normalizeHost($host);
+        $port = (int) ($port ?: 587);
+        $encryption = strtolower(trim((string) $encryption));
+        $encryption = $encryption === 'none' || $encryption === '' ? null : $encryption;
+
+        if ($host === 'smtp.yandex.ru') {
+            return $port === 465 ? 'ssl' : 'tls';
+        }
+
+        return $encryption;
+    }
+
     public function apply(?EmailSetting $setting = null): void
     {
         $setting ??= $this->active();
@@ -78,12 +98,16 @@ class EmailConfigService
             return;
         }
 
+        $host = self::normalizeHost($setting->host);
+        $port = (int) $setting->port;
+        $encryption = self::normalizeEncryption($host, $port, $setting->encryption);
+
         Config::set('mail.default', 'smtp');
         Config::set('mail.mailers.smtp', [
             'transport' => 'smtp',
-            'host' => $setting->host,
-            'port' => (int) $setting->port,
-            'encryption' => $setting->encryption ?: null,
+            'host' => $host,
+            'port' => $port,
+            'encryption' => $encryption,
             'username' => $setting->username ?: null,
             'password' => $setting->password,
             'timeout' => null,
