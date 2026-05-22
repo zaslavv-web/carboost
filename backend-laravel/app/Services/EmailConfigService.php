@@ -67,9 +67,12 @@ class EmailConfigService
         return EmailSetting::active()->latest('updated_at')->first();
     }
 
-    public static function normalizeHost(?string $host): string
+    public static function normalizeHost(?string $host, ?string $provider = null): string
     {
         $host = strtolower(trim((string) $host));
+        if (strtolower(trim((string) $provider)) === 'yandex' && $host === '') {
+            return 'smtp.yandex.ru';
+        }
         return $host === 'smtp.yandex.com' ? 'smtp.yandex.ru' : $host;
     }
 
@@ -150,12 +153,16 @@ class EmailConfigService
 
         // Если БД-настройки нет, неактивна, либо пароль не расшифровывается (APP_KEY сменился) —
         // используем SMTP из окружения, чтобы письма продолжали ходить.
-        if (!$setting || !$setting->is_active || !$setting->host || !$setting->from_address || !$setting->hasUsablePassword()) {
+        if ($setting && $setting->is_active && (!$setting->host || !$setting->from_address || !$setting->hasUsablePassword())) {
+            throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново.');
+        }
+
+        if (!$setting || !$setting->is_active) {
             $this->applyRuntimeEnv();
             return;
         }
 
-        $host = self::normalizeHost($setting->host);
+        $host = self::normalizeHost($setting->host, $setting->provider);
         $port = self::normalizePort($host, $setting->port, $setting->provider);
         $encryption = self::normalizeEncryption($host, $port, $setting->encryption);
 
@@ -228,6 +235,46 @@ class EmailConfigService
         ]);
 
         $this->forgetResolvedMailers();
+    }
+
+    public function autoRepairActiveSettings(): ?EmailSetting
+    {
+        $setting = $this->active();
+        if (!$setting) {
+            return null;
+        }
+
+        $host = self::normalizeHost($setting->host, $setting->provider);
+        $port = self::normalizePort($host, $setting->port, $setting->provider);
+        $encryption = self::normalizeEncryption($host, $port, $setting->encryption);
+        $username = self::normalizeUsername($host, $setting->username, $setting->from_address) ?: '';
+        $password = self::normalizePassword($host, $setting->password, $setting->provider);
+
+        $dirty = $setting->host !== $host
+            || (int) $setting->port !== $port
+            || ($setting->encryption ?: null) !== $encryption
+            || $setting->username !== $username;
+
+        if ($dirty) {
+            $setting->forceFill([
+                'host' => $host,
+                'port' => $port,
+                'encryption' => $encryption,
+                'username' => $username,
+                'last_test_error' => null,
+            ]);
+        }
+
+        if ($password !== null && $password !== $setting->password) {
+            $setting->password = $password;
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $setting->save();
+        }
+
+        return $setting->fresh();
     }
 
     public function sendTest(EmailSetting $setting, string $to): void
