@@ -149,55 +149,60 @@ jobs:
           fi
           MAIL_FROM_ADDRESS_VALUE="${MAIL_FROM_ADDRESS_SECRET:-noreply@${APP_HOST_VALUE}}"
           MAIL_FROM_NAME_VALUE="${MAIL_FROM_NAME_SECRET:-Пик Роста}"
+          export APP_KEY_VALUE APP_URL_VALUE APP_HOST_VALUE GOOGLE_REDIRECT_URI_VALUE \
+            DB_CONNECTION_VALUE DB_PORT_VALUE MAIL_HOST_VALUE MAIL_PORT_VALUE \
+            MAIL_ENCRYPTION_VALUE MAIL_FROM_ADDRESS_VALUE MAIL_FROM_NAME_VALUE
 
-          cat > app-src/.env << EOF
-          APP_NAME="Пик Роста"
-          APP_ENV=production
-          APP_KEY=${APP_KEY_VALUE}
-          APP_DEBUG=false
-          APP_URL=${APP_URL_VALUE}
-          APP_TIMEZONE=UTC
-          APP_LOCALE=ru
+          python3 <<'PY'
+          import os
+          from pathlib import Path
 
-          LOG_CHANNEL=stack
-          LOG_LEVEL=info
+          def env_quote(value):
+              value = '' if value is None else str(value)
+              return '"' + value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n') + '"'
 
-          DB_CONNECTION=${DB_CONNECTION_VALUE}
-          DB_HOST=${DB_HOST_SECRET}
-          DB_PORT=${DB_PORT_VALUE}
-          DB_DATABASE=${DB_DATABASE_SECRET}
-          DB_USERNAME=${DB_USERNAME_SECRET}
-          DB_PASSWORD=${DB_PASSWORD_SECRET}
+          keys = {
+              'APP_NAME': 'Пик Роста',
+              'APP_ENV': 'production',
+              'APP_KEY': os.environ['APP_KEY_VALUE'],
+              'APP_DEBUG': 'false',
+              'APP_URL': os.environ['APP_URL_VALUE'],
+              'APP_TIMEZONE': 'UTC',
+              'APP_LOCALE': 'ru',
+              'LOG_CHANNEL': 'stack',
+              'LOG_LEVEL': 'info',
+              'DB_CONNECTION': os.environ['DB_CONNECTION_VALUE'],
+              'DB_HOST': os.environ.get('DB_HOST_SECRET', ''),
+              'DB_PORT': os.environ['DB_PORT_VALUE'],
+              'DB_DATABASE': os.environ.get('DB_DATABASE_SECRET', ''),
+              'DB_USERNAME': os.environ.get('DB_USERNAME_SECRET', ''),
+              'DB_PASSWORD': os.environ.get('DB_PASSWORD_SECRET', ''),
+              'CACHE_STORE': 'file',
+              'QUEUE_CONNECTION': 'sync',
+              'SESSION_DRIVER': 'file',
+              'FILESYSTEM_DISK': 'local',
+              'SANCTUM_STATEFUL_DOMAINS': f"{os.environ['APP_HOST_VALUE']},www.{os.environ['APP_HOST_VALUE']},localhost:8080",
+              'SESSION_DOMAIN': f".{os.environ['APP_HOST_VALUE']}",
+              'AI_API_URL': 'https://api.openai.com/v1/chat/completions',
+              'AI_API_KEY': os.environ.get('AI_API_KEY_SECRET', ''),
+              'AI_MODEL': 'gpt-4o-mini',
+              'GOOGLE_CLIENT_ID': os.environ.get('GOOGLE_CLIENT_ID_SECRET', ''),
+              'GOOGLE_CLIENT_SECRET': os.environ.get('GOOGLE_CLIENT_SECRET_SECRET', ''),
+              'GOOGLE_REDIRECT_URI': os.environ['GOOGLE_REDIRECT_URI_VALUE'],
+              'FRONTEND_URL': os.environ['APP_URL_VALUE'],
+              'APP_FRONTEND_URL': os.environ['APP_URL_VALUE'],
+              'MAIL_MAILER': 'smtp',
+              'MAIL_HOST': os.environ['MAIL_HOST_VALUE'],
+              'MAIL_PORT': os.environ['MAIL_PORT_VALUE'],
+              'MAIL_USERNAME': os.environ.get('MAIL_USERNAME_SECRET', ''),
+              'MAIL_PASSWORD': os.environ.get('MAIL_PASSWORD_SECRET', ''),
+              'MAIL_ENCRYPTION': os.environ['MAIL_ENCRYPTION_VALUE'],
+              'MAIL_FROM_ADDRESS': os.environ['MAIL_FROM_ADDRESS_VALUE'],
+              'MAIL_FROM_NAME': os.environ['MAIL_FROM_NAME_VALUE'],
+          }
 
-          CACHE_STORE=file
-          QUEUE_CONNECTION=sync
-          SESSION_DRIVER=file
-
-          FILESYSTEM_DISK=local
-
-          SANCTUM_STATEFUL_DOMAINS=${APP_HOST_VALUE},www.${APP_HOST_VALUE},localhost:8080
-          SESSION_DOMAIN=.${APP_HOST_VALUE}
-
-          AI_API_URL=https://api.openai.com/v1/chat/completions
-          AI_API_KEY=${AI_API_KEY_SECRET}
-          AI_MODEL=gpt-4o-mini
-
-          GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID_SECRET}
-          GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET_SECRET}
-          GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI_VALUE}
-
-          FRONTEND_URL=${APP_URL_VALUE}
-          APP_FRONTEND_URL=${APP_URL_VALUE}
-
-          MAIL_MAILER=smtp
-          MAIL_HOST=${MAIL_HOST_VALUE}
-          MAIL_PORT=${MAIL_PORT_VALUE}
-          MAIL_USERNAME=${MAIL_USERNAME_SECRET}
-          MAIL_PASSWORD=${MAIL_PASSWORD_SECRET}
-          MAIL_ENCRYPTION=${MAIL_ENCRYPTION_VALUE}
-          MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS_VALUE}
-          MAIL_FROM_NAME="${MAIL_FROM_NAME_VALUE}"
-          EOF
+          Path('app-src/.env').write_text('\n'.join(f'{k}={env_quote(v)}' for k, v in keys.items()) + '\n')
+          PY
 
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
