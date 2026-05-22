@@ -237,6 +237,46 @@ class EmailConfigService
         $this->forgetResolvedMailers();
     }
 
+    public function autoRepairActiveSettings(): ?EmailSetting
+    {
+        $setting = $this->active();
+        if (!$setting) {
+            return null;
+        }
+
+        $host = self::normalizeHost($setting->host, $setting->provider);
+        $port = self::normalizePort($host, $setting->port, $setting->provider);
+        $encryption = self::normalizeEncryption($host, $port, $setting->encryption);
+        $username = self::normalizeUsername($host, $setting->username, $setting->from_address) ?: '';
+        $password = self::normalizePassword($host, $setting->password, $setting->provider);
+
+        $dirty = $setting->host !== $host
+            || (int) $setting->port !== $port
+            || ($setting->encryption ?: null) !== $encryption
+            || $setting->username !== $username;
+
+        if ($dirty) {
+            $setting->forceFill([
+                'host' => $host,
+                'port' => $port,
+                'encryption' => $encryption,
+                'username' => $username,
+                'last_test_error' => null,
+            ]);
+        }
+
+        if ($password !== null && $password !== $setting->password) {
+            $setting->password = $password;
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $setting->save();
+        }
+
+        return $setting->fresh();
+    }
+
     public function sendTest(EmailSetting $setting, string $to): void
     {
         $this->apply($setting);
