@@ -97,11 +97,7 @@ jobs:
           MAIL_FROM_ADDRESS_SECRET: ${{ secrets.MAIL_FROM_ADDRESS }}
           MAIL_FROM_NAME_SECRET: ${{ secrets.MAIL_FROM_NAME }}
         run: |
-          if [[ -z "$APP_KEY_SECRET" ]]; then
-            echo "APP_KEY GitHub secret is required and must stay stable between deploys. Reusing a generated key breaks encrypted SMTP settings."
-            exit 1
-          fi
-
+          APP_KEY_VALUE="${APP_KEY_SECRET:-__PRESERVE_SERVER_APP_KEY__}"
           APP_URL_VALUE="$APP_URL_SECRET"
           if [[ "$APP_URL_VALUE" != http://* && "$APP_URL_VALUE" != https://* ]]; then
             APP_URL_VALUE="https://$APP_URL_VALUE"
@@ -157,7 +153,7 @@ jobs:
           cat > app-src/.env << EOF
           APP_NAME="Пик Роста"
           APP_ENV=production
-          APP_KEY=${APP_KEY_SECRET}
+          APP_KEY=${APP_KEY_VALUE}
           APP_DEBUG=false
           APP_URL=${APP_URL_VALUE}
           APP_TIMEZONE=UTC
@@ -210,6 +206,26 @@ jobs:
 
       - name: Deploy backend
         run: |
+          APP_KEY_VALUE="$(ssh -o StrictHostKeyChecking=no \
+              -o HostKeyAlgorithms=+ssh-rsa \
+              -o PubkeyAcceptedKeyTypes=+ssh-rsa \
+              ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+              "if [ -f ${{ secrets.TARGET_DIR }}/backend/.env ]; then awk '/^APP_KEY=/{sub(/^APP_KEY=/,\"\"); print; exit}' ${{ secrets.TARGET_DIR }}/backend/.env; fi")"
+
+          if grep -q '^APP_KEY=__PRESERVE_SERVER_APP_KEY__$' app-src/.env; then
+            if [[ -z "$APP_KEY_VALUE" ]]; then
+              echo "APP_KEY GitHub secret is missing and no existing server APP_KEY was found."
+              exit 1
+            fi
+            export APP_KEY_VALUE
+            python3 - <<'PY'
+          from pathlib import Path
+          import os
+          path = Path('app-src/.env')
+          path.write_text(path.read_text().replace('__PRESERVE_SERVER_APP_KEY__', os.environ['APP_KEY_VALUE']))
+          PY
+          fi
+
           ssh -o StrictHostKeyChecking=no \
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
