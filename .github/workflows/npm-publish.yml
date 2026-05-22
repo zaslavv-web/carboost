@@ -98,6 +98,7 @@ jobs:
           MAIL_FROM_NAME_SECRET: ${{ secrets.MAIL_FROM_NAME }}
         run: |
           APP_KEY_VALUE="${APP_KEY_SECRET:-__PRESERVE_SERVER_APP_KEY__}"
+          APP_CIPHER_VALUE="aes-256-cbc"
           APP_URL_VALUE="$APP_URL_SECRET"
           if [[ "$APP_URL_VALUE" != http://* && "$APP_URL_VALUE" != https://* ]]; then
             APP_URL_VALUE="https://$APP_URL_VALUE"
@@ -149,7 +150,7 @@ jobs:
           fi
           MAIL_FROM_ADDRESS_VALUE="${MAIL_FROM_ADDRESS_SECRET:-noreply@${APP_HOST_VALUE}}"
           MAIL_FROM_NAME_VALUE="${MAIL_FROM_NAME_SECRET:-Пик Роста}"
-          export APP_KEY_VALUE APP_URL_VALUE APP_HOST_VALUE GOOGLE_REDIRECT_URI_VALUE \
+          export APP_KEY_VALUE APP_CIPHER_VALUE APP_URL_VALUE APP_HOST_VALUE GOOGLE_REDIRECT_URI_VALUE \
             DB_CONNECTION_VALUE DB_PORT_VALUE MAIL_HOST_VALUE MAIL_PORT_VALUE \
             MAIL_ENCRYPTION_VALUE MAIL_FROM_ADDRESS_VALUE MAIL_FROM_NAME_VALUE
 
@@ -165,6 +166,7 @@ jobs:
               'APP_NAME': 'Пик Роста',
               'APP_ENV': 'production',
               'APP_KEY': os.environ['APP_KEY_VALUE'],
+              'APP_CIPHER': os.environ['APP_CIPHER_VALUE'],
               'APP_DEBUG': 'false',
               'APP_URL': os.environ['APP_URL_VALUE'],
               'APP_TIMEZONE': 'UTC',
@@ -225,6 +227,25 @@ jobs:
             export APP_KEY_VALUE
             python3 -c "from pathlib import Path; import os; p=Path('app-src/.env'); p.write_text(p.read_text().replace('__PRESERVE_SERVER_APP_KEY__', os.environ['APP_KEY_VALUE']))"
           fi
+
+          python3 - <<'PY'
+          import os, base64, sys
+
+          key = os.environ['APP_KEY_VALUE']
+          if key.startswith('base64:'):
+              try:
+                  raw = base64.b64decode(key[7:], validate=True)
+              except Exception as exc:
+                  sys.stderr.write(f'Invalid APP_KEY base64 value: {exc}\n')
+                  sys.exit(1)
+          else:
+              raw = key.encode('utf-8')
+
+          if len(raw) not in (16, 32):
+              sys.stderr.write(f'APP_KEY must decode to 16 or 32 bytes, got {len(raw)} bytes\n')
+              sys.stderr.write('Set a valid Laravel APP_KEY in GitHub secret APP_KEY or in the server .env file\n')
+              sys.exit(1)
+          PY
 
           ssh -o StrictHostKeyChecking=no \
               -o HostKeyAlgorithms=+ssh-rsa \
