@@ -78,7 +78,7 @@ class PasswordResetController extends Controller
     private function localizeSmtpError(string $message): string
     {
         if (preg_match('/authentication|535|534|invalid user or password|auth/i', $message)) {
-            return 'SMTP-сервер отклонил логин или пароль. Для Яндекс.Почты используйте пароль приложения, host smtp.yandex.ru, порт 465 с шифрованием ssl.';
+            return 'SMTP-сервер отклонил логин или пароль. Яндекс-настройки автоисправлены до smtp.yandex.ru:465/ssl; проверьте, что это именно пароль приложения, а в Яндекс → Почта → Все настройки → Почтовые программы включены IMAP и пароли приложений.';
         }
         if (preg_match('/connection|timed? out|refused|could not connect|network|stream_socket|TLS|SSL/i', $message)) {
             return 'Не удалось подключиться к SMTP-серверу. Проверьте host, port и encryption (465/ssl или 587/tls).';

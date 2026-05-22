@@ -49,8 +49,9 @@ class EmailSettingsController extends Controller
             }
 
             $host = EmailConfigService::normalizeHost($data['host']);
-            $port = (int) $data['port'];
+            $port = EmailConfigService::normalizePort($host, $data['port'], $data['provider']);
             $encryption = EmailConfigService::normalizeEncryption($host, $port, $data['encryption'] ?? null);
+            $username = EmailConfigService::normalizeUsername($host, $data['username'], $data['from_address']);
 
             $setting ??= new EmailSetting();
             $setting->fill([
@@ -58,7 +59,7 @@ class EmailSettingsController extends Controller
                 'host' => $host,
                 'port' => $port,
                 'encryption' => $encryption,
-                'username' => $data['username'],
+                'username' => $username ?: '',
                 'from_address' => strtolower($data['from_address']),
                 'from_name' => $data['from_name'],
                 'reply_to_address' => isset($data['reply_to_address']) && $data['reply_to_address'] !== ''
@@ -69,7 +70,7 @@ class EmailSettingsController extends Controller
             ]);
 
             if (!empty($data['password'])) {
-                $setting->password = $data['password'];
+                $setting->password = EmailConfigService::normalizePassword($host, $data['password'], $data['provider']);
             }
 
             $setting->save();
@@ -177,7 +178,7 @@ class EmailSettingsController extends Controller
     private function localizeMailError(string $message): string
     {
         if (preg_match('/authentication|auth|login|password|535|534/i', $message)) {
-            return 'SMTP-сервер отклонил логин или пароль. Для Яндекс.Почты используйте пароль приложения, host smtp.yandex.ru, порт 465 с шифрованием ssl.';
+            return 'SMTP-сервер отклонил логин или пароль. Яндекс-настройки автоисправлены до smtp.yandex.ru:465/ssl; проверьте, что это именно пароль приложения, а в Яндекс → Почта → Все настройки → Почтовые программы включены IMAP и пароли приложений.';
         }
         if (preg_match('/connection|timed out|refused|could not connect|network/i', $message)) {
             return 'Не удалось подключиться к SMTP-серверу. Проверьте host, port и шифрование: для Яндекс.Почты smtp.yandex.ru, 465, ssl.';
