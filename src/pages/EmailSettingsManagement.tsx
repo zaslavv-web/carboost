@@ -68,7 +68,7 @@ const EmailSettingsManagement = () => {
 
   useEffect(() => {
     if (!setting) return;
-    setForm({
+    setForm(normalizeYandexSmtp({
       provider: setting.provider || "custom",
       host: setting.host || "",
       port: setting.port || 587,
@@ -79,7 +79,7 @@ const EmailSettingsManagement = () => {
       from_name: setting.from_name || "Career Track",
       reply_to_address: setting.reply_to_address || "",
       is_active: setting.is_active,
-    });
+    }));
     setTestTo(setting.from_address || "");
   }, [setting]);
 
