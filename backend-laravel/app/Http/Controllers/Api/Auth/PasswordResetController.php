@@ -23,6 +23,18 @@ class PasswordResetController extends Controller
     /** POST /api/auth/forgot-password { email, redirectTo? } */
     public function forgot(Request $request): JsonResponse
     {
+        // Accept both form-encoded and raw JSON bodies: merge JSON payload
+        // into the request input if present. Some clients may send raw JSON
+        // without proper Content-Type, so decoding here is a safe fallback.
+        try {
+            $json = json_decode((string) $request->getContent(), true);
+            if (is_array($json)) {
+                $request->merge($json);
+            }
+        } catch (\Throwable $e) {
+            // ignore JSON parse errors and continue with existing input
+        }
+
         $data = $request->validate([
             'email'      => ['required', 'email'],
             'redirectTo' => ['nullable', 'string', 'url'],
@@ -99,7 +111,7 @@ class PasswordResetController extends Controller
         $data = $request->validate([
             'token'    => ['required', 'string'],
             'email'    => ['required', 'email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed:password_confirmation'],
+            'password' => ['required', 'string', 'min:8'],
         ]);
 
         $status = Password::reset(
