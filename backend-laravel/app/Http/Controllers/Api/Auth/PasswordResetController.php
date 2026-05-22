@@ -37,6 +37,7 @@ class PasswordResetController extends Controller
 
         try {
             $mail->apply();
+            $smtp = $mail->currentSmtpSummary();
 
             // Preflight: реальное SMTP-рукопожатие (TCP → EHLO → STARTTLS → AUTH).
             // Не подменяем сохранённые админом SMTP-настройки .env-фолбэком: иначе UI
@@ -58,12 +59,14 @@ class PasswordResetController extends Controller
                     Log::error('Password reset email runtime retry failed', ['email' => strtolower($data['email']), 'exception' => $retryException]);
                     return response()->json([
                         'error' => $this->localizeSmtpError($retryException->getMessage()),
+                        'smtp' => $mail->currentSmtpSummary(),
                     ], 422);
                 }
             } else {
                 Log::error('Password reset email failed', ['email' => strtolower($data['email']), 'exception' => $e]);
                 return response()->json([
                     'error' => $this->localizeSmtpError($e->getMessage()),
+                    'smtp' => $smtp ?? $mail->currentSmtpSummary(),
                 ], 422);
             }
         }
