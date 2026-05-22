@@ -40,14 +40,25 @@ Route::get('/health', function () {
         $checks['db'] = 'error: ' . $e->getMessage();
     }
 
-    try {
-        Redis::connection()->ping();
-        $checks['redis'] = 'ok';
-    } catch (\Throwable $e) {
-        $checks['redis'] = 'error: ' . $e->getMessage();
+    // Redis опционален: текущий деплой использует file-кеш/сессии и sync-очередь.
+    // Проверяем Redis, только если cache/session/queue действительно используют redis.
+    $usesRedis = in_array('redis', [
+        (string) config('cache.default'),
+        (string) config('session.driver'),
+        (string) config('queue.default'),
+    ], true);
+    if ($usesRedis) {
+        try {
+            Redis::connection()->ping();
+            $checks['redis'] = 'ok';
+        } catch (\Throwable $e) {
+            $checks['redis'] = 'error: ' . $e->getMessage();
+        }
+    } else {
+        $checks['redis'] = 'skipped';
     }
 
-    $ok = $checks['db'] === 'ok' && $checks['redis'] === 'ok';
+    $ok = $checks['db'] === 'ok' && ($checks['redis'] === 'ok' || $checks['redis'] === 'skipped');
     return response()->json(['status' => $ok ? 'ok' : 'degraded', 'checks' => $checks], $ok ? 200 : 503);
 });
 
