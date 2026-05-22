@@ -141,7 +141,9 @@ jobs:
           fi
           MAIL_PORT_VALUE="${MAIL_PORT_SECRET:-587}"
           # Автодетект шифрования по порту, если secret MAIL_ENCRYPTION не задан
-          if [[ -n "$MAIL_ENCRYPTION_SECRET" ]]; then
+          if [[ "$MAIL_HOST_VALUE" == "smtp.yandex.ru" && "$MAIL_PORT_VALUE" == "465" ]]; then
+            MAIL_ENCRYPTION_VALUE="ssl"
+          elif [[ -n "$MAIL_ENCRYPTION_SECRET" ]]; then
             MAIL_ENCRYPTION_VALUE="$MAIL_ENCRYPTION_SECRET"
           elif [[ "$MAIL_PORT_VALUE" == "465" ]]; then
             MAIL_ENCRYPTION_VALUE="ssl"

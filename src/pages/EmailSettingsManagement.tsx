@@ -41,6 +41,13 @@ const emptyForm = {
   is_active: true,
 };
 
+const normalizeYandexSmtp = (next: typeof emptyForm) => {
+  const host = next.host.trim().toLowerCase() === "smtp.yandex.com" ? "smtp.yandex.ru" : next.host.trim();
+  return host.toLowerCase() === "smtp.yandex.ru" && Number(next.port) === 465
+    ? { ...next, host, encryption: "ssl" as const }
+    : { ...next, host };
+};
+
 const EmailSettingsManagement = () => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(emptyForm);
@@ -61,7 +68,7 @@ const EmailSettingsManagement = () => {
 
   useEffect(() => {
     if (!setting) return;
-    setForm({
+    setForm(normalizeYandexSmtp({
       provider: setting.provider || "custom",
       host: setting.host || "",
       port: setting.port || 587,
@@ -72,13 +79,13 @@ const EmailSettingsManagement = () => {
       from_name: setting.from_name || "Career Track",
       reply_to_address: setting.reply_to_address || "",
       is_active: setting.is_active,
-    });
+    }));
     setTestTo(setting.from_address || "");
   }, [setting]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = { ...form, reply_to_address: form.reply_to_address || null };
+      const payload = { ...normalizeYandexSmtp(form), reply_to_address: form.reply_to_address || null };
       const { data, error } = await laravel.put<{ setting: EmailSetting }>("/admin/email-settings", payload);
       if (error) throw new Error(error.message);
       return data;
@@ -109,7 +116,7 @@ const EmailSettingsManagement = () => {
 
   const applyPreset = (provider: string) => {
     const preset = presets[provider];
-    setForm((prev) => ({
+    setForm((prev) => normalizeYandexSmtp({
       ...prev,
       provider,
       host: preset?.host ?? prev.host,
@@ -158,11 +165,11 @@ const EmailSettingsManagement = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2 md:col-span-2"><Label>Host</Label><Input value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="smtp.example.com" /></div>
-            <div className="space-y-2"><Label>Port</Label><Input type="number" value={form.port} onChange={(e) => setForm({ ...form, port: Number(e.target.value) })} /></div>
+            <div className="space-y-2 md:col-span-2"><Label>Host</Label><Input value={form.host} onChange={(e) => setForm(normalizeYandexSmtp({ ...form, host: e.target.value }))} placeholder="smtp.example.com" /></div>
+            <div className="space-y-2"><Label>Port</Label><Input type="number" value={form.port} onChange={(e) => setForm(normalizeYandexSmtp({ ...form, port: Number(e.target.value) }))} /></div>
             <div className="space-y-2">
               <Label>Шифрование</Label>
-              <Select value={form.encryption} onValueChange={(v: "ssl" | "tls" | "none") => setForm({ ...form, encryption: v })}>
+              <Select value={form.encryption} onValueChange={(v: "ssl" | "tls" | "none") => setForm(normalizeYandexSmtp({ ...form, encryption: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="tls">TLS</SelectItem><SelectItem value="ssl">SSL</SelectItem><SelectItem value="none">Без шифрования</SelectItem></SelectContent>
               </Select>
