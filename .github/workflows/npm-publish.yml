@@ -75,13 +75,9 @@ jobs:
             spatie/laravel-permission predis/predis \
             guzzlehttp/guzzle --no-interaction
 
-      - name: Generate APP_KEY
-        id: appkey
-        run: |
-          echo "key=base64:$(openssl rand -base64 32)" >> $GITHUB_OUTPUT
-
       - name: Create backend .env
         env:
+          APP_KEY_SECRET: ${{ secrets.APP_KEY }}
           APP_URL_SECRET: ${{ secrets.APP_URL }}
           DB_CONNECTION_SECRET: ${{ secrets.DB_CONNECTION }}
           DB_HOST_SECRET: ${{ secrets.DB_HOST }}
@@ -101,6 +97,11 @@ jobs:
           MAIL_FROM_ADDRESS_SECRET: ${{ secrets.MAIL_FROM_ADDRESS }}
           MAIL_FROM_NAME_SECRET: ${{ secrets.MAIL_FROM_NAME }}
         run: |
+          if [[ -z "$APP_KEY_SECRET" ]]; then
+            echo "APP_KEY GitHub secret is required and must stay stable between deploys. Reusing a generated key breaks encrypted SMTP settings."
+            exit 1
+          fi
+
           APP_URL_VALUE="$APP_URL_SECRET"
           if [[ "$APP_URL_VALUE" != http://* && "$APP_URL_VALUE" != https://* ]]; then
             APP_URL_VALUE="https://$APP_URL_VALUE"
@@ -156,7 +157,7 @@ jobs:
           cat > app-src/.env << EOF
           APP_NAME="Пик Роста"
           APP_ENV=production
-          APP_KEY=${{ steps.appkey.outputs.key }}
+          APP_KEY=${APP_KEY_SECRET}
           APP_DEBUG=false
           APP_URL=${APP_URL_VALUE}
           APP_TIMEZONE=UTC
