@@ -86,6 +86,7 @@ Route::get('/auth/me', [AuthController::class, 'me']);
 
 // Диагностика прод-окружения (без секретов): git-коммит, миграции, конфиг почты, OAuth.
 Route::get('/diag', function () {
+    app(\App\Services\EmailConfigService::class)->apply();
     $migrations = [];
     try {
         $migrations = \DB::table('migrations')->orderByDesc('id')->limit(5)->pluck('migration')->all();
