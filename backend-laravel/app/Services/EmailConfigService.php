@@ -106,6 +106,13 @@ class EmailConfigService
         return (bool) preg_match('/authentication|auth|login|password|535|534|invalid user or password/i', $e->getMessage());
     }
 
+    public function hasActiveStoredSettings(): bool
+    {
+        $setting = $this->active();
+
+        return (bool) ($setting && $setting->is_active && $setting->host && $setting->from_address && $setting->hasUsablePassword());
+    }
+
     public function apply(?EmailSetting $setting = null): void
     {
         $setting ??= $this->active();
@@ -130,7 +137,7 @@ class EmailConfigService
             'username' => self::normalizeUsername($host, $setting->username, $setting->from_address),
             'password' => $setting->password,
             'timeout' => null,
-            'local_domain' => env('MAIL_EHLO_DOMAIN'),
+            'local_domain' => RuntimeEnv::get('MAIL_EHLO_DOMAIN'),
         ]);
         Config::set('mail.from', [
             'address' => $setting->from_address,
@@ -143,14 +150,7 @@ class EmailConfigService
 
         // Сбросить кеш уже инстанцированных мейлеров (важно после смены настроек в рантайме):
         // MailManager хранит резолвнутые драйверы в массиве и игнорирует обновления Config.
-        try {
-            $manager = app('mail.manager');
-            if ($manager instanceof MailManager) {
-                $manager->forgetMailers();
-            }
-        } catch (\Throwable $e) {
-            // ignore
-        }
+        $this->forgetResolvedMailers();
     }
 
     public function applyRuntimeEnv(): void
@@ -158,6 +158,22 @@ class EmailConfigService
         $host = self::normalizeHost(RuntimeEnv::get('MAIL_HOST'));
         $from = RuntimeEnv::get('MAIL_FROM_ADDRESS');
         if (!$host || !$from) {
+            Config::set('mail.default', 'log');
+            Config::set('mail.mailers.smtp', [
+                'transport' => 'smtp',
+                'host' => $host ?: '',
+                'port' => 0,
+                'encryption' => null,
+                'username' => null,
+                'password' => null,
+                'timeout' => null,
+                'local_domain' => RuntimeEnv::get('MAIL_EHLO_DOMAIN'),
+            ]);
+            Config::set('mail.from', [
+                'address' => $from ?: 'noreply@example.local',
+                'name' => RuntimeEnv::get('MAIL_FROM_NAME', config('app.name', 'Career Track')),
+            ]);
+            $this->forgetResolvedMailers();
             return;
         }
 
@@ -180,14 +196,7 @@ class EmailConfigService
             'name' => RuntimeEnv::get('MAIL_FROM_NAME', config('app.name', 'Career Track')),
         ]);
 
-        try {
-            $manager = app('mail.manager');
-            if ($manager instanceof MailManager) {
-                $manager->forgetMailers();
-            }
-        } catch (\Throwable $e) {
-            // ignore
-        }
+        $this->forgetResolvedMailers();
     }
 
     public function sendTest(EmailSetting $setting, string $to): void
@@ -200,6 +209,35 @@ class EmailConfigService
                 $message->to($to)->subject('Тест SMTP Career Track');
             }
         );
+    }
+
+    private function forgetResolvedMailers(): void
+    {
+        try {
+            $manager = app('mail.manager');
+            if ($manager instanceof MailManager) {
+                $manager->forgetMailers();
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+    }
+
+    /**
+     * Безопасное описание текущей SMTP-конфигурации — без пароля.
+     *
+     * @return array{host:string,port:int,encryption:?string,username:?string}
+     */
+    public function currentSmtpSummary(): array
+    {
+        $cfg = config('mail.mailers.smtp', []);
+
+        return [
+            'host' => (string) ($cfg['host'] ?? ''),
+            'port' => (int) ($cfg['port'] ?? 0),
+            'encryption' => $cfg['encryption'] ?? null,
+            'username' => $cfg['username'] ?? null,
+        ];
     }
 
     /**
@@ -260,7 +298,7 @@ class EmailConfigService
         try {
             return ['ok' => true] + $this->preflight();
         } catch (\Throwable $e) {
-            return [
+            return $this->currentSmtpSummary() + [
                 'ok' => false,
                 'error' => $e->getMessage(),
             ];

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Mail, Send, ShieldCheck, Loader2, AlertTriangle } from "lucide-react";
+import { Mail, Send, ShieldCheck, Loader2, AlertTriangle, PlugZap } from "lucide-react";
 import { toast } from "sonner";
 import { laravel } from "@/integrations/laravel/client";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,14 @@ interface EmailSetting {
   has_password: boolean;
   last_tested_at: string | null;
   last_test_error: string | null;
+}
+
+interface SmtpPreflightResult {
+  ok: boolean;
+  host?: string;
+  port?: number;
+  encryption?: "ssl" | "tls" | "none" | null;
+  username?: string | null;
 }
 
 type Presets = Record<string, { label: string; host: string; port: number; encryption: "ssl" | "tls" | "none"; hint: string }>;
@@ -112,6 +120,18 @@ const EmailSettingsManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["email_settings"] });
       toast.error(e.message || "Тест SMTP не прошёл");
     },
+  });
+
+  const preflightMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await laravel.post<SmtpPreflightResult>("/admin/email-settings/preflight");
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: (result) => {
+      toast.success(`SMTP handshake успешен: ${result?.host}:${result?.port}, auth ${result?.username ? "OK" : "не требуется"}`);
+    },
+    onError: (e: any) => toast.error(e.message || "SMTP handshake не прошёл"),
   });
 
   const applyPreset = (provider: string) => {
@@ -203,6 +223,9 @@ const EmailSettingsManagement = () => {
               {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />} Сохранить SMTP
             </Button>
             <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <Button variant="outline" onClick={() => preflightMutation.mutate()} disabled={preflightMutation.isPending || !setting}>
+                {preflightMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlugZap className="w-4 h-4" />} Проверить соединение
+              </Button>
               <Input className="sm:w-72" type="email" value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="email для теста" />
               <Button variant="secondary" onClick={() => testMutation.mutate()} disabled={testMutation.isPending || !setting}>
                 {testMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Отправить тест
