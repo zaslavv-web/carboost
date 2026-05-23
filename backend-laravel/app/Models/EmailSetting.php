@@ -49,8 +49,8 @@ class EmailSetting extends Model
 
         try {
             return Crypt::decryptString($this->password_encrypted);
-        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-            \Illuminate\Support\Facades\Log::warning('EmailSetting password decrypt failed (APP_KEY changed?), falling back', [
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('EmailSetting password decrypt failed (APP_KEY changed?), falling back: ' . $e->getMessage(), [
                 'id' => $this->id ?? null,
             ]);
             return null;
