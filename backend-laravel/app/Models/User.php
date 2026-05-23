@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use App\Notifications\ResetPasswordNotification;
+use App\Services\EmailConfigService;
 
 /**
  * Eloquent-модель поверх VIEW public.users (см. миграцию 0001_..._laravel_compat_on_auth_users).
@@ -182,6 +183,18 @@ class User extends Authenticatable
 
     public function sendPasswordResetNotification($token): void
     {
+        try {
+            app(EmailConfigService::class)->apply();
+        } catch (\RuntimeException $e) {
+            // Настройки из БД неполные или пароль не расшифровывается —
+            // пробуем переключиться на SMTP из окружения.
+            if (EmailConfigService::shouldFallbackToRuntimeEnv($e)) {
+                app(EmailConfigService::class)->applyRuntimeEnv();
+            } else {
+                throw $e;
+            }
+        }
+
         $this->notify(new ResetPasswordNotification($token));
     }
 }
