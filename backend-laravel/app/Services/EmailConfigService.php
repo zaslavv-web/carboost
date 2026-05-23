@@ -145,7 +145,9 @@ class EmailConfigService
         $message = $e->getMessage();
 
         return self::isSmtpAuthFailure($e)
-            || (bool) preg_match('/неполные|расшифровывается|пароль больше не расшифровывается|Сохраните SMTP-пароль/i', $message);
+            || (bool) preg_match('/неполные|расшифровывается|пароль больше не расшифровывается|Сохраните SMTP-пароль/i', $message)
+            || (bool) preg_match('/unsupported cipher|incorrect key length|decrypt/i', $message)
+            || $e instanceof \Illuminate\Contracts\Encryption\DecryptException;
     }
 
     public function hasActiveStoredSettings(): bool
@@ -159,20 +161,31 @@ class EmailConfigService
     {
         $setting ??= $this->active();
 
-        // Если БД-настройки нет, неактивна, либо пароль не расшифровывается (APP_KEY сменился) —
-        // используем SMTP из окружения, чтобы письма продолжали ходить.
-        if ($setting && $setting->is_active && (!$setting->host || !$setting->from_address || !$setting->hasUsablePassword())) {
-            throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново.');
-        }
-
         if (!$setting || !$setting->is_active) {
             $this->applyRuntimeEnv();
             return;
         }
 
+        // Если пароль не расшифровывается (APP_KEY сменился) — падаем в fallback.
+        try {
+            $hasUsable = $setting->hasUsablePassword();
+        } catch (\Throwable $e) {
+            throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново. ' . $e->getMessage(), 0, $e);
+        }
+
+        if (!$setting->host || !$setting->from_address || !$hasUsable) {
+            throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново.');
+        }
+
         $host = self::normalizeHost($setting->host, $setting->provider);
         $port = self::normalizePort($host, $setting->port, $setting->provider);
         $encryption = self::normalizeEncryption($host, $port, $setting->encryption);
+
+        try {
+            $smtpPassword = self::normalizePassword($host, $setting->password, $setting->provider);
+        } catch (\Throwable $e) {
+            throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново. ' . $e->getMessage(), 0, $e);
+        }
 
         Config::set('mail.default', 'smtp');
         Config::set('mail.mailers.smtp', [
@@ -181,7 +194,7 @@ class EmailConfigService
             'port' => $port,
             'encryption' => $encryption,
             'username' => self::normalizeUsername($host, $setting->username, $setting->from_address),
-            'password' => self::normalizePassword($host, $setting->password, $setting->provider),
+            'password' => $smtpPassword,
             'timeout' => null,
             'local_domain' => RuntimeEnv::get('MAIL_EHLO_DOMAIN'),
         ]);
