@@ -1,73 +1,52 @@
-# Предварительная проверка SMTP перед отправкой письма восстановления
+## Проблема
 
-## Цель
+В `.github/workflows/npm-publish.yml`, шаг **Deploy backend**:
 
-Перед `Password::sendResetLink()` выполнять быстрый «ping» SMTP-сервера: открыть соединение, выполнить EHLO, STARTTLS (если нужно) и `AUTH LOGIN`. Если шаг падает — сразу вернуть локализованную ошибку (как сейчас), но без попытки рендеринга/постановки письма в очередь. Это даёт чёткий ответ: «коннект есть/нет, авторизация прошла/нет».
+1. `APP_KEY_VALUE` присваивается из SSH (может вернуть пусто).
+2. `export APP_KEY_VALUE` выполняется **только если** в `app-src/.env` есть маркер `__PRESERVE_SERVER_APP_KEY__`.
+3. Сейчас GitHub secret `APP_KEY` задан → предыдущий шаг записал реальный ключ → маркера нет → `export` не сработал.
+4. Python-валидатор делает `os.environ['APP_KEY_VALUE']` → `KeyError`.
 
-## Что меняется
+## Решение
 
-### 1. `backend-laravel/app/Services/EmailConfigService.php`
+Переписать начало шага **Deploy backend** так, чтобы `APP_KEY_VALUE` всегда заполнялся и экспортировался — из реального `.env` (который уже содержит финальный ключ от прошлого шага), а fallback на серверное значение оставить только для совместимости.
 
-Добавить публичный метод `preflight(): array`, который:
+### Новая логика шага
 
-- Берёт текущую активную конфигурацию (БД или runtime env) через уже существующий `apply()`.
-- Читает `config('mail.mailers.smtp')` (host/port/encryption/username/password) — те же значения, что реально использует Mailer.
-- Строит `Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport` руками с теми же параметрами:
-  - `new EsmtpTransport($host, $port, $encryption === 'ssl')`
-  - `->setUsername($username)`, `->setPassword($password)`
-  - `->setLocalDomain($ehlo)` если задан
-- Вызывает `$transport->start()` — это и есть полный handshake: TCP-коннект → EHLO → STARTTLS (для 587/tls) → AUTH.
-- Сразу после успеха — `$transport->stop()`.
-- Оборачивает в try/catch:
-  - На `TransportExceptionInterface` / `\Throwable` пробрасывает исключение наружу, **не глотая**, чтобы контроллер мог отработать существующую логику ретрая на runtime env (`isSmtpAuthFailure`) и локализацию ошибки.
-- Возвращает массив `['host' => ..., 'port' => ..., 'encryption' => ..., 'username' => ..., 'source' => 'db'|'env']` для логов/диагностики.
+```bash
+# 1. Берём APP_KEY из уже сгенерированного .env
+APP_KEY_VALUE="$(awk -F= '/^APP_KEY=/{sub(/^APP_KEY=/,""); gsub(/^"|"$/,""); print; exit}' app-src/.env)"
 
-Дополнительно: метод `preflightSafe(): array` — обёртка, которая ловит исключение и возвращает `['ok' => false, 'error' => ..., 'raw' => ...]` или `['ok' => true, ...]`. Нужна для диагностического эндпоинта (см. ниже).
+# 2. Если там оказался маркер — подменяем на серверный
+if [[ "$APP_KEY_VALUE" == "__PRESERVE_SERVER_APP_KEY__" ]]; then
+  SERVER_APP_KEY="$(ssh ... "awk ... .env")"
+  if [[ -z "$SERVER_APP_KEY" ]]; then
+    echo "APP_KEY GitHub secret is missing and no existing server APP_KEY was found."
+    exit 1
+  fi
+  APP_KEY_VALUE="$SERVER_APP_KEY"
+  python3 -c "from pathlib import Path; ...replace marker..."
+fi
 
-### 2. `backend-laravel/app/Http/Controllers/Api/Auth/PasswordResetController.php`
+# 3. Всегда экспортируем перед валидатором
+export APP_KEY_VALUE
 
-В методе `forgot()` перед `Password::sendResetLink`:
-
-```text
-$mail->apply();
-try {
-    $mail->preflight();                 // ← новый шаг
-} catch (\Throwable $e) {
-    if (EmailConfigService::isSmtpAuthFailure($e)) {
-        $mail->applyRuntimeEnv();
-        $mail->preflight();             // повторная проверка на runtime env
-    } else {
-        throw $e;                       // упадёт в существующий catch ниже
-    }
-}
-$status = Password::sendResetLink(...);
+python3 - <<'PY'
+... валидация длины ключа ...
+PY
 ```
 
-Логика ретрая и `localizeSmtpError()` остаются прежними — preflight просто бросает то же исключение, что бросил бы реальный send, только раньше и без полезной нагрузки. Логи получают пометку `phase => 'preflight'` vs `phase => 'send'`.
+### Дополнительно
 
-### 3. (Опционально, но полезно) Диагностический эндпоинт
+- Добавить `set -u`-friendly fallback: `APP_KEY_VALUE="${APP_KEY_VALUE:-}"` перед валидатором, чтобы при пустом значении выдавать понятную ошибку, а не `KeyError`.
+- Валидатор: при `len(raw) not in (16,32)` или пустом ключе писать на русском: «APP_KEY невалиден или отсутствует — задайте GitHub secret APP_KEY в формате `base64:...`».
 
-`POST /api/admin/email/preflight` (защищён существующим superadmin middleware, как `EmailSettingsController`):
+## Файлы
 
-- Вызывает `EmailConfigService::preflightSafe()`.
-- Отдаёт `{ ok, host, port, encryption, username, source, error? }`.
-- Позволяет на странице Email Settings нажать кнопку «Проверить соединение» и увидеть результат, не отправляя реальное письмо.
+- `.github/workflows/npm-publish.yml` — заменить блок шага **Deploy backend** (строки ~215–250).
 
-Если нужно — добавлю кнопку в `src/pages/EmailSettingsManagement.tsx` (POST на новый эндпоинт + сонер с результатом). Скажите, нужна ли UI-часть, или достаточно бэкенда + автоматический preflight внутри `forgot()`.
+## После мерджа
 
-## Что НЕ меняется
-
-- Существующая нормализация Yandex (host/port/encryption/username) — preflight использует уже нормализованный конфиг из `apply()`.
-- Логика ретрая на runtime env при auth-ошибке.
-- `localizeSmtpError()` — та же функция отрабатывает и preflight, и реальный send.
-- Очередь / шаблон `reset.blade.php` / `reset()` метод.
-
-## Почему именно так
-
-- `EsmtpTransport::start()` — это нативный путь Symfony Mailer; он выполняет ровно то же рукопожатие, что и реальный send, включая AUTH. Если сервер примет креды для start(), он примет их и для send().
-- Не используем `fsockopen`/`stream_socket_client` вручную: это даст «коннект есть», но не проверит TLS/AUTH — то есть не закроет основную боль (auth 535).
-- Preflight быстрый (~100–500 мс) и выполняется до постановки в очередь, поэтому ошибка возвращается синхронно в HTTP-ответе.
-
-## Вопрос к вам
-
-Нужна ли UI-кнопка «Проверить соединение» в админке Email Settings (пункт 3), или ограничиться автоматическим preflight внутри `/api/auth/forgot-password` (пункты 1–2)?
+1. Workflow проходит зелёным, бэкенд деплоится.
+2. На сервере в `/var/www/.../backend/.env` теперь лежит правильный `APP_KEY` из GitHub secret.
+3. Суперадмин заходит в Email Settings → сохраняет SMTP-пароль Яндекса заново → восстановление пароля работает.

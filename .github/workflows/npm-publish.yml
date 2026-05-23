@@ -213,37 +213,46 @@ jobs:
 
       - name: Deploy backend
         run: |
-          APP_KEY_VALUE="$(ssh -o StrictHostKeyChecking=no \
-              -o HostKeyAlgorithms=+ssh-rsa \
-              -o PubkeyAcceptedKeyTypes=+ssh-rsa \
-              ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-              "if [ -f ${{ secrets.TARGET_DIR }}/backend/.env ]; then awk '/^APP_KEY=/{sub(/^APP_KEY=/,\"\"); print; exit}' ${{ secrets.TARGET_DIR }}/backend/.env; fi")"
+          # 1. Берём APP_KEY из уже сгенерированного .env (значение в кавычках)
+          APP_KEY_VALUE="$(awk -F= '/^APP_KEY=/{sub(/^APP_KEY=/,""); gsub(/^"|"$/,""); print; exit}' app-src/.env)"
 
-          if grep -q '^APP_KEY=__PRESERVE_SERVER_APP_KEY__$' app-src/.env; then
-            if [[ -z "$APP_KEY_VALUE" ]]; then
-              echo "APP_KEY GitHub secret is missing and no existing server APP_KEY was found."
+          # 2. Если там оказался маркер — подменяем на серверный APP_KEY (бэк-компат)
+          if [[ "$APP_KEY_VALUE" == "__PRESERVE_SERVER_APP_KEY__" ]]; then
+            SERVER_APP_KEY="$(ssh -o StrictHostKeyChecking=no \
+                -o HostKeyAlgorithms=+ssh-rsa \
+                -o PubkeyAcceptedKeyTypes=+ssh-rsa \
+                ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+                "if [ -f ${{ secrets.TARGET_DIR }}/backend/.env ]; then awk '/^APP_KEY=/{sub(/^APP_KEY=/,\"\"); gsub(/^\\\"|\\\"$/,\"\"); print; exit}' ${{ secrets.TARGET_DIR }}/backend/.env; fi")"
+            if [[ -z "$SERVER_APP_KEY" ]]; then
+              echo "::error::APP_KEY GitHub secret is missing and no existing server APP_KEY was found. Set the APP_KEY GitHub secret (base64:... format)."
               exit 1
             fi
+            APP_KEY_VALUE="$SERVER_APP_KEY"
             export APP_KEY_VALUE
             python3 -c "from pathlib import Path; import os; p=Path('app-src/.env'); p.write_text(p.read_text().replace('__PRESERVE_SERVER_APP_KEY__', os.environ['APP_KEY_VALUE']))"
           fi
 
+          # 3. Всегда экспортируем перед валидатором
+          export APP_KEY_VALUE="${APP_KEY_VALUE:-}"
+
           python3 - <<'PY'
           import os, base64, sys
 
-          key = os.environ['APP_KEY_VALUE']
+          key = os.environ.get('APP_KEY_VALUE', '')
+          if not key:
+              sys.stderr.write('APP_KEY невалиден или отсутствует — задайте GitHub secret APP_KEY в формате base64:... (php artisan key:generate --show)\n')
+              sys.exit(1)
           if key.startswith('base64:'):
               try:
                   raw = base64.b64decode(key[7:], validate=True)
               except Exception as exc:
-                  sys.stderr.write(f'Invalid APP_KEY base64 value: {exc}\n')
+                  sys.stderr.write(f'APP_KEY невалиден (base64 decode failed: {exc}) — задайте GitHub secret APP_KEY в формате base64:...\n')
                   sys.exit(1)
           else:
               raw = key.encode('utf-8')
 
           if len(raw) not in (16, 32):
-              sys.stderr.write(f'APP_KEY must decode to 16 or 32 bytes, got {len(raw)} bytes\n')
-              sys.stderr.write('Set a valid Laravel APP_KEY in GitHub secret APP_KEY or in the server .env file\n')
+              sys.stderr.write(f'APP_KEY должен декодироваться в 16 или 32 байта, получено {len(raw)}. Задайте GitHub secret APP_KEY в формате base64:... (php artisan key:generate --show)\n')
               sys.exit(1)
           PY
 
