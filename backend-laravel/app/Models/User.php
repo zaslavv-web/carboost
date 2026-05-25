@@ -15,34 +15,26 @@ use App\Notifications\ResetPasswordNotification;
 use App\Services\EmailConfigService;
 
 /**
- * Eloquent-модель поверх VIEW public.users (см. миграцию 0001_..._laravel_compat_on_auth_users).
+ * Eloquent-модель таблицы `users`.
  *
- * VIEW проксирует auth.users c маппингом:
- *   id                  → id (uuid)
- *   email               → email
- *   encrypted_password  → password (bcrypt от Supabase, Laravel читает нативно)
- *   email_confirmed_at  → email_verified_at
- *   raw_user_meta_data  → meta (jsonb)
+ * Колонки: id (uuid), email, password (bcrypt), email_verified_at, meta (json),
+ * remember_token, created_at, updated_at.
  *
- * INSERT/DELETE на view не работают по умолчанию — для регистрации/удаления
- * используйте App\Services\AuthUserService (создаёт строку напрямую в auth.users).
+ * Доменные данные (роли, профиль, компания) хранятся в связанных таблицах:
+ *   public.profiles  — full_name, avatar_url, company_id, requested_role, is_verified
+ *   public.user_roles — role (employee | manager | hrd | company_admin | superadmin)
  */
 class User extends Authenticatable
 {
-    // HasUuids убран намеренно: на легаси-схемах прод-БД users.id может быть
-    // integer auto_increment. Мы никогда не создаём пользователей через
-    // Eloquent (см. AuthUserService → DB::table('users')->insert(...)),
-    // поэтому генерация UUID-PK здесь не нужна.
     use HasApiTokens, HasFactory, Notifiable, HasRoles {
         hasRole as protected hasSpatieRole;
     }
 
     protected $table = 'users';
 
-    // keyType=string + incrementing=false безопасны и для UUID, и для int-PK:
-    // findOrFail($id) корректно сравнит обе схемы (MySQL делает implicit cast).
-    protected $keyType = 'string';
-    public $incrementing = false;
+    // UUID первичный ключ
+    protected $keyType    = 'string';
+    public    $incrementing = false;
 
     protected $fillable = [
         'email',
@@ -61,7 +53,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password'          => 'hashed', // Laravel bcrypt совместим с Supabase
+            'password'          => 'hashed',
             'meta'              => 'array',
         ];
     }
@@ -78,10 +70,10 @@ class User extends Authenticatable
         return $this->hasOneThrough(
             Company::class,
             Profile::class,
-            'user_id',     // FK на profiles
-            'id',          // PK companies
-            'id',          // PK users
-            'company_id'   // FK на companies в profiles
+            'user_id',   // FK на profiles
+            'id',        // PK companies
+            'id',        // PK users
+            'company_id' // FK на companies в profiles
         );
     }
 
@@ -91,30 +83,29 @@ class User extends Authenticatable
      */
     public function domainRole(): ?string
     {
-        if (! $this->canCompareColumnValue('user_roles', 'user_id', $this->domainUserId())) {
+        if (!$this->canCompareColumnValue('user_roles', 'user_id', $this->domainUserId())) {
             return null;
         }
-
-        $row = DB::table('user_roles')->where('user_id', $this->domainUserId())->value('role');
-        return $row;
+        return DB::table('user_roles')->where('user_id', $this->domainUserId())->value('role');
     }
 
-    /** ID, которым пользователь связан с legacy domain-таблицами. */
+    /**
+     * ID, которым пользователь связан с domain-таблицами.
+     * Берём из meta['sub'] если это UUID, иначе — auth идентификатор.
+     */
     public function domainUserId(): string
     {
-        $meta = is_array($this->meta) ? $this->meta : [];
+        $meta    = is_array($this->meta) ? $this->meta : [];
         $metaSub = $meta['sub'] ?? null;
         if (is_string($metaSub) && preg_match('/^[0-9a-f-]{36}$/i', $metaSub)) {
             return $metaSub;
         }
-
         return (string) $this->getAuthIdentifier();
     }
 
     /**
-     * Роли в проекте хранятся в public.user_roles — это источник истины.
-     * Spatie-таблицы могут быть не синхронизированы после импорта/миграций,
-     * поэтому все policy/gate проверки должны сначала смотреть user_roles.
+     * Роли проверяются сначала через public.user_roles (источник истины),
+     * затем через Spatie как запасной вариант.
      */
     public function hasRole($roles, ?string $guard = null): bool
     {
@@ -147,22 +138,20 @@ class User extends Authenticatable
         return $this->hasSpatieRole($roles, $guard);
     }
 
-    /** Удобный геттер: верифицирован ли пользователь суперадмином */
+    /** Верифицирован ли пользователь суперадмином */
     public function isVerified(): bool
     {
-        if (! $this->canCompareColumnValue('profiles', 'user_id', $this->domainUserId())) {
+        if (!$this->canCompareColumnValue('profiles', 'user_id', $this->domainUserId())) {
             return false;
         }
-
         return (bool) DB::table('profiles')->where('user_id', $this->domainUserId())->value('is_verified');
     }
 
     public function companyId(): ?string
     {
-        if (! $this->canCompareColumnValue('profiles', 'user_id', $this->domainUserId())) {
+        if (!$this->canCompareColumnValue('profiles', 'user_id', $this->domainUserId())) {
             return null;
         }
-
         $value = DB::table('profiles')->where('user_id', $this->domainUserId())->value('company_id');
         return $value === null ? null : (string) $value;
     }
@@ -172,9 +161,10 @@ class User extends Authenticatable
         if ($value === null || $value === '') return false;
         if (DB::getDriverName() !== 'mysql') return true;
         try {
-            $meta = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE ?", [$column]);
-            $type = strtolower((string) ($meta->Type ?? ''));
-            $isNumeric = str_contains($type, 'int') || str_contains($type, 'decimal') || str_contains($type, 'float') || str_contains($type, 'double');
+            $meta      = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE ?", [$column]);
+            $type      = strtolower((string) ($meta->Type ?? ''));
+            $isNumeric = str_contains($type, 'int') || str_contains($type, 'decimal')
+                || str_contains($type, 'float') || str_contains($type, 'double');
             return !$isNumeric || is_numeric($value);
         } catch (\Throwable) {
             return true;
@@ -186,15 +176,12 @@ class User extends Authenticatable
         try {
             app(EmailConfigService::class)->apply();
         } catch (\RuntimeException $e) {
-            // Настройки из БД неполные или пароль не расшифровывается —
-            // пробуем переключиться на SMTP из окружения.
             if (EmailConfigService::shouldFallbackToRuntimeEnv($e)) {
                 app(EmailConfigService::class)->applyRuntimeEnv();
             } else {
                 throw $e;
             }
         }
-
         $this->notify(new ResetPasswordNotification($token));
     }
 }
