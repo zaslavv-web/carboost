@@ -1,52 +1,55 @@
-## Проблема
+## Что известно
 
-В `.github/workflows/npm-publish.yml`, шаг **Deploy backend**:
+- Фронт получает `{"message":"Server Error"}` от `POST /api/admin/users`.
+- Это стандартный ответ Laravel при `APP_DEBUG=false` — реальная ошибка скрыта и лежит **только в `backend-laravel/storage/logs/laravel.log` на сервере**.
+- В коде `UsersController::store` 500 может прилететь из 3 мест (отправка письма обёрнута в try/catch, поэтому она 500 не даёт):
+  1. `\DB::table('auth.users')->where('email', …)->exists()` — упадёт, если БД на проде **MySQL**, а не PostgreSQL (схемы `auth` нет).
+  2. `AuthUserService::createWithPassword` → `INSERT INTO auth.users …` — то же самое + зависит от триггера `handle_new_user`, который автоматически создаёт `profiles` и `user_roles`. Если триггер слетел/не импортирован — `User::findOrFail($id)` упадёт.
+  3. `\DB::table('profiles')->where('user_id', $actor->id)->value('company_id')` — для company_admin без профиля.
 
-1. `APP_KEY_VALUE` присваивается из SSH (может вернуть пусто).
-2. `export APP_KEY_VALUE` выполняется **только если** в `app-src/.env` есть маркер `__PRESERVE_SERVER_APP_KEY__`.
-3. Сейчас GitHub secret `APP_KEY` задан → предыдущий шаг записал реальный ключ → маркера нет → `export` не сработал.
-4. Python-валидатор делает `os.environ['APP_KEY_VALUE']` → `KeyError`.
+## План диагностики (отдать команде backend)
 
-## Решение
+### Шаг 1 — достать реальный текст ошибки
 
-Переписать начало шага **Deploy backend** так, чтобы `APP_KEY_VALUE` всегда заполнялся и экспортировался — из реального `.env` (который уже содержит финальный ключ от прошлого шага), а fallback на серверное значение оставить только для совместимости.
-
-### Новая логика шага
-
+На сервере выполнить:
 ```bash
-# 1. Берём APP_KEY из уже сгенерированного .env
-APP_KEY_VALUE="$(awk -F= '/^APP_KEY=/{sub(/^APP_KEY=/,""); gsub(/^"|"$/,""); print; exit}' app-src/.env)"
+tail -n 200 backend-laravel/storage/logs/laravel.log
+```
+и повторить попытку создания пользователя. В логе будет точный класс исключения, файл и строка. Без этого дальше — гадание.
 
-# 2. Если там оказался маркер — подменяем на серверный
-if [[ "$APP_KEY_VALUE" == "__PRESERVE_SERVER_APP_KEY__" ]]; then
-  SERVER_APP_KEY="$(ssh ... "awk ... .env")"
-  if [[ -z "$SERVER_APP_KEY" ]]; then
-    echo "APP_KEY GitHub secret is missing and no existing server APP_KEY was found."
-    exit 1
-  fi
-  APP_KEY_VALUE="$SERVER_APP_KEY"
-  python3 -c "from pathlib import Path; ...replace marker..."
-fi
+Альтернатива на 5 минут: временно поставить в `backend-laravel/.env` на сервере `APP_DEBUG=true`, дёрнуть `php artisan config:clear`, повторить запрос — фронт увидит полный stack trace в ответе. **Сразу вернуть `APP_DEBUG=false`** — иначе утечка путей/секретов.
 
-# 3. Всегда экспортируем перед валидатором
-export APP_KEY_VALUE
+### Шаг 2 — проверить, что БД совпадает с кодом
 
-python3 - <<'PY'
-... валидация длины ключа ...
-PY
+Код в `AuthUserService::createWithPassword` пишет SQL `INSERT INTO auth.users …` — это **только PostgreSQL** (схема `auth.*` из Supabase). На MySQL это гарантированно 500. Подтвердить:
+```bash
+cd backend-laravel && php artisan tinker --execute="echo DB::getDriverName().PHP_EOL;"
+```
+Если `mysql` — нужно либо мигрировать прод на Postgres, либо переписать сервис под `public.users`. Это уже отдельная задача.
+
+### Шаг 3 — если БД Postgres, проверить наличие триггера и схемы
+
+```sql
+SELECT n.nspname, c.relname
+FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+WHERE n.nspname='auth' AND c.relname='users';
+
+SELECT tgname FROM pg_trigger WHERE tgname='on_auth_user_created';
+```
+Если триггера `handle_new_user` нет — пере-импортировать его из дампа Supabase (он создаёт `profiles` + `user_roles` после INSERT в `auth.users`).
+
+### Шаг 4 — проверить, что у самого суперадмина есть профиль
+
+Если запрос идёт от company_admin без записи в `profiles`, `$companyId` будет `null` → выдаст 422 (не 500), но если профиля нет у суперадмина — `$actor->companyId()` тоже не упадёт. Тут ок, но стоит проверить ради полноты:
+```sql
+SELECT user_id, company_id FROM public.profiles WHERE user_id = '<id суперадмина>';
 ```
 
-### Дополнительно
+## Что НЕ делать
 
-- Добавить `set -u`-friendly fallback: `APP_KEY_VALUE="${APP_KEY_VALUE:-}"` перед валидатором, чтобы при пустом значении выдавать понятную ошибку, а не `KeyError`.
-- Валидатор: при `len(raw) not in (16,32)` или пустом ключе писать на русском: «APP_KEY невалиден или отсутствует — задайте GitHub secret APP_KEY в формате `base64:...`».
+- Не менять код вслепую до получения текста из `laravel.log` — иначе сломаем что-то ещё.
+- Не путать с предыдущей ошибкой APP_KEY: отправка письма не валит 500 (`try/catch` в контроллере), это другая проблема.
 
-## Файлы
+## Итог
 
-- `.github/workflows/npm-publish.yml` — заменить блок шага **Deploy backend** (строки ~215–250).
-
-## После мерджа
-
-1. Workflow проходит зелёным, бэкенд деплоится.
-2. На сервере в `/var/www/.../backend/.env` теперь лежит правильный `APP_KEY` из GitHub secret.
-3. Суперадмин заходит в Email Settings → сохраняет SMTP-пароль Яндекса заново → восстановление пароля работает.
+Без `laravel.log` или `APP_DEBUG=true` диагноз поставить нельзя — нужен текст исключения. После шага 1 будет понятно, чинить ли БД (шаг 2/3) или это что-то ещё.
