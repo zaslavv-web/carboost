@@ -9,21 +9,19 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * Создаёт/обновляет пользователей напрямую в auth.users (Supabase-схема).
+ * Создаёт/обновляет пользователей напрямую в таблице `users` (MySQL/Laravel-схема).
  *
- * Eloquent через VIEW public.users поддерживает только UPDATE — INSERT/DELETE
- * требуют прямого SQL. Этот сервис — единственное место в коде, где мы
- * пишем в auth.users.
- *
- * Триггер handle_new_user (из дампа Supabase) автоматически создаёт строку
- * в public.profiles + public.user_roles при INSERT в auth.users — мы на это
- * полагаемся.
+ * Все операции идут в таблицу `users` напрямую через DB::table('users').
+ * Никакой Supabase-схемы auth.users здесь нет.
  */
 class AuthUserService
 {
     /**
      * Создаёт нового пользователя с email + bcrypt-паролем.
-     * Возвращает Eloquent-модель User (через VIEW).
+     * Возвращает Eloquent-модель User.
+     *
+     * Автоматически определяет тип колонки id: если INT — не передаём UUID,
+     * пусть MySQL сам выдаст auto_increment значение.
      */
     public function createWithPassword(
         string $email,
@@ -33,33 +31,38 @@ class AuthUserService
         ?string $companyId = null,
         bool $isVerified = false,
     ): User {
-        $id = (string) Str::uuid();
-        $hash = Hash::make($password); // bcrypt — совместим с Supabase
+        $hash = Hash::make($password);
 
-        DB::statement(
-            "INSERT INTO auth.users
-                (id, email, encrypted_password, email_confirmed_at,
-                 raw_user_meta_data, created_at, updated_at,
-                 aud, role, instance_id)
-             VALUES (?, ?, ?, NULL, ?::jsonb, now(), now(),
-                     'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000')",
-            [
-                $id,
-                strtolower($email),
-                $hash,
-                json_encode([
-                    'full_name'      => $fullName,
-                    'requested_role' => $requestedRole,
-                ]),
-            ]
-        );
+        $row = [
+            'email'             => strtolower($email),
+            'password'          => $hash,
+            'email_verified_at' => $isVerified ? now() : null,
+            'meta'              => json_encode([
+                'full_name'      => $fullName,
+                'requested_role' => $requestedRole,
+            ], JSON_UNESCAPED_UNICODE),
+            'created_at'        => now(),
+            'updated_at'        => now(),
+        ];
 
-        $user = User::findOrFail($id);
+        // Передаём UUID только если колонка id — строковая (char/varchar).
+        // Если int/bigint — пропускаем, MySQL выдаст auto_increment.
+        if (!$this->tableIdIsInteger('users')) {
+            $row['id'] = (string) Str::uuid();
+        }
+
+        $this->fillMissingDefaults('users', $row);
+
+        DB::table('users')->insert($row);
+
+        $user = User::where('email', strtolower($email))->firstOrFail();
+
         $this->ensureDomainRows($user, [
-            'name' => $fullName,
-            'email' => strtolower($email),
+            'name'   => $fullName,
+            'email'  => strtolower($email),
             'avatar' => null,
         ], true, $requestedRole, $companyId, $isVerified);
+
         return $user;
     }
 
@@ -74,73 +77,73 @@ class AuthUserService
         $existing = User::where('email', $email)->first();
         if ($existing) {
             $meta = array_merge($existing->meta ?? [], [
-                'google_id' => $googleUser['id'],
+                'google_id'  => $googleUser['id'],
                 'avatar_url' => $googleUser['avatar'] ?? null,
-                'provider' => 'google',
+                'provider'   => 'google',
             ]);
             $existing->forceFill([
                 'email_verified_at' => $existing->email_verified_at ?? now(),
-                'meta' => $meta,
+                'meta'              => $meta,
             ])->save();
-            $existingRole = $this->normalizeRole($existing->domainRole() ?? ($existing->meta['requested_role'] ?? null));
+
+            $existingRole      = $this->normalizeRole($existing->domainRole() ?? ($existing->meta['requested_role'] ?? null));
             $existingCompanyId = $this->stringOrNull($existing->companyId() ?? ($existing->meta['company_id'] ?? null));
-            $this->ensureDomainRows($existing, $googleUser, false, $existingRole, $existingCompanyId, $existing->isVerified() || (bool) $existing->email_verified_at);
+            $this->ensureDomainRows(
+                $existing,
+                $googleUser,
+                false,
+                $existingRole,
+                $existingCompanyId,
+                $existing->isVerified() || (bool) $existing->email_verified_at
+            );
             return $existing->refresh();
         }
 
-        $userRow = [
-            'name' => $googleUser['name'] ?? $email,
-            'email' => $email,
-            'password' => Hash::make(Str::random(64)),
+        $row = [
+            'email'             => $email,
+            'password'          => Hash::make(Str::random(64)),
             'email_verified_at' => now(),
-            'meta' => json_encode([
+            'meta'              => json_encode([
                 'full_name'      => $googleUser['name']   ?? $email,
                 'avatar_url'     => $googleUser['avatar'] ?? null,
                 'google_id'      => $googleUser['id'],
                 'requested_role' => 'employee',
                 'provider'       => 'google',
             ], JSON_UNESCAPED_UNICODE),
-            'created_at' => now(),
-            'updated_at' => now(),
+            'created_at'        => now(),
+            'updated_at'        => now(),
         ];
 
-        // Если в таблице users нет колонки `name` (наша «новая» схема) — убираем её,
-        // чтобы insert не падал. На «старой» Laravel-схеме колонка обязательная.
-        if (!Schema::hasColumn('users', 'name')) {
-            unset($userRow['name']);
-        }
-
-        // На некоторых прод-серверах таблица users осталась от Laravel с integer id.
-        // В таком случае не передаём UUID вручную — пусть БД выдаст auto_increment id.
         if (!$this->tableIdIsInteger('users')) {
-            $userRow['id'] = (string) Str::uuid();
+            $row['id'] = (string) Str::uuid();
         }
 
-        $this->fillMissingDefaults('users', $userRow);
+        $this->fillMissingDefaults('users', $row);
 
-        DB::table('users')->insert($userRow);
-
+        DB::table('users')->insert($row);
 
         $user = User::where('email', $email)->firstOrFail();
-
         $this->ensureDomainRows($user, $googleUser, true);
         return $user->refresh();
     }
 
     /**
-     * Лечит доменные строки старых аккаунтов при обычном логине: после миграций
-     * часть users могла остаться без связанного profiles/user_roles или с legacy id.
+     * Лечит доменные строки старых аккаунтов при обычном логине.
      */
     public function repairDomainRowsForLogin(User $user): void
     {
         $meta = is_array($user->meta) ? $user->meta : [];
         $role = $this->normalizeRole($user->domainRole() ?? ($meta['requested_role'] ?? null));
         $this->ensureDomainRows($user, [
-            'name' => $meta['full_name'] ?? $meta['name'] ?? $user->email,
-            'email' => $user->email,
+            'name'   => $meta['full_name'] ?? $meta['name'] ?? $user->email,
+            'email'  => $user->email,
             'avatar' => $meta['avatar_url'] ?? $meta['picture'] ?? null,
         ], false, $role, $this->stringOrNull($meta['company_id'] ?? null), $user->isVerified() || (bool) $user->email_verified_at);
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Private helpers
+    // ──────────────────────────────────────────────────────────────────────────
 
     private function normalizeRole(?string $role): string
     {
@@ -164,12 +167,15 @@ class AuthUserService
             : (string) $user->getAuthIdentifier();
     }
 
+    /**
+     * Возвращает true если колонка id в таблице — числовой тип (int/bigint).
+     * В таком случае UUID передавать нельзя — MySQL обрежет до 0.
+     */
     private function tableIdIsInteger(string $table): bool
     {
         if (DB::getDriverName() !== 'mysql') {
             return false;
         }
-
         try {
             $column = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE 'id'");
             return $column && str_contains(strtolower((string) $column->Type), 'int');
@@ -179,74 +185,67 @@ class AuthUserService
     }
 
     /**
-     * Для MySQL: пробегаемся по NOT NULL колонкам без DEFAULT и подставляем
-     * безопасные значения, чтобы insert не падал на старых схемах,
-     * где таблицы создавались без миграций нашего проекта.
+     * Для MySQL: заполняем NOT NULL колонки без DEFAULT безопасными значениями,
+     * чтобы INSERT не падал на старых схемах.
      */
     private function fillMissingDefaults(string $table, array &$row): void
     {
         if (DB::getDriverName() !== 'mysql') {
             return;
         }
-
         try {
             $columns = DB::select("SHOW COLUMNS FROM `{$table}`");
         } catch (\Throwable) {
             return;
         }
-
         foreach ($columns as $col) {
             $name = $col->Field;
             if (array_key_exists($name, $row)) {
                 continue;
             }
-            // Колонка nullable или имеет DEFAULT — пропускаем.
             if (strtoupper((string) $col->Null) === 'YES') {
                 continue;
             }
             if ($col->Default !== null) {
                 continue;
             }
-            // auto_increment / generated — пропускаем.
             if (str_contains(strtolower((string) $col->Extra), 'auto_increment')
                 || str_contains(strtolower((string) $col->Extra), 'generated')) {
                 continue;
             }
-
-            $type = strtolower((string) $col->Type);
+            $type       = strtolower((string) $col->Type);
             $row[$name] = match (true) {
-                str_contains($type, 'int'), str_contains($type, 'decimal'),
-                str_contains($type, 'float'), str_contains($type, 'double') => 0,
-                str_contains($type, 'bool'), str_contains($type, 'tinyint(1)') => false,
+                str_contains($type, 'int'),
+                str_contains($type, 'decimal'),
+                str_contains($type, 'float'),
+                str_contains($type, 'double') => 0,
+                str_contains($type, 'bool'),
+                str_contains($type, 'tinyint(1)') => false,
                 str_contains($type, 'json') => '{}',
-                str_contains($type, 'date'), str_contains($type, 'time') => now(),
+                str_contains($type, 'date'),
+                str_contains($type, 'time') => now(),
                 default => '',
             };
         }
     }
 
     /**
-     * На легаси MySQL-схемах profiles.company_id может быть DOUBLE/INT,
-     * а текущий код работает с UUID-компаниями. Не пишем несовместимый UUID в
-     * числовую колонку — иначе MySQL падает с "Truncated incorrect DOUBLE value".
+     * Проверяет совместимость значения с типом колонки (UUID vs numeric).
      */
     private function canWriteColumnValue(string $table, string $column, mixed $value): bool
     {
         if ($value === null || $value === '') {
             return false;
         }
-
         if (DB::getDriverName() !== 'mysql') {
             return true;
         }
-
         try {
             $meta = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE ?", [$column]);
         } catch (\Throwable) {
             return true;
         }
-
-        $type = strtolower((string) ($meta->Type ?? ''));
+        $type      = strtolower((string) ($meta->Type ?? ''));
         $isNumeric = str_contains($type, 'int')
             || str_contains($type, 'decimal')
             || str_contains($type, 'float')
@@ -255,58 +254,64 @@ class AuthUserService
         return !$isNumeric || is_numeric($value);
     }
 
-
-    private function ensureDomainRows(User $user, array $googleUser, bool $isNewUser, string $role = 'employee', ?string $companyId = null, bool $isVerified = false): void
-    {
+    /**
+     * Создаёт/обновляет связанные строки в profiles и user_roles.
+     */
+    private function ensureDomainRows(
+        User $user,
+        array $googleUser,
+        bool $isNewUser,
+        string $role = 'employee',
+        ?string $companyId = null,
+        bool $isVerified = false
+    ): void {
         $userId = $this->domainUserId($user);
-        $role = $this->normalizeRole($role);
+        $role   = $this->normalizeRole($role);
 
+        // ── profiles ──────────────────────────────────────────────────────────
         $profile = DB::table('profiles')->where('user_id', $userId)->first();
         if ($profile) {
             $updates = [
-                'full_name' => $profile->full_name ?: ($googleUser['name'] ?? $user->email),
-                'avatar_url' => $googleUser['avatar'] ?? $profile->avatar_url,
+                'full_name'      => $profile->full_name ?: ($googleUser['name'] ?? $user->email),
+                'avatar_url'     => $googleUser['avatar'] ?? $profile->avatar_url,
                 'requested_role' => $profile->requested_role ?: ($role ?: 'employee'),
-                'is_verified' => $isVerified || (bool) $profile->is_verified,
-                'updated_at' => now(),
+                'is_verified'    => $isVerified || (bool) $profile->is_verified,
+                'updated_at'     => now(),
             ];
-
             if (!$profile->company_id && $this->canWriteColumnValue('profiles', 'company_id', $companyId)) {
                 $updates['company_id'] = $companyId;
             }
-
             DB::table('profiles')->where('user_id', $userId)->update($updates);
         } else {
             $profileRow = [
-                'user_id' => $userId,
-                'full_name' => $googleUser['name'] ?? $user->email,
-                'avatar_url' => $googleUser['avatar'] ?? null,
+                'user_id'        => $userId,
+                'full_name'      => $googleUser['name'] ?? $user->email,
+                'avatar_url'     => $googleUser['avatar'] ?? null,
                 'requested_role' => $role,
-                'is_verified' => $isVerified,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'is_verified'    => $isVerified,
+                'created_at'     => now(),
+                'updated_at'     => now(),
             ];
-
             if ($this->canWriteColumnValue('profiles', 'company_id', $companyId)) {
                 $profileRow['company_id'] = $companyId;
             }
-
             if (!$this->tableIdIsInteger('profiles')) {
                 $profileRow['id'] = (string) Str::uuid();
             }
-
             $this->fillMissingDefaults('profiles', $profileRow);
-
             DB::table('profiles')->insert($profileRow);
         }
 
-
+        // ── user_roles ────────────────────────────────────────────────────────
         if ($isNewUser || !DB::table('user_roles')->where('user_id', $userId)->exists()) {
             $roleValues = [];
             if (!$this->tableIdIsInteger('user_roles')) {
-                $roleValues['id'] = DB::table('user_roles')->where('user_id', $userId)->where('role', $role)->value('id') ?: (string) Str::uuid();
+                $existing       = DB::table('user_roles')
+                    ->where('user_id', $userId)
+                    ->where('role', $role)
+                    ->value('id');
+                $roleValues['id'] = $existing ?: (string) Str::uuid();
             }
-
             DB::table('user_roles')->updateOrInsert(
                 ['user_id' => $userId, 'role' => $role],
                 $roleValues
