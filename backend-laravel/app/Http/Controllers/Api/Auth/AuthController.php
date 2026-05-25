@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\AuthUserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -25,8 +26,8 @@ class AuthController extends Controller
             'requested_role' => ['nullable', 'in:employee,manager,hrd,company_admin'],
         ]);
 
-        // Email-уникальность — на уровне auth.users
-        $exists = \DB::table('auth.users')->where('email', strtolower($data['email']))->exists();
+        // Проверка уникальности email в таблице users
+        $exists = DB::table('users')->where('email', strtolower($data['email']))->exists();
         if ($exists) {
             throw ValidationException::withMessages([
                 'email' => 'Пользователь с таким email уже существует',
@@ -65,8 +66,8 @@ class AuthController extends Controller
             } catch (\RuntimeException $e) {
                 Log::warning('Auth login rejected because stored password hash is invalid', [
                     'user_id' => $user->id,
-                    'email' => $user->email,
-                    'reason' => $e->getMessage(),
+                    'email'   => $user->email,
+                    'reason'  => $e->getMessage(),
                 ]);
             }
         }
@@ -83,8 +84,8 @@ class AuthController extends Controller
         } catch (\Throwable $e) {
             Log::warning('Auth login domain repair skipped', [
                 'user_id' => $user->id,
-                'email' => $user->email,
-                'reason' => $e->getMessage(),
+                'email'   => $user->email,
+                'reason'  => $e->getMessage(),
             ]);
         }
 
@@ -116,7 +117,7 @@ class AuthController extends Controller
                 return response()->json(['message' => 'Не авторизован'], 401);
             }
             // Применяем impersonation вручную (роут вне effective.user группы)
-            $token = $user->currentAccessToken();
+            $token    = $user->currentAccessToken();
             $targetId = $token ? \App\Services\ImpersonationService::targetFromToken($token) : null;
             if ($targetId) {
                 $target = User::find($targetId);
@@ -132,24 +133,25 @@ class AuthController extends Controller
     private function presentUser(User $user): array
     {
         $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
-        $profile = \DB::table('profiles')->where('user_id', $domainUserId)->first();
+        $profile      = DB::table('profiles')->where('user_id', $domainUserId)->first();
+
         return [
-            'id'              => $domainUserId,
-            'auth_id'         => $user->id,
-            'email'           => $user->email,
-            'email_verified'  => (bool) $user->email_verified_at,
-            'full_name'       => $profile->full_name        ?? null,
-            'avatar_url'      => $profile->avatar_url       ?? ($user->meta['avatar_url'] ?? null),
-            'company_id'      => $profile->company_id       ?? null,
-            'is_verified'     => (bool) ($profile->is_verified ?? false),
-            'requested_role'  => $profile->requested_role   ?? null,
-            'role'            => $user->domainRole(),
-            'roles'           => \DB::table('user_roles')
+            'id'             => $domainUserId,
+            'auth_id'        => $user->id,
+            'email'          => $user->email,
+            'email_verified' => (bool) $user->email_verified_at,
+            'full_name'      => $profile->full_name       ?? null,
+            'avatar_url'     => $profile->avatar_url      ?? ($user->meta['avatar_url'] ?? null),
+            'company_id'     => $profile->company_id      ?? null,
+            'is_verified'    => (bool) ($profile->is_verified ?? false),
+            'requested_role' => $profile->requested_role  ?? null,
+            'role'           => $user->domainRole(),
+            'roles'          => DB::table('user_roles')
                 ->where('user_id', $domainUserId)
                 ->pluck('role')
                 ->values()
                 ->all(),
-            'meta'            => $user->meta,
+            'meta'           => $user->meta,
         ];
     }
 }
