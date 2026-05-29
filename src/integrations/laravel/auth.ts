@@ -128,6 +128,11 @@ export const laravelAuthApi = {
     return laravel.post<{ user: LaravelUser }>("/admin/users", payload);
   },
 
+  /** Phase 13+: admin повторно отправляет письмо восстановления пароля. */
+  async adminSendPasswordReset(userId: string) {
+    return laravel.post<{ ok: boolean; email: string }>(`/admin/users/${userId}/password-reset`);
+  },
+
   /**
    * Superadmin impersonation. Issues a backend-scoped token whose Sanctum
    * abilities re-bind `auth()->user()` to the target via EffectiveUser
