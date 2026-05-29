@@ -4,7 +4,7 @@ import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useNavigate } from "react-router-dom";
-import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2, UserPlus, X } from "lucide-react";
+import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2, UserPlus, X, KeyRound } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
