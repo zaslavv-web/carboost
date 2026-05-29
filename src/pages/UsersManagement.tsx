@@ -119,6 +119,18 @@ const UsersManagement = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await laravelAuthApi.adminSendPasswordReset(userId);
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`Письмо для восстановления отправлено${data?.email ? ` на ${data.email}` : ""}`);
+    },
+    onError: (e: any) => toast.error(e.message || "Не удалось отправить письмо"),
+  });
+
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const assignRoleMutation = useMutation({
