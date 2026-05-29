@@ -114,4 +114,58 @@ class UsersController extends Controller
             ],
         ], 201);
     }
+
+    /**
+     * Повторно отправляет письмо восстановления пароля пользователю.
+     * Superadmin — любому, company_admin — только своим.
+     */
+    public function sendPasswordReset(Request $request, string $userId): JsonResponse
+    {
+        $actor = $request->user();
+        $isSuperadmin = $actor && method_exists($actor, 'domainRole') && $actor->domainRole() === 'superadmin';
+        $isCompanyAdmin = $actor && method_exists($actor, 'domainRole') && $actor->domainRole() === 'company_admin';
+
+        if (!$isSuperadmin && !$isCompanyAdmin) {
+            return response()->json(['error' => 'Недостаточно прав'], 403);
+        }
+
+        $target = \DB::table('users')->where('id', $userId)->first();
+        if (!$target) {
+            return response()->json(['error' => 'Пользователь не найден'], 404);
+        }
+
+        if (!$isSuperadmin) {
+            $actorCompany = \DB::table('profiles')->where('user_id', $actor->id)->value('company_id');
+            $targetCompany = \DB::table('profiles')->where('user_id', $userId)->value('company_id');
+            if (!$actorCompany || $actorCompany !== $targetCompany) {
+                return response()->json(['error' => 'Пользователь не из вашей компании'], 403);
+            }
+        }
+
+        $email = strtolower((string) $target->email);
+        $mail = app(\App\Services\EmailConfigService::class);
+
+        try {
+            $mail->autoRepairActiveSettings();
+            $mail->apply();
+            $mail->preflight();
+            \Illuminate\Support\Facades\Password::sendResetLink(['email' => $email]);
+        } catch (\Throwable $e) {
+            if (\App\Services\EmailConfigService::shouldFallbackToRuntimeEnv($e)) {
+                try {
+                    $mail->applyRuntimeEnv();
+                    $mail->preflight();
+                    \Illuminate\Support\Facades\Password::sendResetLink(['email' => $email]);
+                } catch (\Throwable $retry) {
+                    \Log::error('admin password reset retry failed', ['email' => $email, 'err' => $retry->getMessage()]);
+                    return response()->json(['error' => 'Не удалось отправить письмо: ' . $retry->getMessage()], 422);
+                }
+            } else {
+                \Log::error('admin password reset failed', ['email' => $email, 'err' => $e->getMessage()]);
+                return response()->json(['error' => 'Не удалось отправить письмо: ' . $e->getMessage()], 422);
+            }
+        }
+
+        return response()->json(['ok' => true, 'email' => $email]);
+    }
 }
