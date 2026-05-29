@@ -389,12 +389,27 @@ const UsersManagement = () => {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleImpersonate(u)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
-                    >
-                      <Eye className="w-3.5 h-3.5" /> Войти как
-                    </button>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => handleImpersonate(u)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Войти как
+                      </button>
+                      <button
+                        onClick={() => resetPasswordMutation.mutate(u.user_id)}
+                        disabled={resetPasswordMutation.isPending && resetPasswordMutation.variables === u.user_id}
+                        title="Отправить письмо с восстановлением пароля"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warning/10 text-warning text-xs font-medium hover:bg-warning/20 transition-colors disabled:opacity-50"
+                      >
+                        {resetPasswordMutation.isPending && resetPasswordMutation.variables === u.user_id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <KeyRound className="w-3.5 h-3.5" />
+                        )}
+                        Сбросить пароль
+                      </button>
+                    </div>
                     {u.user_id !== currentUser?.id && (
                       confirmDeleteId === u.user_id ? (
                         <div className="flex items-center gap-1 mt-1.5">
