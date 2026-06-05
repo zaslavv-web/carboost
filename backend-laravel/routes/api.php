@@ -133,6 +133,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // Phase 13: admin создаёт пользователя (заменяет admin-create-user edge function)
     Route::post('/admin/users', [\App\Http\Controllers\Api\Admin\UsersController::class, 'store']);
     Route::post('/admin/users/{userId}/password-reset', [\App\Http\Controllers\Api\Admin\UsersController::class, 'sendPasswordReset']);
+    Route::patch('/admin/users/{userId}/company', [\App\Http\Controllers\Api\Admin\UsersController::class, 'assignCompany']);
     Route::get('/admin/email-settings', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'index']);
     Route::put('/admin/email-settings', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'update']);
     Route::post('/admin/email-settings/test', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'test']);
