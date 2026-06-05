@@ -131,6 +131,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     Route::post('/impersonation/stop',  [ImpersonationController::class, 'stop']);
 
     // Phase 13: admin создаёт пользователя (заменяет admin-create-user edge function)
+    // redeploy marker: ensure PATCH /admin/users/{userId}/company is registered (route:cache rebuild)
     Route::post('/admin/users', [\App\Http\Controllers\Api\Admin\UsersController::class, 'store']);
     Route::post('/admin/users/{userId}/password-reset', [\App\Http\Controllers\Api\Admin\UsersController::class, 'sendPasswordReset']);
     Route::patch('/admin/users/{userId}/company', [\App\Http\Controllers\Api\Admin\UsersController::class, 'assignCompany']);

@@ -1,54 +1,43 @@
-# Почему сейчас не работает
+## Контекст
 
-В коде всё корректно:
-- `backend-laravel/routes/api.php:136` — `Route::patch('/admin/users/{userId}/company', ...)`
-- `UsersController::assignCompany` реализован
-- Фронт `src/integrations/laravel/auth.ts` вызывает `PATCH /admin/users/{id}/company`
+Код бэкенда уже в репозитории:
+- `backend-laravel/routes/api.php:136` — `PATCH /admin/users/{userId}/company`
+- `backend-laravel/app/Http/Controllers/Api/Admin/UsersController.php::assignCompany`
 
-Но в скриншоте ошибка приходит от **рабочего Laravel-сервера**: `The route api/admin/users/33/company could not be found`. Значит на проде:
-1. Не задеплоен свежий `routes/api.php` + `UsersController.php`, **или**
-2. Закэширован старый список маршрутов (`bootstrap/cache/routes-v7.php`).
+На сервере включена автосинхронизация с git, значит push нового коммита запустит пайплайн `deploy/deploy-laravel.sh`, который сам сделает `composer install`, `optimize:clear`, `migrate`, `route:cache` и перезапустит php-fpm. Отдельных ручных действий на сервере не нужно.
 
-Laravel при включённом route-cache игнорирует новые маршруты до пересборки кэша.
+Проблема в том, что прошлый деплой, судя по 404 в проде, прошёл без сброса route-cache (или вообще не подхватил новый `routes/api.php`). Нужно гарантированно дёрнуть пайплайн ещё раз и заодно подстраховаться на фронте.
 
-# План
+## План
 
-## 1. Передеплоить Laravel-бэкенд и сбросить кэш маршрутов
+### 1. Принудительный ре-деплой Laravel
 
-На сервере (или через `deploy/deploy-laravel.sh`) выполнить:
+Закоммитить безопидный no-op в `backend-laravel/`, чтобы git-hook на сервере увидел изменение и прогнал `deploy/deploy-laravel.sh`:
 
-```bash
-cd /path/to/backend-laravel
-git pull            # подтянуть свежие routes/api.php и UsersController.php
-php artisan route:clear
-php artisan config:clear
-php artisan cache:clear
-php artisan route:cache    # опционально, для прод-производительности
-# перезапустить php-fpm / supervisor, если есть OPcache
-```
+- Обновить `backend-laravel/routes/api.php` — добавить комментарий-маркер над блоком admin-маршрутов с датой и кратким описанием (`// redeploy: ensure PATCH /admin/users/{userId}/company is registered`).
 
-Проверка, что маршрут зарегистрирован:
-```bash
-php artisan route:list | grep 'admin/users'
-```
-Ожидаем увидеть строку `PATCH  api/admin/users/{userId}/company`.
+Это пересоберёт route-cache (`php artisan route:cache` в `deploy-laravel.sh`, шаг «кеш конфигов/маршрутов/вьюх») и зарегистрирует `assignCompany`.
 
-## 2. Защитить фронт от непонятного 404
+### 2. Защитить фронт от прежней ошибки
 
-Сейчас при отсутствии маршрута пользователь видит сырое сообщение `The route ... could not be found.`. Добавлю в `UsersManagement.tsx` обработку ошибки `assignCompanyMutation.onError`, чтобы:
-- при `status 404` показывать toast «Эндпоинт назначения компании ещё не задеплоен — обновите бэкенд»;
-- в остальных случаях показывать локализованное сообщение об ошибке.
+В `src/pages/UsersManagement.tsx` обработчик `assignCompanyMutation.onError` уже добавлен в прошлой итерации — он показывает понятный toast при 404. Перепроверить, что:
+- сообщение по-русски и не дублируется;
+- после успешного `mutate` инвалидируется кэш списка пользователей.
 
-Это не чинит сервер, но даёт понятный сигнал, что проблема в деплое, а не в самих данных.
+Если расхождений нет — файл не трогаем.
 
-## 3. Проверка после деплоя
+### 3. Проверка после авто-деплоя
 
-1. Открыть страницу «Управление пользователями» под суперадмином.
-2. Для пользователя `Anton Lavrenov` (`— Без компании —`) выбрать компанию в дропдауне.
-3. Ожидаемо: toast «Компания назначена», профиль обновлён, пользователь после релогина проходит мимо `CompleteRegistration`.
+1. Подождать прохода пайплайна (обычно 1–2 мин).
+2. В UI «Управление пользователями» под суперадмином назначить компанию пользователю `Anton Lavrenov`.
+3. Ожидаемо: toast «Компания назначена», в `profiles.company_id` появится UUID, пользователь после релогина минует `CompleteRegistration`.
 
-# Технические детали
+Если снова 404 — значит auto-sync не подхватил коммит, тогда нужно будет руками дёрнуть `deploy/deploy-laravel.sh` или проверить webhook.
 
-- Файлы под изменение (только фронт-обработка ошибки): `src/pages/UsersManagement.tsx`.
-- Бэкенд-код не меняется — он уже корректен, нужен только деплой и `route:clear`.
-- Если деплой автоматический через `deploy/deploy-laravel.sh`, достаточно перезапустить пайплайн; иначе — ручные команды выше.
+## Технические детали
+
+Изменяемые файлы:
+- `backend-laravel/routes/api.php` — добавить однострочный комментарий-маркер (no-op для рантайма, но триггерит git-hook).
+- `src/pages/UsersManagement.tsx` — только если найдём расхождение с п.2 (скорее всего, не нужно).
+
+Бэкенд-логика не меняется: контроллер и маршрут уже корректны.
