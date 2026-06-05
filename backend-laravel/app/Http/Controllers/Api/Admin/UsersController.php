@@ -168,4 +168,42 @@ class UsersController extends Controller
 
         return response()->json(['ok' => true, 'email' => $email]);
     }
+
+    /**
+     * Назначить/изменить компанию пользователя. Доступно только суперадмину.
+     * Используется, когда пользователь застрял без company_id и не может пройти онбординг.
+     */
+    public function assignCompany(Request $request, string $userId): JsonResponse
+    {
+        $actor = $request->user();
+        $isSuperadmin = $actor && method_exists($actor, 'domainRole') && $actor->domainRole() === 'superadmin';
+        if (!$isSuperadmin) {
+            return response()->json(['error' => 'Недостаточно прав'], 403);
+        }
+
+        $data = $request->validate([
+            'company_id' => ['nullable', 'uuid'],
+        ]);
+        $companyId = $data['company_id'] ?? null;
+
+        if ($companyId && !DB::table('companies')->where('id', $companyId)->exists()) {
+            return response()->json(['error' => 'Компания не найдена'], 404);
+        }
+
+        $profile = DB::table('profiles')->where('user_id', $userId)->first();
+        if (!$profile) {
+            return response()->json(['error' => 'Профиль не найден'], 404);
+        }
+
+        DB::table('profiles')->where('user_id', $userId)->update([
+            'company_id' => $companyId,
+            'updated_at' => now(),
+        ]);
+
+        return response()->json([
+            'ok'         => true,
+            'user_id'    => $userId,
+            'company_id' => $companyId,
+        ]);
+    }
 }

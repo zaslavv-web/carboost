@@ -133,6 +133,14 @@ export const laravelAuthApi = {
     return laravel.post<{ ok: boolean; email: string }>(`/admin/users/${userId}/password-reset`);
   },
 
+  /** Суперадмин назначает/меняет компанию пользователю. */
+  async adminAssignCompany(userId: string, companyId: string | null) {
+    return laravel.patch<{ ok: boolean; user_id: string; company_id: string | null }>(
+      `/admin/users/${userId}/company`,
+      { company_id: companyId },
+    );
+  },
+
   /**
    * Superadmin impersonation. Issues a backend-scoped token whose Sanctum
    * abilities re-bind `auth()->user()` to the target via EffectiveUser
