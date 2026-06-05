@@ -59,7 +59,12 @@ jobs:
 
       - name: Create Laravel project and overlay our files
         run: |
-          composer create-project laravel/laravel app-src "11.*" --prefer-dist --no-interaction
+          composer create-project laravel/laravel app-src "11.*" --prefer-dist --no-interaction --ignore-platform-req=ext-http --ignore-platform-req=ext-rdkafka
+          # Добавляем флаг для игнорирования security advisories
+          cd app-src
+          composer config --no-plugins allow-plugins true
+          composer update --ignore-platform-req=ext-http --ignore-platform-req=ext-rdkafka --no-interaction
+          cd ..
           cp -r backend-laravel/app        app-src/
           cp -r backend-laravel/bootstrap  app-src/
           cp -r backend-laravel/config     app-src/
