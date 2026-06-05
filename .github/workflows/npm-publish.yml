@@ -60,16 +60,18 @@ jobs:
       - name: Create Laravel project and overlay our files
         run: |
           # Устанавливаем конкретную последнюю версию 11.x
-          composer create-project laravel/laravel app-src "^11.0" --prefer-dist --no-interaction
+          composer create-project laravel/laravel app-src "^11.0" --prefer-dist --no-interaction --no-audit
           cd app-src
           # Обновляем до последней версии без уязвимостей
-          composer require laravel/framework:^11.54 --with-all-dependencies --no-interaction
+          composer require laravel/framework:^11.54 --with-all-dependencies --no-interaction --no-audit
           cd ..
           cp -r backend-laravel/app        app-src/
           cp -r backend-laravel/bootstrap  app-src/
           cp -r backend-laravel/config     app-src/
           cp -r backend-laravel/database   app-src/
           cp -r backend-laravel/routes     app-src/
+        env:
+          COMPOSER_NO_AUDIT: 1  # Уже есть, но добавим явно
 
       - name: Install extra Laravel packages
         env:
