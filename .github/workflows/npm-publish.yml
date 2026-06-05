@@ -59,7 +59,7 @@ jobs:
 
       - name: Create Laravel project and overlay our files
         run: |
-          composer create-project laravel/laravel app-src "11.*" --prefer-dist --no-interaction --ignore-advisories
+          composer create-project laravel/laravel app-src "11.*" --prefer-dist --no-interaction
           cp -r backend-laravel/app        app-src/
           cp -r backend-laravel/bootstrap  app-src/
           cp -r backend-laravel/config     app-src/
