@@ -78,6 +78,15 @@ jobs:
           # Устанавливаем переменные окружения
           echo "COMPOSER_NO_AUDIT=1" >> $GITHUB_ENV
           echo "COMPOSER_ALLOW_SUPERUSER=1" >> $GITHUB_ENV
+      - name: Downgrade Composer to working version
+        run: |
+          sudo rm -f /usr/local/bin/composer
+          sudo curl -L https://getcomposer.org/download/2.6.5/composer.phar -o /usr/local/bin/composer
+          sudo chmod +x /usr/local/bin/composer
+          composer --version
+            
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Create Laravel project and overlay our files
         env:
           COMPOSER_NO_AUDIT: 1
