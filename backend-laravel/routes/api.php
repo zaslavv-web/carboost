@@ -71,6 +71,18 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 Route::post('/auth/forgot-password', [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'forgot']);
 Route::post('/auth/reset-password',  [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'reset']);
 
+// Временный диагностический маршрут: проверяет, зарегистрирован ли PATCH /admin/users/{userId}/company
+Route::get('/admin/_route_check', function () {
+    $has = collect(\Illuminate\Support\Facades\Route::getRoutes())->contains(
+        fn ($r) => $r->uri() === 'api/admin/users/{userId}/company'
+            && in_array('PATCH', $r->methods(), true),
+    );
+    return response()->json([
+        'has_assign_company' => $has,
+        'commit' => trim(@file_get_contents(base_path('VERSION')) ?: 'unknown'),
+    ]);
+});
+
 // Public RPCs used from landing/pricing forms (declared BEFORE the auth group
 // so they take precedence over the generic /rpc/{name} below).
 Route::post('/rpc/submit_demo_request',    fn (\Illuminate\Http\Request $r) =>
