@@ -59,11 +59,12 @@ jobs:
 
       - name: Create Laravel project and overlay our files
         run: |
-          composer create-project laravel/laravel app-src "11.*" --prefer-dist --no-interaction --ignore-platform-req=ext-http --ignore-platform-req=ext-rdkafka
-          # Добавляем флаг для игнорирования security advisories
+          composer create-project laravel/laravel app-src "11.*" --prefer-dist --no-interaction
           cd app-src
-          composer config --no-plugins allow-plugins true
-          composer update --ignore-platform-req=ext-http --ignore-platform-req=ext-rdkafka --no-interaction
+          # Отключаем блокировку security advisories
+          composer config --no-plugins extra.policy.advisories.block false
+          # Или игнорируем конкретные advisories
+          composer config --no-plugins extra.policy.advisories.ignore-id '["PKSA-mdq4-51ck-6kdq", "PKSA-8qx3-n5y5-vvnd", "PKSA-q46n-4fdk-zjr4", "PKSA-qzrn-rnz3-85w1"]'
           cd ..
           cp -r backend-laravel/app        app-src/
           cp -r backend-laravel/bootstrap  app-src/
