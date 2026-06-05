@@ -51,19 +51,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Configure Composer
-        run: |
-          composer config --global disable-tls false
-          composer config --global security-advisories.block false
-      
-      - name: Create Laravel project and overlay our files
-        run: |
-          composer create-project laravel/laravel app-src "11.*" --prefer-dist --no-interaction --ignore-advisories
-          cp -r backend-laravel/app        app-src/
-          cp -r backend-laravel/bootstrap  app-src/
-          cp -r backend-laravel/config     app-src/
-          cp -r backend-laravel/database   app-src/
-          cp -r backend-laravel/routes     app-src/
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -72,7 +59,7 @@ jobs:
 
       - name: Create Laravel project and overlay our files
         run: |
-          composer create-project laravel/laravel app-src "11.*" --prefer-dist --no-interaction
+          composer create-project laravel/laravel app-src "11.*" --prefer-dist --no-interaction --ignore-advisories
           cp -r backend-laravel/app        app-src/
           cp -r backend-laravel/bootstrap  app-src/
           cp -r backend-laravel/config     app-src/
@@ -80,6 +67,8 @@ jobs:
           cp -r backend-laravel/routes     app-src/
 
       - name: Install extra Laravel packages
+        env:
+          COMPOSER_IGNORE_ADVISORIES: 1
         run: |
           cd app-src
           composer require \
