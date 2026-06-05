@@ -59,12 +59,11 @@ jobs:
 
       - name: Create Laravel project and overlay our files
         run: |
-          composer create-project laravel/laravel app-src "11.*" --prefer-dist --no-interaction
+          # Устанавливаем конкретную последнюю версию 11.x
+          composer create-project laravel/laravel app-src "^11.0" --prefer-dist --no-interaction
           cd app-src
-          # Отключаем блокировку security advisories
-          composer config --no-plugins extra.policy.advisories.block false
-          # Или игнорируем конкретные advisories
-          composer config --no-plugins extra.policy.advisories.ignore-id '["PKSA-mdq4-51ck-6kdq", "PKSA-8qx3-n5y5-vvnd", "PKSA-q46n-4fdk-zjr4", "PKSA-qzrn-rnz3-85w1"]'
+          # Обновляем до последней версии без уязвимостей
+          composer require laravel/framework:^11.54 --with-all-dependencies --no-interaction
           cd ..
           cp -r backend-laravel/app        app-src/
           cp -r backend-laravel/bootstrap  app-src/
