@@ -1,42 +1,121 @@
-# Fix: Composer install blocked by security advisories on Laravel 11.x
+# Пошаговая инструкция: применить фикс composer на сервере growth-peak.pro
 
-## Что происходит
+Цель: чтобы на сервере прошёл `composer install` (сейчас он падает из-за advisories на Laravel 11.x) и обновился код бэкенда, включая маршрут `PATCH /api/admin/users/{userId}/company`.
 
-На сервере `composer install` падает:
+---
+
+## Шаг 1. Подключиться к серверу по SSH
+
+На своём компьютере открой терминал (на Mac — «Терминал», на Windows — PowerShell или Git Bash) и выполни:
+
+```bash
+ssh root@growth-peak.pro
+```
+
+Если у тебя другой пользователь (например, `deploy` или `ubuntu`) — подставь его вместо `root`. Введи пароль, если попросит.
+
+После подключения ты окажешься в командной строке сервера.
+
+---
+
+## Шаг 2. Перейти в папку с бэкендом
+
+```bash
+cd /var/www/api
+```
+
+Проверь, что ты в правильной папке:
+
+```bash
+pwd
+ls
+```
+
+Должно показать `/var/www/api` и список с `app`, `routes`, `composer.json`, `deploy` и т.д.
+
+---
+
+## Шаг 3. Подтянуть свежий код из git
+
+```bash
+sudo git fetch --all --prune
+sudo git reset --hard origin/main
+sudo git log -1 --oneline
+```
+
+Последняя команда должна показать свежий коммит (с фиксом deploy-скрипта).
+
+Если получишь ошибку «not a git repository» — напиши мне, разберёмся отдельно (значит, на сервере нет git и код заливается как-то иначе).
+
+---
+
+## Шаг 4. Запустить обновлённый деплой-скрипт
+
+```bash
+sudo bash /var/www/api/deploy/deploy-laravel.sh
+```
+
+Скрипт сам:
+- отключит блокировку composer по advisories;
+- поставит зависимости;
+- накатит миграции;
+- пересоберёт кеш маршрутов Laravel;
+- перезагрузит nginx.
+
+Дождись, пока он отработает (обычно 1–3 минуты). В конце должно быть `==> done`.
+
+Если в процессе появятся ошибки про `sudo: command not found` — убери `sudo` из команды (значит, ты уже root).
+
+---
+
+## Шаг 5. Проверить, что всё применилось
+
+Выполни прямо на сервере:
+
+```bash
+php artisan route:list --path=admin/users
+```
+
+В списке должна быть строка с `PATCH api/admin/users/{userId}/company`.
+
+И посмотри хвост лога:
+
+```bash
+sudo tail -n 80 /var/log/laravel-deploy.log
+```
+
+---
+
+## Шаг 6. Проверить продакшен снаружи
+
+Открой в браузере:
 
 ```
-Root composer.json requires laravel/framework ^11.31, found laravel/framework
-[v11.31.0 ... v11.54.0] but these were not loaded, because they are affected
-by security advisories (PKSA-mdq4-51ck-6kdq, PKSA-8qx3-n5y5-vvnd,
-PKSA-q46n-4fdk-zjr4, PKSA-qzrn-rnz3-85w1).
+https://growth-peak.pro/api/diag
 ```
 
-Composer 2.8+ по умолчанию **отказывается ставить** пакеты, у которых есть незакрытые advisories. Все доступные версии Laravel 11 (включая последнюю 11.54.0) сейчас помечены этими advisory-ID, патч-релиза ещё нет → ни одна версия не проходит фильтр, установка останавливается.
+Должно появиться JSON с полями:
+- `commit` — короткий хеш (НЕ `unknown`);
+- `deploy_marker` — строка `assign-company-route-probe-2026-06-05-01`;
+- `routes.has_assign_company: true`.
 
-В нашем репо `composer.json` лежит **не в git** (Laravel создаётся через `composer create-project` прямо на сервере, см. `backend-laravel/README.md`), поэтому править его «в коде» бессмысленно — он перезапишется. Единственное место, через которое мы можем гарантированно повлиять на сервер, — `deploy/deploy-laravel.sh`.
+---
 
-## План
+## Шаг 7. Прислать мне результат
 
-Поправить **только** `deploy/deploy-laravel.sh`, добавив перед `composer install` принудительное отключение advisory-блокера и audit-шума:
+Скопируй и пришли в чат:
+1. Вывод команды из Шага 5 (`route:list --path=admin/users`).
+2. Последние ~50 строк из `/var/log/laravel-deploy.log`.
+3. JSON-ответ с `/api/diag`.
 
-1. Перед шагом `composer install` выставить:
-   - `composer config --global --no-plugins policy.advisories.block false` — глобально снимает блокировку установки из-за advisories (сами warnings остаются, но `install` уже не падает).
-   - `export COMPOSER_NO_AUDIT=1` — выключает финальный `composer audit`, чтобы он не валил скрипт ненулевым кодом.
-2. Запускать `composer install` с `--no-audit` (на старых композерах флаг безвреден).
-3. В лог писать предупреждение «advisories.block отключён вручную из-за открытых CVE на laravel/framework 11.x — обновить до патч-релиза, как только он выйдет».
-4. После успешного `install` — оставить как есть; `route:cache`, `migrate` и т.д. не меняем.
+После этого я подскажу, нужно ли что-то ещё поправить в коде, или можно убирать временные диагностические поля.
 
-Никакие другие файлы (`composer.json`, `routes/api.php`, фронт) не трогаем.
+---
 
-## Что должен сделать пользователь
+## Если что-то пошло не так
 
-1. Дождаться, пока обновлённый `deploy-laravel.sh` попадёт на сервер (или вручную: `scp deploy/deploy-laravel.sh server:/var/www/api/deploy/`).
-2. Запустить:
-   ```bash
-   sudo -u www-data bash /var/www/api/deploy/deploy-laravel.sh
-   ```
-3. Прислать последние ~50 строк `/var/log/laravel-deploy.log` — убедиться, что `composer install` прошёл и `php artisan route:list --path=admin/users` показывает маршрут `PATCH api/admin/users/{userId}/company`.
+- **Падает на Шаге 3 (git)** — пришли точный текст ошибки. Возможно, на сервере код заливается не через git, а через rsync/CI — тогда нужен другой способ доставки скрипта.
+- **Падает на Шаге 4 (composer install)** — пришли последние 30 строк вывода. Возможно, composer слишком старый и не понимает `policy.advisories.block` (тогда обновим обходной путь).
+- **Шаг 5 не показывает маршрут** — значит, кеш маршрутов не пересобрался. Выполни вручную: `sudo -u www-data php artisan route:clear && sudo -u www-data php artisan route:cache`.
 
-## Дальнейший trade-off
-
-Это временный обход. Как только Laravel выпустит патч-релиз 11.x с закрытием PKSA-mdq4-51ck-6kdq и остальных трёх — нужно убрать `policy.advisories.block false` обратно. Альтернатива «прямо сейчас» — миграция на Laravel 12, что выходит за рамки задачи и потребует отдельного плана.
+Никаких изменений в коде на этом шаге не нужно — план полностью про действия на сервере.
