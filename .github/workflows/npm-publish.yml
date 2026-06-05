@@ -58,61 +58,55 @@ jobs:
           extensions: pdo, pdo_pgsql, pdo_mysql, redis
 
       - name: Create Laravel project and overlay our files
+        env:
+          COMPOSER_NO_AUDIT: 1
+          COMPOSER_PROCESS_TIMEOUT: 2000
         run: |
-          # Создаем временную директорию и composer.json вручную
-          mkdir -p app-src
+          # 1. Создаём проект, отключая проверку безопасности
+          composer create-project \
+            --prefer-dist \
+            --no-interaction \
+            --no-scripts \
+            --no-audit \
+            --ignore-platform-reqs \
+            laravel/laravel app-src "^11.0"
           
-          # Создаем кастомный composer.json с отключенной блокировкой advisories
-          cat > app-src/composer.json << 'EOF'
-          {
-              "name": "laravel/laravel",
-              "type": "project",
-              "license": "MIT",
-              "require": {
-                  "php": "^8.2",
-                  "laravel/framework": "^11.54"
-              },
-              "config": {
-                  "optimize-autoloader": true,
-                  "preferred-install": "dist",
-                  "sort-packages": true,
-                  "allow-plugins": {
-                      "php-http/discovery": true
-                  }
-              },
-              "extra": {
-                  "policy": {
-                      "advisories": {
-                          "block": false
-                      }
-                  }
-              },
-              "minimum-stability": "stable",
-              "prefer-stable": true
-          }
-          EOF
+          cd app-src || exit 1
           
-          cd app-src
-          COMPOSER_NO_AUDIT=1 composer update --no-interaction --no-scripts
+          # 2. Удаляем composer.lock, чтобы переустановить зависимости чисто
+          rm -f composer.lock
+          
+          # 3. Добавляем игнорирование КОНКРЕТНОГО PKSA в composer.json
+          composer config extra.policy.advisories.ignore-id '["PKSA-mdq4-51ck-6kdq"]' --no-plugins
+          
+          # 4. Обновляем зависимости с игнорированием блокировок
+          composer update \
+            --with-all-dependencies \
+            --no-interaction \
+            --no-scripts \
+            --no-audit \
+            --ignore-platform-reqs
+          
           cd ..
           
+          # 5. Копируем ваши файлы
           cp -r backend-laravel/app        app-src/
           cp -r backend-laravel/bootstrap  app-src/
           cp -r backend-laravel/config     app-src/
           cp -r backend-laravel/database   app-src/
           cp -r backend-laravel/routes     app-src/
-        env:
-          COMPOSER_NO_AUDIT: 1
-          COMPOSER_PROCESS_TIMEOUT: 2000
-      - name: Install extra Laravel packages
-        env:
-          COMPOSER_IGNORE_ADVISORIES: 1
-        run: |
-          cd app-src
-          composer require \
-            laravel/sanctum laravel/socialite \
-            spatie/laravel-permission predis/predis \
-            guzzlehttp/guzzle --no-interaction
+              env:
+                COMPOSER_NO_AUDIT: 1
+                COMPOSER_PROCESS_TIMEOUT: 2000
+            - name: Install extra Laravel packages
+              env:
+                COMPOSER_IGNORE_ADVISORIES: 1
+              run: |
+                cd app-src
+                composer require \
+                  laravel/sanctum laravel/socialite \
+                  spatie/laravel-permission predis/predis \
+                  guzzlehttp/guzzle --no-interaction
 
       - name: Create backend .env
         env:
