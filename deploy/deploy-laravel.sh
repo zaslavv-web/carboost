@@ -13,14 +13,40 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/var/www/api}"
 PHP_BIN="${PHP_BIN:-php}"
 COMPOSER_BIN="${COMPOSER_BIN:-composer}"
+LOG_FILE="${DEPLOY_LOG:-/var/log/laravel-deploy.log}"
+GIT_BRANCH="${GIT_BRANCH:-main}"
+SKIP_GIT="${SKIP_GIT:-0}"
+
+# Дублируем весь вывод в лог-файл, чтобы автодеплой не падал молча.
+if [ -w "$(dirname "$LOG_FILE")" ] || [ -w "$LOG_FILE" ] 2>/dev/null; then
+  exec > >(awk '{ print strftime("[%Y-%m-%d %H:%M:%S]"), $0; fflush(); }' | tee -a "$LOG_FILE") 2>&1
+fi
+
+echo "==> deploy-laravel.sh start (APP_DIR=$APP_DIR, branch=$GIT_BRANCH, skip_git=$SKIP_GIT)"
 
 cd "$APP_DIR"
+
+# Принудительно подтягиваем последний коммит, если рабочая копия — git-репо
+# и автосинк не делает этого сам.
+if [ "$SKIP_GIT" != "1" ] && [ -d .git ]; then
+  echo "==> git fetch + reset --hard origin/$GIT_BRANCH"
+  git fetch --all --prune || true
+  git reset --hard "origin/$GIT_BRANCH" || true
+  git log -1 --oneline || true
+fi
+
+# Записываем текущий коммит в VERSION, чтобы /api/diag показывал реальный хэш.
+if [ -d .git ]; then
+  git rev-parse --short HEAD > VERSION 2>/dev/null || true
+  echo "==> VERSION = $(cat VERSION 2>/dev/null || echo unknown)"
+fi
 
 echo "==> composer install (no-dev, optimized)"
 $COMPOSER_BIN install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 
 echo "==> .env проверка"
 [ -f .env ] || { echo "FATAL: .env отсутствует в $APP_DIR"; exit 1; }
+
 
 echo "==> обязательные production-настройки"
 $PHP_BIN <<'PHP'
