@@ -71,18 +71,6 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 Route::post('/auth/forgot-password', [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'forgot']);
 Route::post('/auth/reset-password',  [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'reset']);
 
-// Временный диагностический маршрут: проверяет, зарегистрирован ли PATCH /admin/users/{userId}/company
-Route::get('/admin/_route_check', function () {
-    $has = collect(\Illuminate\Support\Facades\Route::getRoutes())->contains(
-        fn ($r) => $r->uri() === 'api/admin/users/{userId}/company'
-            && in_array('PATCH', $r->methods(), true),
-    );
-    return response()->json([
-        'has_assign_company' => $has,
-        'commit' => trim(@file_get_contents(base_path('VERSION')) ?: 'unknown'),
-    ]);
-});
-
 // Public RPCs used from landing/pricing forms (declared BEFORE the auth group
 // so they take precedence over the generic /rpc/{name} below).
 Route::post('/rpc/submit_demo_request',    fn (\Illuminate\Http\Request $r) =>
@@ -98,6 +86,11 @@ Route::get('/auth/me', [AuthController::class, 'me']);
 
 // Диагностика прод-окружения (без секретов): git-коммит, миграции, конфиг почты, OAuth.
 Route::get('/diag', function () {
+    $hasAssignCompanyRoute = collect(\Illuminate\Support\Facades\Route::getRoutes())->contains(
+        fn ($r) => $r->uri() === 'api/admin/users/{userId}/company'
+            && in_array('PATCH', $r->methods(), true),
+    );
+
     try {
         app(\App\Services\EmailConfigService::class)->apply();
     } catch (\Throwable) {
@@ -114,6 +107,10 @@ Route::get('/diag', function () {
         'app_debug' => (bool) config('app.debug'),
         'php'       => PHP_VERSION,
         'laravel'   => app()->version(),
+        'deploy_marker' => 'assign-company-route-probe-2026-06-05-01',
+        'routes'    => [
+            'has_assign_company' => $hasAssignCompanyRoute,
+        ],
         'commit'    => trim(@file_get_contents(base_path('VERSION')) ?: 'unknown'),
         'mail'      => [
             'mailer'     => config('mail.default'),
