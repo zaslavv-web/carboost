@@ -361,8 +361,23 @@ const UsersManagement = () => {
                     <p className="text-xs text-muted-foreground">{u.position || "—"}</p>
                   </td>
                   {isSuperadmin && (
-                    <td className="px-4 py-3 text-foreground text-xs">
-                      {companies.find((c: any) => c.id === u.company_id)?.name || <span className="text-muted-foreground">—</span>}
+                    <td className="px-4 py-3">
+                      <select
+                        value={u.company_id || ""}
+                        onChange={(e) =>
+                          assignCompanyMutation.mutate({
+                            userId: u.user_id,
+                            companyId: e.target.value || null,
+                          })
+                        }
+                        disabled={assignCompanyMutation.isPending}
+                        className="px-2 py-1 rounded border border-input bg-background text-foreground text-xs max-w-[180px]"
+                      >
+                        <option value="">— Без компании —</option>
+                        {companies.map((c: any) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
                     </td>
                   )}
                   <td className="px-4 py-3 text-foreground">{u.department || "—"}</td>
