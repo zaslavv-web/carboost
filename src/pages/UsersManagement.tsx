@@ -146,6 +146,19 @@ const UsersManagement = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const assignCompanyMutation = useMutation({
+    mutationFn: async ({ userId, companyId }: { userId: string; companyId: string | null }) => {
+      const { error } = await laravelAuthApi.adminAssignCompany(userId, companyId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_users_list"] });
+      queryClient.invalidateQueries({ queryKey: ["superadmin_profiles"] });
+      toast.success("Компания обновлена");
+    },
+    onError: (e: any) => toast.error(e.message || "Не удалось обновить компанию"),
+  });
+
   const departments = Array.from(
     new Set(users.map((u: any) => (u.department || "").trim()).filter(Boolean)),
   ).sort() as string[];
