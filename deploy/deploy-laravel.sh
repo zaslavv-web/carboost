@@ -56,8 +56,8 @@ echo "==> кеш конфигов/маршрутов/вьюх"
 $PHP_BIN artisan config:cache
 $PHP_BIN artisan route:clear
 $PHP_BIN artisan route:cache
+$PHP_BIN artisan route:list --path=admin/users || true
 $PHP_BIN artisan view:cache
-$PHP_BIN artisan event:cache
 $PHP_BIN artisan event:cache
 
 echo "==> очередь и реверб (если включены)"
