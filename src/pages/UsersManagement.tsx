@@ -149,14 +149,27 @@ const UsersManagement = () => {
   const assignCompanyMutation = useMutation({
     mutationFn: async ({ userId, companyId }: { userId: string; companyId: string | null }) => {
       const { error } = await laravelAuthApi.adminAssignCompany(userId, companyId);
-      if (error) throw new Error(error.message);
+      if (error) {
+        const err: any = new Error(error.message);
+        err.status = (error as any).status;
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users_list"] });
       queryClient.invalidateQueries({ queryKey: ["superadmin_profiles"] });
       toast.success("Компания обновлена");
     },
-    onError: (e: any) => toast.error(e.message || "Не удалось обновить компанию"),
+    onError: (e: any) => {
+      const msg = String(e?.message || "");
+      if (e?.status === 404 || /could not be found|route .* not found/i.test(msg)) {
+        toast.error(
+          "Эндпоинт назначения компании ещё не задеплоен на бэкенде. Обновите Laravel-сервер и сбросьте route-cache (php artisan route:clear).",
+        );
+        return;
+      }
+      toast.error(msg || "Не удалось обновить компанию");
+    },
   });
 
   const departments = Array.from(
