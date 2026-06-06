@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\EmailConfigService;
+use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
@@ -15,6 +16,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // API-only backend: route('login') отсутствует, поэтому гостевые API-запросы
+        // должны получать JSON 401, а не падать на попытке построить redirect URL.
+        Authenticate::redirectUsing(fn ($request) => null);
+
         try {
             app(EmailConfigService::class)->apply();
         } catch (\Throwable $e) {
