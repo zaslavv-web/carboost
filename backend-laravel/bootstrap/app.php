@@ -35,5 +35,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(function ($request) {
             return $request->is('api/*') || $request->expectsJson();
         });
+
+        // Не пытаемся редиректить на route('login') — его нет, API-only backend.
+        // Возвращаем чистый 401 JSON для неавторизованных запросов.
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+        });
     })
     ->create();

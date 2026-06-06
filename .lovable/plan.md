@@ -1,16 +1,27 @@
-## План
+## Цель
 
-1. Проверить, почему запрос без токена даёт 500 вместо 401.
-   - Если маршрут внутри `auth:sanctum`, корректное поведение без авторизации: `401`.
-   - `500` до авторизации почти всегда означает проблему Sanctum/таблицы `personal_access_tokens`, route/config cache или OPcache.
+Убрать `500 Route [login] not defined` на API-маршрутах под `auth:sanctum` и вернуть корректный JSON-ответ `401` для неавторизованных запросов.
 
-2. На сервере снять реальную ошибку из Laravel-лога сразу после тестового PATCH:
-   ```bash
-   cd /home/gro7659365/growth-peak.pro/docs/backend
-   tail -n 120 storage/logs/laravel.log
-   ```
+## Причина
 
-3. Очистить Laravel-кеши и пересобрать автозагрузчик:
+Судя по логу, запрос доходит до middleware `auth:sanctum`, но Laravel считает его обычным web-запросом и пытается сделать redirect на named route `login`. В проекте API-only backend, маршрута `login` нет, поэтому вместо нормального `401` получается `500`.
+
+## План изменений
+
+1. **Исправить обработку unauthenticated API-запросов в `bootstrap/app.php`**
+   - Добавить явный рендер `Illuminate\Auth\AuthenticationException` для `api/*` и `expectsJson()`.
+   - Возвращать JSON:
+     ```json
+     { "message": "Unauthenticated." }
+     ```
+     со статусом `401`.
+   - Это не затронет авторизованные запросы и не меняет бизнес-логику `assignCompany`.
+
+2. **Не добавлять web-route `login`**
+   - Для API это неправильный обходной путь: он спрятал бы проблему редиректа, но не дал бы корректный JSON для frontend.
+
+3. **После выкладки на сервер очистить кеши**
+   Выполнить в backend-папке:
    ```bash
    php artisan optimize:clear
    php artisan route:clear
@@ -20,7 +31,7 @@
    rm -f bootstrap/cache/routes-v7.php bootstrap/cache/config.php bootstrap/cache/packages.php bootstrap/cache/services.php
    ```
 
-4. Сбросить OPcache на shared-hosting без PHP-FPM:
+4. **Сбросить OPcache на shared-hosting**
    ```bash
    cat > public/opcache-reset.php <<'PHP'
    <?php
@@ -35,14 +46,15 @@
    rm -f public/opcache-reset.php
    ```
 
-5. Повторить проверку:
+5. **Проверить результат**
    ```bash
-   curl -s -o /dev/null -w "%{http_code}\n" -X PATCH https://growth-peak.pro/api/admin/users/test/company
+   curl -s -i -X PATCH https://growth-peak.pro/api/admin/users/test/company
    ```
-   Ожидаемый результат без токена: `401`, не `500`.
+   Ожидаемо:
+   - `HTTP/2 401` или `HTTP/1.1 401`
+   - JSON body с `Unauthenticated`
+   - не `500`
 
-6. Если всё ещё `500`, прислать последние строки лога. По ним точечно исправим одну из вероятных причин:
-   - отсутствует/сломана таблица `personal_access_tokens`;
-   - старый скомпилированный кеш всё ещё обслуживается хостингом;
-   - ошибка в `EffectiveUser`/Sanctum до входа в `assignCompany`;
-   - несовпадение схемы БД после миграций.
+## Техническая деталь
+
+Изменение нужно внести в `backend-laravel/bootstrap/app.php` в блок `->withExceptions(...)`, чтобы Laravel 11 не пытался строить redirect URL через `route('login')` для API-запросов.
