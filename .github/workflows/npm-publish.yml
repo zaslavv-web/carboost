@@ -51,18 +51,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
           extensions: pdo, pdo_pgsql, pdo_mysql, redis
 
-      - name: Downgrade Composer to 2.2 (no advisory block)
+      - name: Downgrade Composer to 2.2 (no advisory block) and clear GitHub token
         run: |
           sudo rm -f /usr/local/bin/composer
           sudo curl -L https://getcomposer.org/download/2.2.22/composer.phar -o /usr/local/bin/composer
           sudo chmod +x /usr/local/bin/composer
           composer --version
+          # Remove any invalid GitHub token to avoid "invalid characters" error
+          composer config --global --unset github-oauth.github.com || true
+          composer config --global --unset http-basic.github.com || true
+          composer config --global --remove-repository packagist || true
+          # Ensure no auth.json is present
+          rm -f ~/.composer/auth.json || true
+          rm -f ~/.config/composer/auth.json || true
 
       - name: Create Laravel project and overlay our files
         run: |
