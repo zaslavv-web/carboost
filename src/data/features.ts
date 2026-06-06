@@ -81,7 +81,7 @@ export const FEATURES: Feature[] = [
         bullets: [
           "Drag-and-drop редактор этапов",
           "Авто-генерация шагов через AI",
-          "Versioning шаблонов",
+          "Контроль версий шаблонов",
         ],
       },
       {
