@@ -69,7 +69,7 @@ const Landing = () => {
         <div className="max-w-6xl mx-auto px-4 md:px-8 w-full">
           <div className="text-center max-w-2xl mx-auto mb-8">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">Что система делает за HR-функцию</h2>
-            <p className="text-sm text-muted-foreground">Шесть направлений, на которых платформа закрывает рутину и даёт HRD управляемые цифры.</p>
+            <p className="text-sm text-muted-foreground">Шесть направлений, на которых платформа закрывает рутинные задачи и даёт HRD управляемые цифры.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {HRD_PAINS.map((p) => (
