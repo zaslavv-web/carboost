@@ -1,60 +1,39 @@
-## Цель
+## План
 
-Убрать `500 Route [login] not defined` на API-маршрутах под `auth:sanctum` и вернуть корректный JSON-ответ `401` для неавторизованных запросов.
+1. **Убрать корневую причину на уровне Laravel bootstrapping**
+   - Обновить `backend-laravel/bootstrap/app.php`, чтобы Laravel не регистрировал callback редиректа гостей на `route('login')`.
+   - Вместо этого для API-запросов сразу возвращать JSON `401 {"message":"Unauthenticated."}`.
 
-## Причина
+2. **Сделать защиту устойчивее, чем текущий handler исключения**
+   - Текущий `AuthenticationException` handler срабатывает слишком поздно: ошибка возникает раньше, когда middleware пытается вычислить redirect URL через `route('login')`.
+   - Поэтому нужно настроить middleware guest redirect через `redirectGuestsTo(...)`, чтобы для `api/*` он возвращал `null`, а не `route('login')`.
 
-Судя по логу, запрос доходит до middleware `auth:sanctum`, но Laravel считает его обычным web-запросом и пытается сделать redirect на named route `login`. В проекте API-only backend, маршрута `login` нет, поэтому вместо нормального `401` получается `500`.
+3. **Не добавлять web route `/login`**
+   - Это замаскирует проблему и даст HTML/redirect-поведение там, где API должен возвращать JSON.
 
-## План изменений
+4. **После деплоя на сервере проверить именно backend-файл**
+   - `grep -n "redirectGuestsTo\|AuthenticationException" bootstrap/app.php`
+   - Сейчас `grep` пустой, значит исправленный `bootstrap/app.php` не оказался в активной backend-директории `/home/gro7659365/growth-peak.pro/docs/backend`.
 
-1. **Исправить обработку unauthenticated API-запросов в `bootstrap/app.php`**
-   - Добавить явный рендер `Illuminate\Auth\AuthenticationException` для `api/*` и `expectsJson()`.
-   - Возвращать JSON:
-     ```json
-     { "message": "Unauthenticated." }
-     ```
-     со статусом `401`.
-   - Это не затронет авторизованные запросы и не меняет бизнес-логику `assignCompany`.
+5. **Очистить кеш и проверить результат**
+   - `php artisan optimize:clear`
+   - `rm -f bootstrap/cache/*.php`
+   - Повторить:
+     - `curl -s -i -X PATCH https://growth-peak.pro/api/admin/users/test/company`
+   - Ожидаемый ответ без токена: `HTTP 401`, JSON `{"message":"Unauthenticated."}`, без `Route [login] not defined` в логе.
 
-2. **Не добавлять web-route `login`**
-   - Для API это неправильный обходной путь: он спрятал бы проблему редиректа, но не дал бы корректный JSON для frontend.
+## Техническая правка
 
-3. **После выкладки на сервер очистить кеши**
-   Выполнить в backend-папке:
-   ```bash
-   php artisan optimize:clear
-   php artisan route:clear
-   php artisan config:clear
-   php artisan cache:clear
-   composer dump-autoload -o
-   rm -f bootstrap/cache/routes-v7.php bootstrap/cache/config.php bootstrap/cache/packages.php bootstrap/cache/services.php
-   ```
+В `bootstrap/app.php` внутри `->withMiddleware(function (Middleware $middleware) { ... })` добавить настройку guest redirect для API-only backend:
 
-4. **Сбросить OPcache на shared-hosting**
-   ```bash
-   cat > public/opcache-reset.php <<'PHP'
-   <?php
-   header('Content-Type: text/plain; charset=utf-8');
-   if (function_exists('opcache_reset')) {
-       var_dump(opcache_reset());
-   } else {
-       echo "opcache_reset unavailable\n";
-   }
-   PHP
-   curl -s https://growth-peak.pro/opcache-reset.php
-   rm -f public/opcache-reset.php
-   ```
+```php
+$middleware->redirectGuestsTo(function ($request) {
+    if ($request->is('api/*') || $request->expectsJson()) {
+        return null;
+    }
 
-5. **Проверить результат**
-   ```bash
-   curl -s -i -X PATCH https://growth-peak.pro/api/admin/users/test/company
-   ```
-   Ожидаемо:
-   - `HTTP/2 401` или `HTTP/1.1 401`
-   - JSON body с `Unauthenticated`
-   - не `500`
+    return null;
+});
+```
 
-## Техническая деталь
-
-Изменение нужно внести в `backend-laravel/bootstrap/app.php` в блок `->withExceptions(...)`, чтобы Laravel 11 не пытался строить redirect URL через `route('login')` для API-запросов.
+И оставить текущий `AuthenticationException` JSON-render как дополнительную страховку.
