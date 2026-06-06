@@ -57,14 +57,17 @@ jobs:
           php-version: '8.2'
           extensions: pdo, pdo_pgsql, pdo_mysql, redis
 
+      - name: Disable Composer advisories globally
+        run: composer config -g audit.block false
+
       - name: Create Laravel project and overlay our files
         run: |
-          # Устанавливаем конкретную последнюю версию 11.x с отключенным аудитом
+          # Устанавливаем конкретную последнюю версию 11.x
           composer create-project laravel/laravel app-src "^11.0" --prefer-dist --no-interaction --no-audit
           cd app-src
-          # Отключаем блокировку advisories в конфиге Composer
+          # Отключаем блокировку advisories на всякий случай локально
           composer config --no-plugins audit.block false
-          # Обновляем до последней версии без уязвимостей (с --no-audit)
+          # Обновляем до последней версии без уязвимостей
           composer require laravel/framework:^11.54 --with-all-dependencies --no-interaction --no-audit
           cd ..
           cp -r backend-laravel/app        app-src/
@@ -76,7 +79,6 @@ jobs:
       - name: Install extra Laravel packages
         run: |
           cd app-src
-          # Убеждаемся, что блокировка advisories отключена
           composer config --no-plugins audit.block false
           composer require \
             laravel/sanctum laravel/socialite \
@@ -141,12 +143,10 @@ jobs:
             DB_PORT_VALUE="3306"
           fi
           MAIL_HOST_VALUE="${MAIL_HOST_SECRET}"
-          # Яндекс часто указывают как smtp.yandex.com, но рабочий хост — smtp.yandex.ru
           if [[ "$MAIL_HOST_VALUE" == "smtp.yandex.com" ]]; then
             MAIL_HOST_VALUE="smtp.yandex.ru"
           fi
           MAIL_PORT_VALUE="${MAIL_PORT_SECRET:-587}"
-          # Автодетект шифрования по порту, если secret MAIL_ENCRYPTION не задан
           if [[ "$MAIL_HOST_VALUE" == "smtp.yandex.ru" && "$MAIL_PORT_VALUE" == "465" ]]; then
             MAIL_ENCRYPTION_VALUE="ssl"
           elif [[ -n "$MAIL_ENCRYPTION_SECRET" ]]; then
