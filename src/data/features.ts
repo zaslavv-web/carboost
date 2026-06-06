@@ -197,7 +197,7 @@ export const FEATURES: Feature[] = [
     slug: "onboarding",
     icon: FileSearch,
     title: "Онбординг и приглашения",
-    tagline: "Запустите 200 сотрудников за час.",
+    tagline: "Добавьте 200 сотрудников в систему за час.",
     story: {
       persona: "Светлана, HRD сети клиник",
       pain: "Каждый новый сотрудник — час ручной настройки доступов и треков.",
