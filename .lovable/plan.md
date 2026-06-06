@@ -1,121 +1,65 @@
-# Пошаговая инструкция: применить фикс composer на сервере growth-peak.pro
+# Что показала проверка прод-сервера
 
-Цель: чтобы на сервере прошёл `composer install` (сейчас он падает из-за advisories на Laravel 11.x) и обновился код бэкенда, включая маршрут `PATCH /api/admin/users/{userId}/company`.
+Запросил `GET https://growth-peak.pro/api/diag` и `PATCH /api/admin/users/{id}/company` без авторизации.
 
----
+## 1. Новый код на сервер НЕ доехал
 
-## Шаг 1. Подключиться к серверу по SSH
+В репозитории `routes/api.php` диагностика возвращает поля `deploy_marker`, `routes.has_assign_company`, `app_debug` и т.д. (см. `assign-company-route-probe-2026-06-05-01`). На проде эти поля отсутствуют:
 
-На своём компьютере открой терминал (на Mac — «Терминал», на Windows — PowerShell или Git Bash) и выполни:
+```json
+{"app_env":"production","php":"8.2.31","laravel":"11.54.0","commit":"unknown","mail":{...},"google":{...},"migrations_tail":[...]}
+```
+
+Нет ни `deploy_marker`, ни `routes`, ни `app_debug`. Значит на сервере висит более старая ревизия `routes/api.php` (и, скорее всего, всего бэкенда), чем в репозитории.
+
+## 2. PATCH на смену компании — 500, не 404
+
+```
+PATCH https://growth-peak.pro/api/admin/users/test/company
+→ HTTP/2 500  {"message":"Server Error"}
+```
+
+Если бы маршрут отсутствовал — был бы 404. Значит маршрут зарегистрирован (видимо, в кеше), но обработчик падает ещё до auth-middleware. Скорее всего одно из:
+
+- маршрут `PATCH /admin/users/{userId}/company` есть в кеше `bootstrap/cache/routes-v7.php`, но указывает на старую сигнатуру контроллера / отсутствующий метод;
+- либо новый контроллер задеплоен, но `php artisan route:cache` / `config:cache` не пересобраны после деплоя и кеш сломан;
+- либо `EnsureHasCompany`/`EffectiveUser` падают на необработанном исключении (видно будет в `storage/logs/laravel.log`).
+
+`app.debug=false`, поэтому подробности скрыты — нужен лог.
+
+# План действий
+
+## Шаг 1. Доставить актуальный код на сервер
+Выполнить заново (или довести до конца) деплой бэкенда `backend-laravel`:
 
 ```bash
-ssh root@growth-peak.pro
+cd /var/www/growth-peak/backend-laravel
+git fetch --all && git reset --hard origin/main
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan route:clear && php artisan config:clear && php artisan cache:clear
+php artisan route:cache && php artisan config:cache
+sudo systemctl reload php8.2-fpm
 ```
 
-Если у тебя другой пользователь (например, `deploy` или `ubuntu`) — подставь его вместо `root`. Введи пароль, если попросит.
+Критично: после деплоя ОБЯЗАТЕЛЬНО `route:clear` ДО `route:cache`. Иначе старый кеш переживёт деплой.
 
-После подключения ты окажешься в командной строке сервера.
-
----
-
-## Шаг 2. Перейти в папку с бэкендом
-
+## Шаг 2. Проверить, что код доехал
 ```bash
-cd /var/www/api
+curl -s https://growth-peak.pro/api/diag | jq
 ```
+В ответе должны появиться поля `deploy_marker:"assign-company-route-probe-2026-06-05-01"` и `routes.has_assign_company:true`. Если их нет — деплой не сработал.
 
-Проверь, что ты в правильной папке:
-
+## Шаг 3. Если 500 остался — снять реальную ошибку
 ```bash
-pwd
-ls
+tail -n 200 /var/www/growth-peak/backend-laravel/storage/logs/laravel.log
 ```
+и прислать последнюю запись со стектрейсом по `assignCompany`. По стектрейсу станет понятно, чинить ли контроллер `UsersController::assignCompany`, миграцию, или middleware.
 
-Должно показать `/var/www/api` и список с `app`, `routes`, `composer.json`, `deploy` и т.д.
+## Шаг 4. Только после этого править код
+Изменения во фронте (`adminAssignCompany` в `src/integrations/laravel/auth.ts`) и контроллере (`backend-laravel/app/Http/Controllers/Api/Admin/UsersController.php::assignCompany`) уже соответствуют контракту `PATCH /admin/users/{userId}/company` с телом `{company_id}`. Менять фронт смысла нет, пока бэкенд возвращает 500 без авторизации.
 
----
+# Что мне нужно от вас, чтобы продолжить
 
-## Шаг 3. Подтянуть свежий код из git
-
-```bash
-sudo git fetch --all --prune
-sudo git reset --hard origin/main
-sudo git log -1 --oneline
-```
-
-Последняя команда должна показать свежий коммит (с фиксом deploy-скрипта).
-
-Если получишь ошибку «not a git repository» — напиши мне, разберёмся отдельно (значит, на сервере нет git и код заливается как-то иначе).
-
----
-
-## Шаг 4. Запустить обновлённый деплой-скрипт
-
-```bash
-sudo bash /var/www/api/deploy/deploy-laravel.sh
-```
-
-Скрипт сам:
-- отключит блокировку composer по advisories;
-- поставит зависимости;
-- накатит миграции;
-- пересоберёт кеш маршрутов Laravel;
-- перезагрузит nginx.
-
-Дождись, пока он отработает (обычно 1–3 минуты). В конце должно быть `==> done`.
-
-Если в процессе появятся ошибки про `sudo: command not found` — убери `sudo` из команды (значит, ты уже root).
-
----
-
-## Шаг 5. Проверить, что всё применилось
-
-Выполни прямо на сервере:
-
-```bash
-php artisan route:list --path=admin/users
-```
-
-В списке должна быть строка с `PATCH api/admin/users/{userId}/company`.
-
-И посмотри хвост лога:
-
-```bash
-sudo tail -n 80 /var/log/laravel-deploy.log
-```
-
----
-
-## Шаг 6. Проверить продакшен снаружи
-
-Открой в браузере:
-
-```
-https://growth-peak.pro/api/diag
-```
-
-Должно появиться JSON с полями:
-- `commit` — короткий хеш (НЕ `unknown`);
-- `deploy_marker` — строка `assign-company-route-probe-2026-06-05-01`;
-- `routes.has_assign_company: true`.
-
----
-
-## Шаг 7. Прислать мне результат
-
-Скопируй и пришли в чат:
-1. Вывод команды из Шага 5 (`route:list --path=admin/users`).
-2. Последние ~50 строк из `/var/log/laravel-deploy.log`.
-3. JSON-ответ с `/api/diag`.
-
-После этого я подскажу, нужно ли что-то ещё поправить в коде, или можно убирать временные диагностические поля.
-
----
-
-## Если что-то пошло не так
-
-- **Падает на Шаге 3 (git)** — пришли точный текст ошибки. Возможно, на сервере код заливается не через git, а через rsync/CI — тогда нужен другой способ доставки скрипта.
-- **Падает на Шаге 4 (composer install)** — пришли последние 30 строк вывода. Возможно, composer слишком старый и не понимает `policy.advisories.block` (тогда обновим обходной путь).
-- **Шаг 5 не показывает маршрут** — значит, кеш маршрутов не пересобрался. Выполни вручную: `sudo -u www-data php artisan route:clear && sudo -u www-data php artisan route:cache`.
-
-Никаких изменений в коде на этом шаге не нужно — план полностью про действия на сервере.
+1. Вывод `curl -s https://growth-peak.pro/api/diag` после повторного деплоя.
+2. Хвост `storage/logs/laravel.log` (последние 100–200 строк) на момент воспроизведения ошибки смены компании.
