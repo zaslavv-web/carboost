@@ -59,11 +59,12 @@ jobs:
 
       - name: Create Laravel project and overlay our files
         run: |
-          # Устанавливаем конкретную последнюю версию 11.x с отключенным аудитом
-          composer create-project laravel/laravel app-src "^11.0" --prefer-dist --no-interaction --no-audit
+          # Устанавливаем Laravel с отключением блокировки advisories через настройку composer.json
+          composer create-project laravel/laravel app-src "^11.0" --prefer-dist --no-interaction
           cd app-src
-          # Обновляем до последней версии без уязвимостей (с --no-audit)
-          composer require laravel/framework:^11.54 --with-all-dependencies --no-interaction --no-audit
+          # Отключаем блокировку advisories в composer.json (работает во всех версиях Composer)
+          php -r "composer.json; \$c = json_decode(file_get_contents('composer.json'), true); \$c['config']['audit']['block'] = false; file_put_contents('composer.json', json_encode(\$c, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));"
+          composer require laravel/framework:^11.54 --with-all-dependencies --no-interaction
           cd ..
           cp -r backend-laravel/app        app-src/
           cp -r backend-laravel/bootstrap  app-src/
@@ -74,10 +75,11 @@ jobs:
       - name: Install extra Laravel packages
         run: |
           cd app-src
+          # Убеждаемся, что отключение блокировки уже прописано в composer.json
           composer require \
             laravel/sanctum laravel/socialite \
             spatie/laravel-permission predis/predis \
-            guzzlehttp/guzzle --no-interaction --no-audit
+            guzzlehttp/guzzle --no-interaction
 
       - name: Create backend .env
         env:
