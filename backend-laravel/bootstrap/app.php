@@ -24,12 +24,17 @@ return Application::configure(basePath: dirname(__DIR__))
         // API stateless — никаких CSRF/session кук в API-группе
         $middleware->validateCsrfTokens(except: ['api/*']);
 
+        // API-only backend: route('login') не существует. Запрещаем Authenticate
+        // middleware пытаться построить redirect URL — для API всегда отдаём JSON 401.
+        $middleware->redirectGuestsTo(fn ($request) => null);
+
         $middleware->alias([
             'verified.user'  => \App\Http\Middleware\EnsureVerified::class,
             'has.company'    => \App\Http\Middleware\EnsureHasCompany::class,
             'effective.user' => \App\Http\Middleware\EffectiveUser::class,
         ]);
     })
+
     ->withExceptions(function (Exceptions $exceptions) {
         // JSON-ответы для API
         $exceptions->shouldRenderJsonWhen(function ($request) {
