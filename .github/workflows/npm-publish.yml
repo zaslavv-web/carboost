@@ -56,87 +56,30 @@ jobs:
         with:
           php-version: '8.2'
           extensions: pdo, pdo_pgsql, pdo_mysql, redis
-      - name: Remove Composer security blocking completely
-        run: |
-          # Отключаем безопасность на уровне Composer (для всех проектов на раннере)
-          mkdir -p ~/.composer
-          cat > ~/.composer/config.json << 'EOF'
-          {
-              "config": {
-                  "allow-plugins": true
-              },
-              "extra": {
-                  "policy": {
-                      "advisories": {
-                          "block": false
-                      }
-                  }
-              }
-          }
-          EOF
-          
-          # Устанавливаем переменные окружения
-          echo "COMPOSER_NO_AUDIT=1" >> $GITHUB_ENV
-          echo "COMPOSER_ALLOW_SUPERUSER=1" >> $GITHUB_ENV
-      - name: Downgrade Composer to working version
-        run: |
-          sudo rm -f /usr/local/bin/composer
-          sudo curl -L https://getcomposer.org/download/2.6.5/composer.phar -o /usr/local/bin/composer
-          sudo chmod +x /usr/local/bin/composer
-          composer --version
-            
-      - name: Checkout code
-        uses: actions/checkout@v4
+
       - name: Create Laravel project and overlay our files
-        env:
-          COMPOSER_NO_AUDIT: 1
-          COMPOSER_PROCESS_TIMEOUT: 2000
         run: |
-          # 1. Создаём проект, отключая проверку безопасности
-          composer create-project \
-            --prefer-dist \
-            --no-interaction \
-            --no-scripts \
-            --no-audit \
-            --ignore-platform-reqs \
-            laravel/laravel app-src "^11.0"
-          
-          cd app-src || exit 1
-          
-          # 2. Удаляем composer.lock, чтобы переустановить зависимости чисто
-          rm -f composer.lock
-          
-          # 3. Добавляем игнорирование КОНКРЕТНОГО PKSA в composer.json
-          composer config extra.policy.advisories.ignore-id '["PKSA-mdq4-51ck-6kdq"]' --no-plugins
-          
-          # 4. Обновляем зависимости с игнорированием блокировок
-          composer update \
-            --with-all-dependencies \
-            --no-interaction \
-            --no-scripts \
-            --no-audit \
-            --ignore-platform-reqs
-          
+          # Устанавливаем конкретную последнюю версию 11.x
+          composer create-project laravel/laravel app-src "^11.0" --prefer-dist --no-interaction
+          cd app-src
+          # Обновляем до последней версии без уязвимостей
+          composer require laravel/framework:^11.54 --with-all-dependencies --no-interaction
           cd ..
-          
-          # 5. Копируем ваши файлы
           cp -r backend-laravel/app        app-src/
           cp -r backend-laravel/bootstrap  app-src/
           cp -r backend-laravel/config     app-src/
           cp -r backend-laravel/database   app-src/
           cp -r backend-laravel/routes     app-src/
-              env:
-                COMPOSER_NO_AUDIT: 1
-                COMPOSER_PROCESS_TIMEOUT: 2000
-            - name: Install extra Laravel packages
-              env:
-                COMPOSER_IGNORE_ADVISORIES: 1
-              run: |
-                cd app-src
-                composer require \
-                  laravel/sanctum laravel/socialite \
-                  spatie/laravel-permission predis/predis \
-                  guzzlehttp/guzzle --no-interaction
+
+      - name: Install extra Laravel packages
+        env:
+          COMPOSER_IGNORE_ADVISORIES: 1
+        run: |
+          cd app-src
+          composer require \
+            laravel/sanctum laravel/socialite \
+            spatie/laravel-permission predis/predis \
+            guzzlehttp/guzzle --no-interaction
 
       - name: Create backend .env
         env:
