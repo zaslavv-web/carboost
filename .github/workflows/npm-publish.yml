@@ -57,13 +57,17 @@ jobs:
           php-version: '8.2'
           extensions: pdo, pdo_pgsql, pdo_mysql, redis
 
+      - name: Downgrade Composer to 2.2 (no advisory block)
+        run: |
+          sudo rm -f /usr/local/bin/composer
+          sudo curl -L https://getcomposer.org/download/2.2.22/composer.phar -o /usr/local/bin/composer
+          sudo chmod +x /usr/local/bin/composer
+          composer --version
+
       - name: Create Laravel project and overlay our files
         run: |
-          # Устанавливаем Laravel с отключением блокировки advisories через настройку composer.json
           composer create-project laravel/laravel app-src "^11.0" --prefer-dist --no-interaction
           cd app-src
-          # Отключаем блокировку advisories в composer.json (работает во всех версиях Composer)
-          php -r "composer.json; \$c = json_decode(file_get_contents('composer.json'), true); \$c['config']['audit']['block'] = false; file_put_contents('composer.json', json_encode(\$c, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));"
           composer require laravel/framework:^11.54 --with-all-dependencies --no-interaction
           cd ..
           cp -r backend-laravel/app        app-src/
@@ -75,7 +79,6 @@ jobs:
       - name: Install extra Laravel packages
         run: |
           cd app-src
-          # Убеждаемся, что отключение блокировки уже прописано в composer.json
           composer require \
             laravel/sanctum laravel/socialite \
             spatie/laravel-permission predis/predis \
@@ -139,12 +142,10 @@ jobs:
             DB_PORT_VALUE="3306"
           fi
           MAIL_HOST_VALUE="${MAIL_HOST_SECRET}"
-          # Яндекс часто указывают как smtp.yandex.com, но рабочий хост — smtp.yandex.ru
           if [[ "$MAIL_HOST_VALUE" == "smtp.yandex.com" ]]; then
             MAIL_HOST_VALUE="smtp.yandex.ru"
           fi
           MAIL_PORT_VALUE="${MAIL_PORT_SECRET:-587}"
-          # Автодетект шифрования по порту, если secret MAIL_ENCRYPTION не задан
           if [[ "$MAIL_HOST_VALUE" == "smtp.yandex.ru" && "$MAIL_PORT_VALUE" == "465" ]]; then
             MAIL_ENCRYPTION_VALUE="ssl"
           elif [[ -n "$MAIL_ENCRYPTION_SECRET" ]]; then
@@ -219,10 +220,8 @@ jobs:
 
       - name: Deploy backend
         run: |
-          # 1. Берём APP_KEY из уже сгенерированного .env (значение в кавычках)
           APP_KEY_VALUE="$(awk -F= '/^APP_KEY=/{sub(/^APP_KEY=/,""); gsub(/^"|"$/,""); print; exit}' app-src/.env)"
 
-          # 2. Если там оказался маркер — подменяем на серверный APP_KEY (бэк-компат)
           if [[ "$APP_KEY_VALUE" == "__PRESERVE_SERVER_APP_KEY__" ]]; then
             SERVER_APP_KEY="$(ssh -o StrictHostKeyChecking=no \
                 -o HostKeyAlgorithms=+ssh-rsa \
@@ -238,12 +237,10 @@ jobs:
             python3 -c "from pathlib import Path; import os; p=Path('app-src/.env'); p.write_text(p.read_text().replace('__PRESERVE_SERVER_APP_KEY__', os.environ['APP_KEY_VALUE']))"
           fi
 
-          # 3. Всегда экспортируем перед валидатором
           export APP_KEY_VALUE="${APP_KEY_VALUE:-}"
 
           python3 - <<'PY'
           import os, base64, sys
-
           key = os.environ.get('APP_KEY_VALUE', '')
           if not key:
               sys.stderr.write('APP_KEY невалиден или отсутствует — задайте GitHub secret APP_KEY в формате base64:... (php artisan key:generate --show)\n')
@@ -256,7 +253,6 @@ jobs:
                   sys.exit(1)
           else:
               raw = key.encode('utf-8')
-
           if len(raw) not in (16, 32):
               sys.stderr.write(f'APP_KEY должен декодироваться в 16 или 32 байта, получено {len(raw)}. Задайте GitHub secret APP_KEY в формате base64:... (php artisan key:generate --show)\n')
               sys.exit(1)
