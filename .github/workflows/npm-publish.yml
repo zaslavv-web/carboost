@@ -67,7 +67,6 @@ jobs:
           # Remove any invalid GitHub token to avoid "invalid characters" error
           composer config --global --unset github-oauth.github.com || true
           composer config --global --unset http-basic.github.com || true
-          composer config --global --remove-repository packagist || true
           # Ensure no auth.json is present
           rm -f ~/.composer/auth.json || true
           rm -f ~/.config/composer/auth.json || true
