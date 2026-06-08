@@ -356,6 +356,28 @@ class EmailConfigService
     {
         $this->apply($setting);
 
+        try {
+            $this->dispatchTestMail($to);
+            return;
+        } catch (\Throwable $e) {
+            if (!self::isSmtpAuthFailure($e)) {
+                throw $e;
+            }
+
+            // Один раз пробуем синхронизировать пароль активной Яндекс-записи
+            // с file fallback (config/service-infra.php → SMTP_PASSWORD) и повторить отправку.
+            $synced = $this->syncActiveYandexPasswordFromFile($setting);
+            if (!$synced) {
+                throw $e;
+            }
+
+            $this->apply($synced);
+            $this->dispatchTestMail($to);
+        }
+    }
+
+    private function dispatchTestMail(string $to): void
+    {
         Mail::raw(
             "Тестовое письмо Career Track отправлено успешно.\n\nЭта конфигурация будет применяться к системным письмам: восстановление пароля, приглашения и уведомления.",
             function ($message) use ($to) {
@@ -363,6 +385,52 @@ class EmailConfigService
             }
         );
     }
+
+    /**
+     * Если активная запись — Яндекс и в config/service-infra.php лежит пароль,
+     * отличный от текущего сохранённого, — обновить пароль в БД и вернуть свежую запись.
+     * Иначе вернуть null (не вмешиваться в ручные настройки суперадмина).
+     */
+    public function syncActiveYandexPasswordFromFile(EmailSetting $setting): ?EmailSetting
+    {
+        if (!self::isYandexConfig($setting->host, $setting->provider)) {
+            return null;
+        }
+
+        $defaults = ServiceInfra::smtpDefaults();
+        if (!self::isYandexConfig($defaults['host'] ?? null, $defaults['provider'] ?? null)) {
+            return null;
+        }
+
+        $filePassword = self::normalizePassword(
+            $defaults['host'] ?? null,
+            $defaults['password'] ?? null,
+            $defaults['provider'] ?? null
+        );
+        if (!$filePassword) {
+            return null;
+        }
+
+        try {
+            $currentPassword = $setting->password;
+        } catch (\Throwable $e) {
+            $currentPassword = null;
+        }
+
+        if ($currentPassword === $filePassword) {
+            return null;
+        }
+
+        $setting->password = $filePassword;
+        $setting->forceFill(['last_test_error' => null])->save();
+
+        Log::info('EmailConfigService: synced active Yandex SMTP password from service-infra file fallback', [
+            'setting_id' => $setting->id ?? null,
+        ]);
+
+        return $setting->fresh();
+    }
+
 
     private function forgetResolvedMailers(): void
     {
