@@ -192,18 +192,6 @@ class EmailConfigService
             return;
         }
 
-
-        // Если пароль не расшифровывается (APP_KEY сменился) — падаем в fallback.
-        try {
-            $hasUsable = $setting->hasUsablePassword();
-        } catch (\Throwable $e) {
-            throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново. ' . $e->getMessage(), 0, $e);
-        }
-
-        if (!$setting->host || !$setting->from_address || !$hasUsable) {
-            throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново.');
-        }
-
         $host = self::normalizeHost($setting->host, $setting->provider);
         $port = self::normalizePort($host, $setting->port, $setting->provider);
         $encryption = self::normalizeEncryption($host, $port, $setting->encryption);
