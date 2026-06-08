@@ -50,11 +50,15 @@ const CompleteRegistration = () => {
   const { data: companies = [], isLoading: companiesLoading } = useQuery({
     queryKey: ["public_companies"],
     queryFn: async () => {
-      const { data, error } = await laravelDb.from("companies").select("id, name").order("name");
-      if (error) throw error;
+      // Используем публичный endpoint — DbController/companies закрыт
+      // middleware verified+has.company, а здесь у пользователя ещё нет компании.
+      const { laravel } = await import("@/integrations/laravel/client");
+      const { data, error } = await laravel.get<Array<{ id: string; name: string }>>("/companies/public");
+      if (error) throw new Error(error.message);
       return data || [];
     },
   });
+
 
   // Positions for selected company (only when no domain-match) — for employee role
   const { data: positions = [] } = useQuery({
