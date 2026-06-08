@@ -1,81 +1,146 @@
-## Проблема
 
-`alavrenov@vacollection.asia` (и потенциально все пользователи, кроме superadmin) после входа попадают на `/complete-registration`, хотя у них уже есть `company_id` и `is_verified=true`.
+# План: централизация инфраструктурных настроек + мониторинг почты
 
-### Корневая причина
+## Ключевое ограничение
 
-1. Хук `useLaravelProfile` (`src/hooks/useLaravelProfile.ts:41-43`) запрашивает `GET /api/profiles/${effectiveId}`, где `effectiveId = user.id` — это id из доменной таблицы `users` (например `"33"`).
-2. `ProfileController::show` (`backend-laravel/app/Http/Controllers/Api/ProfileController.php`) делает `Profile::findOrFail($id)` — лукап по primary key таблицы `profiles`, а это **UUID**. `findOrFail("33")` → 404.
-3. Хук возвращает `null`, `ProtectedRoute` видит `!profile?.company_id` → редирект на CompleteRegistration.
-4. На CompleteRegistration падает второй запрос `/companies/public` (его middleware-цепочка валидна, но к этому моменту user уже застрял).
+**Бизнес-логика редактирования SMTP через админку `EmailSettingsManagement` НЕ ломается.** Суперадмин по-прежнему может через UI поменять host/port/login/пароль, нажать «Проверить» и «Активировать». Файл-репозиторий становится **fallback и источником для нередактируемых данных** (Google OAuth redirect, AI gateway URL, монитор-инбокс, frontend URL).
 
-Подтверждение: `/api/auth/me` тем же токеном возвращает `company_id: a1ef617d-…, is_verified: true, role: hrd` — то есть данные в БД верные, ломается именно фронт-лукап профиля.
+---
 
-## Что меняем
+## Иерархия источников (новая)
 
-### 1. Backend — `ProfileController::show` принимает user_id
-
-`backend-laravel/app/Http/Controllers/Api/ProfileController.php`
-
-```php
-public function show(string $id): JsonResponse
-{
-    $query = Profile::with(['user', 'company']);
-
-    // Если $id — UUID, ищем по primary key (старый контракт),
-    // иначе считаем это user_id (новый фронт-контракт).
-    $isUuid = (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id);
-    $profile = $isUuid
-        ? $query->findOrFail($id)
-        : $query->where('user_id', $id)->firstOrFail();
-
-    $this->authorize('view', $profile);
-    return response()->json($profile);
-}
+Для SMTP:
+```text
+1. Активная запись в email_settings (через админку)   ← приоритет, поведение как сейчас
+2. config/service-infra.php (дефолты Яндекса из env.txt) ← если БД пустая/битая
+3. .env (legacy MAIL_*)                                 ← третий уровень fallback
+4. log-mailer                                           ← последний рубеж
 ```
 
-Это сохраняет старое поведение (UUID-лукап для существующих интеграций) и чинит фронт, не трогая остальные места.
+Для Google OAuth / AI / frontend URL / monitor inbox: всегда из `service-infra.php` (в админке не редактируется).
 
-### 2. Backend — отдать `roles` в ответе профиля
+---
 
-`AuthController::me` уже отдаёт `roles`, но `ProfileController::show` — нет. Чтобы `useLaravelRoles` при импер­сонации тоже получал роли, в `show`/`me` добавляем:
+## Часть 1. Файл `backend-laravel/config/service-infra.php`
 
-```php
-$payload = $profile->toArray();
-$payload['roles'] = \DB::table('user_roles')
-    ->where('user_id', $profile->user_id)
-    ->pluck('role')->values()->all();
-return response()->json($payload);
+Стабильные данные сервиса. Корректные дефолты Яндекса берутся из приложенного env.txt:
+
+```text
+return [
+  'smtp_defaults' => [
+    'provider'     => 'yandex',
+    'host'         => 'smtp.yandex.ru',
+    'port'         => 465,
+    'encryption'   => 'ssl',
+    'username'     => 'growthpeak@yandex.ru',
+    'password'     => env('SMTP_PASSWORD'),   // секрет — только в .env
+    'from_address' => 'growthpeak@yandex.ru',
+    'from_name'    => 'Пик Роста',
+  ],
+  'mail_monitor' => [
+    'inbox'              => 'growthpeak@yandex.ru',
+    'bcc_critical'       => true,
+    'heartbeat_enabled'  => true,
+    'heartbeat_time'     => '08:00',           // Europe/Moscow
+  ],
+  'google_oauth' => [
+    'client_id'    => env('GOOGLE_CLIENT_ID'),
+    'client_secret'=> env('GOOGLE_CLIENT_SECRET'),
+    'redirect_uri' => 'https://growth-peak.pro/api/auth/google/callback',
+  ],
+  'sso' => [ /* заготовка под будущие провайдеры */ ],
+  'ai_gateway' => [
+    'url'     => env('AI_API_URL', 'https://api.openai.com/v1/chat/completions'),
+    'model'   => env('AI_MODEL', 'gpt-4o-mini'),
+    'api_key' => env('AI_API_KEY'),
+  ],
+  'frontend' => [
+    'url' => 'https://growth-peak.pro',
+  ],
+];
 ```
 
-(применяем и в `show`, и в `me`).
+Принцип: в файле — то, что редко меняется и одинаково на проде. Секреты остаются в `.env`. Изменяемое суперадмином SMTP — в БД.
 
-### 3. Frontend — fallback хука на `/profiles/me`
+## Часть 2. Helper `app/Support/ServiceInfra.php`
 
-`src/hooks/useLaravelProfile.ts` — если не идёт импер­сонация (`effectiveId === user.id`), вызываем `/profiles/me` (он гарантированно резолвит профиль текущего юзера по `auth()->user()`), иначе — `/profiles/{effectiveId}` (по user_id).
+Единая точка доступа: `smtpDefaults()`, `google()`, `ai()`, `frontendUrl()`, `monitorInbox()`, `shouldBccCritical()`, `heartbeatEnabled()`, `heartbeatTime()`.
 
-```ts
-const path =
-  effectiveId && effectiveId !== user?.id
-    ? `/profiles/${effectiveId}`
-    : `/profiles/me`;
-```
+## Часть 3. EmailConfigService — добавляется fallback
 
-Это страховка на случай, если deploy backend задержится — фронт всё равно работает.
+В `EmailConfigService::apply()`:
+1. Если `active()` вернул валидную запись с паролем → применяем как сейчас (БД-приоритет). **Логика админки не меняется.**
+2. Если нет / битая → новый `applyFileDefaults()` берёт `ServiceInfra::smtpDefaults()` и пишет в `config('mail.*')`, лог `info: smtp from file fallback`.
+3. Если и в файле пароль пустой → текущий `applyRuntimeEnv()` как третий уровень.
 
-## Деплой и проверка
+Методы `update()`, `test()`, `preflight()`, `activate()`, `autoRepairActiveSettings()`, нормализаторы — **без изменений**. `EmailSettingsController`, `EmailSetting` model, миграции `email_settings`, страница `src/pages/EmailSettingsManagement.tsx` — **не трогаем**.
 
-1. `git pull` на сервере, `php artisan optimize:clear && php artisan route:cache`, перезагрузка php-fpm.
-2. Проверка curl-ом тем же токеном:
-   ```bash
-   curl -s -i https://growth-peak.pro/api/profiles/33 \
-     -H "Authorization: Bearer $TOKEN"
-   ```
-   Ожидаем `200` + JSON с `company_id: a1ef617d-…` и `roles: ["hrd"]`.
-3. Пользователь логинится → сразу попадает на Dashboard (а не CompleteRegistration), в сайдбаре роль «HRD».
+## Часть 4. Перевод сторонних сервисов на ServiceInfra
 
-## Что НЕ меняем
+Только централизация чтения, без изменения логики:
+- Google OAuth контроллер → `ServiceInfra::google()`
+- `AiGatewayService` → `ServiceInfra::ai()`
+- Места, читающие `FRONTEND_URL`/`APP_FRONTEND_URL` напрямую → `ServiceInfra::frontendUrl()`
 
-- Логика `ProtectedRoute` (`!profile?.company_id` → CompleteRegistration) — она корректна, проблема была только в источнике `profile`.
-- Маршрут `/companies/public` (фикс прошлой итерации остаётся) — пригодится, когда в систему действительно зайдёт новый пользователь без компании.
-- Импер­сонация — `useEffectiveLaravelUserId` остаётся как есть.
+## Часть 5. BCC критичных писем
+
+Критичные = только auth: восстановление пароля, приглашения сотрудников, подтверждение регистрации.
+
+- Новый листенер `app/Listeners/AttachMonitoringBcc.php` на `Illuminate\Mail\Events\MessageSending`.
+- Срабатывает, если в Symfony Message есть заголовок `X-Critical: 1` и `ServiceInfra::shouldBccCritical()` true → добавляет BCC `ServiceInfra::monitorInbox()` (если адрес не совпадает с получателем).
+- Регистрация в `AppServiceProvider::boot()`.
+- В `ResetPasswordNotification::toMail()` и нотификациях приглашений добавляется одна строка:
+  ```text
+  ->withSymfonyMessage(fn($m) => $m->getHeaders()->addTextHeader('X-Critical','1'))
+  ```
+- Никаких массовых правок: нотификации без маркера идут без копии.
+
+## Часть 6. Daily heartbeat
+
+- Команда `app/Console/Commands/SendMailHeartbeat.php` (`mail:heartbeat`):
+  - Subject `[Пик Роста] SMTP heartbeat YYYY-MM-DD`, тело: время, хост, источник SMTP (БД/файл/env).
+  - `Mail::raw(...)` на `ServiceInfra::monitorInbox()`.
+  - Любая ошибка → `Log::error('mail_heartbeat_failed', [...])`.
+  - Если `heartbeatEnabled() === false` → тихий выход.
+- Расписание в `routes/console.php`:
+  `Schedule::command('mail:heartbeat')->dailyAt(ServiceInfra::heartbeatTime())->timezone('Europe/Moscow');`
+
+Не пришло письмо в 08:00 → SMTP сломан, смотреть лог по тегу `mail_heartbeat_failed`.
+
+## Часть 7. .env и совместимость
+
+- В `.env` оставляем только секреты и окружение: `APP_KEY`, `DB_*`, `REDIS_*`, `SANCTUM_*`, `SESSION_DOMAIN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AI_API_KEY`.
+- Добавляем `SMTP_PASSWORD=wrtwpknhswvvsxhk` (пароль Яндекс-приложения для file-fallback).
+- `MAIL_*` блок можно оставить (он становится 3-м уровнем fallback, ничего не ломает), но в `.env.production.example` он помечается «legacy / для совместимости».
+- ⚠️ Пароль `wrtwpknhswvvsxhk` засвечен в чате — после стабилизации сгенерировать новый на https://id.yandex.ru/security/app-passwords и обновить.
+
+## Файлы
+
+**Создаются:**
+- `backend-laravel/config/service-infra.php`
+- `backend-laravel/app/Support/ServiceInfra.php`
+- `backend-laravel/app/Listeners/AttachMonitoringBcc.php`
+- `backend-laravel/app/Console/Commands/SendMailHeartbeat.php`
+
+**Меняются (минимально и обратносовместимо):**
+- `backend-laravel/app/Services/EmailConfigService.php` — добавлен `applyFileDefaults()` как fallback ветка в `apply()`
+- `backend-laravel/app/Providers/AppServiceProvider.php` — регистрация листенера
+- `backend-laravel/app/Notifications/ResetPasswordNotification.php` — маркер `X-Critical`
+- нотификации приглашений сотрудников/подтверждения email — маркер `X-Critical`
+- `backend-laravel/routes/console.php` — schedule для heartbeat
+- Контроллер Google OAuth и `AiGatewayService` — чтение через `ServiceInfra`
+- `backend-laravel/.env` / `.env.production.example` — добавлен `SMTP_PASSWORD`, комментарии об источниках
+
+**НЕ трогаем:**
+- `EmailSettingsController`, `EmailSetting` model, миграции `email_settings`
+- `src/pages/EmailSettingsManagement.tsx`
+- `config/mail.php`
+
+## Чек-лист «ничего не сломалось»
+
+- [ ] Админка открывает текущие настройки из БД и сохраняет изменения.
+- [ ] Кнопки «Проверить SMTP» и «Активировать» работают как раньше.
+- [ ] Восстановление пароля шлёт письмо пользователю + копию на growthpeak@yandex.ru.
+- [ ] Если очистить `email_settings` — восстановление пароля всё равно работает (через файл с дефолтами Яндекса).
+- [ ] В 08:00 по Москве приходит heartbeat-письмо.
+- [ ] Логи без `mail_heartbeat_failed`.

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Controller;
 use App\Services\AuthUserService;
 use App\Support\RuntimeEnv;
+use App\Support\ServiceInfra;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Laravel\Socialite\Facades\Socialite;
@@ -101,10 +102,13 @@ class GoogleAuthController extends Controller
      */
     private function ensureGoogleConfig(): bool
     {
-        $clientId = RuntimeEnv::get('GOOGLE_CLIENT_ID') ?: config('services.google.client_id');
-        $clientSecret = RuntimeEnv::get('GOOGLE_CLIENT_SECRET') ?: config('services.google.client_secret');
+        $infra = ServiceInfra::google();
+
+        $clientId = $infra['client_id'] ?: (RuntimeEnv::get('GOOGLE_CLIENT_ID') ?: config('services.google.client_id'));
+        $clientSecret = $infra['client_secret'] ?: (RuntimeEnv::get('GOOGLE_CLIENT_SECRET') ?: config('services.google.client_secret'));
         $redirect = RuntimeEnv::absoluteUrl(
-            RuntimeEnv::get('GOOGLE_REDIRECT_URI')
+            $infra['redirect_uri']
+                ?: RuntimeEnv::get('GOOGLE_REDIRECT_URI')
                 ?: config('services.google.redirect')
                 ?: rtrim(RuntimeEnv::url('APP_URL', config('app.url')), '/') . '/api/auth/google/callback'
         );
@@ -120,6 +124,10 @@ class GoogleAuthController extends Controller
 
     private function frontendUrl(): string
     {
+        $infraUrl = ServiceInfra::frontendUrl();
+        if ($infraUrl !== '') {
+            return $infraUrl;
+        }
         return RuntimeEnv::url('FRONTEND_URL', RuntimeEnv::url('APP_FRONTEND_URL', config('app.url')));
     }
 }

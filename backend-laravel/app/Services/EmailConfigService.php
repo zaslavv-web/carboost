@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\EmailSetting;
 use App\Support\RuntimeEnv;
+use App\Support\ServiceInfra;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Mail\MailManager;
 
@@ -159,22 +161,35 @@ class EmailConfigService
 
     public function apply(?EmailSetting $setting = null): void
     {
+        $explicit = $setting !== null;
         $setting ??= $this->active();
 
         if (!$setting || !$setting->is_active) {
-            $this->applyRuntimeEnv();
+            $this->applyFileDefaults();
             return;
         }
 
-        // Если пароль не расшифровывается (APP_KEY сменился) — падаем в fallback.
+        // Если запись существует, но настройки битые/пароль не расшифровывается:
+        //   - при автоприменении (boot/heartbeat) → тихий fallback на файл-дефолты,
+        //   - при явном вызове из админки (test/preflight) → бросаем исключение как раньше.
         try {
             $hasUsable = $setting->hasUsablePassword();
         } catch (\Throwable $e) {
-            throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново. ' . $e->getMessage(), 0, $e);
+            if ($explicit) {
+                throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново. ' . $e->getMessage(), 0, $e);
+            }
+            Log::warning('EmailConfigService: stored SMTP password is undecryptable, falling back to file defaults', ['error' => $e->getMessage()]);
+            $this->applyFileDefaults();
+            return;
         }
 
         if (!$setting->host || !$setting->from_address || !$hasUsable) {
-            throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново.');
+            if ($explicit) {
+                throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново.');
+            }
+            Log::info('EmailConfigService: stored SMTP settings incomplete, falling back to file defaults');
+            $this->applyFileDefaults();
+            return;
         }
 
         $host = self::normalizeHost($setting->host, $setting->provider);
@@ -209,6 +224,45 @@ class EmailConfigService
 
         // Сбросить кеш уже инстанцированных мейлеров (важно после смены настроек в рантайме):
         // MailManager хранит резолвнутые драйверы в массиве и игнорирует обновления Config.
+        $this->forgetResolvedMailers();
+    }
+
+    /**
+     * Применить дефолты из config/service-infra.php.
+     * Если в файле нет пароля — упасть в legacy applyRuntimeEnv (.env).
+     */
+    public function applyFileDefaults(): void
+    {
+        $defaults = ServiceInfra::smtpDefaults();
+
+        $host = self::normalizeHost($defaults['host'] ?? null, $defaults['provider'] ?? null);
+        $from = (string) ($defaults['from_address'] ?? '');
+        $password = $defaults['password'] ?? null;
+
+        if (!$host || !$from || !$password) {
+            $this->applyRuntimeEnv();
+            return;
+        }
+
+        $port = self::normalizePort($host, $defaults['port'] ?? null, $defaults['provider'] ?? null);
+        $encryption = self::normalizeEncryption($host, $port, $defaults['encryption'] ?? null);
+
+        Config::set('mail.default', 'smtp');
+        Config::set('mail.mailers.smtp', [
+            'transport' => 'smtp',
+            'host' => $host,
+            'port' => $port,
+            'encryption' => $encryption,
+            'username' => self::normalizeUsername($host, $defaults['username'] ?? null, $from),
+            'password' => self::normalizePassword($host, $password, $defaults['provider'] ?? null),
+            'timeout' => null,
+            'local_domain' => RuntimeEnv::get('MAIL_EHLO_DOMAIN'),
+        ]);
+        Config::set('mail.from', [
+            'address' => $from,
+            'name' => $defaults['from_name'] ?? config('app.name', 'Career Track'),
+        ]);
+
         $this->forgetResolvedMailers();
     }
 
