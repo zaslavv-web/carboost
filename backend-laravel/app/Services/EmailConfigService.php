@@ -161,12 +161,37 @@ class EmailConfigService
 
     public function apply(?EmailSetting $setting = null): void
     {
+        $explicit = $setting !== null;
         $setting ??= $this->active();
 
         if (!$setting || !$setting->is_active) {
-            $this->applyRuntimeEnv();
+            $this->applyFileDefaults();
             return;
         }
+
+        // Если запись существует, но настройки битые/пароль не расшифровывается:
+        //   - при автоприменении (boot/heartbeat) → тихий fallback на файл-дефолты,
+        //   - при явном вызове из админки (test/preflight) → бросаем исключение как раньше.
+        try {
+            $hasUsable = $setting->hasUsablePassword();
+        } catch (\Throwable $e) {
+            if ($explicit) {
+                throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново. ' . $e->getMessage(), 0, $e);
+            }
+            Log::warning('EmailConfigService: stored SMTP password is undecryptable, falling back to file defaults', ['error' => $e->getMessage()]);
+            $this->applyFileDefaults();
+            return;
+        }
+
+        if (!$setting->host || !$setting->from_address || !$hasUsable) {
+            if ($explicit) {
+                throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново.');
+            }
+            Log::info('EmailConfigService: stored SMTP settings incomplete, falling back to file defaults');
+            $this->applyFileDefaults();
+            return;
+        }
+
 
         // Если пароль не расшифровывается (APP_KEY сменился) — падаем в fallback.
         try {
