@@ -29,16 +29,36 @@ class ProfileController extends Controller
 
     public function show(string $id): JsonResponse
     {
-        $profile = Profile::with(['user', 'company'])->findOrFail($id);
+        $query = Profile::with(['user', 'company']);
+
+        // Если $id — UUID, ищем по primary key (старый контракт),
+        // иначе считаем это user_id (новый фронт-контракт useLaravelProfile).
+        $isUuid = (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id);
+        $profile = $isUuid
+            ? $query->findOrFail($id)
+            : $query->where('user_id', $id)->firstOrFail();
+
         $this->authorize('view', $profile);
-        return response()->json($profile);
+        return response()->json($this->withRoles($profile));
     }
 
     public function me(): JsonResponse
     {
         $user = auth()->user();
-        $profile = Profile::with('company')->where('user_id', $user->id)->firstOrFail();
-        return response()->json($profile);
+        $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
+        $profile = Profile::with(['user', 'company'])->where('user_id', $domainUserId)->firstOrFail();
+        return response()->json($this->withRoles($profile));
+    }
+
+    private function withRoles(Profile $profile): array
+    {
+        $payload = $profile->toArray();
+        $payload['roles'] = \DB::table('user_roles')
+            ->where('user_id', $profile->user_id)
+            ->pluck('role')
+            ->values()
+            ->all();
+        return $payload;
     }
 
     public function update(Request $request, string $id): JsonResponse
