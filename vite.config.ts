@@ -15,6 +15,9 @@ async function loadComponentTagger() {
 
 // https://vitejs.dev/config/
 export default defineConfig(async ({ mode }) => ({
+  // Базовый путь сборки. По-умолчанию — корень.
+  // Для песочницы выставляется VITE_BASE_PATH=/sandstorm/ (см. docker-compose.sandstorm.yml).
+  base: process.env.VITE_BASE_PATH ?? "/",
   server: {
     host: "::",
     port: 8080,
