@@ -227,6 +227,45 @@ class EmailConfigService
         $this->forgetResolvedMailers();
     }
 
+    /**
+     * Применить дефолты из config/service-infra.php.
+     * Если в файле нет пароля — упасть в legacy applyRuntimeEnv (.env).
+     */
+    public function applyFileDefaults(): void
+    {
+        $defaults = ServiceInfra::smtpDefaults();
+
+        $host = self::normalizeHost($defaults['host'] ?? null, $defaults['provider'] ?? null);
+        $from = (string) ($defaults['from_address'] ?? '');
+        $password = $defaults['password'] ?? null;
+
+        if (!$host || !$from || !$password) {
+            $this->applyRuntimeEnv();
+            return;
+        }
+
+        $port = self::normalizePort($host, $defaults['port'] ?? null, $defaults['provider'] ?? null);
+        $encryption = self::normalizeEncryption($host, $port, $defaults['encryption'] ?? null);
+
+        Config::set('mail.default', 'smtp');
+        Config::set('mail.mailers.smtp', [
+            'transport' => 'smtp',
+            'host' => $host,
+            'port' => $port,
+            'encryption' => $encryption,
+            'username' => self::normalizeUsername($host, $defaults['username'] ?? null, $from),
+            'password' => self::normalizePassword($host, $password, $defaults['provider'] ?? null),
+            'timeout' => null,
+            'local_domain' => RuntimeEnv::get('MAIL_EHLO_DOMAIN'),
+        ]);
+        Config::set('mail.from', [
+            'address' => $from,
+            'name' => $defaults['from_name'] ?? config('app.name', 'Career Track'),
+        ]);
+
+        $this->forgetResolvedMailers();
+    }
+
     public function applyRuntimeEnv(): void
     {
         $host = self::normalizeHost(RuntimeEnv::get('MAIL_HOST'));
