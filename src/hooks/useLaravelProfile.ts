@@ -33,14 +33,19 @@ export const useEffectiveLaravelUserId = (): string | null => {
 
 export const useLaravelProfile = () => {
   const effectiveId = useEffectiveLaravelUserId();
+  const { user } = useLaravelAuth();
 
   return useQuery({
     queryKey: ["laravel_profile", effectiveId],
     queryFn: async () => {
       if (!effectiveId) return null;
-      const path = effectiveId
-        ? `/profiles/${effectiveId}`
-        : `/profiles/me`;
+      // Без импер­сонации используем /profiles/me — он гарантированно
+      // резолвит профиль текущего юзера через auth()->user() и не зависит
+      // от того, что бэк ожидает в {id} (UUID vs domain user_id).
+      const path =
+        effectiveId && user?.id && effectiveId !== user.id
+          ? `/profiles/${effectiveId}`
+          : `/profiles/me`;
       const { data, error } = await laravel.get<UserProfile>(path);
       if (error) {
         if (error.status === 404) return null;
