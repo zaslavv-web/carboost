@@ -154,6 +154,15 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // Профиль текущего пользователя — без has.company (нужен на CompleteRegistration)
     Route::get('/profiles/me', [ProfileController::class, 'me']);
 
+    // Публичный список компаний для CompleteRegistration: доступен любому
+    // авторизованному пользователю, даже без company_id / verified.
+    Route::get('/companies/public', function () {
+        return \App\Models\Company::query()
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    });
+
+
     // Verified + has-company gated routes
     Route::middleware(['verified.user', 'has.company'])->group(function () {
         // Профили
