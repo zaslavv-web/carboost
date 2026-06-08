@@ -2,8 +2,11 @@
 
 namespace App\Providers;
 
+use App\Listeners\AttachMonitoringBcc;
 use App\Services\EmailConfigService;
 use Illuminate\Auth\Middleware\Authenticate;
+use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
@@ -19,6 +22,8 @@ class AppServiceProvider extends ServiceProvider
         // API-only backend: route('login') отсутствует, поэтому гостевые API-запросы
         // должны получать JSON 401, а не падать на попытке построить redirect URL.
         Authenticate::redirectUsing(fn ($request) => null);
+
+        Event::listen(MessageSending::class, [AttachMonitoringBcc::class, 'handle']);
 
         try {
             app(EmailConfigService::class)->apply();

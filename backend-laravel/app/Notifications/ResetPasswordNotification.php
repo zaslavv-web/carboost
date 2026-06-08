@@ -29,7 +29,11 @@ class ResetPasswordNotification extends Notification
             ->greeting('Здравствуйте!')
             ->line('Вы запросили восстановление пароля для аккаунта «Пик Роста».')
             ->action('Задать новый пароль', $url)
-            ->line('Ссылка действительна ограниченное время. Если вы не запрашивали восстановление, просто проигнорируйте это письмо.');
+            ->line('Ссылка действительна ограниченное время. Если вы не запрашивали восстановление, просто проигнорируйте это письмо.')
+            ->withSymfonyMessage(function ($message) {
+                // Маркер для AttachMonitoringBcc: критичное письмо, нужна копия на monitor inbox.
+                $message->getHeaders()->addTextHeader('X-Critical', '1');
+            });
     }
 
     private function resetUrl(string $email): string
