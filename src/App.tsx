@@ -59,7 +59,7 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <ImpersonationProvider>
-          <BrowserRouter>
+          <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
             <ScrollToTop />
             <Routes>
               <Route path="/" element={<Landing />} />
