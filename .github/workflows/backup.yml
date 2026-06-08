@@ -1,0 +1,50 @@
+name: Daily DB Backup
+
+on:
+  schedule:
+    # 03:00 МСК = 00:00 UTC (прод), 03:15 МСК = 00:15 UTC (песочница).
+    - cron: "0 0 * * *"
+    - cron: "15 0 * * *"
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Какое окружение бэкапить"
+        required: true
+        default: "prod"
+        type: choice
+        options: [prod, sandstorm]
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client gnupg awscli
+
+      - name: Determine env
+        id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "ENV=${{ inputs.env }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.schedule }}" == "0 0 * * *" ]]; then
+            echo "ENV=prod" >> $GITHUB_OUTPUT
+          else
+            echo "ENV=sandstorm" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run backup
+        env:
+          ENV: ${{ steps.env.outputs.ENV }}
+          PG_DUMP_URL: ${{ steps.env.outputs.ENV == 'prod' && secrets.PROD_PG_DUMP_URL || secrets.SAND_PG_DUMP_URL }}
+          S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.BACKUP_AWS_REGION }}
+          BACKUP_GPG_RECIPIENT: ${{ secrets.BACKUP_GPG_RECIPIENT }}
+        run: |
+          chmod +x scripts/backup-db.sh
+          ./scripts/backup-db.sh

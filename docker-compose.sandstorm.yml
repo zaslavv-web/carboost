@@ -1,0 +1,58 @@
+# Sandstorm (sandbox) deployment — изолированный стек.
+# Поднимается на том же сервере, что и прод, но в отдельной сети, с отдельной БД
+# и собственным фронт-билдом с base=/sandstorm/.
+#
+# Запуск:
+#   docker compose -f docker-compose.sandstorm.yml up -d --build
+#
+# Nginx хоста проксирует /sandstorm/ → ct-sand-web:80, /sandstorm/api/ → ct-sand-laravel:80.
+
+services:
+  ct-sand-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_LARAVEL_API_URL: /sandstorm/api
+        VITE_BASE_PATH: /sandstorm/
+        VITE_APP_ENV: sandstorm
+    container_name: ct-sand-web
+    restart: unless-stopped
+    environment:
+      LARAVEL_HOST: ct-sand-laravel-nginx:80
+    networks:
+      - ct-sand-net
+    ports:
+      - "8090:80"
+
+  ct-sand-postgres:
+    image: postgres:16-alpine
+    container_name: ct-sand-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SAND_DB_NAME:-careertrack_sand}
+      POSTGRES_USER: ${SAND_DB_USER:-careertrack}
+      POSTGRES_PASSWORD: ${SAND_DB_PASSWORD:-changeme}
+    volumes:
+      - pgdata-sand:/var/lib/postgresql/data
+    networks:
+      - ct-sand-net
+
+  ct-sand-redis:
+    image: redis:7-alpine
+    container_name: ct-sand-redis
+    restart: unless-stopped
+    networks:
+      - ct-sand-net
+
+  # Laravel-стек песочницы собирается из backend-laravel/ через свой docker-compose
+  # (см. backend-laravel/README.md). Здесь оставлено место для подключения через
+  # external-сеть, если решите запускать оба compose-файла раздельно.
+
+networks:
+  ct-sand-net:
+    name: ct-sand-net
+
+volumes:
+  pgdata-sand:
+    name: pgdata-sand
