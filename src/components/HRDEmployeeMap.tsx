@@ -517,7 +517,7 @@ const HRDEmployeeMap = () => {
             setCreateTaskOpen(true);
           }}
         >
-          <Plus className="w-4 h-4 mr-2" /> Новая HR-задача
+          <Plus className="w-4 h-4 mr-2" /> {t("employeeMap.newTask")}
         </Button>
       </div>
 
