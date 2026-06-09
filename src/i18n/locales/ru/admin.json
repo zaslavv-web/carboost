@@ -365,7 +365,8 @@
     "toastStepsGenerated": "Этапы сгенерированы",
     "errorSave": "Ошибка сохранения",
     "errorGenerate": "Не удалось сгенерировать этапы",
-    "errorAssign": "Ошибка назначения"
+    "errorAssign": "Ошибка назначения",
+    "durationMonths": "{{n}} мес."
   },
   "gamification": {
     "title": "Геймификация",

@@ -365,7 +365,8 @@
     "toastStepsGenerated": "Steps generated",
     "errorSave": "Save error",
     "errorGenerate": "Failed to generate steps",
-    "errorAssign": "Assignment error"
+    "errorAssign": "Assignment error",
+    "durationMonths": "{{n}} mo."
   },
   "gamification": {
     "title": "Gamification",

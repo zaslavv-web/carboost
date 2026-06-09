@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { aiInvoke } from "@/integrations/laravel/client";
@@ -43,6 +44,7 @@ const CareerTracksManagement = () => {
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
+  const { t } = useTranslation("admin");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<TemplateForm>(emptyForm);
@@ -131,9 +133,9 @@ const CareerTracksManagement = () => {
     mutationFn: generateStepsAI,
     onSuccess: (steps) => {
       setForm((f) => ({ ...f, steps }));
-      toast.success("Этапы сгенерированы");
+      toast.success(t("careerTracks.toastStepsGenerated"));
     },
-    onError: () => toast.error("Не удалось сгенерировать этапы"),
+    onError: () => toast.error(t("careerTracks.errorGenerate")),
   });
 
   const saveMutation = useMutation({
@@ -170,9 +172,9 @@ const CareerTracksManagement = () => {
       setShowForm(false);
       setEditingId(null);
       setForm(emptyForm);
-      toast.success(editingId ? "Трек обновлён" : "Трек создан");
+      toast.success(t(editingId ? "careerTracks.toastUpdated" : "careerTracks.toastCreated"));
     },
-    onError: () => toast.error("Ошибка сохранения"),
+    onError: () => toast.error(t("careerTracks.errorSave")),
   });
 
   const deleteMutation = useMutation({
@@ -182,7 +184,7 @@ const CareerTracksManagement = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["career_track_templates"] });
-      toast.success("Трек удалён");
+      toast.success(t("careerTracks.toastDeleted"));
     },
   });
 
@@ -225,9 +227,9 @@ const CareerTracksManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["employee_career_assignments"] });
       setAssignModal(null);
       setAssignUserId("");
-      toast.success("Трек назначен сотруднику");
+      toast.success(t("careerTracks.toastAssigned"));
     },
-    onError: () => toast.error("Ошибка назначения"),
+    onError: () => toast.error(t("careerTracks.errorAssign")),
   });
 
   const editTemplate = (t: any) => {
@@ -272,12 +274,12 @@ const CareerTracksManagement = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Карьерные треки</h1>
-          <p className="text-muted-foreground text-sm mt-1">Эталонные треки и назначения сотрудникам</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("careerTracks.title")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t("careerTracks.subtitle")}</p>
         </div>
         <button onClick={() => { setShowForm(true); setEditingId(null); setForm(emptyForm); }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm">
-          <Plus className="w-4 h-4" /> Новый трек
+          <Plus className="w-4 h-4" /> {t("careerTracks.newTrackBtn")}
         </button>
       </div>
 
@@ -285,11 +287,11 @@ const CareerTracksManagement = () => {
       <div className="flex gap-2">
         <button onClick={() => setTab("templates")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "templates" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
-          <Route className="w-4 h-4 inline mr-1.5" />Эталонные треки ({templates.length})
+          <Route className="w-4 h-4 inline mr-1.5" />{t("careerTracks.tabTemplates", { count: templates.length })}
         </button>
         <button onClick={() => setTab("assignments")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "assignments" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
-          <Users className="w-4 h-4 inline mr-1.5" />Назначения ({assignments.length})
+          <Users className="w-4 h-4 inline mr-1.5" />{t("careerTracks.tabAssignments", { count: assignments.length })}
         </button>
       </div>
 
@@ -297,38 +299,38 @@ const CareerTracksManagement = () => {
       {showForm && (
         <div className="bg-card rounded-xl p-6 shadow-card border border-primary/20 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-foreground">{editingId ? "Редактировать трек" : "Новый эталонный трек"}</h3>
+            <h3 className="font-semibold text-foreground">{t(editingId ? "careerTracks.formEditTitle" : "careerTracks.formNewTitle")}</h3>
             <button onClick={() => { setShowForm(false); setEditingId(null); }}><X className="w-5 h-5 text-muted-foreground" /></button>
           </div>
-          <input type="text" placeholder="Название трека" value={form.title}
+          <input type="text" placeholder={t("careerTracks.titlePlaceholder")} value={form.title}
             onChange={e => setForm({ ...form, title: e.target.value })}
             className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground" />
-          <textarea placeholder="Описание" value={form.description} rows={2}
+          <textarea placeholder={t("careerTracks.descPlaceholder")} value={form.description} rows={2}
             onChange={e => setForm({ ...form, description: e.target.value })}
             className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground" />
-          <textarea placeholder="Мотивация для сотрудника (будет отображаться в ЛК)" value={form.motivation_text} rows={2}
+          <textarea placeholder={t("careerTracks.motivationPlaceholder")} value={form.motivation_text} rows={2}
             onChange={e => setForm({ ...form, motivation_text: e.target.value })}
             className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground" />
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Из позиции</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t("careerTracks.fromPositionLabel")}</label>
               <select value={form.from_position_id} onChange={e => setForm({ ...form, from_position_id: e.target.value })}
                 className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground">
-                <option value="">Не выбрано</option>
+                <option value="">{t("careerTracks.notSelected")}</option>
                 {positions.map(p => <option key={p.id} value={p.id}>{p.title} ({p.department})</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">В позицию</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t("careerTracks.toPositionLabel")}</label>
               <select value={form.to_position_id} onChange={e => setForm({ ...form, to_position_id: e.target.value })}
                 className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground">
-                <option value="">Не выбрано</option>
+                <option value="">{t("careerTracks.notSelected")}</option>
                 {positions.map(p => <option key={p.id} value={p.id}>{p.title} ({p.department})</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Ориентировочный срок (мес.)</label>
+            <label className="text-xs text-muted-foreground mb-1 block">{t("careerTracks.estimatedLabel")}</label>
             <input type="number" value={form.estimated_months} min={1}
               onChange={e => setForm({ ...form, estimated_months: parseInt(e.target.value) || 12 })}
               className="w-32 px-3 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground" />
@@ -337,7 +339,7 @@ const CareerTracksManagement = () => {
           {/* Steps */}
           <div>
             <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-              <h4 className="text-sm font-medium text-foreground">Этапы карьерного пути</h4>
+              <h4 className="text-sm font-medium text-foreground">{t("careerTracks.stepsTitle")}</h4>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -346,15 +348,15 @@ const CareerTracksManagement = () => {
                   className="text-xs text-primary flex items-center gap-1 px-2 py-1 rounded border border-primary/30 hover:bg-primary/5 disabled:opacity-50"
                 >
                   <Sparkles className="w-3 h-3" />
-                  {generateStepsMutation.isPending ? "Генерация..." : "Сгенерировать AI"}
+                  {t(generateStepsMutation.isPending ? "careerTracks.generating" : "careerTracks.generateAI")}
                 </button>
                 <button onClick={addStep} className="text-xs text-primary flex items-center gap-1">
-                  <Plus className="w-3 h-3" /> Добавить этап
+                  <Plus className="w-3 h-3" /> {t("careerTracks.addStepBtn")}
                 </button>
               </div>
             </div>
             <p className="text-xs text-muted-foreground mb-2">
-              Если оставить пустым, этапы сгенерируются автоматически при сохранении.
+              {t("careerTracks.autoGenHint")}
             </p>
             <div className="space-y-3">
               {form.steps.map((step, idx) => (
@@ -362,35 +364,35 @@ const CareerTracksManagement = () => {
                   <div className="flex gap-2 items-start">
                     <span className="text-xs text-muted-foreground mt-2.5 w-6">{idx + 1}.</span>
                     <div className="flex-1 space-y-2">
-                      <input type="text" placeholder="Название этапа" value={step.title}
+                      <input type="text" placeholder={t("careerTracks.stepTitlePlaceholder")} value={step.title}
                         onChange={e => updateStep(idx, "title", e.target.value)}
                         className="w-full px-3 py-1.5 rounded border border-input bg-background text-sm" />
-                      <input type="text" placeholder="Описание" value={step.description}
+                      <input type="text" placeholder={t("careerTracks.stepDescPlaceholder")} value={step.description}
                         onChange={e => updateStep(idx, "description", e.target.value)}
                         className="w-full px-3 py-1.5 rounded border border-input bg-background text-sm" />
                       <div className="flex items-center gap-2">
-                        <label className="text-xs text-muted-foreground">Срок (мес.)</label>
+                        <label className="text-xs text-muted-foreground">{t("careerTracks.stepDuration")}</label>
                         <input type="number" value={step.duration_months} min={1}
                           onChange={e => updateStep(idx, "duration_months", parseInt(e.target.value) || 3)}
                           className="w-20 px-3 py-1.5 rounded border border-input bg-background text-sm" />
                       </div>
-                      <textarea placeholder="Ключевые цели (по одной в строке)" rows={2}
+                      <textarea placeholder={t("careerTracks.goalPlaceholder")} rows={2}
                         value={(step.goals || []).join("\n")}
                         onChange={e => updateStep(idx, "goals", e.target.value.split("\n").filter(Boolean))}
                         className="w-full px-3 py-1.5 rounded border border-input bg-background text-xs" />
-                      <textarea placeholder="Условия прохождения (по одной в строке)" rows={2}
+                      <textarea placeholder={t("careerTracks.passCondPlaceholder")} rows={2}
                         value={(step.pass_conditions || []).join("\n")}
                         onChange={e => updateStep(idx, "pass_conditions", e.target.value.split("\n").filter(Boolean))}
                         className="w-full px-3 py-1.5 rounded border border-input bg-background text-xs" />
-                      <textarea placeholder="Бонусы за прохождение (по одной в строке)" rows={2}
+                      <textarea placeholder={t("careerTracks.rewardsPlaceholder")} rows={2}
                         value={(step.rewards || []).join("\n")}
                         onChange={e => updateStep(idx, "rewards", e.target.value.split("\n").filter(Boolean))}
                         className="w-full px-3 py-1.5 rounded border border-input bg-background text-xs" />
-                      <textarea placeholder="Штраф / предложение при непрохождении" rows={2}
+                      <textarea placeholder={t("careerTracks.penaltyPlaceholder")} rows={2}
                         value={step.penalty || ""}
                         onChange={e => updateStep(idx, "penalty", e.target.value)}
                         className="w-full px-3 py-1.5 rounded border border-input bg-background text-xs" />
-                      <textarea placeholder="Метрики успеха (по одной в строке)" rows={2}
+                      <textarea placeholder={t("careerTracks.metricsPlaceholder")} rows={2}
                         value={(step.success_metrics || []).join("\n")}
                         onChange={e => updateStep(idx, "success_metrics", e.target.value.split("\n").filter(Boolean))}
                         className="w-full px-3 py-1.5 rounded border border-input bg-background text-xs" />
@@ -404,7 +406,7 @@ const CareerTracksManagement = () => {
 
           <button onClick={() => saveMutation.mutate()} disabled={!form.title || saveMutation.isPending}
             className="px-6 py-2.5 rounded-lg gradient-primary text-primary-foreground text-sm disabled:opacity-50">
-            {saveMutation.isPending ? "Сохранение..." : editingId ? "Обновить" : "Создать"}
+            {t(saveMutation.isPending ? "careerTracks.saving" : editingId ? "careerTracks.updateBtn" : "careerTracks.createBtn")}
           </button>
         </div>
       )}
@@ -415,8 +417,8 @@ const CareerTracksManagement = () => {
           {templates.length === 0 && (
             <div className="bg-card rounded-xl p-12 text-center border border-border">
               <Route className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-semibold text-foreground mb-2">Нет эталонных треков</h3>
-              <p className="text-sm text-muted-foreground">Создайте первый карьерный трек</p>
+              <h3 className="font-semibold text-foreground mb-2">{t("careerTracks.emptyTemplates")}</h3>
+              <p className="text-sm text-muted-foreground">{t("careerTracks.emptyTemplatesHint")}</p>
             </div>
           )}
           {templates.map(t => {
@@ -437,13 +439,13 @@ const CareerTracksManagement = () => {
                     <h3 className="font-semibold text-foreground">{t.title}</h3>
                     <p className="text-xs text-muted-foreground">
                       {fromPos ? fromPos.title : "—"} → {toPos ? toPos.title : "—"}
-                      {t.estimated_months && <span className="ml-2">· ~{t.estimated_months} мес.</span>}
-                      <span className="ml-2">· {tAssignments.length} назначений</span>
+                      {t.estimated_months && <span className="ml-2">· {t("careerTracks.months", { n: t.estimated_months })}</span>}
+                      <span className="ml-2">· {t("careerTracks.assignments", { n: tAssignments.length })}</span>
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button onClick={e => { e.stopPropagation(); setAssignModal(t.id); }}
-                      className="p-2 rounded-lg hover:bg-secondary transition-colors" title="Назначить сотруднику">
+                      className="p-2 rounded-lg hover:bg-secondary transition-colors" title={t("careerTracks.assignModalTitle")}>
                       <Users className="w-4 h-4 text-muted-foreground" />
                     </button>
                     <button onClick={e => { e.stopPropagation(); editTemplate(t); }}
@@ -463,7 +465,7 @@ const CareerTracksManagement = () => {
                     {t.description && <p className="text-sm text-muted-foreground mt-3">{t.description}</p>}
                     {t.motivation_text && (
                       <div className="bg-primary/5 rounded-lg p-3">
-                        <p className="text-xs font-medium text-primary mb-1">💡 Мотивация для сотрудника</p>
+                        <p className="text-xs font-medium text-primary mb-1">{t("careerTracks.motivationBadge")}</p>
                         <p className="text-sm text-foreground">{t.motivation_text}</p>
                       </div>
                     )}
@@ -471,7 +473,7 @@ const CareerTracksManagement = () => {
                     {/* Steps */}
                     {steps.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-medium text-foreground mb-2">Шаги</h4>
+                        <h4 className="text-sm font-medium text-foreground mb-2">{t("careerTracks.stepsSection")}</h4>
                         <div className="space-y-2">
                           {steps.map((s, i) => (
                             <div key={i} className="flex items-start gap-3 p-2.5 bg-secondary/30 rounded-lg">
@@ -480,7 +482,7 @@ const CareerTracksManagement = () => {
                                 <p className="text-sm font-medium text-foreground">{s.title}</p>
                                 {s.description && <p className="text-xs text-muted-foreground">{s.description}</p>}
                               </div>
-                              <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" />{s.duration_months} мес.</span>
+                              <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" />{t("careerTracks.durationMonths", { n: s.duration_months })}</span>
                             </div>
                           ))}
                         </div>
@@ -489,7 +491,7 @@ const CareerTracksManagement = () => {
 
                     {/* Actions */}
                     <div>
-                      <h4 className="text-sm font-medium text-foreground mb-2">Необходимые действия для перехода</h4>
+                      <h4 className="text-sm font-medium text-foreground mb-2">{t("careerTracks.actionsSection")}</h4>
                       <div className="space-y-1.5">
                         {tActions.map(a => (
                           <div key={a.id} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/30">
@@ -501,7 +503,7 @@ const CareerTracksManagement = () => {
                         ))}
                       </div>
                       <div className="flex gap-2 mt-2">
-                        <input type="text" placeholder="Добавить действие..." value={actionTexts[t.id] || ""}
+                        <input type="text" placeholder={t("careerTracks.addActionPlaceholder")} value={actionTexts[t.id] || ""}
                           onChange={e => setActionTexts({ ...actionTexts, [t.id]: e.target.value })}
                           onKeyDown={e => {
                             if (e.key === "Enter" && actionTexts[t.id]?.trim()) {
@@ -522,7 +524,7 @@ const CareerTracksManagement = () => {
                     {/* Assigned employees */}
                     {tAssignments.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-medium text-foreground mb-2">Назначенные сотрудники</h4>
+                        <h4 className="text-sm font-medium text-foreground mb-2">{t("careerTracks.assignedSection")}</h4>
                         <div className="space-y-1.5">
                           {tAssignments.map(a => {
                             const p = profileMap[a.user_id];
@@ -536,9 +538,9 @@ const CareerTracksManagement = () => {
                                   <p className="text-xs text-muted-foreground">{p?.position || ""}</p>
                                 </div>
                                 <span className={`text-xs px-2 py-0.5 rounded-full ${a.status === "completed" ? "bg-success/20 text-success" : a.status === "paused" ? "bg-warning/20 text-warning" : "bg-info/20 text-info"}`}>
-                                  {a.status === "completed" ? "Завершён" : a.status === "paused" ? "Пауза" : "Активен"}
+                                  {a.status === "completed" ? t("careerTracks.statusCompleted") : a.status === "paused" ? t("careerTracks.statusPaused") : t("careerTracks.statusActive")}
                                 </span>
-                                <span className="text-xs text-muted-foreground">Шаг {a.current_step + 1}</span>
+                                <span className="text-xs text-muted-foreground">{t("careerTracks.step", { n: a.current_step + 1 })}</span>
                               </div>
                             );
                           })}
@@ -559,8 +561,8 @@ const CareerTracksManagement = () => {
           {assignments.length === 0 && (
             <div className="bg-card rounded-xl p-12 text-center border border-border">
               <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-semibold text-foreground mb-2">Нет назначений</h3>
-              <p className="text-sm text-muted-foreground">Назначьте карьерные треки сотрудникам</p>
+              <h3 className="font-semibold text-foreground mb-2">{t("careerTracks.emptyAssignments")}</h3>
+              <p className="text-sm text-muted-foreground">{t("careerTracks.emptyAssignmentsHint")}</p>
             </div>
           )}
           {assignments.map(a => {
@@ -576,9 +578,9 @@ const CareerTracksManagement = () => {
                   <p className="text-xs text-muted-foreground">{p?.position || ""} · {t?.title || "—"}</p>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${a.status === "completed" ? "bg-success/20 text-success" : "bg-info/20 text-info"}`}>
-                  {a.status === "completed" ? "Завершён" : "Активен"}
+                  {a.status === "completed" ? t("careerTracks.statusCompleted") : t("careerTracks.statusActive")}
                 </span>
-                <span className="text-sm text-foreground font-medium">Шаг {a.current_step + 1}</span>
+                <span className="text-sm text-foreground font-medium">{t("careerTracks.step", { n: a.current_step + 1 })}</span>
               </div>
             );
           })}
@@ -589,18 +591,18 @@ const CareerTracksManagement = () => {
       {assignModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setAssignModal(null)}>
           <div className="bg-card rounded-xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="font-semibold text-foreground mb-4">Назначить трек сотруднику</h3>
+            <h3 className="font-semibold text-foreground mb-4">{t("careerTracks.assignModalTitle")}</h3>
             <select value={assignUserId} onChange={e => setAssignUserId(e.target.value)}
               className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-sm mb-4">
-              <option value="">Выберите сотрудника</option>
+              <option value="">{t("careerTracks.selectEmployee")}</option>
               {profiles.map(p => <option key={p.user_id} value={p.user_id}>{p.full_name} — {p.position || "—"}</option>)}
             </select>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setAssignModal(null)} className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm">Отмена</button>
+              <button onClick={() => setAssignModal(null)} className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm">{t("careerTracks.cancelBtn")}</button>
               <button onClick={() => assignMutation.mutate({ templateId: assignModal, userId: assignUserId })}
                 disabled={!assignUserId || assignMutation.isPending}
                 className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm disabled:opacity-50">
-                {assignMutation.isPending ? "..." : "Назначить"}
+                {assignMutation.isPending ? "..." : t("careerTracks.assignBtn")}
               </button>
             </div>
           </div>

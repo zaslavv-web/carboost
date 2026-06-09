@@ -10,31 +10,33 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import type { AppRole } from "@/hooks/useUserProfile";
 import { useRealPrimaryRole } from "@/hooks/useUserProfile";
-
-const roleLabelMap: Record<string, string> = {
-  employee: "Сотрудник",
-  manager: "Руководитель",
-  hrd: "HRD",
-  company_admin: "Админ компании",
-  superadmin: "Суперадмин",
-};
-
-const roleBadge: Record<string, { label: string; cls: string }> = {
-  employee: { label: "Сотрудник", cls: "bg-secondary text-secondary-foreground" },
-  manager: { label: "Руководитель", cls: "bg-info/10 text-info" },
-  hrd: { label: "HRD", cls: "bg-warning/10 text-warning" },
-  company_admin: { label: "Админ компании", cls: "bg-primary/10 text-primary" },
-  superadmin: { label: "Суперадмин", cls: "bg-destructive/10 text-destructive" },
-};
+import { useTranslation } from "react-i18next";
 
 type StatusFilter = "all" | "verified" | "pending";
 
 const UsersManagement = () => {
+  const { t } = useTranslation("admin");
   const { startImpersonation } = useImpersonation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const realRole = useRealPrimaryRole();
   const isSuperadmin = realRole === "superadmin";
+
+  const roleLabelMap: Record<string, string> = {
+    employee: t("users.roleEmployee"),
+    manager: t("users.roleManager"),
+    hrd: t("users.roleHrd"),
+    company_admin: t("users.roleCompanyAdmin"),
+    superadmin: t("users.roleSuperadmin"),
+  };
+
+  const roleBadge: Record<string, { label: string; cls: string }> = {
+    employee: { label: t("users.roleEmployee"), cls: "bg-secondary text-secondary-foreground" },
+    manager: { label: t("users.roleManager"), cls: "bg-info/10 text-info" },
+    hrd: { label: t("users.roleHrd"), cls: "bg-warning/10 text-warning" },
+    company_admin: { label: t("users.roleCompanyAdmin"), cls: "bg-primary/10 text-primary" },
+    superadmin: { label: t("users.roleSuperadmin"), cls: "bg-destructive/10 text-destructive" },
+  };
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -86,7 +88,7 @@ const UsersManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users_list"] });
       queryClient.invalidateQueries({ queryKey: ["superadmin_profiles"] });
-      toast.success("Пользователь верифицирован");
+      toast.success(t("users.toastVerified"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -99,7 +101,7 @@ const UsersManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users_list"] });
       queryClient.invalidateQueries({ queryKey: ["superadmin_profiles"] });
-      toast.success("Пользователь отклонён");
+      toast.success(t("users.toastRejected"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -114,7 +116,7 @@ const UsersManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users_list"] });
       queryClient.invalidateQueries({ queryKey: ["superadmin_profiles"] });
-      toast.success("Пользователь удалён");
+      toast.success(t("users.toastDeleted"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -126,9 +128,13 @@ const UsersManagement = () => {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Письмо для восстановления отправлено${data?.email ? ` на ${data.email}` : ""}`);
+      toast.success(
+        data?.email
+          ? t("users.toastResetSentEmail", { email: data.email })
+          : t("users.toastResetSent"),
+      );
     },
-    onError: (e: any) => toast.error(e.message || "Не удалось отправить письмо"),
+    onError: (e: any) => toast.error(e.message || t("users.toastResetFail")),
   });
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -141,7 +147,7 @@ const UsersManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users_list"] });
       queryClient.invalidateQueries({ queryKey: ["superadmin_profiles"] });
-      toast.success("Роль изменена");
+      toast.success(t("users.toastRoleChanged"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -158,17 +164,15 @@ const UsersManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users_list"] });
       queryClient.invalidateQueries({ queryKey: ["superadmin_profiles"] });
-      toast.success("Компания обновлена");
+      toast.success(t("users.toastCompanyUpdated"));
     },
     onError: (e: any) => {
       const msg = String(e?.message || "");
       if (e?.status === 404 || /could not be found|route .* not found/i.test(msg)) {
-        toast.error(
-          "Эндпоинт назначения компании ещё не задеплоен на бэкенде. Обновите Laravel-сервер и сбросьте route-cache (php artisan route:clear).",
-        );
+        toast.error(t("users.toastCompanyEndpointError"));
         return;
       }
-      toast.error(msg || "Не удалось обновить компанию");
+      toast.error(msg || t("users.toastCompanyFail"));
     },
   });
 
@@ -214,11 +218,10 @@ const UsersManagement = () => {
     }
   };
 
-
   const statusFilters: { value: StatusFilter; label: string; count?: number }[] = [
-    { value: "all", label: "Все", count: users.length },
-    { value: "pending", label: "Ожидают", count: pendingCount },
-    { value: "verified", label: "Верифицированы", count: users.length - pendingCount },
+    { value: "all", label: t("users.filterAll"), count: users.length },
+    { value: "pending", label: t("users.filterPending"), count: pendingCount },
+    { value: "verified", label: t("users.filterVerified"), count: users.length - pendingCount },
   ];
 
   // ---- Create user dialog ----
@@ -241,14 +244,14 @@ const UsersManagement = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users_list"] });
-      toast.success("Пользователь создан. Приглашение отправлено на email.");
+      toast.success(t("users.toastCreated"));
       setCreateOpen(false);
       setNewFullName("");
       setNewEmail("");
       setNewRole("employee");
       setNewCompanyId("");
     },
-    onError: (e: any) => toast.error(e.message || "Не удалось создать пользователя"),
+    onError: (e: any) => toast.error(e.message || t("users.toastCreateFail")),
   });
 
   const canCreate = newFullName.trim().length >= 2 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim());
@@ -257,14 +260,14 @@ const UsersManagement = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Управление пользователями</h1>
-          <p className="text-muted-foreground text-sm mt-1">Верификация, роли и просмотр от имени пользователей</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("users.title")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t("users.subtitle")}</p>
         </div>
         <button
           onClick={() => setCreateOpen(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >
-          <UserPlus className="w-4 h-4" /> Создать пользователя
+          <UserPlus className="w-4 h-4" /> {t("users.createBtn")}
         </button>
       </div>
 
@@ -275,7 +278,7 @@ const UsersManagement = () => {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Поиск по имени, должности, отделу или роли..."
+              placeholder={t("users.searchPlaceholder")}
               className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
             />
           </div>
@@ -302,7 +305,7 @@ const UsersManagement = () => {
             onChange={(e) => setRoleFilter(e.target.value)}
             className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
           >
-            <option value="all">Все роли</option>
+            <option value="all">{t("users.allRoles")}</option>
             {Object.entries(roleLabelMap).map(([val, label]) => (
               <option key={val} value={val}>{label}</option>
             ))}
@@ -313,8 +316,8 @@ const UsersManagement = () => {
             onChange={(e) => setDepartmentFilter(e.target.value)}
             className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
           >
-            <option value="all">Все отделы</option>
-            <option value="none">Без отдела</option>
+            <option value="all">{t("users.allDepts")}</option>
+            <option value="none">{t("users.noDept")}</option>
             {departments.map((d) => (
               <option key={d} value={d}>{d}</option>
             ))}
@@ -326,8 +329,8 @@ const UsersManagement = () => {
               onChange={(e) => setCompanyFilter(e.target.value)}
               className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
             >
-              <option value="all">Все компании</option>
-              <option value="none">Без компании</option>
+              <option value="all">{t("users.allCompanies")}</option>
+              <option value="none">{t("users.noCompany")}</option>
               {companies.map((c: any) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -345,7 +348,7 @@ const UsersManagement = () => {
               }}
               className="px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
             >
-              Сбросить фильтры
+              {t("users.resetFilters")}
             </button>
           )}
         </div>
@@ -358,12 +361,12 @@ const UsersManagement = () => {
           <table className="w-full text-sm min-w-[800px]">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Пользователь</th>
-                {isSuperadmin && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Компания</th>}
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Отдел</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Роль</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Статус</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Действия</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colUser")}</th>
+                {isSuperadmin && <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colCompany")}</th>}
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colDept")}</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colRole")}</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colStatus")}</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colActions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -386,7 +389,7 @@ const UsersManagement = () => {
                         disabled={assignCompanyMutation.isPending}
                         className="px-2 py-1 rounded border border-input bg-background text-foreground text-xs max-w-[180px]"
                       >
-                        <option value="">— Без компании —</option>
+                        <option value="">{t("users.noCompanyOption")}</option>
                         {companies.map((c: any) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
@@ -408,7 +411,7 @@ const UsersManagement = () => {
                   <td className="px-4 py-3">
                     {u.is_verified ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
-                        Верифицирован
+                        {t("users.verified")}
                       </span>
                     ) : (
                       <div className="flex items-center gap-1.5">
@@ -417,14 +420,14 @@ const UsersManagement = () => {
                           disabled={verifyMutation.isPending}
                           className="flex items-center gap-1 px-2 py-1 rounded-lg bg-success/10 text-success text-xs font-medium hover:bg-success/20 transition-colors"
                         >
-                          <CheckCircle className="w-3.5 h-3.5" /> Подтвердить
+                          <CheckCircle className="w-3.5 h-3.5" /> {t("users.confirm")}
                         </button>
                         <button
                           onClick={() => rejectMutation.mutate(u.user_id)}
                           disabled={rejectMutation.isPending}
                           className="flex items-center gap-1 px-2 py-1 rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
                         >
-                          <XCircle className="w-3.5 h-3.5" /> Отклонить
+                          <XCircle className="w-3.5 h-3.5" /> {t("users.reject")}
                         </button>
                       </div>
                     )}
@@ -435,12 +438,12 @@ const UsersManagement = () => {
                         onClick={() => handleImpersonate(u)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
                       >
-                        <Eye className="w-3.5 h-3.5" /> Войти как
+                        <Eye className="w-3.5 h-3.5" /> {t("users.impersonate")}
                       </button>
                       <button
                         onClick={() => resetPasswordMutation.mutate(u.user_id)}
                         disabled={resetPasswordMutation.isPending && resetPasswordMutation.variables === u.user_id}
-                        title="Отправить письмо с восстановлением пароля"
+                        title={t("users.resetPasswordTitle")}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warning/10 text-warning text-xs font-medium hover:bg-warning/20 transition-colors disabled:opacity-50"
                       >
                         {resetPasswordMutation.isPending && resetPasswordMutation.variables === u.user_id ? (
@@ -448,7 +451,7 @@ const UsersManagement = () => {
                         ) : (
                           <KeyRound className="w-3.5 h-3.5" />
                         )}
-                        Сбросить пароль
+                        {t("users.resetPassword")}
                       </button>
                     </div>
                     {u.user_id !== currentUser?.id && (
@@ -459,13 +462,13 @@ const UsersManagement = () => {
                             disabled={deleteMutation.isPending}
                             className="px-2 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors"
                           >
-                            Да, удалить
+                            {t("users.deleteConfirmYes")}
                           </button>
                           <button
                             onClick={() => setConfirmDeleteId(null)}
                             className="px-2 py-1 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 transition-colors"
                           >
-                            Отмена
+                            {t("users.cancel")}
                           </button>
                         </div>
                       ) : (
@@ -473,7 +476,7 @@ const UsersManagement = () => {
                           onClick={() => setConfirmDeleteId(u.user_id)}
                           className="flex items-center gap-1.5 px-3 py-1.5 mt-1.5 rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
                         >
-                          <Trash2 className="w-3.5 h-3.5" /> Удалить
+                          <Trash2 className="w-3.5 h-3.5" /> {t("users.delete")}
                         </button>
                       )
                     )}
@@ -483,7 +486,7 @@ const UsersManagement = () => {
             </tbody>
           </table>
           <div className="p-4 text-sm text-muted-foreground border-t border-border">
-            Показано {filtered.length} из {users.length} пользователей
+            {t("users.shownOf", { filtered: filtered.length, total: users.length })}
           </div>
         </div>
       )}
@@ -498,7 +501,7 @@ const UsersManagement = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">Создать пользователя</h2>
+              <h2 className="text-lg font-semibold text-foreground">{t("users.createDialogTitle")}</h2>
               <button
                 onClick={() => setCreateOpen(false)}
                 disabled={createUserMutation.isPending}
@@ -510,17 +513,17 @@ const UsersManagement = () => {
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Фамилия и Имя</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("users.labelFullName")}</label>
                 <input
                   value={newFullName}
                   onChange={(e) => setNewFullName(e.target.value)}
-                  placeholder="Иванов Иван"
+                  placeholder={t("users.fullNamePlaceholder")}
                   className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Электронная почта</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("users.labelEmail")}</label>
                 <input
                   type="email"
                   value={newEmail}
@@ -531,7 +534,7 @@ const UsersManagement = () => {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Роль</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("users.labelRole")}</label>
                 <select
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value as AppRole)}
@@ -547,13 +550,13 @@ const UsersManagement = () => {
 
               {isSuperadmin && (
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Компания</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("users.labelCompany")}</label>
                   <select
                     value={newCompanyId}
                     onChange={(e) => setNewCompanyId(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                   >
-                    <option value="">Без компании</option>
+                    <option value="">{t("users.noCompanyOpt")}</option>
                     {companies.map((c: any) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
@@ -562,7 +565,7 @@ const UsersManagement = () => {
               )}
 
               <p className="text-xs text-muted-foreground pt-1">
-                На указанный email будет отправлено письмо со ссылкой для входа в систему.
+                {t("users.inviteHint")}
               </p>
             </div>
 
@@ -572,7 +575,7 @@ const UsersManagement = () => {
                 disabled={createUserMutation.isPending}
                 className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80 transition-colors"
               >
-                Отмена
+                {t("users.cancel")}
               </button>
               <button
                 onClick={() => createUserMutation.mutate()}
@@ -580,7 +583,7 @@ const UsersManagement = () => {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {createUserMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                Создать и отправить приглашение
+                {t("users.createAndInvite")}
               </button>
             </div>
           </div>
