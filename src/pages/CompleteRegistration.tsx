@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Building2, Sparkles, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,6 +23,7 @@ const getEmailDomain = (email: string | null | undefined) => {
 };
 
 const CompleteRegistration = () => {
+  const { t } = useTranslation(["auth"]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -50,8 +52,6 @@ const CompleteRegistration = () => {
   const { data: companies = [], isLoading: companiesLoading } = useQuery({
     queryKey: ["public_companies"],
     queryFn: async () => {
-      // Используем публичный endpoint — DbController/companies закрыт
-      // middleware verified+has.company, а здесь у пользователя ещё нет компании.
       const { laravel } = await import("@/integrations/laravel/client");
       const { data, error } = await laravel.get<Array<{ id: string; name: string }>>("/companies/public");
       if (error) throw new Error(error.message);
@@ -59,8 +59,6 @@ const CompleteRegistration = () => {
     },
   });
 
-
-  // Positions for selected company (only when no domain-match) — for employee role
   const { data: positions = [] } = useQuery({
     queryKey: ["positions_for_registration", selectedCompanyId],
     queryFn: async () => {
@@ -76,7 +74,6 @@ const CompleteRegistration = () => {
     enabled: !!selectedCompanyId && selectedRole === "employee",
   });
 
-  // Email-domain auto-mapping lookup
   useEffect(() => {
     let cancelled = false;
     const lookup = async () => {
@@ -105,22 +102,17 @@ const CompleteRegistration = () => {
       }
     };
     lookup();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [selectedCompanyId, userEmailDomain, selectedRole]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!user) throw new Error("Требуется авторизация");
-      if (!selectedCompanyId) throw new Error("Выберите компанию");
-      // Position is now MANDATORY for employees
+      if (!user) throw new Error(t("auth:complete.errors.needAuth"));
+      if (!selectedCompanyId) throw new Error(t("auth:complete.errors.pickCompany"));
       if (selectedRole === "employee" && !autoMatchedPosition && !selectedPositionId) {
-        throw new Error("Должность обязательна — выберите её из списка");
+        throw new Error(t("auth:complete.errors.positionRequired"));
       }
 
-      // Auto-mapped → position_id is set immediately (no HRD verification needed for the position)
-      // Manual choice → goes to pending_position_id, awaits HRD
       const positionFields =
         selectedRole === "employee"
           ? autoMatchedPosition
@@ -146,22 +138,20 @@ const CompleteRegistration = () => {
         });
         if (error) throw error;
       }
-      // В Phase 13 убрали laravelDb.auth.updateUser — профильные поля уже
-      // обновлены через laravelDb выше, отдельного хранилища "метаданных" нет.
     },
     onSuccess: async () => {
       clearPendingSocialSignup();
       await queryClient.invalidateQueries({ queryKey: ["profile"] });
       if (autoMatchedPosition) {
-        toast.success(`Должность «${autoMatchedPosition.title}» назначена автоматически по корпоративному email`);
+        toast.success(t("auth:complete.toast.autoMatched", { title: autoMatchedPosition.title }));
       } else if (selectedRole === "employee") {
-        toast.success("Заявка отправлена. HRD подтвердит вашу должность.");
+        toast.success(t("auth:complete.toast.pendingHrd"));
       } else {
-        toast.success("Профиль привязан к компании");
+        toast.success(t("auth:complete.toast.linked"));
       }
       navigate("/", { replace: true });
     },
-    onError: (error: Error) => toast.error(error.message || "Не удалось сохранить профиль"),
+    onError: (error: Error) => toast.error(error.message || t("auth:complete.errors.saveFailed")),
   });
 
   if (profileLoading) {
@@ -181,21 +171,19 @@ const CompleteRegistration = () => {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl gradient-primary">
             <Building2 className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Завершите регистрацию</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Выберите компанию и роль, чтобы открыть доступ к системе.
-          </p>
+          <h1 className="text-2xl font-bold text-foreground">{t("auth:complete.title")}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t("auth:complete.subtitle")}</p>
         </div>
 
         <div className="mt-6 space-y-4">
           <div>
-            <label className="text-sm font-medium text-foreground">Компания</label>
+            <label className="text-sm font-medium text-foreground">{t("auth:complete.company")}</label>
             <select
               value={selectedCompanyId}
               onChange={(event) => setSelectedCompanyId(event.target.value)}
               className="mt-1.5 w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
             >
-              <option value="">— Выберите компанию —</option>
+              <option value="">{t("auth:complete.companyPlaceholder")}</option>
               {companies.map((company) => (
                 <option key={company.id} value={company.id}>{company.name}</option>
               ))}
@@ -203,37 +191,34 @@ const CompleteRegistration = () => {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground">Желаемая роль</label>
+            <label className="text-sm font-medium text-foreground">{t("auth:complete.role")}</label>
             <select
               value={selectedRole}
               onChange={(event) => setSelectedRole(event.target.value as RequestedAppRole)}
               className="mt-1.5 w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
             >
               {ROLE_OPTIONS.map((role) => (
-                <option key={role.value} value={role.value}>{role.label}</option>
+                <option key={role.value} value={role.value}>{t(role.labelKey)}</option>
               ))}
             </select>
           </div>
 
-          {/* Auto-mapped position notice */}
           {selectedRole === "employee" && autoMatchedPosition && (
             <div className="flex items-start gap-3 rounded-lg border border-success/30 bg-success/5 p-3">
               <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-success" />
               <div className="text-sm">
-                <p className="font-medium text-foreground">Должность определена по email</p>
+                <p className="font-medium text-foreground">{t("auth:complete.autoMatchTitle")}</p>
                 <p className="mt-0.5 text-muted-foreground">
-                  По домену <span className="font-mono text-xs">@{userEmailDomain}</span> назначена должность{" "}
-                  <span className="font-medium text-foreground">{autoMatchedPosition.title}</span>. Подтверждение HRD не требуется.
+                  {t("auth:complete.autoMatchText", { domain: `@${userEmailDomain}`, title: autoMatchedPosition.title })}
                 </p>
               </div>
             </div>
           )}
 
-          {/* Manual position picker (employees, no domain match) */}
           {showPositionPicker && (
             <div>
               <label className="text-sm font-medium text-foreground">
-                Ваша должность <span className="text-destructive">*</span>
+                {t("auth:complete.position")} <span className="text-destructive">*</span>
               </label>
               <select
                 value={selectedPositionId}
@@ -241,7 +226,7 @@ const CompleteRegistration = () => {
                 required
                 className="mt-1.5 w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
               >
-                <option value="">— Выберите должность —</option>
+                <option value="">{t("auth:complete.positionPlaceholder")}</option>
                 {positions.map((p: any) => (
                   <option key={p.id} value={p.id}>
                     {p.title}{p.department ? ` · ${p.department}` : ""}
@@ -250,12 +235,10 @@ const CompleteRegistration = () => {
               </select>
               <div className="mt-2 flex items-start gap-2 text-xs text-muted-foreground">
                 <Sparkles className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-warning" />
-                <span>Должность обязательна. До подтверждения HRD часть функций может быть ограничена.</span>
+                <span>{t("auth:complete.positionHint")}</span>
               </div>
               {positions.length === 0 && (
-                <p className="mt-1 text-xs text-destructive">
-                  В компании пока нет должностей. Обратитесь к HRD.
-                </p>
+                <p className="mt-1 text-xs text-destructive">{t("auth:complete.noPositions")}</p>
               )}
             </div>
           )}
@@ -266,11 +249,11 @@ const CompleteRegistration = () => {
             disabled={saveMutation.isPending || companiesLoading || companies.length === 0}
             className="w-full rounded-lg py-2.5 gradient-primary text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {saveMutation.isPending ? "Сохраняем..." : "Сохранить и продолжить"}
+            {saveMutation.isPending ? t("auth:complete.saving") : t("auth:complete.save")}
           </button>
 
           {companies.length === 0 && !companiesLoading && (
-            <p className="text-center text-sm text-destructive">Нет доступных компаний для регистрации.</p>
+            <p className="text-center text-sm text-destructive">{t("auth:complete.noCompanies")}</p>
           )}
         </div>
       </div>
