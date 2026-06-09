@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravelStorage } from "@/integrations/laravel/storage";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,36 +12,36 @@ import {
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
-const categoryConfig: Record<string, { label: string; icon: any; color: string }> = {
-  tenure: { label: "Выслуга лет", icon: Clock, color: "text-info" },
-  achievement: { label: "Достижения", icon: Trophy, color: "text-success" },
-  brand_promotion: { label: "Продвижение бренда", icon: Mic, color: "text-primary" },
-  custom: { label: "Другое", icon: Star, color: "text-warning" },
+const categoryConfig: Record<string, { icon: any; color: string }> = {
+  tenure: { icon: Clock, color: "text-info" },
+  achievement: { icon: Trophy, color: "text-success" },
+  brand_promotion: { icon: Mic, color: "text-primary" },
+  custom: { icon: Star, color: "text-warning" },
 };
 
-const rewardKindConfig: Record<string, { label: string; icon: any }> = {
-  achievement: { label: "Ачивка", icon: Trophy },
-  digital_gift: { label: "Цифровой подарок", icon: Gift },
-  non_monetary: { label: "Неденежное", icon: Package },
-  monetary: { label: "Денежное", icon: Banknote },
+const rewardKindConfig: Record<string, { icon: any }> = {
+  achievement: { icon: Trophy },
+  digital_gift: { icon: Gift },
+  non_monetary: { icon: Package },
+  monetary: { icon: Banknote },
 };
 
-const DEFAULT_EVENTS: { code: string; label: string }[] = [
-  { code: "test_passed_high", label: "Тест пройден на ≥80%" },
-  { code: "test_completed", label: "Любой тест завершён" },
-  { code: "ai_assessment_completed", label: "AI-оценка завершена" },
-  { code: "career_goal_achieved", label: "Карьерная цель достигнута" },
-  { code: "career_track_completed", label: "Карьерный трек завершён" },
-  { code: "position_promotion", label: "Повышение в должности" },
-  { code: "hire_anniversary_1y", label: "Годовщина 1 год" },
-  { code: "hire_anniversary_3y", label: "Годовщина 3 года" },
-  { code: "hire_anniversary_5y", label: "Годовщина 5 лет" },
-  { code: "probation_passed", label: "Завершён испытательный срок" },
-  { code: "birthday", label: "День рождения" },
-  { code: "mentor_newcomer", label: "Наставничество новичка" },
-  { code: "brand_publication", label: "Публикация от бренда" },
-  { code: "candidate_referral", label: "Рекомендация кандидата" },
-  { code: "project_participation", label: "Участие в проекте" },
+const DEFAULT_EVENT_CODES = [
+  "test_passed_high",
+  "test_completed",
+  "ai_assessment_completed",
+  "career_goal_achieved",
+  "career_track_completed",
+  "position_promotion",
+  "hire_anniversary_1y",
+  "hire_anniversary_3y",
+  "hire_anniversary_5y",
+  "probation_passed",
+  "birthday",
+  "mentor_newcomer",
+  "brand_publication",
+  "candidate_referral",
+  "project_participation",
 ];
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--info))", "hsl(var(--warning))"];
@@ -70,6 +71,7 @@ const EMPTY_FORM: RewardForm = {
 };
 
 const GamificationManagement = () => {
+  const { t } = useTranslation("admin");
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
@@ -80,13 +82,30 @@ const GamificationManagement = () => {
   const [tab, setTab] = useState<"types" | "awarded" | "events" | "analytics">("types");
   const [uploadingImage, setUploadingImage] = useState(false);
 
+  const catLabels: Record<string, string> = {
+    tenure: t("gamification.catTenure"),
+    achievement: t("gamification.catAchievement"),
+    brand_promotion: t("gamification.catBrandPromotion"),
+    custom: t("gamification.catCustom"),
+  };
+
+  const kindLabels: Record<string, string> = {
+    achievement: t("gamification.kindAchievement"),
+    digital_gift: t("gamification.kindDigitalGift"),
+    non_monetary: t("gamification.kindNonMonetary"),
+    monetary: t("gamification.kindMonetary"),
+  };
+
+  const getDefaultEvents = () =>
+    DEFAULT_EVENT_CODES.map(code => ({ code, label: t(`gamification.event_${code}`) }));
+
   // Custom events stored in localStorage per company
   const eventsKey = `gam_events_${companyId || "global"}`;
   const [customEvents, setCustomEvents] = useState<{ code: string; label: string }[]>(() => {
     try {
       const raw = localStorage.getItem(eventsKey);
-      return raw ? JSON.parse(raw) : DEFAULT_EVENTS;
-    } catch { return DEFAULT_EVENTS; }
+      return raw ? JSON.parse(raw) : getDefaultEvents();
+    } catch { return getDefaultEvents(); }
   });
   const [newEventLabel, setNewEventLabel] = useState("");
 
@@ -163,9 +182,9 @@ const GamificationManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["gamification_reward_types"] });
       setShowForm(false); setEditingId(null);
       setForm(EMPTY_FORM);
-      toast.success(editingId ? "Награда обновлена" : "Награда создана");
+      toast.success(editingId ? t("gamification.toastUpdated") : t("gamification.toastCreated"));
     },
-    onError: (e: any) => toast.error("Ошибка сохранения: " + (e.message || "")),
+    onError: (e: any) => toast.error(t("gamification.toastSaveError", { message: e.message || "" })),
   });
 
   const deleteMutation = useMutation({
@@ -173,7 +192,7 @@ const GamificationManagement = () => {
       const { error } = await laravelDb.from("gamification_reward_types").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["gamification_reward_types"] }); toast.success("Удалено"); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["gamification_reward_types"] }); toast.success(t("gamification.toastDeleted")); },
   });
 
   const awardMutation = useMutation({
@@ -191,9 +210,9 @@ const GamificationManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee_rewards"] });
       setAwardModal(null); setAwardUserIds([]); setAwardDesc(""); setAwardSearch("");
-      toast.success("Награды выданы!");
+      toast.success(t("gamification.toastAwarded"));
     },
-    onError: (e: any) => toast.error("Ошибка выдачи: " + (e.message || "")),
+    onError: (e: any) => toast.error(t("gamification.toastAwardError", { message: e.message || "" })),
   });
 
   const handleImageUpload = async (file: File) => {
@@ -206,9 +225,9 @@ const GamificationManagement = () => {
       if (upErr) throw upErr;
       const { data: pub } = laravelStorage.from("reward-images").getPublicUrl(path);
       setForm(f => ({ ...f, image_url: pub.publicUrl }));
-      toast.success("Изображение загружено");
+      toast.success(t("gamification.toastImageUploaded"));
     } catch (e: any) {
-      toast.error("Ошибка загрузки: " + (e.message || ""));
+      toast.error(t("gamification.toastUploadError", { message: e.message || "" }));
     } finally {
       setUploadingImage(false);
     }
@@ -223,8 +242,8 @@ const GamificationManagement = () => {
   const removeEvent = (code: string) => persistEvents(customEvents.filter(e => e.code !== code));
 
   // Analytics
-  const categoryData = Object.entries(categoryConfig).map(([key, cfg]) => ({
-    name: cfg.label,
+  const categoryData = Object.entries(categoryConfig).map(([key]) => ({
+    name: catLabels[key] || key,
     value: employeeRewards.filter(r => rewardTypeMap[r.reward_type_id]?.category === key).length,
   })).filter(d => d.value > 0);
 
@@ -273,23 +292,23 @@ const GamificationManagement = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Геймификация</h1>
-          <p className="text-muted-foreground text-sm mt-1">Награды, события автовыдачи и аналитика лояльности</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("gamification.title")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t("gamification.subtitle")}</p>
         </div>
         <button onClick={() => { setShowForm(true); setEditingId(null); setForm(EMPTY_FORM); }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm">
-          <Plus className="w-4 h-4" /> Новая награда
+          <Plus className="w-4 h-4" /> {t("gamification.newRewardBtn")}
         </button>
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {(["types", "awarded", "events", "analytics"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
-            {t === "types" ? `Виды наград (${rewardTypes.length})`
-              : t === "awarded" ? `Выданные (${employeeRewards.length})`
-              : t === "events" ? `События (${customEvents.length})`
-              : "Аналитика"}
+        {(["types", "awarded", "events", "analytics"] as const).map(tabKey => (
+          <button key={tabKey} onClick={() => setTab(tabKey)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === tabKey ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
+            {tabKey === "types" ? t("gamification.tabTypes", { count: rewardTypes.length })
+              : tabKey === "awarded" ? t("gamification.tabAwarded", { count: employeeRewards.length })
+              : tabKey === "events" ? t("gamification.tabEvents", { count: customEvents.length })
+              : t("gamification.tabAnalytics")}
           </button>
         ))}
       </div>
@@ -298,75 +317,75 @@ const GamificationManagement = () => {
       {showForm && (
         <div className="bg-card rounded-xl p-6 shadow-card border border-primary/20 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-foreground">{editingId ? "Редактировать награду" : "Новая награда"}</h3>
+            <h3 className="font-semibold text-foreground">{editingId ? t("gamification.formEditTitle") : t("gamification.formNewTitle")}</h3>
             <button onClick={() => setShowForm(false)}><X className="w-5 h-5 text-muted-foreground" /></button>
           </div>
 
-          <input type="text" placeholder="Название" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+          <input type="text" placeholder={t("gamification.titlePlaceholder")} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
             className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground" />
-          <textarea placeholder="Описание" value={form.description} rows={2} onChange={e => setForm({ ...form, description: e.target.value })}
+          <textarea placeholder={t("gamification.descPlaceholder")} value={form.description} rows={2} onChange={e => setForm({ ...form, description: e.target.value })}
             className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground" />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Категория</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t("gamification.labelCategory")}</label>
               <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
                 className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-sm">
-                {Object.entries(categoryConfig).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                {Object.keys(categoryConfig).map(k => <option key={k} value={k}>{catLabels[k] || k}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Очки</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t("gamification.labelPoints")}</label>
               <input type="number" value={form.points} min={1} onChange={e => setForm({ ...form, points: parseInt(e.target.value) || 10 })}
                 className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-sm" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Иконка</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t("gamification.labelIcon")}</label>
               <select value={form.icon} onChange={e => setForm({ ...form, icon: e.target.value })}
                 className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-sm">
-                <option value="award">🏆 Кубок</option>
-                <option value="star">⭐ Звезда</option>
-                <option value="medal">🎖️ Медаль</option>
-                <option value="rocket">🚀 Ракета</option>
-                <option value="flame">🔥 Огонь</option>
-                <option value="heart">❤️ Сердце</option>
+                <option value="award">{t("gamification.iconCup")}</option>
+                <option value="star">{t("gamification.iconStar")}</option>
+                <option value="medal">{t("gamification.iconMedal")}</option>
+                <option value="rocket">{t("gamification.iconRocket")}</option>
+                <option value="flame">{t("gamification.iconFlame")}</option>
+                <option value="heart">{t("gamification.iconHeart")}</option>
               </select>
             </div>
           </div>
 
           {/* Reward kind */}
           <div className="space-y-3 p-4 rounded-lg bg-secondary/30 border border-border">
-            <label className="text-xs text-muted-foreground block">Тип вознаграждения</label>
+            <label className="text-xs text-muted-foreground block">{t("gamification.rewardKindLabel")}</label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {Object.entries(rewardKindConfig).map(([k, v]) => {
                 const I = v.icon;
                 return (
                   <button key={k} type="button" onClick={() => setForm({ ...form, reward_kind: k })}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${form.reward_kind === k ? "bg-primary text-primary-foreground" : "bg-card border border-border text-foreground"}`}>
-                    <I className="w-4 h-4" /> {v.label}
+                    <I className="w-4 h-4" /> {kindLabels[k] || k}
                   </button>
                 );
               })}
             </div>
 
             {form.reward_kind === "digital_gift" && (
-              <textarea placeholder="Содержимое цифрового подарка (текст открытки, сертификат, ссылка...)" value={form.gift_content} rows={2}
+              <textarea placeholder={t("gamification.giftContentPlaceholder")} value={form.gift_content} rows={2}
                 onChange={e => setForm({ ...form, gift_content: e.target.value })}
                 className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-sm" />
             )}
             {form.reward_kind === "non_monetary" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <input type="text" placeholder="Название (например: Билеты в кино)" value={form.non_monetary_title}
+                <input type="text" placeholder={t("gamification.nonMonetaryTitlePlaceholder")} value={form.non_monetary_title}
                   onChange={e => setForm({ ...form, non_monetary_title: e.target.value })}
                   className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-sm" />
-                <input type="text" placeholder="Описание" value={form.non_monetary_description}
+                <input type="text" placeholder={t("gamification.descPlaceholder")} value={form.non_monetary_description}
                   onChange={e => setForm({ ...form, non_monetary_description: e.target.value })}
                   className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-sm" />
               </div>
             )}
             {form.reward_kind === "monetary" && (
               <div className="grid grid-cols-2 gap-3">
-                <input type="number" placeholder="Сумма" value={form.monetary_amount} min={0}
+                <input type="number" placeholder={t("gamification.monetaryAmountPlaceholder")} value={form.monetary_amount} min={0}
                   onChange={e => setForm({ ...form, monetary_amount: parseFloat(e.target.value) || 0 })}
                   className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-sm" />
                 <select value={form.monetary_currency} onChange={e => setForm({ ...form, monetary_currency: e.target.value })}
@@ -382,7 +401,7 @@ const GamificationManagement = () => {
 
           {/* Image */}
           <div className="space-y-2">
-            <label className="text-xs text-muted-foreground block">Изображение награды</label>
+            <label className="text-xs text-muted-foreground block">{t("gamification.labelImageUpload")}</label>
             <div className="flex items-center gap-3">
               {form.image_url ? (
                 <img src={form.image_url} alt="reward" className="w-20 h-20 rounded-lg object-cover border border-border" />
@@ -392,33 +411,33 @@ const GamificationManagement = () => {
                 </div>
               )}
               <label className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm cursor-pointer hover:bg-secondary/80">
-                {uploadingImage ? "Загрузка..." : (form.image_url ? "Заменить" : "Загрузить")}
+                {uploadingImage ? t("gamification.uploadingImage") : (form.image_url ? t("gamification.replaceImage") : t("gamification.uploadImage"))}
                 <input type="file" accept="image/*" className="hidden"
                   onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0])} />
               </label>
               {form.image_url && (
                 <button type="button" onClick={() => setForm({ ...form, image_url: "" })}
-                  className="text-xs text-destructive hover:underline">Удалить</button>
+                  className="text-xs text-destructive hover:underline">{t("gamification.removeImage")}</button>
               )}
             </div>
           </div>
 
           {/* Trigger mode */}
           <div className="space-y-3 p-4 rounded-lg bg-secondary/30 border border-border">
-            <label className="text-xs text-muted-foreground block">Сценарий выдачи</label>
+            <label className="text-xs text-muted-foreground block">{t("gamification.triggerLabel")}</label>
             <div className="flex gap-2">
               <button type="button" onClick={() => setForm({ ...form, trigger_mode: "manual" })}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${form.trigger_mode === "manual" ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
-                <Hand className="w-4 h-4" /> Вручную
+                <Hand className="w-4 h-4" /> {t("gamification.triggerManual")}
               </button>
               <button type="button" onClick={() => setForm({ ...form, trigger_mode: "auto" })}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${form.trigger_mode === "auto" ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
-                <Zap className="w-4 h-4" /> Автоматически
+                <Zap className="w-4 h-4" /> {t("gamification.triggerAuto")}
               </button>
             </div>
             {form.trigger_mode === "auto" && (
               <div>
-                <p className="text-xs text-muted-foreground mb-2">Выдаётся при наступлении одного из событий:</p>
+                <p className="text-xs text-muted-foreground mb-2">{t("gamification.triggerAutoHint")}</p>
                 <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
                   {customEvents.map(ev => {
                     const active = form.trigger_events.includes(ev.code);
@@ -434,14 +453,14 @@ const GamificationManagement = () => {
                     );
                   })}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">Управление списком событий — во вкладке «События».</p>
+                <p className="text-xs text-muted-foreground mt-2">{t("gamification.triggerManageEvents")}</p>
               </div>
             )}
           </div>
 
           <button onClick={() => saveMutation.mutate()} disabled={!form.title || saveMutation.isPending}
             className="px-6 py-2.5 rounded-lg gradient-primary text-primary-foreground text-sm disabled:opacity-50">
-            {saveMutation.isPending ? "Сохранение..." : editingId ? "Обновить" : "Создать"}
+            {saveMutation.isPending ? t("gamification.saving") : editingId ? t("gamification.updateBtn") : t("gamification.createBtn")}
           </button>
         </div>
       )}
@@ -452,7 +471,7 @@ const GamificationManagement = () => {
           {rewardTypes.length === 0 && (
             <div className="col-span-full bg-card rounded-xl p-12 text-center border border-border">
               <Award className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-semibold text-foreground">Создайте первую награду</h3>
+              <h3 className="font-semibold text-foreground">{t("gamification.emptyTypes")}</h3>
             </div>
           )}
           {rewardTypes.map(r => {
@@ -472,14 +491,14 @@ const GamificationManagement = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-foreground text-sm">{r.title}</h3>
-                      <span className="text-xs text-muted-foreground">{cfg.label} · {r.points} очк.</span>
+                      <span className="text-xs text-muted-foreground">{catLabels[r.category] || r.category} · {r.points} {t("gamification.pointsUnit")}</span>
                     </div>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => editReward(r)} className="p-1.5 rounded hover:bg-secondary">
                       <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
                     </button>
-                    <button onClick={() => { if (confirm("Удалить награду?")) deleteMutation.mutate(r.id); }}
+                    <button onClick={() => { if (confirm(t("gamification.confirmDeleteReward"))) deleteMutation.mutate(r.id); }}
                       className="p-1.5 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
                   </div>
                 </div>
@@ -488,7 +507,7 @@ const GamificationManagement = () => {
                 <div className="flex flex-wrap gap-1.5 mb-3">
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground flex items-center gap-1">
                     <KindIcon className="w-3 h-3" />
-                    {(rewardKindConfig[r.reward_kind || "achievement"] || rewardKindConfig.achievement).label}
+                    {kindLabels[r.reward_kind || "achievement"] || r.reward_kind}
                   </span>
                   {r.reward_kind === "monetary" && r.monetary_amount && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/10 text-success">
@@ -496,15 +515,17 @@ const GamificationManagement = () => {
                     </span>
                   )}
                   <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 ${r.trigger_mode === "auto" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                    {r.trigger_mode === "auto" ? <><Zap className="w-3 h-3" /> Авто ({(Array.isArray(r.trigger_events) ? r.trigger_events.length : 0)})</> : <><Hand className="w-3 h-3" /> Ручная</>}
+                    {r.trigger_mode === "auto"
+                      ? <><Zap className="w-3 h-3" /> {t("gamification.autoTag", { count: Array.isArray(r.trigger_events) ? r.trigger_events.length : 0 })}</>
+                      : <><Hand className="w-3 h-3" /> {t("gamification.manualTag")}</>}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between mt-auto">
-                  <span className="text-xs text-muted-foreground">Выдано: {awarded}</span>
+                  <span className="text-xs text-muted-foreground">{t("gamification.awarded", { count: awarded })}</span>
                   <button onClick={() => { setAwardModal(r.id); setAwardUserIds([]); }}
                     className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-                    Выдать
+                    {t("gamification.awardBtn")}
                   </button>
                 </div>
               </div>
@@ -519,7 +540,7 @@ const GamificationManagement = () => {
           {employeeRewards.length === 0 && (
             <div className="bg-card rounded-xl p-12 text-center border border-border">
               <Award className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-semibold text-foreground mb-2">Нет выданных наград</h3>
+              <h3 className="font-semibold text-foreground mb-2">{t("gamification.noAwardedRewards")}</h3>
             </div>
           )}
           {employeeRewards.map(er => {
@@ -537,7 +558,7 @@ const GamificationManagement = () => {
                 )}
                 <div className="flex-1 min-w-[180px]">
                   <p className="text-sm font-medium text-foreground">{p?.full_name || "—"}</p>
-                  <p className="text-xs text-muted-foreground">{rt?.title || "—"} · {cfg.label}</p>
+                  <p className="text-xs text-muted-foreground">{rt?.title || "—"} · {catLabels[rt?.category] || rt?.category || ""}</p>
                 </div>
                 {rt?.reward_kind === "monetary" && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success">
@@ -545,7 +566,7 @@ const GamificationManagement = () => {
                   </span>
                 )}
                 {er.description && <span className="text-xs text-muted-foreground max-w-[200px] truncate">{er.description}</span>}
-                <span className="text-xs text-muted-foreground">{new Date(er.awarded_at).toLocaleDateString("ru")}</span>
+                <span className="text-xs text-muted-foreground">{new Date(er.awarded_at).toLocaleDateString()}</span>
                 <span className="text-sm font-medium text-primary">+{rt?.points || 0}</span>
               </div>
             );
@@ -557,29 +578,29 @@ const GamificationManagement = () => {
       {tab === "events" && (
         <div className="bg-card rounded-xl p-6 shadow-card border border-border space-y-4">
           <div>
-            <h3 className="font-semibold text-foreground mb-1">События для автовыдачи наград</h3>
-            <p className="text-sm text-muted-foreground">Эти события можно привязать к награде с режимом «Автоматически».</p>
+            <h3 className="font-semibold text-foreground mb-1">{t("gamification.eventsTitle")}</h3>
+            <p className="text-sm text-muted-foreground">{t("gamification.eventsSubtitle")}</p>
           </div>
           <div className="flex gap-2">
-            <input type="text" placeholder="Название нового события" value={newEventLabel}
+            <input type="text" placeholder={t("gamification.newEventPlaceholder")} value={newEventLabel}
               onChange={e => setNewEventLabel(e.target.value)}
               onKeyDown={e => e.key === "Enter" && addCustomEvent()}
               className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
             <button onClick={addCustomEvent} className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm">
-              Добавить
+              {t("gamification.addEventBtn")}
             </button>
           </div>
           <div className="space-y-2">
             {customEvents.map(ev => {
-              const isDefault = DEFAULT_EVENTS.find(d => d.code === ev.code);
+              const isDefault = DEFAULT_EVENT_CODES.includes(ev.code);
               const usedBy = rewardTypes.filter(r => Array.isArray(r.trigger_events) && (r.trigger_events as any[]).includes(ev.code)).length;
               return (
                 <div key={ev.code} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
                   <div>
                     <p className="text-sm text-foreground">{ev.label}</p>
                     <p className="text-xs text-muted-foreground">
-                      <code className="text-[10px]">{ev.code}</code> · используют наград: {usedBy}
-                      {isDefault && <span className="ml-2 px-1.5 py-0.5 rounded bg-info/10 text-info text-[10px]">встроенное</span>}
+                      <code className="text-[10px]">{ev.code}</code> · {t("gamification.usedByRewards", { count: usedBy })}
+                      {isDefault && <span className="ml-2 px-1.5 py-0.5 rounded bg-info/10 text-info text-[10px]">{t("gamification.builtIn")}</span>}
                     </p>
                   </div>
                   <button onClick={() => removeEvent(ev.code)} className="p-1.5 rounded hover:bg-destructive/10">
@@ -598,26 +619,26 @@ const GamificationManagement = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-card rounded-xl p-5 shadow-card border border-border text-center">
               <p className="text-2xl font-bold text-foreground">{rewardTypes.length}</p>
-              <p className="text-xs text-muted-foreground">Видов наград</p>
+              <p className="text-xs text-muted-foreground">{t("gamification.analyticsRewardTypes")}</p>
             </div>
             <div className="bg-card rounded-xl p-5 shadow-card border border-border text-center">
               <p className="text-2xl font-bold text-foreground">{employeeRewards.length}</p>
-              <p className="text-xs text-muted-foreground">Выдано наград</p>
+              <p className="text-xs text-muted-foreground">{t("gamification.analyticsAwarded")}</p>
             </div>
             <div className="bg-card rounded-xl p-5 shadow-card border border-border text-center">
               <p className="text-2xl font-bold text-foreground">{new Set(employeeRewards.map(r => r.user_id)).size}</p>
-              <p className="text-xs text-muted-foreground">Награждённых</p>
+              <p className="text-xs text-muted-foreground">{t("gamification.analyticsEmployees")}</p>
             </div>
             <div className="bg-card rounded-xl p-5 shadow-card border border-border text-center">
               <p className="text-2xl font-bold text-foreground">{employeeRewards.reduce((s, r) => s + (rewardTypeMap[r.reward_type_id]?.points || 0), 0)}</p>
-              <p className="text-xs text-muted-foreground">Всего очков</p>
+              <p className="text-xs text-muted-foreground">{t("gamification.analyticsPoints")}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {categoryData.length > 0 && (
               <div className="bg-card rounded-xl p-5 shadow-card border border-border">
-                <h3 className="font-semibold text-foreground mb-4">Распределение по категориям</h3>
+                <h3 className="font-semibold text-foreground mb-4">{t("gamification.categoryDistribution")}</h3>
                 <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
                     <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>
@@ -630,7 +651,7 @@ const GamificationManagement = () => {
             )}
             {topEmployees.length > 0 && (
               <div className="bg-card rounded-xl p-5 shadow-card border border-border">
-                <h3 className="font-semibold text-foreground mb-4">Топ сотрудников по очкам</h3>
+                <h3 className="font-semibold text-foreground mb-4">{t("gamification.topByPoints")}</h3>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={topEmployees} layout="vertical">
                     <XAxis type="number" />
@@ -645,11 +666,10 @@ const GamificationManagement = () => {
 
           <div className="bg-card rounded-xl p-5 shadow-card border border-border">
             <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" /> Влияние геймификации на лояльность
+              <TrendingUp className="w-5 h-5 text-primary" /> {t("gamification.loyaltyTitle")}
             </h3>
             <p className="text-sm text-muted-foreground">
-              Сотрудники с наградами показывают в среднем на <span className="text-primary font-medium">23%</span> более высокие показатели вовлечённости.
-              В будущем здесь появится оценка влияния каждой награды на эффективность сотрудника.
+              {t("gamification.loyaltyText")}
             </p>
           </div>
         </div>
@@ -659,18 +679,18 @@ const GamificationManagement = () => {
       {awardModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setAwardModal(null)}>
           <div className="bg-card rounded-xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h3 className="font-semibold text-foreground mb-1">Выдать награду</h3>
-            <p className="text-xs text-muted-foreground mb-4">Выберите одного или нескольких сотрудников</p>
+            <h3 className="font-semibold text-foreground mb-1">{t("gamification.awardModalTitle")}</h3>
+            <p className="text-xs text-muted-foreground mb-4">{t("gamification.awardModalSubtitle")}</p>
 
             <div className="relative mb-3">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input type="text" placeholder="Поиск по ФИО или должности" value={awardSearch}
+              <input type="text" placeholder={t("gamification.searchPlaceholder")} value={awardSearch}
                 onChange={e => setAwardSearch(e.target.value)}
                 className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-input bg-background text-sm" />
             </div>
 
             <div className="border border-border rounded-lg max-h-72 overflow-y-auto mb-3">
-              {filteredProfiles.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">Никого не найдено</p>}
+              {filteredProfiles.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">{t("gamification.noFound")}</p>}
               {filteredProfiles.map(p => {
                 const checked = awardUserIds.includes(p.user_id);
                 return (
@@ -684,7 +704,7 @@ const GamificationManagement = () => {
                       <p className="text-sm font-medium text-foreground truncate">{p.full_name}</p>
                       <p className="text-xs text-muted-foreground truncate">
                         {p.position || "—"}
-                        {p.hire_date && <span> · с {new Date(p.hire_date).toLocaleDateString("ru")}</span>}
+                        {p.hire_date && <span> · {t("gamification.hireDate", { date: new Date(p.hire_date).toLocaleDateString() })}</span>}
                       </p>
                     </div>
                   </label>
@@ -692,18 +712,18 @@ const GamificationManagement = () => {
               })}
             </div>
 
-            <input type="text" placeholder="Комментарий (необязательно)" value={awardDesc}
+            <input type="text" placeholder={t("gamification.commentPlaceholder")} value={awardDesc}
               onChange={e => setAwardDesc(e.target.value)}
               className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-sm mb-4" />
 
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-muted-foreground">Выбрано: {awardUserIds.length}</span>
+              <span className="text-xs text-muted-foreground">{t("gamification.selectedCount", { count: awardUserIds.length })}</span>
               <div className="flex gap-2">
-                <button onClick={() => setAwardModal(null)} className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm">Отмена</button>
+                <button onClick={() => setAwardModal(null)} className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm">{t("gamification.cancelBtn")}</button>
                 <button onClick={() => awardMutation.mutate({ rewardTypeId: awardModal, userIds: awardUserIds })}
                   disabled={awardUserIds.length === 0 || awardMutation.isPending}
                   className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm disabled:opacity-50">
-                  {awardMutation.isPending ? "..." : `Выдать (${awardUserIds.length})`}
+                  {awardMutation.isPending ? "..." : t("gamification.awardActionBtn", { count: awardUserIds.length })}
                 </button>
               </div>
             </div>

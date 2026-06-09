@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravelStorage } from "@/integrations/laravel/storage";
@@ -67,6 +68,7 @@ const CompetencyProfileEditor = ({
   value: CompetencyItem[];
   onChange: (v: CompetencyItem[]) => void;
 }) => {
+  const { t } = useTranslation("admin");
   const add = () => onChange([...value, { name: "", required_level: 5 }]);
   const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
   const update = (i: number, field: keyof CompetencyItem, val: any) =>
@@ -76,21 +78,21 @@ const CompetencyProfileEditor = ({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
-          <Target className="w-4 h-4 text-primary" /> Профиль компетенций
+          <Target className="w-4 h-4 text-primary" /> {t("positions.compProfileLabel")}
         </label>
         <Button variant="ghost" size="sm" onClick={add} type="button">
-          <Plus className="w-3 h-3" /> Добавить
+          <Plus className="w-3 h-3" /> {t("positions.addComp")}
         </Button>
       </div>
       {value.length === 0 && (
-        <p className="text-xs text-muted-foreground py-2">Нет компетенций. Добавьте вручную или загрузите из файла.</p>
+        <p className="text-xs text-muted-foreground py-2">{t("positions.noComps")}</p>
       )}
       {value.map((item, i) => (
         <div key={i} className="flex items-center gap-2">
           <input
             value={item.name}
             onChange={(e) => update(i, "name", e.target.value)}
-            placeholder="Название компетенции"
+            placeholder={t("positions.compNamePlaceholder")}
             className="flex-1 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
           <div className="flex items-center gap-1.5">
@@ -121,6 +123,7 @@ const PsychProfileEditor = ({
   value: PsychItem[];
   onChange: (v: PsychItem[]) => void;
 }) => {
+  const { t } = useTranslation("admin");
   const levels = ["низкое", "ниже среднего", "среднее", "выше среднего", "высокое"];
   const add = () => onChange([...value, { trait: "", level: "среднее" }]);
   const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
@@ -131,21 +134,21 @@ const PsychProfileEditor = ({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
-          <Brain className="w-4 h-4 text-primary" /> Психологический портрет-эталон
+          <Brain className="w-4 h-4 text-primary" /> {t("positions.psychLabel")}
         </label>
         <Button variant="ghost" size="sm" onClick={add} type="button">
-          <Plus className="w-3 h-3" /> Добавить
+          <Plus className="w-3 h-3" /> {t("positions.addComp")}
         </Button>
       </div>
       {value.length === 0 && (
-        <p className="text-xs text-muted-foreground py-2">Нет характеристик. Добавьте вручную или загрузите из файла.</p>
+        <p className="text-xs text-muted-foreground py-2">{t("positions.noTraits")}</p>
       )}
       {value.map((item, i) => (
         <div key={i} className="flex items-center gap-2">
           <input
             value={item.trait}
             onChange={(e) => update(i, "trait", e.target.value)}
-            placeholder="Черта (напр. Лидерство)"
+            placeholder={t("positions.traitPlaceholder")}
             className="flex-1 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
           <select
@@ -181,6 +184,7 @@ const normalizeOKRKPI = (raw: any): OKRKPIItem[] => {
 };
 
 const OKRKPIEditor = ({ value, onChange }: { value: OKRKPIItem[]; onChange: (v: OKRKPIItem[]) => void }) => {
+  const { t } = useTranslation("admin");
   const update = (i: number, field: keyof OKRKPIItem, val: string) =>
     onChange(value.map((item, idx) => (idx === i ? { ...item, [field]: val } : item)));
   const add = () => value.length < 5 && onChange([...value, createEmptyOKR()]);
@@ -191,9 +195,9 @@ const OKRKPIEditor = ({ value, onChange }: { value: OKRKPIItem[]; onChange: (v: 
       <div className="flex items-center justify-between gap-3">
         <div>
           <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
-            <Target className="w-4 h-4 text-primary" /> Цели и ключевые результаты OKR/KPI
+            <Target className="w-4 h-4 text-primary" /> {t("positions.okrKpiTitle")}
           </label>
-          <p className="text-xs text-muted-foreground mt-1">Заполните 3–5 измеримых целей с метрикой, целевым значением и примером результата.</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("positions.okrKpiHint")}</p>
         </div>
         <Button variant="outline" size="sm" onClick={add} disabled={value.length >= 5} type="button">
           <Plus className="w-3 h-3" /> OKR/KPI
@@ -211,10 +215,10 @@ const OKRKPIEditor = ({ value, onChange }: { value: OKRKPIItem[]; onChange: (v: 
             )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <input value={item.objective} onChange={(e) => update(i, "objective", e.target.value)} placeholder="Цель: повысить стабильность сменного плана" className="px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
-            <input value={item.metric} onChange={(e) => update(i, "metric", e.target.value)} placeholder="Метрика: выполнение плана, %" className="px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
-            <input value={item.target} onChange={(e) => update(i, "target", e.target.value)} placeholder="Целевое значение: ≥ 98% ежемесячно" className="px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
-            <input value={item.example} onChange={(e) => update(i, "example", e.target.value)} placeholder="Пример: отчёт по отклонениям и корректирующим действиям" className="px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
+            <input value={item.objective} onChange={(e) => update(i, "objective", e.target.value)} placeholder={t("positions.okrObjectivePlaceholder")} className="px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
+            <input value={item.metric} onChange={(e) => update(i, "metric", e.target.value)} placeholder={t("positions.okrMetricPlaceholder")} className="px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
+            <input value={item.target} onChange={(e) => update(i, "target", e.target.value)} placeholder={t("positions.okrTargetPlaceholder")} className="px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
+            <input value={item.example} onChange={(e) => update(i, "example", e.target.value)} placeholder={t("positions.okrExamplePlaceholder")} className="px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
           </div>
         </div>
       ))}
@@ -248,6 +252,7 @@ const PositionEditor = ({
   onSave: (data: Partial<Position>) => void;
   isSaving: boolean;
 }) => {
+  const { t } = useTranslation("admin");
   const [title, setTitle] = useState(position?.title || "");
   const [description, setDescription] = useState(position?.description || "");
   const [department, setDepartment] = useState(position?.department || "");
@@ -271,7 +276,7 @@ const PositionEditor = ({
     setCompetencies(template.competencies || []);
     setProfileTemplate(template);
     setOkrKpis(normalizeOKRKPI(template.okr_kpis));
-    toast.success("Шаблон профиля применён");
+    toast.success(t("positions.toastTemplateApplied"));
   };
 
   // Load competencies from HR documents uploaded by HRD (matched by department/title)
@@ -320,7 +325,7 @@ const PositionEditor = ({
       });
 
       if (collected.size === 0) {
-        toast.error("В загруженных HR-документах нет подходящих компетенций. Загрузите модель компетенций в разделе HR-документы.");
+        toast.error(t("positions.toastNoCompetenciesInDocs"));
         return;
       }
 
@@ -332,9 +337,9 @@ const PositionEditor = ({
 
       setCompetencies(newComps);
       if (newPsych.length > 0) setPsychTraits(newPsych);
-      toast.success(`Подгружено ${newComps.length} компетенций из HR-документов`);
+      toast.success(t("positions.toastLoadedFromDocs", { count: newComps.length }));
     } catch (e: any) {
-      toast.error(e.message || "Ошибка загрузки из HR-документов");
+      toast.error(e.message || t("positions.toastLoadFromDocsError"));
     } finally {
       setLoadingFromDocs(false);
     }
@@ -346,7 +351,7 @@ const PositionEditor = ({
 
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
     if (![".doc", ".docx", ".pdf", ".csv", ".json", ".xlsx", ".xls"].includes(ext)) {
-      toast.error("Поддерживаются DOC, DOCX, PDF, CSV, XLSX и JSON");
+      toast.error(t("positions.toastUnsupportedFormat"));
       return;
     }
 
@@ -361,7 +366,7 @@ const PositionEditor = ({
             ? parsed.psychological_profile
             : Object.entries(parsed.psychological_profile).map(([trait, level]) => ({ trait, level: String(level) }))
         );
-        toast.success("Эталон загружен из JSON");
+        toast.success(t("positions.toastLoadedFromJson"));
       } else if (ext === ".csv") {
         const text = await file.text();
         const lines = text.split("\n").filter(Boolean);
@@ -374,9 +379,9 @@ const PositionEditor = ({
             return { name: vals[nameIdx] || "", required_level: parseInt(vals[levelIdx] || "5") || 5 };
           }).filter((c) => c.name);
           setCompetencies(items);
-          toast.success(`Загружено ${items.length} компетенций из CSV`);
+          toast.success(t("positions.toastLoadedFromCsv", { count: items.length }));
         } else {
-          toast.error("CSV должен содержать столбец с названием компетенции");
+          toast.error(t("positions.toastCsvMissingColumn"));
         }
       } else if (ext === ".xlsx" || ext === ".xls") {
         // Parse XLSX client-side
@@ -400,9 +405,9 @@ const PositionEditor = ({
             required_level: parseInt(String(r[levelKey!] || "5")) || 5,
           })).filter(c => c.name);
           setCompetencies(items);
-          toast.success(`Загружено ${items.length} компетенций из XLSX`);
+          toast.success(t("positions.toastLoadedFromXlsx", { count: items.length }));
         } else {
-          toast.error("XLSX должен содержать столбец с названием компетенции");
+          toast.error(t("positions.toastXlsxMissingColumn"));
         }
       } else {
         // For doc/docx/pdf — upload and parse with AI
@@ -411,7 +416,7 @@ const PositionEditor = ({
         const { error: uploadError } = await laravelStorage.from("hr-documents").upload(filePath, file);
         if (uploadError) throw uploadError;
         const { data: signedData, error: signError } = await laravelStorage.from("hr-documents").createSignedUrl(filePath, 600);
-        if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
+        if (signError || !signedData?.signedUrl) throw signError || new Error(t("positions.toastSignedUrlError"));
 
         const { data: result, error: fnError } = await aiInvoke("parse-position-standards", {
           body: { fileUrl: signedData.signedUrl, fileName: file.name },
@@ -424,10 +429,10 @@ const PositionEditor = ({
         if (result?.psychological_profile?.length) {
           setPsychTraits(result.psychological_profile);
         }
-        toast.success("Эталон извлечён из документа с помощью AI");
+        toast.success(t("positions.toastExtractedFromDoc"));
       }
     } catch (e: any) {
-      toast.error(e.message || "Ошибка обработки файла");
+      toast.error(e.message || t("positions.toastFileProcessError"));
     } finally {
       setParsing(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -439,7 +444,7 @@ const PositionEditor = ({
       <div className="bg-card rounded-xl border border-border w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">
-            {position ? "Редактирование должности" : "Новая должность"}
+            {position ? t("positions.editorEditTitle") : t("positions.editorNewTitle")}
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
@@ -447,58 +452,61 @@ const PositionEditor = ({
         {/* Basic info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="text-sm font-medium text-foreground">Название</label>
+            <label className="text-sm font-medium text-foreground">{t("positions.labelTitle")}</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-              placeholder="Frontend разработчик" />
+              placeholder={t("positions.titlePlaceholder")} />
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground">Отдел</label>
+            <label className="text-sm font-medium text-foreground">{t("positions.labelDept")}</label>
             <input value={department} onChange={(e) => setDepartment(e.target.value)}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
           </div>
         </div>
         <div>
-          <label className="text-sm font-medium text-foreground">Описание</label>
+          <label className="text-sm font-medium text-foreground">{t("positions.labelDesc")}</label>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)}
             className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[50px]" />
         </div>
 
         <div className="bg-primary/5 rounded-lg border border-primary/20 p-4 space-y-3">
           <div>
-            <p className="text-sm font-medium text-foreground">Skills-based шаблон 8 блоков</p>
+            <p className="text-sm font-medium text-foreground">{t("positions.eightBlocksTitle")}</p>
             <p className="text-xs text-muted-foreground mt-1">
               {eightBlockJobProfileGuide.rules[0]} {eightBlockJobProfileGuide.rules[2]}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" type="button" onClick={() => setProfileTemplate({ ...profileTemplate, methodology: eightBlockJobProfileGuide.rules, blocks: eightBlockJobProfileGuide.blocks, generation_source: "manual", review_frequency: "12 месяцев или при изменении технологии/стратегии" })}>
-              Применить 8 блоков
+            <Button size="sm" variant="outline" type="button" onClick={() => setProfileTemplate({ ...profileTemplate, methodology: eightBlockJobProfileGuide.rules, blocks: eightBlockJobProfileGuide.blocks, generation_source: "manual", review_frequency: t("positions.reviewFreqDefault") })}>
+              {t("positions.apply8Blocks")}
             </Button>
-            {miningPilotProfiles.map((template) => (
-              <Button key={template.title} size="sm" variant="secondary" type="button" onClick={() => applyTemplate(template)}>
-                {template.title}
-              </Button>
-            ))}
+            {miningPilotProfiles.map((template, idx) => {
+              const labelKey = idx === 0 ? "positions.templateMiningShiftLead" : "positions.templateMiningDigitalEngineer";
+              return (
+                <Button key={template.title} size="sm" variant="secondary" type="button" onClick={() => applyTemplate(template)}>
+                  {t(labelKey)}
+                </Button>
+              );
+            })}
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="text-sm font-medium text-foreground">Статус эталона</label>
+            <label className="text-sm font-medium text-foreground">{t("positions.labelProfileStatus")}</label>
             <select value={profileStatus} onChange={(e) => setProfileStatus(e.target.value)}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
-              <option value="draft">Черновик</option>
-              <option value="review">На ревью</option>
-              <option value="approved">Утверждён</option>
-              <option value="archived">Архив</option>
+              <option value="draft">{t("positions.statusDraft")}</option>
+              <option value="review">{t("positions.statusReview")}</option>
+              <option value="approved">{t("positions.statusApproved")}</option>
+              <option value="archived">{t("positions.statusArchived")}</option>
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground">Цели и метрики успеха</label>
+            <label className="text-sm font-medium text-foreground">{t("positions.labelSuccessMetrics")}</label>
             <input value={profileTemplate.success_metrics || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, success_metrics: e.target.value })}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-              placeholder="KPI, ожидаемые результаты" />
+              placeholder={t("positions.successMetricsPlaceholder")} />
           </div>
         </div>
 
@@ -506,36 +514,36 @@ const PositionEditor = ({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <label className="text-sm font-medium text-foreground">Источник генерации</label>
+            <label className="text-sm font-medium text-foreground">{t("positions.labelGenSource")}</label>
             <select value={profileTemplate.generation_source || "manual"} onChange={(e) => setProfileTemplate({ ...profileTemplate, generation_source: e.target.value })}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
-              <option value="manual">Ручное заполнение</option>
-              <option value="vacancy">Из вакансии компании</option>
-              <option value="market">Из рыночного бенчмарка</option>
-              <option value="psychological">Из психологического портрета</option>
+              <option value="manual">{t("positions.genManual")}</option>
+              <option value="vacancy">{t("positions.genVacancy")}</option>
+              <option value="market">{t("positions.genMarket")}</option>
+              <option value="psychological">{t("positions.genPsych")}</option>
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground">Грейд</label>
+            <label className="text-sm font-medium text-foreground">{t("positions.labelGrade")}</label>
             <input value={profileTemplate.grade || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, grade: e.target.value })}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground">Частота пересмотра</label>
+            <label className="text-sm font-medium text-foreground">{t("positions.labelReviewFreq")}</label>
             <input value={profileTemplate.review_frequency || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, review_frequency: e.target.value })}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-              placeholder="12 месяцев" />
+              placeholder={t("positions.reviewFreqPlaceholder")} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="text-sm font-medium text-foreground">Основные обязанности</label>
+            <label className="text-sm font-medium text-foreground">{t("positions.labelResponsibilities")}</label>
             <textarea value={profileTemplate.responsibilities || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, responsibilities: e.target.value })}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[70px]" />
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground">Опыт, образование и риски</label>
+            <label className="text-sm font-medium text-foreground">{t("positions.labelRequirementsRisks")}</label>
             <textarea value={profileTemplate.requirements_and_risks || ""} onChange={(e) => setProfileTemplate({ ...profileTemplate, requirements_and_risks: e.target.value })}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[70px]" />
           </div>
@@ -544,21 +552,21 @@ const PositionEditor = ({
         {/* File upload for standards */}
         <div className="bg-secondary/30 rounded-lg p-4 space-y-2">
           <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
-            <FileUp className="w-4 h-4 text-primary" /> Загрузить эталон из файла
+            <FileUp className="w-4 h-4 text-primary" /> {t("positions.uploadStandardLabel")}
           </p>
            <p className="text-xs text-muted-foreground">
-             Загрузите DOC, DOCX, PDF, XLSX — AI извлечёт компетенции и психопортрет. Или CSV/JSON для прямого импорта.
+             {t("positions.uploadStandardHint")}
            </p>
            <div className="flex flex-wrap items-center gap-3">
              <input ref={fileRef} type="file" accept=".doc,.docx,.pdf,.csv,.json,.xlsx,.xls"
                className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
             <Button size="sm" onClick={handleFileUpload} disabled={parsing}>
               {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              Распознать
+              {t("positions.recognizeBtn")}
             </Button>
             <Button size="sm" variant="outline" onClick={loadFromHrDocuments} disabled={loadingFromDocs} type="button">
               {loadingFromDocs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              Подтянуть из HR-документов
+              {t("positions.pullFromHrDocs")}
             </Button>
           </div>
         </div>
@@ -570,30 +578,30 @@ const PositionEditor = ({
         <PsychProfileEditor value={psychTraits} onChange={setPsychTraits} />
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={onClose}>Отмена</Button>
+          <Button variant="outline" onClick={onClose}>{t("positions.cancelBtn")}</Button>
           <Button
             onClick={() => {
               if (competencies.length === 0) {
-                toast.error("Добавьте хотя бы одну компетенцию для эталона должности");
+                toast.error(t("positions.toastNeedAtLeastOneComp"));
                 return;
               }
               const invalid = competencies.filter((c) => !c.name.trim() || !c.required_level || c.required_level <= 0);
               if (invalid.length > 0) {
-                toast.error("Все компетенции должны иметь название и ненулевой требуемый уровень (1–10)");
+                toast.error(t("positions.toastCompNeedsNameAndLevel"));
                 return;
               }
               const filledOkrKpis = okrKpis.filter((item) =>
                 item.objective.trim() || item.metric.trim() || item.target.trim() || item.example.trim()
               );
               if (filledOkrKpis.length < 3 || filledOkrKpis.length > 5) {
-                toast.error("Добавьте от 3 до 5 OKR/KPI для профиля должности");
+                toast.error(t("positions.toastOkrCountError"));
                 return;
               }
               const invalidOkrKpis = filledOkrKpis.filter((item) =>
                 !item.objective.trim() || !item.metric.trim() || !item.target.trim() || !item.example.trim()
               );
               if (invalidOkrKpis.length > 0) {
-                toast.error("В каждом OKR/KPI заполните цель, метрику, целевое значение и пример");
+                toast.error(t("positions.toastOkrFieldsRequired"));
                 return;
               }
               const psychObj = psychTraits.length > 0 ? psychTraits : {};
@@ -617,7 +625,7 @@ const PositionEditor = ({
             disabled={!title || isSaving}
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Сохранить
+            {t("positions.saveBtn")}
           </Button>
         </div>
       </div>
@@ -627,6 +635,7 @@ const PositionEditor = ({
 
 // ── Org Structure Upload ──
 const OrgStructureUpload = () => {
+  const { t } = useTranslation("admin");
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
@@ -663,8 +672,8 @@ const OrgStructureUpload = () => {
   const uploadMutation = useMutation({
     mutationFn: async () => {
       const file = fileRef.current?.files?.[0];
-      if (!file) throw new Error("Выберите файл");
-      if (!profile?.company_id) throw new Error("У вашего профиля не указана компания. Обратитесь к администратору для привязки к компании.");
+      if (!file) throw new Error(t("positions.toastSelectFile"));
+      if (!profile?.company_id) throw new Error(t("positions.toastNoCompanyProfile"));
       setUploading(true);
 
       const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
@@ -678,7 +687,7 @@ const OrgStructureUpload = () => {
         const nameIdx = headers.findIndex((h) => h.includes("name") || h.includes("название") || h.includes("отдел"));
         const descIdx = headers.findIndex((h) => h.includes("desc") || h.includes("описание"));
         const parentIdx = headers.findIndex((h) => h.includes("parent") || h.includes("родител"));
-        if (nameIdx < 0) throw new Error("CSV должен содержать столбец с названием отдела");
+        if (nameIdx < 0) throw new Error(t("positions.toastCsvNeedsDeptColumn"));
         deptRows = lines.slice(1).map((line) => {
           const vals = line.split(",").map((v) => v.trim());
           return { name: vals[nameIdx] || "", description: descIdx >= 0 ? vals[descIdx] : undefined, parent: parentIdx >= 0 ? vals[parentIdx] : undefined };
@@ -702,14 +711,14 @@ const OrgStructureUpload = () => {
           const { error: uploadError } = await laravelStorage.from("hr-documents").upload(filePath, file);
           if (uploadError) throw uploadError;
           const { data: signedData, error: signError } = await laravelStorage.from("hr-documents").createSignedUrl(filePath, 600);
-          if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
+          if (signError || !signedData?.signedUrl) throw signError || new Error(t("positions.toastSignedUrlError"));
           const { data: result, error: fnError } = await aiInvoke("parse-org-structure", {
             body: { fileUrl: signedData.signedUrl, fileName: file.name, extractPositions: true },
           });
           if (fnError) throw fnError;
           deptRows = result?.departments || [];
           extractedPositions = result?.positions || [];
-          if (!deptRows.length) throw new Error("Не удалось извлечь оргструктуру из документа");
+          if (!deptRows.length) throw new Error(t("positions.toastFailedExtractOrg"));
         }
       } else if (ext === ".json") {
         const text = await file.text();
@@ -722,16 +731,16 @@ const OrgStructureUpload = () => {
         const { error: uploadError } = await laravelStorage.from("hr-documents").upload(filePath, file);
         if (uploadError) throw uploadError;
         const { data: signedData, error: signError } = await laravelStorage.from("hr-documents").createSignedUrl(filePath, 600);
-        if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
+        if (signError || !signedData?.signedUrl) throw signError || new Error(t("positions.toastSignedUrlError"));
         const { data: result, error: fnError } = await aiInvoke("parse-org-structure", {
           body: { fileUrl: signedData.signedUrl, fileName: file.name, extractPositions: true },
         });
         if (fnError) throw fnError;
         deptRows = result?.departments || [];
         extractedPositions = result?.positions || [];
-        if (!deptRows.length) throw new Error("Не удалось извлечь оргструктуру из документа");
+        if (!deptRows.length) throw new Error(t("positions.toastFailedExtractOrg"));
       } else {
-        throw new Error("Поддерживаются CSV, XLSX, JSON, DOCX и PDF файлы");
+        throw new Error(t("positions.toastSupportedOrgFormats"));
       }
 
       const nameToId = new Map<string, string>();
@@ -755,7 +764,7 @@ const OrgStructureUpload = () => {
     onSuccess: ({ deptCount, posCount }) => {
       queryClient.invalidateQueries({ queryKey: ["departments"] });
       queryClient.invalidateQueries({ queryKey: ["positions"] });
-      toast.success(posCount > 0 ? `Загружено ${deptCount} отделов и ${posCount} должностей` : `Загружено ${deptCount} отделов`);
+      toast.success(posCount > 0 ? t("positions.toastLoadedDeptsAndPositions", { deptCount, posCount }) : t("positions.toastLoadedDepts", { deptCount }));
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     },
@@ -765,18 +774,18 @@ const OrgStructureUpload = () => {
   const generatePositionsMutation = useMutation({
     mutationFn: async () => {
       setGeneratingPositions(true);
-      if (departments.length === 0) throw new Error("Сначала загрузите оргструктуру");
+      if (departments.length === 0) throw new Error(t("positions.toastLoadOrgFirst"));
       const { data: result, error: fnError } = await aiInvoke("generate-positions-from-org", {
         body: { departments },
       });
       if (fnError) throw fnError;
       const positions = result?.positions || [];
-      if (!positions.length) throw new Error("AI не смог сгенерировать должности");
+      if (!positions.length) throw new Error(t("positions.toastAiNoPositions"));
       return await createPositionsFromData(positions);
     },
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ["positions"] });
-      toast.success(`Создано ${count} должностей с профилями компетенций`);
+      toast.success(t("positions.toastCreatedPositions", { count }));
       setGeneratingPositions(false);
     },
     onError: (e: any) => { toast.error(e.message); setGeneratingPositions(false); },
@@ -787,7 +796,7 @@ const OrgStructureUpload = () => {
       const { error } = await laravelDb.from("departments").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["departments"] }); toast.success("Отдел удалён"); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["departments"] }); toast.success(t("positions.toastDeptDeleted")); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -817,29 +826,29 @@ const OrgStructureUpload = () => {
   return (
     <div className="space-y-4">
       <div className="bg-secondary/30 rounded-lg p-4 space-y-3">
-        <p className="text-sm font-medium text-foreground">Загрузить оргструктуру из файла</p>
+        <p className="text-sm font-medium text-foreground">{t("positions.orgUploadLabel")}</p>
         <p className="text-xs text-muted-foreground">
-          CSV/XLSX/JSON — извлечение отделов. DOCX/PDF — AI автоматически извлечёт отделы, должности, компетенции и психопортреты.
+          {t("positions.orgUploadHint")}
         </p>
         <div className="flex items-center gap-3">
           <input ref={fileRef} type="file" accept=".csv,.json,.xlsx,.xls,.docx,.doc,.pdf"
             className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
           <Button size="sm" onClick={() => uploadMutation.mutate()} disabled={uploading}>
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            Загрузить
+            {t("positions.uploadBtn")}
           </Button>
         </div>
       </div>
 
       {departments.length > 0 && (
         <div className="bg-primary/5 rounded-lg p-4 space-y-2">
-          <p className="text-sm font-medium text-foreground">Генерация должностей из оргструктуры</p>
+          <p className="text-sm font-medium text-foreground">{t("positions.genPositionsLabel")}</p>
           <p className="text-xs text-muted-foreground">
-            AI проанализирует структуру отделов и создаст типовые должности с профилями компетенций и психологическими портретами.
+            {t("positions.genPositionsHint")}
           </p>
           <Button size="sm" variant="outline" onClick={() => generatePositionsMutation.mutate()} disabled={generatingPositions}>
             {generatingPositions ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            Сгенерировать должности (AI)
+            {t("positions.genPositionsBtn")}
           </Button>
         </div>
       )}
@@ -847,7 +856,7 @@ const OrgStructureUpload = () => {
       {isLoading ? (
         <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
       ) : departments.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Оргструктура не загружена</p>
+        <p className="text-sm text-muted-foreground text-center py-8">{t("positions.orgEmpty")}</p>
       ) : (
         <div className="bg-card rounded-xl border border-border overflow-hidden divide-y divide-border/50">
           {renderTree(tree)}
@@ -875,6 +884,7 @@ const EdgeEditor = ({
   isSaving: boolean;
   isDeleting: boolean;
 }) => {
+  const { t } = useTranslation("admin");
   const [from, setFrom] = useState(edge.source);
   const [to, setTo] = useState(edge.target);
   const [months, setMonths] = useState<string>(edge.estimated_months?.toString() ?? "");
@@ -885,21 +895,21 @@ const EdgeEditor = ({
       <div className="bg-card rounded-xl border border-border w-full max-w-lg p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <ArrowRight className="w-4 h-4 text-primary" /> Карьерная связь
+            <ArrowRight className="w-4 h-4 text-primary" /> {t("positions.edgeTitle")}
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="text-sm font-medium text-foreground">Из должности</label>
+            <label className="text-sm font-medium text-foreground">{t("positions.edgeFromLabel")}</label>
             <select value={from} onChange={(e) => setFrom(e.target.value)}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
               {positions.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground">В должность</label>
+            <label className="text-sm font-medium text-foreground">{t("positions.edgeToLabel")}</label>
             <select value={to} onChange={(e) => setTo(e.target.value)}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
               {positions.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
@@ -908,29 +918,29 @@ const EdgeEditor = ({
         </div>
 
         <div>
-          <label className="text-sm font-medium text-foreground">Оценка длительности (месяцев)</label>
+          <label className="text-sm font-medium text-foreground">{t("positions.edgeMonthsLabel")}</label>
           <input type="number" min={0} value={months} onChange={(e) => setMonths(e.target.value)}
             className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-            placeholder="Например, 12" />
+            placeholder={t("positions.edgeMonthsPlaceholder")} />
         </div>
 
         <div>
-          <label className="text-sm font-medium text-foreground">Стратегия / описание перехода</label>
+          <label className="text-sm font-medium text-foreground">{t("positions.edgeStrategyLabel")}</label>
           <textarea value={strategy} onChange={(e) => setStrategy(e.target.value)}
             className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[80px]"
-            placeholder="Какие шаги/обучение нужны для перехода" />
+            placeholder={t("positions.edgeStrategyPlaceholder")} />
         </div>
 
         <div className="flex justify-between gap-2 pt-2">
           <Button variant="ghost" className="text-destructive" onClick={onDelete} disabled={isDeleting || isSaving}>
             {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            Удалить связь
+            {t("positions.deleteEdge")}
           </Button>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>Отмена</Button>
+            <Button variant="outline" onClick={onClose}>{t("positions.cancelBtn")}</Button>
             <Button
               onClick={() => {
-                if (from === to) { toast.error("Нельзя создать связь должности самой с собой"); return; }
+                if (from === to) { toast.error(t("positions.toastSelfLink")); return; }
                 onSave({
                   from_position_id: from,
                   to_position_id: to,
@@ -941,7 +951,7 @@ const EdgeEditor = ({
               disabled={isSaving || isDeleting}
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Сохранить
+              {t("positions.saveBtn")}
             </Button>
           </div>
         </div>
@@ -952,6 +962,7 @@ const EdgeEditor = ({
 
 // ── Main Page ──
 const Positions = () => {
+  const { t } = useTranslation("admin");
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
@@ -993,7 +1004,7 @@ const Positions = () => {
   const generatePathsMutation = useMutation({
     mutationFn: async () => {
       setGenerating(true);
-      if (positions.length < 2) throw new Error("Нужно минимум 2 должности для построения путей");
+      if (positions.length < 2) throw new Error(t("positions.toastNeedTwoPositions"));
 
       const { data: result, error: fnError } = await aiInvoke("generate-career-paths", {
         body: { positions, departments },
@@ -1001,7 +1012,7 @@ const Positions = () => {
       if (fnError) throw fnError;
 
       const paths = result?.career_paths || [];
-      if (!paths.length) throw new Error("AI не смог построить карьерные пути");
+      if (!paths.length) throw new Error(t("positions.toastAiNoCareerPaths"));
 
       // Delete existing paths
       const { data: existing } = await laravelDb.from("position_career_paths").select("id");
@@ -1027,7 +1038,7 @@ const Positions = () => {
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ["career_paths"] });
       setHasUnsavedPaths(false);
-      toast.success(`Построено ${count} карьерных путей`);
+      toast.success(t("positions.toastBuiltPaths", { count }));
       setGenerating(false);
     },
     onError: (e: any) => {
@@ -1057,7 +1068,7 @@ const Positions = () => {
     })));
     setEdges(careerPaths.map((cp) => ({
       id: cp.id, source: cp.from_position_id, target: cp.to_position_id,
-      label: cp.estimated_months ? `~${cp.estimated_months} мес.` : undefined,
+      label: cp.estimated_months ? t("positions.monthsLabel", { n: cp.estimated_months }) : undefined,
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: "hsl(var(--primary))" },
       labelStyle: { fontSize: 11, fill: "hsl(var(--muted-foreground))" },
@@ -1082,7 +1093,7 @@ const Positions = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["positions"] });
       setEditingPosition(null);
-      toast.success("Должность сохранена");
+      toast.success(t("positions.toastPositionSaved"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1095,7 +1106,7 @@ const Positions = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["positions"] });
       queryClient.invalidateQueries({ queryKey: ["career_paths"] });
-      toast.success("Должность удалена");
+      toast.success(t("positions.toastPositionDeleted"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1127,7 +1138,7 @@ const Positions = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["career_paths"] });
       setHasUnsavedPaths(false);
-      toast.success("Карьерные пути сохранены");
+      toast.success(t("positions.toastPathsSaved"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1159,7 +1170,7 @@ const Positions = () => {
       queryClient.invalidateQueries({ queryKey: ["career_paths"] });
       setEditingEdge(null);
       setHasUnsavedPaths(false);
-      toast.success("Связь обновлена");
+      toast.success(t("positions.toastEdgeUpdated"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1175,7 +1186,7 @@ const Positions = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["career_paths"] });
       setEditingEdge(null);
-      toast.success("Связь удалена");
+      toast.success(t("positions.toastEdgeDeleted"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1203,32 +1214,32 @@ const Positions = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Должности и оргструктура</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t("positions.title")}</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Управление должностями, эталонами компетенций и организационной структурой
+          {t("positions.subtitle")}
         </p>
       </div>
 
       <Tabs defaultValue="positions">
         <TabsList>
-          <TabsTrigger value="positions">Должности и карьерные пути</TabsTrigger>
-          <TabsTrigger value="orgstructure">Оргструктура</TabsTrigger>
+          <TabsTrigger value="positions">{t("positions.tabPositions")}</TabsTrigger>
+          <TabsTrigger value="orgstructure">{t("positions.tabOrgStructure")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="positions" className="space-y-6 mt-4">
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => generatePathsMutation.mutate()} disabled={generating || positions.length < 2}>
               {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              Автопостроение путей (AI)
+              {t("positions.autoPathsBtn")}
             </Button>
             <Button onClick={() => setEditingPosition("new")}>
-              <Plus className="w-4 h-4" /> Добавить должность
+              <Plus className="w-4 h-4" /> {t("positions.addPositionBtn")}
             </Button>
           </div>
 
           {/* Graph */}
           <p className="text-xs text-muted-foreground -mb-2">
-            Двойной клик по должности — редактирование. Клик по стрелке — изменить или удалить связь. Перетащите от точки одной должности к другой, чтобы создать новую связь.
+{t("positions.graphHint")}
           </p>
           <div className="bg-card rounded-xl border border-border react-flow-contrast-cursor" style={{ height: "500px" }}>
             <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange}
@@ -1238,7 +1249,7 @@ const Positions = () => {
               <Panel position="top-right">
                 {hasUnsavedPaths && (
                   <Button size="sm" onClick={() => savePathsMutation.mutate()} disabled={savePathsMutation.isPending}>
-                    <Save className="w-4 h-4" /> Сохранить связи
+                    <Save className="w-4 h-4" /> {t("positions.savePathsBtn")}
                   </Button>
                 )}
               </Panel>
@@ -1248,27 +1259,27 @@ const Positions = () => {
           {/* Positions list */}
           <div className="bg-card rounded-xl border border-border overflow-hidden">
             <div className="p-4 border-b border-border">
-              <h3 className="font-semibold text-foreground">Список должностей</h3>
+              <h3 className="font-semibold text-foreground">{t("positions.listTitle")}</h3>
             </div>
             <div className="divide-y divide-border">
               {positions.map((p) => {
                 const compCount = Array.isArray(p.competency_profile) ? p.competency_profile.length : 0;
                 const psychCount = Array.isArray(p.psychological_profile) ? p.psychological_profile.length :
                   (typeof p.psychological_profile === "object" && p.psychological_profile ? Object.keys(p.psychological_profile).length : 0);
-                const statusLabel = p.profile_status === "approved" ? "Утверждён" : p.profile_status === "review" ? "На ревью" : p.profile_status === "archived" ? "Архив" : "Черновик";
+                const statusLabel = p.profile_status === "approved" ? t("positions.statusApproved") : p.profile_status === "review" ? t("positions.statusReview") : p.profile_status === "archived" ? t("positions.statusArchived") : t("positions.statusDraft");
                 return (
                   <div key={p.id} className="p-4 flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground">{p.title}</p>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                        <span>{p.department || "Без отдела"}</span>
+                        <span>{p.department || t("positions.noDept")}</span>
                         <span>{statusLabel}</span>
-                        {compCount > 0 && <span className="flex items-center gap-0.5"><Target className="w-3 h-3" />{compCount} компетенций</span>}
-                        {psychCount > 0 && <span className="flex items-center gap-0.5"><Brain className="w-3 h-3" />{psychCount} черт</span>}
+                        {compCount > 0 && <span className="flex items-center gap-0.5"><Target className="w-3 h-3" />{t("positions.competencies", { count: compCount })}</span>}
+                        {psychCount > 0 && <span className="flex items-center gap-0.5"><Brain className="w-3 h-3" />{t("positions.traits", { count: psychCount })}</span>}
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <Button variant="outline" size="sm" onClick={() => setEditingPosition(p)}>Редактировать</Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditingPosition(p)}>{t("positions.editBtn")}</Button>
                       <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteMutation.mutate(p.id)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -1276,7 +1287,7 @@ const Positions = () => {
                   </div>
                 );
               })}
-              {positions.length === 0 && <p className="p-8 text-center text-muted-foreground">Должности ещё не созданы</p>}
+              {positions.length === 0 && <p className="p-8 text-center text-muted-foreground">{t("positions.emptyPositions")}</p>}
             </div>
           </div>
         </TabsContent>
