@@ -99,6 +99,7 @@ const CompetencyComparisonModal = ({
   position: Position;
   onClose: () => void;
 }) => {
+  const { t } = useTranslation("manager");
   const { data: competencies = [], isLoading } = useQuery({
     queryKey: ["competencies", employee.user_id],
     queryFn: async () => {
@@ -243,6 +244,8 @@ const CompetencyComparisonModal = ({
 };
 
 const HRDDashboard = () => {
+  const { t } = useTranslation("manager");
+  const roleBadge = useRoleBadge();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
