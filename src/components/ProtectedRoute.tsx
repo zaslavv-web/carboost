@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile, useRealPrimaryRole } from "@/hooks/useUserProfile";
 import { ShieldAlert } from "lucide-react";
@@ -9,6 +10,7 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { data: profile, isLoading: profileLoading } = useUserProfile();
   const realRole = useRealPrimaryRole();
   const location = useLocation();
+  const { t } = useTranslation();
 
   if (loading || profileLoading) {
     return (
@@ -36,7 +38,6 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
     return <>{children}</>;
   }
 
-  // Non-verified users see a waiting screen
   if (profile && !profile.is_verified) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-8">
@@ -44,15 +45,15 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
           <div className="w-16 h-16 rounded-2xl bg-warning/10 flex items-center justify-center mx-auto">
             <ShieldAlert className="w-8 h-8 text-warning" />
           </div>
-          <h2 className="text-xl font-bold text-foreground">Ожидание верификации</h2>
+          <h2 className="text-xl font-bold text-foreground">{t("verification.title")}</h2>
           <p className="text-muted-foreground text-sm">
-            Ваша регистрация ожидает подтверждения суперадмином. Вы получите доступ к системе после верификации.
+            {t("verification.description")}
           </p>
           <button
             onClick={() => window.location.reload()}
             className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
           >
-            Проверить статус
+            {t("verification.checkStatus")}
           </button>
         </div>
       </div>

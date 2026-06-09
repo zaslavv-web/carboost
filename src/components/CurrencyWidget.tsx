@@ -1,17 +1,19 @@
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Coins, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useMyBalance, useMyTransactions, useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { getDateLocale } from "@/lib/dateLocale";
 
 const CurrencyWidget = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { data: balance = 0 } = useMyBalance();
   const { data: settings } = useCurrencySettings();
   const { data: tx = [] } = useMyTransactions(3);
 
   const icon = settings?.currency_icon ?? "🪙";
-  const name = settings?.currency_name ?? "Монеты";
+  const name = settings?.currency_name ?? t("currencyWidget.defaultName");
 
   return (
     <div className="bg-card rounded-xl border border-border shadow-card p-5 space-y-4">
@@ -31,19 +33,19 @@ const CurrencyWidget = () => {
           onClick={() => navigate("/shop")}
           className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
         >
-          В магазин
+          {t("currencyWidget.toShop")}
         </button>
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">Последние операции</p>
+        <p className="text-xs font-medium text-muted-foreground">{t("currencyWidget.recent")}</p>
         {tx.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic">Пока нет транзакций</p>
+          <p className="text-xs text-muted-foreground italic">{t("currencyWidget.empty")}</p>
         ) : (
-          tx.map((t) => {
-            const positive = t.amount > 0;
+          tx.map((item) => {
+            const positive = item.amount > 0;
             return (
-              <div key={t.id} className="flex items-center justify-between text-sm gap-2">
+              <div key={item.id} className="flex items-center justify-between text-sm gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <div
                     className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${
@@ -52,15 +54,15 @@ const CurrencyWidget = () => {
                   >
                     {positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                   </div>
-                  <span className="text-foreground truncate">{t.description || t.kind}</span>
+                  <span className="text-foreground truncate">{item.description || item.kind}</span>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className={`text-sm font-semibold ${positive ? "text-success" : "text-destructive"}`}>
                     {positive ? "+" : ""}
-                    {formatCoins(t.amount)}
+                    {formatCoins(item.amount)}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    {formatDistanceToNow(new Date(t.created_at), { addSuffix: true, locale: ru })}
+                    {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: getDateLocale() })}
                   </p>
                 </div>
               </div>

@@ -78,5 +78,56 @@
     "collapseMenu": "Collapse menu",
     "positionUnknown": "Not specified",
     "loading": "Loading..."
+  },
+  "theme": {
+    "light": "Light theme",
+    "dark": "Dark theme",
+    "switchToLight": "Switch to light theme",
+    "switchToDark": "Switch to dark theme"
+  },
+  "currencyWidget": {
+    "defaultName": "Coins",
+    "toShop": "To shop",
+    "recent": "Recent operations",
+    "empty": "No transactions yet"
+  },
+  "impersonation": {
+    "viewingAs": "Viewing as:",
+    "returnBtn": "Return to superadmin"
+  },
+  "verification": {
+    "title": "Awaiting verification",
+    "description": "Your registration is pending superadmin approval. You will get access once verified.",
+    "checkStatus": "Check status"
+  },
+  "scenarioViewer": {
+    "subtitle": "Assessment scenario schema",
+    "summary": "Summary",
+    "keyPoints": "Key points",
+    "more": "...{{count}} more",
+    "questions": "Assessment questions",
+    "questionsCount": "{{count}} questions",
+    "maxShort": "max {{count}}",
+    "criterion": "Criterion:",
+    "competencies": "Assessed competencies",
+    "dataStructure": "Data structure",
+    "recordsCount": "{{count}} records",
+    "record": "Record #{{n}}"
+  },
+  "tracksAnalytics": {
+    "stage": "Stage {{n}}",
+    "noData": "No data",
+    "noDataDesc": "No assigned career tracks with active participants yet.",
+    "activeTracks": "Active tracks",
+    "totalParticipants": "Total participants",
+    "avgProgress": "Average progress",
+    "summaryTitle": "Track summary",
+    "colTrack": "Track",
+    "colParticipants": "Participants",
+    "colCompleted": "Completed",
+    "colFailed": "Dropouts",
+    "colAvgStep": "Avg. stage",
+    "colAvgProgress": "Avg. progress",
+    "stepDistribution": "{{title}} — distribution by stage"
   }
 }

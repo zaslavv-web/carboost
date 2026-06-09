@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
@@ -11,6 +12,7 @@ interface Step {
 }
 
 const HRDCareerTracksAnalytics = () => {
+  const { t } = useTranslation();
   const { data: profile } = useUserProfile();
   const companyId = profile?.company_id;
 
@@ -27,10 +29,10 @@ const HRDCareerTracksAnalytics = () => {
       const assignments = asgRes.data || [];
 
       return templates
-        .map((t) => {
-          const tAsg = assignments.filter((a) => a.template_id === t.id);
+        .map((tpl) => {
+          const tAsg = assignments.filter((a) => a.template_id === tpl.id);
           if (tAsg.length === 0) return null;
-          const steps = (t.steps as unknown as Step[]) || [];
+          const steps = (tpl.steps as unknown as Step[]) || [];
           const totalSteps = Math.max(steps.length, 1);
           const avgStep =
             tAsg.reduce((s, a) => s + (a.current_step || 0), 0) / tAsg.length;
@@ -38,12 +40,12 @@ const HRDCareerTracksAnalytics = () => {
           const completed = tAsg.filter((a) => a.status === "completed").length;
           const failed = tAsg.filter((a) => a.status === "failed").length;
           const stepDistribution = Array.from({ length: totalSteps }, (_, i) => ({
-            stepLabel: steps[i]?.title?.slice(0, 18) || `Этап ${i + 1}`,
+            stepLabel: steps[i]?.title?.slice(0, 18) || t("tracksAnalytics.stage", { n: i + 1 }),
             count: tAsg.filter((a) => (a.current_step || 0) === i && a.status !== "completed").length,
           }));
           return {
-            id: t.id,
-            title: t.title,
+            id: tpl.id,
+            title: tpl.title,
             assigned: tAsg.length,
             completed,
             failed,
@@ -80,8 +82,8 @@ const HRDCareerTracksAnalytics = () => {
     return (
       <div className="bg-card rounded-xl p-12 text-center border border-border">
         <Route className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="font-semibold text-foreground mb-2">Нет данных</h3>
-        <p className="text-sm text-muted-foreground">Пока нет назначенных карьерных треков с активными участниками.</p>
+        <h3 className="font-semibold text-foreground mb-2">{t("tracksAnalytics.noData")}</h3>
+        <p className="text-sm text-muted-foreground">{t("tracksAnalytics.noDataDesc")}</p>
       </div>
     );
   }
@@ -91,13 +93,13 @@ const HRDCareerTracksAnalytics = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs">
-            <Route className="w-4 h-4" /> Активных треков
+            <Route className="w-4 h-4" /> {t("tracksAnalytics.activeTracks")}
           </div>
           <p className="text-2xl font-bold text-foreground mt-1">{data.length}</p>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs">
-            <Users className="w-4 h-4" /> Всего участников
+            <Users className="w-4 h-4" /> {t("tracksAnalytics.totalParticipants")}
           </div>
           <p className="text-2xl font-bold text-foreground mt-1">
             {data.reduce((s, d) => s + d.assigned, 0)}
@@ -105,7 +107,7 @@ const HRDCareerTracksAnalytics = () => {
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs">
-            <TrendingUp className="w-4 h-4" /> Средний прогресс
+            <TrendingUp className="w-4 h-4" /> {t("tracksAnalytics.avgProgress")}
           </div>
           <p className="text-2xl font-bold text-foreground mt-1">
             {Math.round(
@@ -118,17 +120,17 @@ const HRDCareerTracksAnalytics = () => {
       </div>
 
       <div className="bg-card border border-border rounded-xl p-5">
-        <h3 className="font-semibold text-foreground mb-4">Сводка по трекам</h3>
+        <h3 className="font-semibold text-foreground mb-4">{t("tracksAnalytics.summaryTitle")}</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="py-2 pr-4 font-medium">Трек</th>
-                <th className="py-2 pr-4 font-medium text-center">Участников</th>
-                <th className="py-2 pr-4 font-medium text-center">Завершили</th>
-                <th className="py-2 pr-4 font-medium text-center">Срыв</th>
-                <th className="py-2 pr-4 font-medium text-center">Ср. этап</th>
-                <th className="py-2 pr-4 font-medium text-center">Ср. прогресс</th>
+                <th className="py-2 pr-4 font-medium">{t("tracksAnalytics.colTrack")}</th>
+                <th className="py-2 pr-4 font-medium text-center">{t("tracksAnalytics.colParticipants")}</th>
+                <th className="py-2 pr-4 font-medium text-center">{t("tracksAnalytics.colCompleted")}</th>
+                <th className="py-2 pr-4 font-medium text-center">{t("tracksAnalytics.colFailed")}</th>
+                <th className="py-2 pr-4 font-medium text-center">{t("tracksAnalytics.colAvgStep")}</th>
+                <th className="py-2 pr-4 font-medium text-center">{t("tracksAnalytics.colAvgProgress")}</th>
               </tr>
             </thead>
             <tbody>
@@ -163,7 +165,7 @@ const HRDCareerTracksAnalytics = () => {
 
       {data.map((d) => (
         <div key={d.id} className="bg-card border border-border rounded-xl p-5">
-          <h4 className="font-semibold text-foreground mb-3">{d.title} — распределение по этапам</h4>
+          <h4 className="font-semibold text-foreground mb-3">{t("tracksAnalytics.stepDistribution", { title: d.title })}</h4>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={d.stepDistribution}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
