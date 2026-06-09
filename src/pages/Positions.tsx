@@ -480,11 +480,14 @@ const PositionEditor = ({
             <Button size="sm" variant="outline" type="button" onClick={() => setProfileTemplate({ ...profileTemplate, methodology: eightBlockJobProfileGuide.rules, blocks: eightBlockJobProfileGuide.blocks, generation_source: "manual", review_frequency: t("positions.reviewFreqDefault") })}>
               {t("positions.apply8Blocks")}
             </Button>
-            {miningPilotProfiles.map((template) => (
-              <Button key={template.title} size="sm" variant="secondary" type="button" onClick={() => applyTemplate(template)}>
-                {template.title}
-              </Button>
-            ))}
+            {miningPilotProfiles.map((template, idx) => {
+              const labelKey = idx === 0 ? "positions.templateMiningShiftLead" : "positions.templateMiningDigitalEngineer";
+              return (
+                <Button key={template.title} size="sm" variant="secondary" type="button" onClick={() => applyTemplate(template)}>
+                  {t(labelKey)}
+                </Button>
+              );
+            })}
           </div>
         </div>
 
