@@ -2,9 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { Users, Clock, UserCheck, ShieldCheck, Building2, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 const SuperadminDashboard = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation("admin");
 
   const { data: stats } = useQuery({
     queryKey: ["superadmin_profiles"],
@@ -25,27 +27,26 @@ const SuperadminDashboard = () => {
     },
   });
 
-  // Используем фиксированные классы (Tailwind не поддерживает динамические `bg-${color}/10`).
   const metrics = [
-    { icon: Building2, label: "Компании", value: stats?.companies ?? 0, bg: "bg-primary/10", fg: "text-primary", link: "/companies" },
-    { icon: Users, label: "Всего", value: stats?.total ?? 0, bg: "bg-primary/10", fg: "text-primary", link: "/users" },
-    { icon: Clock, label: "Ожидают", value: stats?.pending ?? 0, bg: "bg-warning/10", fg: "text-warning", link: "/users" },
-    { icon: UserCheck, label: "Верифицированы", value: stats?.verified ?? 0, bg: "bg-success/10", fg: "text-success", link: "/users" },
-    { icon: ShieldCheck, label: "Суперадмины", value: stats?.superadmins ?? 0, bg: "bg-info/10", fg: "text-info", link: "/users" },
-    { icon: Mail, label: "Почтовый сервис", value: "SMTP", bg: "bg-primary/10", fg: "text-primary", link: "/email-settings" },
+    { icon: Building2, label: t("superadmin.metricCompanies"), value: stats?.companies ?? 0, bg: "bg-primary/10", fg: "text-primary", link: "/companies" },
+    { icon: Users, label: t("superadmin.metricTotal"), value: stats?.total ?? 0, bg: "bg-primary/10", fg: "text-primary", link: "/users" },
+    { icon: Clock, label: t("superadmin.metricPending"), value: stats?.pending ?? 0, bg: "bg-warning/10", fg: "text-warning", link: "/users" },
+    { icon: UserCheck, label: t("superadmin.metricVerified"), value: stats?.verified ?? 0, bg: "bg-success/10", fg: "text-success", link: "/users" },
+    { icon: ShieldCheck, label: t("superadmin.metricSuperadmins"), value: stats?.superadmins ?? 0, bg: "bg-info/10", fg: "text-info", link: "/users" },
+    { icon: Mail, label: t("superadmin.metricEmail"), value: "SMTP", bg: "bg-primary/10", fg: "text-primary", link: "/email-settings" },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Панель суперадмина</h1>
-        <p className="text-muted-foreground text-sm mt-1">Обзор системы</p>
+        <h1 className="text-2xl font-bold text-foreground">{t("superadmin.title")}</h1>
+        <p className="text-muted-foreground text-sm mt-1">{t("superadmin.subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {metrics.map((m) => (
           <div
-            key={m.label}
+            key={String(m.label)}
             onClick={() => navigate(m.link)}
             className="bg-card rounded-xl border border-border p-4 cursor-pointer hover:border-primary/30 transition-colors overflow-hidden"
           >
@@ -66,7 +67,7 @@ const SuperadminDashboard = () => {
         onClick={() => navigate("/users")}
         className="px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
       >
-        Управление пользователями →
+        {t("superadmin.manageUsersBtn")}
       </button>
     </div>
   );

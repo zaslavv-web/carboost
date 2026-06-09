@@ -8,25 +8,11 @@ import { useRealPrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { Upload, FileText, Trash2, Loader2, CheckCircle, XCircle, Clock, Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { getDateLocale } from "@/lib/dateLocale";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 
 type DocType = "talent_management" | "hr_strategy" | "motivation_strategy";
-
-const DOC_TYPE_LABELS: Record<DocType, { title: string; description: string }> = {
-  talent_management: {
-    title: "Политика управления талантами",
-    description: "Загрузите документ с политикой управления талантами для автоматической генерации сценариев оценки",
-  },
-  hr_strategy: {
-    title: "HR-стратегия",
-    description: "Загрузите документ с HR-стратегией компании для формирования критериев оценки",
-  },
-  motivation_strategy: {
-    title: "Стратегия мотивации",
-    description: "Загрузите документ со стратегией мотивации для создания оценочных сценариев",
-  },
-};
 
 const statusIcons: Record<string, React.ReactNode> = {
   pending: <Clock className="w-4 h-4 text-muted-foreground" />,
@@ -35,24 +21,41 @@ const statusIcons: Record<string, React.ReactNode> = {
   failed: <XCircle className="w-4 h-4 text-destructive" />,
 };
 
-const statusLabels: Record<string, string> = {
-  pending: "Ожидает обработки",
-  processing: "Обрабатывается...",
-  completed: "Обработан",
-  failed: "Ошибка",
-};
-
 const DocumentBlock = ({ docType }: { docType: DocType }) => {
   const { user } = useAuth();
   const { data: profile, isLoading: profileLoading } = useUserProfile();
   const realRole = useRealPrimaryRole();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation("admin");
   const [uploading, setUploading] = useState(false);
   const [expandedDoc, setExpandedDoc] = useState<string | null>(null);
-  const config = DOC_TYPE_LABELS[docType];
   const companyId = profile?.company_id ?? null;
   const canManageWithoutCompany = realRole === "superadmin";
+
+  const DOC_TYPE_LABELS: Record<DocType, { title: string; description: string }> = {
+    talent_management: {
+      title: t("hrPolicies.policyTalentTitle"),
+      description: t("hrPolicies.policyTalentDesc"),
+    },
+    hr_strategy: {
+      title: t("hrPolicies.policyHrStrategyTitle"),
+      description: t("hrPolicies.policyHrStrategyDesc"),
+    },
+    motivation_strategy: {
+      title: t("hrPolicies.policyMotivationTitle"),
+      description: t("hrPolicies.policyMotivationDesc"),
+    },
+  };
+
+  const statusLabels: Record<string, string> = {
+    pending: t("hrPolicies.statusPending"),
+    processing: t("hrPolicies.statusProcessing"),
+    completed: t("hrPolicies.statusCompleted"),
+    failed: t("hrPolicies.statusFailed"),
+  };
+
+  const config = DOC_TYPE_LABELS[docType];
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["hr_documents", docType],
@@ -70,29 +73,27 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
   const uploadMutation = useMutation({
     mutationFn: async () => {
       const file = fileRef.current?.files?.[0];
-      if (!file) throw new Error("Выберите файл");
-      if (!user) throw new Error("Требуется авторизация");
-      if (profileLoading) throw new Error("Подождите, загружается профиль пользователя");
+      if (!file) throw new Error("Select a file");
+      if (!user) throw new Error("Auth required");
+      if (profileLoading) throw new Error("Loading profile");
       if (!companyId && !canManageWithoutCompany) {
-        throw new Error("Для этой учётной записи не назначена компания");
+        throw new Error("No company assigned");
       }
 
       const allowed = [".doc", ".docx", ".pdf", ".csv", ".xlsx"];
       const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-      if (!allowed.includes(ext)) throw new Error("Поддерживаются CSV, XLSX, DOC, DOCX и PDF файлы");
+      if (!allowed.includes(ext)) throw new Error(t("hrPolicies.formats"));
 
       setUploading(true);
 
-      // Upload to storage
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const filePath = `${docType}/${Date.now()}_${safeName}`;
       const { error: uploadError } = await laravelStorage.from("hr-documents").upload(filePath, file);
       if (uploadError) throw uploadError;
 
       const { data: signedData, error: signError } = await laravelStorage.from("hr-documents").createSignedUrl(filePath, 600);
-      if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
+      if (signError || !signedData?.signedUrl) throw signError || new Error("URL error");
 
-      // Create document record
       const { data: doc, error: insertError } = await laravelDb
         .from("hr_documents")
         .insert({
@@ -107,7 +108,6 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
         .single();
       if (insertError) throw insertError;
 
-      // Trigger AI parsing
       const { error: fnError } = await aiInvoke("parse-hr-document", {
         body: { documentId: doc.id, fileUrl: signedData.signedUrl, fileName: file.name, documentType: docType },
       });
@@ -117,7 +117,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hr_documents", docType] });
-      toast.success("Документ загружен и отправлен на обработку");
+      toast.success(t("hrPolicies.toastUploaded"));
       if (fileRef.current) fileRef.current.value = "";
       setUploading(false);
     },
@@ -130,7 +130,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
   const createScenarioMutation = useMutation({
     mutationFn: async (doc: any) => {
       const extracted = doc.extracted_data;
-      if (!extracted?.scenario) throw new Error("Нет данных для создания сценария");
+      if (!extracted?.scenario) throw new Error("No scenario data");
 
       const { error } = await laravelDb.from("assessment_scenarios").insert({
         title: extracted.scenario.title || doc.title,
@@ -141,7 +141,6 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
       });
       if (error) throw error;
 
-      // Link scenario
       const { data: scenarios } = await laravelDb
         .from("assessment_scenarios")
         .select("id")
@@ -156,7 +155,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hr_documents", docType] });
       queryClient.invalidateQueries({ queryKey: ["assessment_scenarios"] });
-      toast.success("Сценарий оценки создан");
+      toast.success(t("hrPolicies.toastScenarioCreated"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -168,7 +167,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hr_documents", docType] });
-      toast.success("Документ удалён");
+      toast.success(t("hrPolicies.toastDeleted"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -178,10 +177,9 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
         <div>
           <h3 className="font-semibold text-foreground text-lg">{config.title}</h3>
           <p className="text-sm text-muted-foreground mt-1">{config.description}</p>
-          <p className="text-xs text-muted-foreground mt-2">Форматы: CSV, XLSX, DOC, DOCX, PDF</p>
+          <p className="text-xs text-muted-foreground mt-2">{t("hrPolicies.formats")}</p>
         </div>
 
-        {/* Upload */}
         <div className="flex items-center gap-3 flex-wrap">
           <input
             ref={fileRef}
@@ -195,15 +193,14 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
             size="sm"
           >
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            Загрузить и обработать
+            {t("hrPolicies.uploadBtn")}
           </Button>
         </div>
 
-      {/* Documents list */}
       {isLoading ? (
         <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
       ) : documents.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4">Документы ещё не загружены</p>
+        <p className="text-sm text-muted-foreground py-4">{t("hrPolicies.noDocuments")}</p>
       ) : (
         <div className="space-y-2">
           {documents.map((doc: any) => (
@@ -216,7 +213,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       {statusIcons[doc.processing_status]}
                       <span>{statusLabels[doc.processing_status]}</span>
-                      <span>· {formatDistanceToNow(new Date(doc.created_at), { addSuffix: true, locale: ru })}</span>
+                      <span>· {formatDistanceToNow(new Date(doc.created_at), { addSuffix: true, locale: getDateLocale() })}</span>
                     </div>
                   </div>
                 </div>
@@ -227,7 +224,6 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
                         variant="ghost"
                         size="icon"
                         onClick={() => setExpandedDoc(expandedDoc === doc.id ? null : doc.id)}
-                        title="Просмотр"
                       >
                         {expandedDoc === doc.id ? <ChevronUp className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </Button>
@@ -238,11 +234,11 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
                           onClick={() => createScenarioMutation.mutate(doc)}
                           disabled={createScenarioMutation.isPending}
                         >
-                          Создать сценарий
+                          {t("hrPolicies.createScenario")}
                         </Button>
                       )}
                       {doc.scenario_id && (
-                        <span className="text-xs text-success font-medium px-2">✓ Сценарий создан</span>
+                        <span className="text-xs text-success font-medium px-2">{t("hrPolicies.scenarioCreated")}</span>
                       )}
                     </>
                   )}
@@ -257,18 +253,17 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
                 </div>
               </div>
 
-              {/* Expanded preview */}
               {expandedDoc === doc.id && doc.extracted_data && (
                 <div className="border-t border-border p-4 bg-secondary/30 space-y-3">
                   {doc.extracted_data.summary && (
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Резюме</p>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{t("hrPolicies.summary")}</p>
                       <p className="text-sm text-foreground">{doc.extracted_data.summary}</p>
                     </div>
                   )}
                   {doc.extracted_data.key_points?.length > 0 && (
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Ключевые пункты</p>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{t("hrPolicies.keyPoints")}</p>
                       <ul className="list-disc list-inside text-sm text-foreground space-y-1">
                         {doc.extracted_data.key_points.map((p: string, i: number) => (
                           <li key={i}>{p}</li>
@@ -278,14 +273,14 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
                   )}
                   {doc.extracted_data.scenario && (
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Сценарий оценки</p>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{t("hrPolicies.scenarioSection")}</p>
                       <p className="text-sm font-medium text-foreground">{doc.extracted_data.scenario.title}</p>
                       <p className="text-sm text-muted-foreground">{doc.extracted_data.scenario.description}</p>
                       {doc.extracted_data.scenario.questions?.length > 0 && (
                         <div className="mt-2 space-y-1">
                           {doc.extracted_data.scenario.questions.map((q: any, i: number) => (
                             <p key={i} className="text-xs text-muted-foreground">
-                              {i + 1}. {q.question} (макс. {q.max_score} баллов)
+                              {i + 1}. {q.question} ({t("hrPolicies.maxScore", { score: q.max_score })})
                             </p>
                           ))}
                         </div>
@@ -303,12 +298,13 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
 };
 
 const HRPolicies = () => {
+  const { t } = useTranslation("admin");
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Управление политиками</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t("hrPolicies.title")}</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Загрузка документов и автоматическая генерация сценариев оценки с помощью AI
+          {t("hrPolicies.subtitle")}
         </p>
       </div>
 

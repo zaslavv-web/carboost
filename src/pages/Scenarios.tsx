@@ -8,15 +8,17 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { Upload, FileJson, Trash2, Loader2, ToggleLeft, ToggleRight, Eye } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { getDateLocale } from "@/lib/dateLocale";
 import * as XLSX from "xlsx";
 import ScenarioSchemaViewer from "@/components/ScenarioSchemaViewer";
+import { useTranslation } from "react-i18next";
 
 const Scenarios = () => {
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation("admin");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [viewingSchema, setViewingSchema] = useState<any | null>(null);
@@ -36,7 +38,7 @@ const Scenarios = () => {
   const uploadMutation = useMutation({
     mutationFn: async () => {
       const file = fileRef.current?.files?.[0];
-      if (!file) throw new Error("Выберите файл");
+      if (!file) throw new Error(t("scenarios.uploadTitle"));
 
       const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
       let parsed: any;
@@ -64,7 +66,7 @@ const Scenarios = () => {
         const { error: uploadError } = await laravelStorage.from("hr-documents").upload(filePath, file);
         if (uploadError) throw uploadError;
         const { data: signedData, error: signError } = await laravelStorage.from("hr-documents").createSignedUrl(filePath, 600);
-        if (signError || !signedData?.signedUrl) throw signError || new Error("Не удалось создать ссылку на файл");
+        if (signError || !signedData?.signedUrl) throw signError || new Error("URL error");
 
         const { data: result, error: fnError } = await aiInvoke("parse-hr-document", {
           body: {
@@ -77,7 +79,7 @@ const Scenarios = () => {
         if (fnError) throw fnError;
         parsed = result?.data?.scenario || result?.data || result;
       } else {
-        throw new Error("Поддерживаются форматы: CSV, XLSX, JSON, DOCX, PDF");
+        throw new Error(t("scenarios.formatsHint"));
       }
 
       const { error } = await laravelDb.from("assessment_scenarios").insert({
@@ -91,7 +93,7 @@ const Scenarios = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assessment_scenarios"] });
-      toast.success("Сценарий загружен");
+      toast.success(t("scenarios.toastUploaded"));
       setTitle("");
       setDescription("");
       if (fileRef.current) fileRef.current.value = "";
@@ -119,7 +121,7 @@ const Scenarios = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assessment_scenarios"] });
-      toast.success("Сценарий удалён");
+      toast.success(t("scenarios.toastDeleted"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -127,25 +129,25 @@ const Scenarios = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Сценарии оценки</h1>
-        <p className="text-muted-foreground text-sm mt-1">Загрузка и управление сценариями для AI-оценки сотрудников</p>
+        <h1 className="text-2xl font-bold text-foreground">{t("scenarios.title")}</h1>
+        <p className="text-muted-foreground text-sm mt-1">{t("scenarios.subtitle")}</p>
       </div>
 
       {/* Upload form */}
       <div className="bg-card rounded-xl border border-border p-6 space-y-4">
-        <h3 className="font-semibold text-foreground">Загрузить сценарий</h3>
-        <p className="text-xs text-muted-foreground">Поддерживаемые форматы: CSV, XLSX, JSON, DOCX, PDF</p>
+        <h3 className="font-semibold text-foreground">{t("scenarios.uploadTitle")}</h3>
+        <p className="text-xs text-muted-foreground">{t("scenarios.formatsHint")}</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Название сценария"
+            placeholder={t("scenarios.namePlaceholder")}
             className="px-4 py-2.5 rounded-lg bg-secondary text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Описание (опционально)"
+            placeholder={t("scenarios.descPlaceholder")}
             className="px-4 py-2.5 rounded-lg bg-secondary text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
         </div>
@@ -157,7 +159,7 @@ const Scenarios = () => {
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {uploadMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            Загрузить
+            {t("scenarios.uploadBtn")}
           </button>
         </div>
       </div>
@@ -168,7 +170,7 @@ const Scenarios = () => {
       ) : scenarios.length === 0 ? (
         <div className="text-center py-16">
           <FileJson className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">Сценарии ещё не загружены</p>
+          <p className="text-muted-foreground">{t("scenarios.empty")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -179,7 +181,7 @@ const Scenarios = () => {
                 <div className="min-w-0">
                   <p className="font-medium text-foreground truncate">{s.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {Array.isArray(s.scenario_data) ? `${s.scenario_data.length} элементов` : "Данные загружены"} · {formatDistanceToNow(new Date(s.created_at), { addSuffix: true, locale: ru })}
+                    {Array.isArray(s.scenario_data) ? t("scenarios.elements", { count: s.scenario_data.length }) : t("scenarios.dataLoaded")} · {formatDistanceToNow(new Date(s.created_at), { addSuffix: true, locale: getDateLocale() })}
                   </p>
                 </div>
               </div>
@@ -187,14 +189,14 @@ const Scenarios = () => {
                 <button
                   onClick={() => setViewingSchema(s)}
                   className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors"
-                  title="Просмотр схемы"
+                  title={t("common:view", { defaultValue: "View" })}
                 >
                   <Eye className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => toggleMutation.mutate({ id: s.id, active: !s.is_active })}
                   className={`p-1.5 rounded-lg transition-colors ${s.is_active ? "text-success hover:bg-success/10" : "text-muted-foreground hover:bg-secondary"}`}
-                  title={s.is_active ? "Активен" : "Неактивен"}
+                  title={s.is_active ? t("common:active", { defaultValue: "Active" }) : t("common:inactive", { defaultValue: "Inactive" })}
                 >
                   {s.is_active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
                 </button>

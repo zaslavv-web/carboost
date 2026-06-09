@@ -6,6 +6,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { Building2, Briefcase, Users, Settings as SettingsIcon, CheckCircle2, ArrowRight, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 interface Step {
   key: string;
@@ -21,6 +22,7 @@ const Onboarding = () => {
   const navigate = useNavigate();
   const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
+  const { t } = useTranslation("admin");
   const companyId = profile?.company_id;
 
   const { data: counts } = useQuery({
@@ -69,7 +71,7 @@ const Onboarding = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Настройки сохранены");
+      toast.success(t("onboarding.toastSaved"));
       queryClient.invalidateQueries({ queryKey: ["onboarding_settings", companyId] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -78,47 +80,47 @@ const Onboarding = () => {
   const steps: Step[] = [
     {
       key: "positions",
-      title: "Создайте должности",
-      description: "Опишите штатное расписание и компетенции для каждой роли.",
+      title: t("onboarding.stepPositionsTitle"),
+      description: t("onboarding.stepPositionsDesc"),
       icon: Briefcase,
       done: (counts?.positions ?? 0) > 0,
-      cta: "Перейти к должностям",
+      cta: t("onboarding.stepPositionsCta"),
       path: "/positions",
     },
     {
       key: "tests",
-      title: "Загрузите тесты",
-      description: "AI создаст закрытые вопросы по вашим материалам.",
+      title: t("onboarding.stepTestsTitle"),
+      description: t("onboarding.stepTestsDesc"),
       icon: SettingsIcon,
       done: (counts?.tests ?? 0) > 0,
-      cta: "Открыть тесты",
+      cta: t("onboarding.stepTestsCta"),
       path: "/tests",
     },
     {
       key: "tracks",
-      title: "Постройте карьерные треки",
-      description: "Шаблоны переходов между должностями для роста сотрудников.",
+      title: t("onboarding.stepTracksTitle"),
+      description: t("onboarding.stepTracksDesc"),
       icon: ArrowRight,
       done: (counts?.tracks ?? 0) > 0,
-      cta: "Карьерные треки",
+      cta: t("onboarding.stepTracksCta"),
       path: "/career-tracks-mgmt",
     },
     {
       key: "shop",
-      title: "Настройте магазин и валюту",
-      description: "Внутренняя валюта и каталог поощрений.",
+      title: t("onboarding.stepShopTitle"),
+      description: t("onboarding.stepShopDesc"),
       icon: Coins,
       done: (counts?.products ?? 0) > 0,
-      cta: "Магазин и валюта",
+      cta: t("onboarding.stepShopCta"),
       path: "/shop-admin",
     },
     {
       key: "employees",
-      title: "Пригласите сотрудников",
-      description: "Массовый импорт XLSX/CSV или ручная отправка приглашений.",
+      title: t("onboarding.stepEmployeesTitle"),
+      description: t("onboarding.stepEmployeesDesc"),
       icon: Users,
       done: (counts?.employees ?? 1) > 1,
-      cta: "Пригласить",
+      cta: t("onboarding.stepEmployeesCta"),
       path: "/invitations",
     },
   ];
@@ -133,15 +135,15 @@ const Onboarding = () => {
           <Building2 className="w-6 h-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Запуск компании</h1>
-          <p className="text-muted-foreground text-sm">Чек-лист для HRD: пройдите шаги, чтобы система начала работать.</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("onboarding.title")}</h1>
+          <p className="text-muted-foreground text-sm">{t("onboarding.subtitle")}</p>
         </div>
       </div>
 
       <div className="bg-card rounded-xl border border-border p-5">
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-medium text-foreground">
-            Прогресс настройки: {completed}/{steps.length}
+            {t("onboarding.progressLabel", { completed, total: steps.length })}
           </p>
           <p className="text-sm font-bold text-primary">{progress}%</p>
         </div>
@@ -183,14 +185,14 @@ const Onboarding = () => {
 
       <div className="bg-card rounded-xl border border-border p-5 space-y-4">
         <div>
-          <h3 className="font-semibold text-foreground">Автоматизация для новых сотрудников</h3>
-          <p className="text-sm text-muted-foreground">При первом входе сотрудника применяются эти правила.</p>
+          <h3 className="font-semibold text-foreground">{t("onboarding.automationTitle")}</h3>
+          <p className="text-sm text-muted-foreground">{t("onboarding.automationSubtitle")}</p>
         </div>
 
         <label className="flex items-center justify-between cursor-pointer">
           <div>
-            <p className="text-sm font-medium text-foreground">Автоназначение тестов</p>
-            <p className="text-xs text-muted-foreground">По должности назначить базовый тест</p>
+            <p className="text-sm font-medium text-foreground">{t("onboarding.autoTestsLabel")}</p>
+            <p className="text-xs text-muted-foreground">{t("onboarding.autoTestsDesc")}</p>
           </div>
           <input
             type="checkbox"
@@ -202,8 +204,8 @@ const Onboarding = () => {
 
         <label className="flex items-center justify-between cursor-pointer">
           <div>
-            <p className="text-sm font-medium text-foreground">Автоназначение карьерного трека</p>
-            <p className="text-xs text-muted-foreground">После успешного теста автоматически выдать трек</p>
+            <p className="text-sm font-medium text-foreground">{t("onboarding.autoTracksLabel")}</p>
+            <p className="text-xs text-muted-foreground">{t("onboarding.autoTracksDesc")}</p>
           </div>
           <input
             type="checkbox"
@@ -215,8 +217,8 @@ const Onboarding = () => {
 
         <label className="flex items-center justify-between cursor-pointer">
           <div>
-            <p className="text-sm font-medium text-foreground">Welcome-бонус</p>
-            <p className="text-xs text-muted-foreground">Начислить валюту при первом входе</p>
+            <p className="text-sm font-medium text-foreground">{t("onboarding.welcomeBonusLabel")}</p>
+            <p className="text-xs text-muted-foreground">{t("onboarding.welcomeBonusDesc")}</p>
           </div>
           <input
             type="checkbox"
@@ -228,7 +230,7 @@ const Onboarding = () => {
 
         {settings?.welcome_bonus_enabled !== false && (
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-foreground">Сумма бонуса</p>
+            <p className="text-sm font-medium text-foreground">{t("onboarding.bonusAmountLabel")}</p>
             <input
               type="number"
               min={0}
