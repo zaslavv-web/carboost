@@ -471,7 +471,7 @@ const HRDEmployeeMap = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hrd_map_hr_tasks"] });
-      toast.success("Удалено");
+      toast.success(t("employeeMap.toasts.deleted"));
     },
   });
 
