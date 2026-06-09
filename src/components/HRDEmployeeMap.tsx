@@ -250,7 +250,7 @@ const HRDEmployeeMap = () => {
         animated: false,
         style: { stroke: "hsl(var(--info))", strokeWidth: 2 },
         markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--info))" },
-        label: "руководит",
+        label: t("employeeMap.manages"),
         labelStyle: { fill: "hsl(var(--muted-foreground))", fontSize: 10 },
       });
     });
