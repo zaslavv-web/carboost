@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravelRpc } from "@/integrations/laravel/rpc";
@@ -13,6 +14,7 @@ import { ArrowLeft, Trash2, Package, ShoppingCart, AlertTriangle } from "lucide-
 import { toast } from "sonner";
 
 export default function Cart() {
+  const { t } = useTranslation("employee");
   const userId = useEffectiveUserId();
   const { impersonatedUserId } = useImpersonation();
   const isImpersonating = !!impersonatedUserId;
@@ -55,7 +57,7 @@ export default function Cart() {
       return data;
     },
     onSuccess: () => {
-      toast.success("Заказ оформлен! Ожидает выдачи HRD");
+      toast.success(t("cart.orderPlaced"));
       qc.invalidateQueries({ queryKey: ["shop_cart"] });
       qc.invalidateQueries({ queryKey: ["currency_balance"] });
       qc.invalidateQueries({ queryKey: ["shop_orders_my"] });
@@ -69,13 +71,13 @@ export default function Cart() {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
-      <Button asChild variant="ghost" size="sm"><Link to="/shop"><ArrowLeft className="mr-1" /> Назад</Link></Button>
-      <h1 className="text-3xl font-bold flex items-center gap-2"><ShoppingCart /> Корзина</h1>
+      <Button asChild variant="ghost" size="sm"><Link to="/shop"><ArrowLeft className="mr-1" /> {t("cart.back")}</Link></Button>
+      <h1 className="text-3xl font-bold flex items-center gap-2"><ShoppingCart /> {t("cart.title")}</h1>
 
       {items.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">
           <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          Корзина пуста — <Link to="/shop" className="text-primary underline">перейти в магазин</Link>
+          {t("cart.empty")}<Link to="/shop" className="text-primary underline">{t("cart.goToShop")}</Link>
         </CardContent></Card>
       ) : (
         <>
@@ -104,16 +106,16 @@ export default function Cart() {
 
           <Card>
             <CardContent className="p-6 space-y-3">
-              <div className="flex justify-between"><span>Итого:</span><span className="font-bold text-xl">{formatCoins(total)} {icon}</span></div>
-              <div className="flex justify-between text-sm text-muted-foreground"><span>Баланс:</span><span>{formatCoins(balance)} {icon}</span></div>
+              <div className="flex justify-between"><span>{t("cart.total")}</span><span className="font-bold text-xl">{formatCoins(total)} {icon}</span></div>
+              <div className="flex justify-between text-sm text-muted-foreground"><span>{t("cart.balance")}</span><span>{formatCoins(balance)} {icon}</span></div>
               {isImpersonating && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>В режиме имперсонации оформление заказа заблокировано.</AlertDescription>
+                  <AlertDescription>{t("cart.impersonationBlocked")}</AlertDescription>
                 </Alert>
               )}
               <Button className="w-full" size="lg" disabled={checkout.isPending || balance < total || isImpersonating} onClick={() => checkout.mutate()}>
-                {balance < total ? "Недостаточно средств" : "Оформить заказ"}
+                {balance < total ? t("cart.insufficient") : t("cart.checkout")}
               </Button>
             </CardContent>
           </Card>

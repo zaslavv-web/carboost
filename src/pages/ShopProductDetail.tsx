@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravelRpc } from "@/integrations/laravel/rpc";
@@ -16,6 +17,7 @@ import { ArrowLeft, Package, ShoppingCart, Zap, AlertTriangle } from "lucide-rea
 import { toast } from "sonner";
 
 export default function ShopProductDetail() {
+  const { t } = useTranslation("employee");
   const { id } = useParams();
   const navigate = useNavigate();
   const userId = useEffectiveUserId();
@@ -39,7 +41,7 @@ export default function ShopProductDetail() {
 
   const addToCart = useMutation({
     mutationFn: async () => {
-      if (!userId || !profile?.company_id || !product) throw new Error("Нет данных");
+      if (!userId || !profile?.company_id || !product) throw new Error(t("shopProduct.noData"));
       const { data: existing } = await laravelDb
         .from("shop_cart_items").select("*")
         .eq("user_id", userId).eq("product_id", product.id).maybeSingle();
@@ -55,7 +57,7 @@ export default function ShopProductDetail() {
       }
     },
     onSuccess: () => {
-      toast.success("Добавлено в корзину");
+      toast.success(t("shopProduct.addedToCart"));
       qc.invalidateQueries({ queryKey: ["shop_cart"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -63,7 +65,7 @@ export default function ShopProductDetail() {
 
   const buyNow = useMutation({
     mutationFn: async () => {
-      if (!product) throw new Error("Нет данных");
+      if (!product) throw new Error(t("shopProduct.noData"));
       const { data, error } = await laravelRpc("create_shop_order", {
         _items: [{ product_id: product.id, quantity: qty }],
       });
@@ -71,7 +73,7 @@ export default function ShopProductDetail() {
       return data;
     },
     onSuccess: () => {
-      toast.success("Заказ оформлен! Ожидает выдачи HRD");
+      toast.success(t("shopProduct.orderPlaced"));
       qc.invalidateQueries({ queryKey: ["currency_balance"] });
       qc.invalidateQueries({ queryKey: ["shop_orders_my"] });
       navigate("/my-orders");
@@ -81,15 +83,15 @@ export default function ShopProductDetail() {
 
   const icon = settings?.currency_icon ?? "🪙";
 
-  if (isLoading) return <div className="p-8">Загрузка…</div>;
-  if (!product) return <div className="p-8">Товар не найден</div>;
+  if (isLoading) return <div className="p-8">{t("shopProduct.loading")}</div>;
+  if (!product) return <div className="p-8">{t("shopProduct.notFound")}</div>;
 
   const total = product.price * qty;
   const canAfford = balance >= total;
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
-      <Button asChild variant="ghost" size="sm"><Link to="/shop"><ArrowLeft className="mr-1" /> Назад в магазин</Link></Button>
+      <Button asChild variant="ghost" size="sm"><Link to="/shop"><ArrowLeft className="mr-1" /> {t("shopProduct.back")}</Link></Button>
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card className="overflow-hidden">
@@ -112,38 +114,40 @@ export default function ShopProductDetail() {
             {(product.max_per_user || product.max_per_period) && (
               <div className="space-y-1">
                 {product.max_per_user && (
-                  <Badge variant="outline">Лимит всего: {product.max_per_user} шт.</Badge>
+                  <Badge variant="outline">{t("shopProduct.totalLimit", { count: product.max_per_user })}</Badge>
                 )}
                 {product.max_per_period && product.period_kind !== "none" && (
                   <Badge variant="outline" className="ml-2">
-                    {product.max_per_period} шт. /{" "}
-                    {product.period_kind === "month" ? "месяц" : product.period_kind === "quarter" ? "квартал" : "год"}
+                    {t("shopProduct.periodLimit", {
+                      count: product.max_per_period,
+                      period: t(`shopProduct.period.${product.period_kind}`, product.period_kind),
+                    })}
                   </Badge>
                 )}
               </div>
             )}
 
             <div className="flex items-center gap-3 pt-4">
-              <label className="text-sm font-medium">Количество:</label>
+              <label className="text-sm font-medium">{t("shopProduct.quantity")}</label>
               <Input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} className="w-24" />
             </div>
 
-            <div className="text-sm">Итого: <span className="font-bold">{formatCoins(total)} {icon}</span></div>
-            <div className="text-xs text-muted-foreground">Ваш баланс: {formatCoins(balance)} {icon}</div>
+            <div className="text-sm">{t("shopProduct.total")} <span className="font-bold">{formatCoins(total)} {icon}</span></div>
+            <div className="text-xs text-muted-foreground">{t("shopProduct.yourBalance", { balance: formatCoins(balance), icon })}</div>
 
             {isImpersonating && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>В режиме имперсонации покупки заблокированы.</AlertDescription>
+                <AlertDescription>{t("shopProduct.impersonationBlocked")}</AlertDescription>
               </Alert>
             )}
 
             <div className="flex gap-2 pt-4">
               <Button onClick={() => addToCart.mutate()} disabled={addToCart.isPending || isImpersonating} variant="outline" className="flex-1">
-                <ShoppingCart className="mr-2" /> В корзину
+                <ShoppingCart className="mr-2" /> {t("shopProduct.addToCart")}
               </Button>
               <Button onClick={() => buyNow.mutate()} disabled={buyNow.isPending || !canAfford || isImpersonating} className="flex-1">
-                <Zap className="mr-2" /> {canAfford ? "Купить сейчас" : "Недостаточно"}
+                <Zap className="mr-2" /> {canAfford ? t("shopProduct.buyNow") : t("shopProduct.insufficient")}
               </Button>
             </div>
           </CardContent>

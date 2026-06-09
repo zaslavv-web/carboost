@@ -2,7 +2,8 @@ import { laravelDb } from "@/integrations/laravel/db";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Sparkles, MessageSquare, ListChecks } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Loader2, Sparkles, ListChecks } from "lucide-react";
 import { toast } from "sonner";
 
 import { aiInvoke } from "@/integrations/laravel/client";
@@ -10,6 +11,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import ClosedQuestionTestRunner, { TestPayload } from "@/components/ClosedQuestionTestRunner";
 
 const Assessment = () => {
+  const { t } = useTranslation("employee");
   const { data: profile } = useUserProfile();
   const navigate = useNavigate();
 
@@ -17,7 +19,6 @@ const Assessment = () => {
   const [activeTest, setActiveTest] = useState<TestPayload | null>(null);
   const [generating, setGenerating] = useState(false);
 
-  // Fetch HRD tests for the user's company (active only) — RLS already enforces this
   const { data: hrdTests = [], isLoading } = useQuery({
     queryKey: ["available_hrd_tests", profile?.company_id, profile?.position_id],
     queryFn: async () => {
@@ -29,7 +30,6 @@ const Assessment = () => {
         .eq("is_active", true);
       const { data, error } = await q;
       if (error) throw error;
-      // Prefer tests matching user's position_id, then unpinned (position_id is null)
       const list = (data || []).filter((t: any) => Array.isArray(t.questions) && t.questions.length > 0);
       list.sort((a: any, b: any) => {
         const am = a.position_id === profile.position_id ? 0 : a.position_id === null ? 1 : 2;
@@ -41,13 +41,13 @@ const Assessment = () => {
     enabled: !!profile?.company_id,
   });
 
-  const startHrdTest = (t: any) => {
+  const startHrdTest = (item: any) => {
     setActiveTest({
-      title: t.title,
-      description: t.description || undefined,
-      questions: t.questions,
+      title: item.title,
+      description: item.description || undefined,
+      questions: item.questions,
       source: "hrd",
-      testId: t.id,
+      testId: item.id,
     });
     setMode("running");
   };
@@ -55,8 +55,7 @@ const Assessment = () => {
   const startAiTest = async () => {
     setGenerating(true);
     try {
-      // Pull position title + competency profile if available
-      let positionTitle = profile?.position || "Сотрудник";
+      let positionTitle = profile?.position || t("assessment.fallbackPosition");
       let competencies: string[] = [];
       if (profile?.position_id) {
         const { data: pos } = await laravelDb
@@ -74,7 +73,7 @@ const Assessment = () => {
         body: { positionTitle, competencies },
       });
       if (error) throw error;
-      if (!data?.questions?.length) throw new Error("AI не сгенерировал вопросы");
+      if (!data?.questions?.length) throw new Error(t("assessment.aiNoQuestions"));
       setActiveTest({
         title: data.title,
         description: data.description,
@@ -85,17 +84,13 @@ const Assessment = () => {
       setMode("running");
     } catch (e: any) {
       console.error(e);
-      toast.error(e.message || "Ошибка генерации теста");
+      toast.error(e.message || t("assessment.generationError"));
     }
     setGenerating(false);
   };
 
-  // Auto-default: if no HRD tests, prepare AI test on first render once profile loaded
   useEffect(() => {
     if (mode !== "choose" || isLoading) return;
-    if (hrdTests.length === 0 && !generating && profile?.company_id) {
-      // Don't auto-start; let user click — keeps UI intentional
-    }
   }, [hrdTests, isLoading, profile?.company_id, mode, generating]);
 
   if (mode === "running" && activeTest) {
@@ -105,10 +100,8 @@ const Assessment = () => {
   return (
     <div className="max-w-3xl mx-auto animate-fade-in">
       <div className="mb-6">
-        <h1 className="text-xl md:text-2xl font-bold text-foreground">Карьерная оценка</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Пройдите тест с закрытыми вопросами — результаты обновят ваши компетенции и карьерный трек.
-        </p>
+        <h1 className="text-xl md:text-2xl font-bold text-foreground">{t("assessment.title")}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{t("assessment.subtitle")}</p>
       </div>
 
       {isLoading ? (
@@ -117,19 +110,19 @@ const Assessment = () => {
         <div className="space-y-4">
           {hrdTests.length > 0 ? (
             <>
-              <p className="text-sm text-muted-foreground">Тесты от HRD вашей компании:</p>
-              {hrdTests.map((t: any) => (
+              <p className="text-sm text-muted-foreground">{t("assessment.hrdTests")}</p>
+              {hrdTests.map((item: any) => (
                 <button
-                  key={t.id}
-                  onClick={() => startHrdTest(t)}
+                  key={item.id}
+                  onClick={() => startHrdTest(item)}
                   className="w-full text-left bg-card rounded-xl border border-border p-5 shadow-card hover:border-primary transition-colors"
                 >
                   <div className="flex items-start gap-3">
                     <ListChecks className="w-6 h-6 text-primary mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground">{t.title}</p>
-                      {t.description && <p className="text-sm text-muted-foreground mt-1">{t.description}</p>}
-                      <p className="text-xs text-muted-foreground mt-2">{t.questions.length} закрытых вопросов</p>
+                      <p className="font-semibold text-foreground">{item.title}</p>
+                      {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
+                      <p className="text-xs text-muted-foreground mt-2">{t("assessment.questionsCount", { count: item.questions.length })}</p>
                     </div>
                   </div>
                 </button>
@@ -140,10 +133,8 @@ const Assessment = () => {
               <div className="flex items-start gap-3">
                 <Sparkles className="w-6 h-6 text-primary mt-0.5" />
                 <div>
-                  <p className="font-semibold text-foreground">Тестов от HRD пока нет</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Сгенерируем для вас тест по вашей должности с помощью AI: 12 закрытых вопросов с одним правильным ответом.
-                  </p>
+                  <p className="font-semibold text-foreground">{t("assessment.noHrdTests")}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{t("assessment.noHrdTestsDesc")}</p>
                 </div>
               </div>
               <button
@@ -152,7 +143,7 @@ const Assessment = () => {
                 className="mt-4 w-full px-4 py-2.5 rounded-lg gradient-primary text-primary-foreground text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                {generating ? "AI готовит вопросы..." : "Сгенерировать AI-тест"}
+                {generating ? t("assessment.aiPreparing") : t("assessment.generateAi")}
               </button>
             </div>
           )}
@@ -164,7 +155,7 @@ const Assessment = () => {
               className="w-full text-left bg-secondary/40 rounded-xl border border-dashed border-border p-4 hover:border-primary transition-colors flex items-center gap-3 disabled:opacity-50"
             >
               <Sparkles className="w-5 h-5 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground flex-1">Или сгенерировать AI-тест под мою должность</span>
+              <span className="text-sm text-muted-foreground flex-1">{t("assessment.orGenerate")}</span>
               {generating && <Loader2 className="w-4 h-4 animate-spin" />}
             </button>
           )}

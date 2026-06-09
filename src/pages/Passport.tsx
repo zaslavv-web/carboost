@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Award, Calendar, Edit, Loader2, Plus, X } from "lucide-react";
+import { Award, Calendar, Loader2, Plus, X } from "lucide-react";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { getDateLocale } from "@/lib/dateLocale";
 
 const Passport = () => {
+  const { t } = useTranslation("employee");
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
@@ -76,9 +79,9 @@ const Passport = () => {
       queryClient.invalidateQueries({ queryKey: ["achievements"] });
       setShowAddAchievement(false);
       setNewAchievement({ title: "", description: "" });
-      toast.success("Достижение добавлено");
+      toast.success(t("passport.achievementAdded"));
     },
-    onError: () => toast.error("Ошибка при добавлении"),
+    onError: () => toast.error(t("passport.addError")),
   });
 
   const radarData = competencies.map((c) => ({ skill: c.skill_name, value: c.skill_value }));
@@ -87,11 +90,10 @@ const Passport = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-foreground">Цифровой паспорт</h1>
-        <p className="text-muted-foreground text-xs md:text-sm mt-1">Полный профиль компетенций и достижений</p>
+        <h1 className="text-xl md:text-2xl font-bold text-foreground">{t("passport.title")}</h1>
+        <p className="text-muted-foreground text-xs md:text-sm mt-1">{t("passport.subtitle")}</p>
       </div>
 
-      {/* Profile header */}
       <div className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
         <div className="h-20 md:h-24 gradient-hero" />
         <div className="px-4 md:px-6 pb-5 md:pb-6 -mt-8 md:-mt-10">
@@ -102,23 +104,23 @@ const Passport = () => {
             <div className="pb-1 min-w-0">
               <h2 className="text-base md:text-xl font-bold text-foreground truncate">{profile?.full_name || "—"}</h2>
               <p className="text-muted-foreground text-xs md:text-sm truncate">
-                {profile?.position || "Должность не указана"} · {profile?.department || "Отдел не указан"}
-                {profile?.hire_date && ` · с ${format(new Date(profile.hire_date), "yyyy")}`}
+                {profile?.position || t("passport.noPosition")} · {profile?.department || t("passport.noDepartment")}
+                {profile?.hire_date && ` · ${t("passport.since")} ${format(new Date(profile.hire_date), "yyyy")}`}
               </p>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2">
             <div className="text-center">
               <p className="text-xl md:text-2xl font-bold text-foreground">{profile?.overall_score || 0}</p>
-              <p className="text-[10px] md:text-xs text-muted-foreground">Общий скор</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">{t("passport.overallScore")}</p>
             </div>
             <div className="text-center border-x border-border">
               <p className="text-xl md:text-2xl font-bold text-foreground">{profile?.role_readiness || 0}%</p>
-              <p className="text-[10px] md:text-xs text-muted-foreground">Готовность</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">{t("passport.readiness")}</p>
             </div>
             <div className="text-center">
               <p className="text-xl md:text-2xl font-bold text-foreground">{achievements.length}</p>
-              <p className="text-[10px] md:text-xs text-muted-foreground">Достижений</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">{t("passport.achievements")}</p>
             </div>
           </div>
         </div>
@@ -128,22 +130,21 @@ const Passport = () => {
         <div className="bg-card rounded-xl p-6 shadow-card border border-border lg:col-span-2">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h3 className="font-semibold text-foreground">Анкета первичного заполнения</h3>
+              <h3 className="font-semibold text-foreground">{t("passport.questionnaire")}</h3>
               <p className="text-sm text-muted-foreground mt-1">
                 {latestQuestionnaire
-                  ? `Последняя версия: ${latestQuestionnaire.status === "draft" ? "черновик" : "отправлена"}`
-                  : "Заполните анкету, чтобы сформировать стартовый профиль компетенций"}
+                  ? (latestQuestionnaire.status === "draft" ? t("passport.questionnaireDraft") : t("passport.questionnaireSubmitted"))
+                  : t("passport.questionnaireEmpty")}
               </p>
             </div>
             <Link to="/employee-questionnaire" className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-              {latestQuestionnaire?.status === "draft" ? "Продолжить" : "Открыть анкету"}
+              {latestQuestionnaire?.status === "draft" ? t("passport.continue") : t("passport.openQuestionnaire")}
             </Link>
           </div>
         </div>
 
-        {/* Radar */}
         <div className="bg-card rounded-xl p-6 shadow-card border border-border">
-          <h3 className="font-semibold text-foreground mb-4">Навыки и компетенции</h3>
+          <h3 className="font-semibold text-foreground mb-4">{t("passport.skillsTitle")}</h3>
           {radarData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={300}>
@@ -170,36 +171,35 @@ const Passport = () => {
             </>
           ) : (
             <div className="flex items-center justify-center h-[300px] text-sm text-muted-foreground">
-              Пройдите AI-оценку для формирования профиля компетенций
+              {t("passport.takeAssessment")}
             </div>
           )}
         </div>
 
-        {/* Achievements */}
         <div className="bg-card rounded-xl p-6 shadow-card border border-border">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground">Достижения и проекты</h3>
+            <h3 className="font-semibold text-foreground">{t("passport.achievementsTitle")}</h3>
             <button onClick={() => setShowAddAchievement(true)} className="text-sm text-primary hover:underline flex items-center gap-1">
-              <Plus className="w-3 h-3" /> Добавить
+              <Plus className="w-3 h-3" /> {t("passport.add")}
             </button>
           </div>
 
           {showAddAchievement && (
             <div className="mb-4 p-4 rounded-lg border border-primary/20 bg-accent/30 space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-foreground">Новое достижение</h4>
+                <h4 className="text-sm font-medium text-foreground">{t("passport.newAchievement")}</h4>
                 <button onClick={() => setShowAddAchievement(false)}><X className="w-4 h-4 text-muted-foreground" /></button>
               </div>
               <input
                 type="text"
-                placeholder="Название достижения"
+                placeholder={t("passport.achievementName")}
                 value={newAchievement.title}
                 onChange={(e) => setNewAchievement({ ...newAchievement, title: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
               />
               <input
                 type="text"
-                placeholder="Описание (необязательно)"
+                placeholder={t("passport.achievementDesc")}
                 value={newAchievement.description}
                 onChange={(e) => setNewAchievement({ ...newAchievement, description: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
@@ -209,7 +209,7 @@ const Passport = () => {
                 disabled={!newAchievement.title || addAchievementMutation.isPending}
                 className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm disabled:opacity-50"
               >
-                {addAchievementMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Сохранить"}
+                {addAchievementMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("passport.save")}
               </button>
             </div>
           )}
@@ -225,37 +225,36 @@ const Passport = () => {
                   {a.description && <p className="text-xs text-muted-foreground mt-0.5">{a.description}</p>}
                   {a.achievement_date && (
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                      <Calendar className="w-3 h-3" /> {format(new Date(a.achievement_date), "MMMM yyyy")}
+                      <Calendar className="w-3 h-3" /> {format(new Date(a.achievement_date), "MMMM yyyy", { locale: getDateLocale() })}
                     </p>
                   )}
                 </div>
               </div>
             )) : (
-              <p className="text-sm text-muted-foreground text-center py-8">Нет достижений. Добавьте первое!</p>
+              <p className="text-sm text-muted-foreground text-center py-8">{t("passport.noAchievements")}</p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Assessment history */}
       <div className="bg-card rounded-xl p-6 shadow-card border border-border">
-        <h3 className="font-semibold text-foreground mb-4">История оценок</h3>
+        <h3 className="font-semibold text-foreground mb-4">{t("passport.history")}</h3>
         {assessments.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Дата</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Тип</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Балл</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Изменение</th>
+                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("passport.date")}</th>
+                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("passport.type")}</th>
+                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("passport.score")}</th>
+                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("passport.change")}</th>
                 </tr>
               </thead>
               <tbody>
                 {assessments.map((row) => (
                   <tr key={row.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
                     <td className="py-3 px-4 text-foreground">{format(new Date(row.created_at), "dd.MM.yyyy")}</td>
-                    <td className="py-3 px-4 text-foreground">{row.assessment_type === "ai" ? "AI-оценка" : row.assessment_type}</td>
+                    <td className="py-3 px-4 text-foreground">{row.assessment_type === "ai" ? t("passport.aiAssessment") : row.assessment_type}</td>
                     <td className="py-3 px-4">
                       <span className="font-semibold text-foreground">{row.score || 0}</span>
                       <span className="text-muted-foreground">/100</span>
@@ -271,7 +270,7 @@ const Passport = () => {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-8">Нет истории оценок. Пройдите AI-оценку!</p>
+          <p className="text-sm text-muted-foreground text-center py-8">{t("passport.noHistory")}</p>
         )}
       </div>
     </div>
