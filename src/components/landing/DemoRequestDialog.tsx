@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ interface Props {
 }
 
 const DemoRequestDialog = ({ open, onOpenChange, source }: Props) => {
+  const { t } = useTranslation("landing");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
@@ -29,11 +31,11 @@ const DemoRequestDialog = ({ open, onOpenChange, source }: Props) => {
         _source: source || "landing",
       });
       if (error) throw error;
-      toast.success("Спасибо! Мы свяжемся с вами в течение рабочего дня.");
+      toast.success(t("demoDialog.success"));
       setName(""); setEmail(""); setCompany(""); setHeadcount("");
       onOpenChange(false);
     } catch (err: any) {
-      toast.error(err.message || "Не удалось отправить заявку");
+      toast.error(err.message || t("demoDialog.errorFallback"));
     } finally {
       setLoading(false);
     }
@@ -43,16 +45,14 @@ const DemoRequestDialog = ({ open, onOpenChange, source }: Props) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Запросить демо</DialogTitle>
-          <DialogDescription>
-            Покажем платформу под задачи вашей компании. Без обязательств.
-          </DialogDescription>
+          <DialogTitle>{t("demoDialog.title")}</DialogTitle>
+          <DialogDescription>{t("demoDialog.description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4 mt-2">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Имя"
+            placeholder={t("demoDialog.name")}
             required
             className="w-full px-4 py-2.5 rounded-lg border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
@@ -60,14 +60,14 @@ const DemoRequestDialog = ({ open, onOpenChange, source }: Props) => {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Рабочий email"
+            placeholder={t("demoDialog.email")}
             required
             className="w-full px-4 py-2.5 rounded-lg border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
           <input
             value={company}
             onChange={(e) => setCompany(e.target.value)}
-            placeholder="Компания"
+            placeholder={t("demoDialog.company")}
             className="w-full px-4 py-2.5 rounded-lg border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
           <input
@@ -75,7 +75,7 @@ const DemoRequestDialog = ({ open, onOpenChange, source }: Props) => {
             min={1}
             value={headcount}
             onChange={(e) => setHeadcount(e.target.value)}
-            placeholder="Размер команды (человек)"
+            placeholder={t("demoDialog.headcount")}
             className="w-full px-4 py-2.5 rounded-lg border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
           <button
@@ -84,11 +84,9 @@ const DemoRequestDialog = ({ open, onOpenChange, source }: Props) => {
             className="w-full px-4 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            Отправить заявку
+            {t("demoDialog.submit")}
           </button>
-          <p className="text-xs text-muted-foreground text-center">
-            Нажимая кнопку, вы соглашаетесь на обработку персональных данных.
-          </p>
+          <p className="text-xs text-muted-foreground text-center">{t("demoDialog.consent")}</p>
         </form>
       </DialogContent>
     </Dialog>
