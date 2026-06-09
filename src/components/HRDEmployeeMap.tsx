@@ -549,7 +549,7 @@ const HRDEmployeeMap = () => {
         <div className="bg-card rounded-xl border border-border overflow-hidden flex flex-col">
           {!selected ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              Кликните по карточке сотрудника, чтобы увидеть детали
+              {t("employeeMap.clickHint")}
             </div>
           ) : (
             <>
