@@ -460,7 +460,7 @@ const HRDEmployeeMap = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hrd_map_hr_tasks"] });
-      toast.success("Задача отклонена");
+      toast.success(t("employeeMap.toasts.rejected"));
     },
   });
 
