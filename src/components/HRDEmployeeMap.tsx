@@ -636,7 +636,7 @@ const HRDEmployeeMap = () => {
                   <TabsContent value="tasks" className="space-y-2 mt-3">
                     {selectedTasks.length === 0 && (
                       <p className="text-xs text-muted-foreground text-center py-4">
-                        Нет HR-задач, связанных с сотрудником
+                        {t("employeeMap.tasks.empty")}
                       </p>
                     )}
                     {selectedTasks.map((t) => (
