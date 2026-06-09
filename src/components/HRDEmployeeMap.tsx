@@ -218,7 +218,7 @@ const HRDEmployeeMap = () => {
           data: {
             label: (
               <div className="text-left">
-                <div className="font-semibold text-xs truncate max-w-[200px]">{e.full_name || "Без имени"}</div>
+                <div className="font-semibold text-xs truncate max-w-[200px]">{e.full_name || t("employeeMap.noName")}</div>
                 <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">
                   {e.position || "—"}
                 </div>
