@@ -202,6 +202,13 @@
     "psychLabel": "Reference Psychological Portrait",
     "noTraits": "No traits. Add manually or upload from file.",
     "traitPlaceholder": "Trait (e.g. Leadership)",
+    "psychLevels": {
+      "low": "low",
+      "below_average": "below average",
+      "average": "average",
+      "above_average": "above average",
+      "high": "high"
+    },
     "orgUploadLabel": "Upload org structure from file",
     "orgUploadHint": "CSV/XLSX/JSON — extract departments. DOCX/PDF — AI will automatically extract departments, positions, competencies and psycho-portraits.",
     "uploadBtn": "Upload",

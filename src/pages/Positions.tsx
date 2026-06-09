@@ -59,6 +59,32 @@ interface OKRKPIItem {
   target: string;
   example: string;
 }
+// Stable enum keys for psychological-portrait trait levels.
+// Stored in DB as these keys; rendered via t(`positions.psychLevels.${key}`).
+const PSYCH_LEVEL_KEYS = ["low", "below_average", "average", "above_average", "high"] as const;
+type PsychLevelKey = typeof PSYCH_LEVEL_KEYS[number];
+
+// Map legacy Russian values (and EN aliases) to stable enum keys.
+const PSYCH_LEVEL_ALIASES: Record<string, PsychLevelKey> = {
+  "низкое": "low",
+  "ниже среднего": "below_average",
+  "среднее": "average",
+  "выше среднего": "above_average",
+  "высокое": "high",
+  "low": "low",
+  "below average": "below_average",
+  "below_average": "below_average",
+  "average": "average",
+  "above average": "above_average",
+  "above_average": "above_average",
+  "high": "high",
+};
+
+const normalizePsychLevel = (raw: unknown): PsychLevelKey => {
+  const key = String(raw ?? "").trim().toLowerCase();
+  return PSYCH_LEVEL_ALIASES[key] ?? "average";
+};
+
 
 // ── Structured Competency Editor ──
 const CompetencyProfileEditor = ({
@@ -124,8 +150,8 @@ const PsychProfileEditor = ({
   onChange: (v: PsychItem[]) => void;
 }) => {
   const { t } = useTranslation("admin");
-  const levels = ["низкое", "ниже среднего", "среднее", "выше среднего", "высокое"];
-  const add = () => onChange([...value, { trait: "", level: "среднее" }]);
+  const levels = PSYCH_LEVEL_KEYS;
+  const add = () => onChange([...value, { trait: "", level: "average" }]);
   const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
   const update = (i: number, field: keyof PsychItem, val: string) =>
     onChange(value.map((item, idx) => (idx === i ? { ...item, [field]: val } : item)));
@@ -152,12 +178,12 @@ const PsychProfileEditor = ({
             className="flex-1 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
           <select
-            value={item.level}
+            value={normalizePsychLevel(item.level)}
             onChange={(e) => update(i, "level", e.target.value)}
             className="px-3 py-1.5 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
           >
             {levels.map((l) => (
-              <option key={l} value={l}>{l}</option>
+              <option key={l} value={l}>{t(`positions.psychLevels.${l}`)}</option>
             ))}
           </select>
           <Button variant="ghost" size="icon" onClick={() => remove(i)} className="text-destructive h-7 w-7">
@@ -320,7 +346,7 @@ const PositionEditor = ({
 
         const psych = Array.isArray(data.psychological_profile) ? data.psychological_profile : [];
         psych.forEach((p: any) => {
-          if (p?.trait) collectedPsych.set(p.trait, p.level || "среднее");
+          if (p?.trait) collectedPsych.set(p.trait, normalizePsychLevel(p.level));
         });
       });
 
