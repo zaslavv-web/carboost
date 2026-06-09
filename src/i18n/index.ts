@@ -34,7 +34,7 @@ i18n
     resources,
     fallbackLng: "ru",
     supportedLngs: SUPPORTED_LANGUAGES as unknown as string[],
-    ns: ["common", "auth", "landing", "employee"],
+    ns: ["common", "auth", "landing", "employee", "manager", "admin", "errors"],
     defaultNS: "common",
     interpolation: { escapeValue: false },
     detection: {
