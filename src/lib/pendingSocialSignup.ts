@@ -1,9 +1,13 @@
 export type RequestedAppRole = "employee" | "manager" | "hrd";
 
-export const ROLE_OPTIONS: Array<{ value: RequestedAppRole; label: string }> = [
-  { value: "employee", label: "Сотрудник" },
-  { value: "manager", label: "Руководитель" },
-  { value: "hrd", label: "HRD" },
+/**
+ * Translation keys for each role. Use `t(label, { ns: "auth" })` at the call
+ * site so the language switcher updates labels live.
+ */
+export const ROLE_OPTIONS: Array<{ value: RequestedAppRole; labelKey: string }> = [
+  { value: "employee", labelKey: "auth:roles.employee" },
+  { value: "manager", labelKey: "auth:roles.manager" },
+  { value: "hrd", labelKey: "auth:roles.hrd" },
 ];
 
 export interface PendingSocialSignup {

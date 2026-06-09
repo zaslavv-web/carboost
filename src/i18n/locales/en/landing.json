@@ -1,0 +1,324 @@
+{
+  "header": {
+    "solutions": "Solutions",
+    "tools": "Tools",
+    "stories": "Stories",
+    "faq": "FAQ",
+    "pricing": "Pricing",
+    "requestDemo": "Request a demo",
+    "signIn": "Sign in"
+  },
+  "hero": {
+    "titleLine1": "Grow your people,",
+    "titleLine2": "not your hiring budget",
+    "titleAccent": "build the talent bench from within",
+    "subtitle": "We boost performance and loyalty of every employee. Close key positions with your own talent instead of expensive external hires.",
+    "cta": "Request a demo",
+    "ctaLogin": "Sign in",
+    "imageAlt": "Growth Peak — AI-powered HR platform"
+  },
+  "pains": {
+    "title": "What the platform delivers for your HR function",
+    "subtitle": "Six areas where the platform absorbs routine work and gives HRD numbers they can actually steer with.",
+    "learnMore": "Learn more",
+    "discuss": "Discuss my situation",
+    "items": {
+      "retain": {
+        "pain": "Retain key employees",
+        "solution": "Digital passport + analytics surface attrition risks before resignation letters land"
+      },
+      "assess": {
+        "pain": "Assess competencies objectively",
+        "solution": "An AI assistant runs interviews on your scenarios and produces a comparable profile in 25 minutes"
+      },
+      "grow": {
+        "pain": "Give employees a clear growth path",
+        "solution": "Career tracks with stages, tests and reviews — from junior to manager"
+      },
+      "motivate": {
+        "pain": "Motivate without bumping payroll",
+        "solution": "Internal currency, rewards and a corporate shop instead of one-off bonuses"
+      },
+      "onboard": {
+        "pain": "Onboard new hires fast",
+        "solution": "Bulk XLSX import, auto-assign positions by email domain and tracks by role"
+      },
+      "decide": {
+        "pain": "Make data-driven decisions",
+        "solution": "Live dashboards for competencies, role readiness and hiring dynamics — one-click export"
+      }
+    }
+  },
+  "features": {
+    "title": "Six tools that work as one product",
+    "subtitle": "Click any capability to see how it works.",
+    "tryAll": "Try it all in-app",
+    "reveal": "Open"
+  },
+  "stories": {
+    "title": "Stories you'll recognize yourself in",
+    "subtitle": "Pick a role and see the before-and-after path.",
+    "before": "Before",
+    "after": "After",
+    "usedFeatures": "Capabilities used:",
+    "wantSame": "I want the same — request a demo",
+    "tryLogin": "Sign in and try",
+    "items": {
+      "hrd": {
+        "role": "HRD",
+        "persona": "Anna, HRD at an 800-people holding",
+        "before": "Excel instead of a system, a week to build a board report, 28% attrition.",
+        "after": "Live analytics, reports in 5 minutes, attrition down to 17% and a 3-year succession plan."
+      },
+      "manager": {
+        "role": "HR manager",
+        "persona": "Elena, HR partner at an IT company",
+        "before": "Manual onboarding for every hire, quarterly review interviews eat a full week.",
+        "after": "Bulk import, AI assessments, tracks auto-assigned. 60% of her time freed up."
+      },
+      "lead": {
+        "role": "Team lead",
+        "persona": "Igor, engineering team lead",
+        "before": "Has no idea who on the team is ready for promotion. Coaches by intuition.",
+        "after": "Sees progress for everyone, reviews stages in one click, builds team development plans."
+      }
+    }
+  },
+  "finalCta": {
+    "title": "Every employee grows — the company grows with them",
+    "subtitle": "A 30-minute call: we'll show how to close key positions internally and keep your top performers.",
+    "demo": "Request a demo",
+    "login": "Sign in"
+  },
+  "faq": {
+    "title": "HRD frequently asked questions",
+    "ask": "Still have questions — ask on the demo call",
+    "items": [
+      { "q": "How long does setup take?", "a": "From 30 minutes to 1 day. The onboarding wizard walks through positions, tests, tracks and invitations. Bulk employee import via XLSX/CSV." },
+      { "q": "Do we need integration with our HRIS?", "a": "We support org-structure import from XLSX/CSV/JSON and AI parsing of DOCX/PDF. Deep HRIS integration is available on request." },
+      { "q": "How is employee data protected?", "a": "Multi-tenant architecture with database-level RLS: company data is fully isolated. Region-specific hosting can be discussed separately." },
+      { "q": "Can we upload our own assessment scenarios?", "a": "Yes. Upload a DOCX/PDF — the AI parses it into a scenario you can then edit visually." },
+      { "q": "Is it suitable for small business?", "a": "Yes, from 10 employees. Pricing scales with headcount. Get in touch and we'll quote for you." }
+    ]
+  },
+  "footer": {
+    "brand": "Growth Peak",
+    "tasks": "Product tasks",
+    "capabilities": "Capabilities",
+    "stories": "Stories",
+    "faq": "FAQ",
+    "signIn": "Sign in"
+  },
+  "demoDialog": {
+    "title": "Request a demo",
+    "description": "We'll show the platform tailored to your company. No strings attached.",
+    "name": "Name",
+    "email": "Work email",
+    "company": "Company",
+    "headcount": "Team size (people)",
+    "submit": "Send request",
+    "consent": "By clicking, you agree to the processing of personal data.",
+    "success": "Thanks! We'll get back to you within one business day.",
+    "errorFallback": "Failed to submit the request"
+  },
+  "pricing": {
+    "title": "Pricing",
+    "subtitle": "Pick a format: cloud subscription or on-premise install. We'll quote the exact price for your team size.",
+    "alreadyClient": "Already a client?",
+    "loginLink": "Sign in",
+    "plans": {
+      "cloud": {
+        "title": "Cloud SaaS",
+        "price": "from $12",
+        "period": "per employee / month",
+        "description": "Cloud subscription — we host everything",
+        "features": [
+          "Deploy in 5 minutes",
+          "Automatic updates",
+          "24/7 backups",
+          "AI assistant included",
+          "Google SSO",
+          "Email support"
+        ],
+        "cta": "Submit request"
+      },
+      "on_premise": {
+        "title": "On-Premise",
+        "price": "on request",
+        "period": "annual license",
+        "description": "Installed on your server — data stays under your control",
+        "features": [
+          "Full control over data",
+          "Deployment via Docker / Helm / install.sh",
+          "Bring your own Supabase + Postgres",
+          "Bring your own AI provider",
+          "Customize to your processes",
+          "Premium SLA support"
+        ],
+        "cta": "Request a quote"
+      }
+    },
+    "form": {
+      "title": "{{plan}} plan request",
+      "description": "Fill out the form — a manager will reach out within one business day with a proposal.",
+      "name": "Name",
+      "email": "Email",
+      "company": "Company",
+      "phone": "Phone",
+      "headcount": "Team size",
+      "message": "Comment",
+      "submit": "Send request",
+      "submitting": "Sending...",
+      "success": "Request submitted! We'll be in touch soon."
+    }
+  },
+  "feature": {
+    "notFound": "Feature not found",
+    "backHome": "← Back to home",
+    "backAll": "All capabilities",
+    "tryLogin": "Sign in and try",
+    "demo": "Request a demo",
+    "storyTitle": "Customer story",
+    "storyPain": "Pain",
+    "storySolution": "Solution",
+    "storyResult": "Result",
+    "hrdValue": "What this gives HRD",
+    "loginCta": "Sign in",
+    "others": "Other capabilities",
+    "more": "Learn more"
+  },
+  "featureData": {
+    "ai-assessment": {
+      "title": "AI competency assessment",
+      "tagline": "An AI dialogue replaces 4 hours of interviews.",
+      "story": {
+        "persona": "Natalia, HRD at a manufacturing company",
+        "pain": "Semi-annual reviews eat a full week, and results are subjective.",
+        "solution": "An AI assistant runs a structured dialogue with every employee and produces a competency profile.",
+        "result": "Objective scoring on 12 competencies in 25 minutes instead of 4 hours."
+      },
+      "hero": "Replace subjective interviews with structured AI dialogue based on your assessment scenarios.",
+      "sections": [
+        {
+          "heading": "How it works",
+          "body": "Upload your assessment scenario (DOCX/PDF) or use a template. The AI runs the dialogue, captures answers and scores competencies with rationale.",
+          "bullets": ["Scenarios for your methodology", "Gemini-based edge function", "Transparent rationale for every score"]
+        },
+        {
+          "heading": "What HRD gets",
+          "body": "A ready report per employee and roll-up analytics for the whole company.",
+          "bullets": ["Competency radar map", "Comparison to the reference role profile", "Readiness for next-level roles"]
+        }
+      ],
+      "hrdValue": ["30+ hours saved per quarter on assessment interviews", "Standardized scoring across business units", "Removes manager bias from reviews"]
+    },
+    "career-tracks": {
+      "title": "Career tracks",
+      "tagline": "From junior to manager — step by step.",
+      "story": {
+        "persona": "Elena, HR partner at an IT company",
+        "pain": "Employees don't know what it takes to get promoted and leave for competitors.",
+        "solution": "Track templates with stages, tests and HRD reviews auto-assigned by role.",
+        "result": "Attrition down 24% in six months, a clear path for everyone."
+      },
+      "hero": "Design reference growth paths and auto-assign them to employees by role.",
+      "sections": [
+        {
+          "heading": "Track builder",
+          "body": "Build track templates from stages: task, test, file uploads, manager review.",
+          "bullets": ["Drag-and-drop stage editor", "AI-generated steps", "Template version control"]
+        },
+        {
+          "heading": "Assignment and control",
+          "body": "Tracks are auto-assigned when an employee is created. HRD sees real-time progress for every stage.",
+          "bullets": ["Stage review queue", "Notifications for overdue stages", "Linked to the digital passport"]
+        }
+      ],
+      "hrdValue": ["Employees see a clear growth path", "Attrition down by 20–30%", "Managed succession for key roles"]
+    },
+    "gamification": {
+      "title": "Gamification & currency",
+      "tagline": "Motivation without quarterly bonuses.",
+      "story": {
+        "persona": "Igor, head of people",
+        "pain": "Bonus budget is limited and engagement is dropping.",
+        "solution": "Employees earn internal currency for progress and spend it in the corporate shop.",
+        "result": "Engagement +37%, material motivation budget −18%."
+      },
+      "hero": "A flexible system of points, achievements and internal currency for non-cash motivation.",
+      "sections": [
+        {
+          "heading": "Rewards under your rules",
+          "body": "Configure triggers and reward amounts: completed stage, passed test, work anniversary.",
+          "bullets": ["Welcome bonus on onboarding", "Tenure-based rewards", "Custom triggers"]
+        },
+        {
+          "heading": "Corporate shop",
+          "body": "Employees spend currency on merch, days off, learning and perks. HRD approves orders."
+        }
+      ],
+      "hrdValue": ["Alternative to cash bonuses", "Engagement grows by 30–40%", "Transparent motivation rules"]
+    },
+    "analytics": {
+      "title": "HRD analytics",
+      "tagline": "Metrics you can take to the CEO.",
+      "story": {
+        "persona": "Anna, HRD at an 800-people holding",
+        "pain": "Every board report takes a week in Excel.",
+        "solution": "Live dashboards for competencies, role readiness and hiring dynamics.",
+        "result": "Board report in 5 minutes instead of 5 days."
+      },
+      "hero": "Live Recharts dashboards: scoring trends, role readiness, track progress.",
+      "sections": [
+        {
+          "heading": "What's inside",
+          "body": "All key metrics in one place, export to XLSX/PDF.",
+          "bullets": ["Scoring dynamics by business unit", "Readiness for key roles", "Career track funnel", "Learning activity"]
+        }
+      ],
+      "hrdValue": ["Numbers to defend the HR budget", "Early attrition signals", "Evidence-based HR strategy"]
+    },
+    "digital-passport": {
+      "title": "Digital passport",
+      "tagline": "An employee's full history in one profile.",
+      "story": {
+        "persona": "Maria, HR manager",
+        "pain": "Resumes, assessments, tests — scattered across files and systems.",
+        "solution": "A single employee passport: skills, role history, assessments, achievements.",
+        "result": "Internal hires closed in 2 days instead of 2 weeks."
+      },
+      "hero": "360° employee profile: skills, experience, assessments, tracks and achievements in one place.",
+      "sections": [
+        {
+          "heading": "Collected automatically",
+          "body": "The passport updates automatically with no manual entry.",
+          "bullets": ["AI assessment results", "Tests passed broken down by competency", "Career track stages", "Achievements and rewards"]
+        }
+      ],
+      "hrdValue": ["Internal recruiting 5× faster", "Transparent development history", "Performance-review prep in a minute"]
+    },
+    "onboarding": {
+      "title": "Onboarding & invitations",
+      "tagline": "Add 200 employees to the system in an hour.",
+      "story": {
+        "persona": "Svetlana, HRD at a clinic chain",
+        "pain": "Every new hire takes an hour of manual access and track setup.",
+        "solution": "Bulk XLSX import with auto-assignment of positions by email domain and tracks by role.",
+        "result": "Onboarding 200 employees in an hour instead of two weeks."
+      },
+      "hero": "Bulk employee import, auto-assignment of positions and tracks, company launch wizard.",
+      "sections": [
+        {
+          "heading": "Company onboarding wizard",
+          "body": "A step-by-step checklist: positions → tests → tracks → shop → invitations. With a progress bar."
+        },
+        {
+          "heading": "Bulk import",
+          "body": "Employees just sign in with their email — the profile is already configured.",
+          "bullets": ["Upload XLSX/CSV of employees", "Auto-assign positions by email domain", "Welcome bonus on first sign-in"]
+        }
+      ],
+      "hrdValue": ["10× faster onboarding", "Fewer manual-entry errors", "Consistent standards for every new hire"]
+    }
+  }
+}
