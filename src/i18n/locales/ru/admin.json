@@ -264,7 +264,8 @@
     "toastSelfLink": "Нельзя создать связь должности самой с собой",
     "toastNeedTwoPositions": "Нужно минимум 2 должности для построения путей",
     "toastAiNoCareerPaths": "AI не смог построить карьерные пути",
-    "toastBuiltPaths": "Построено {{count}} карьерных путей"
+    "toastBuiltPaths": "Построено {{count}} карьерных путей",
+    "reviewFreqDefault": "12 месяцев или при изменении технологии/стратегии"
   },
   "scenarios": {
     "title": "Сценарии оценки",

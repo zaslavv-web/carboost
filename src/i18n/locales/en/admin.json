@@ -261,10 +261,11 @@
     "toastLoadOrgFirst": "Upload org structure first",
     "toastAiNoPositions": "AI could not generate positions",
     "toastCreatedPositions": "Created {{count}} positions with competency profiles",
-    "toastSelfLink": "Cannot create a self-referencing position link",
+    "toastSelfLink": "Cannot link a position to itself",
     "toastNeedTwoPositions": "At least 2 positions are required to build paths",
     "toastAiNoCareerPaths": "AI could not build career paths",
-    "toastBuiltPaths": "Built {{count}} career paths"
+    "toastBuiltPaths": "Built {{count}} career paths",
+    "reviewFreqDefault": "12 months or when technology/strategy changes"
   },
   "scenarios": {
     "title": "Assessment Scenarios",
