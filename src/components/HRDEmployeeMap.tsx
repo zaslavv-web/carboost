@@ -712,7 +712,7 @@ const HRDEmployeeMap = () => {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-secondary/50 rounded-lg p-3">
                         <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <ShoppingBag className="w-3 h-3" /> Заказов
+                          <ShoppingBag className="w-3 h-3" /> {t("employeeMap.shop.orders")}
                         </div>
                         <div className="text-2xl font-bold text-foreground">{shopActivity?.ordersCount ?? 0}</div>
                       </div>
