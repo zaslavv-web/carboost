@@ -59,6 +59,32 @@ interface OKRKPIItem {
   target: string;
   example: string;
 }
+// Stable enum keys for psychological-portrait trait levels.
+// Stored in DB as these keys; rendered via t(`positions.psychLevels.${key}`).
+const PSYCH_LEVEL_KEYS = ["low", "below_average", "average", "above_average", "high"] as const;
+type PsychLevelKey = typeof PSYCH_LEVEL_KEYS[number];
+
+// Map legacy Russian values (and EN aliases) to stable enum keys.
+const PSYCH_LEVEL_ALIASES: Record<string, PsychLevelKey> = {
+  "низкое": "low",
+  "ниже среднего": "below_average",
+  "среднее": "average",
+  "выше среднего": "above_average",
+  "высокое": "high",
+  "low": "low",
+  "below average": "below_average",
+  "below_average": "below_average",
+  "average": "average",
+  "above average": "above_average",
+  "above_average": "above_average",
+  "high": "high",
+};
+
+const normalizePsychLevel = (raw: unknown): PsychLevelKey => {
+  const key = String(raw ?? "").trim().toLowerCase();
+  return PSYCH_LEVEL_ALIASES[key] ?? "average";
+};
+
 
 // ── Structured Competency Editor ──
 const CompetencyProfileEditor = ({
