@@ -13,6 +13,7 @@ const Settings = () => {
   const { data: profile, isLoading } = useUserProfile();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation("admin");
 
   const [fullName, setFullName] = useState("");
   const [positionId, setPositionId] = useState<string>("");
@@ -51,7 +52,7 @@ const Settings = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      toast.error("Максимальный размер файла — 2 МБ");
+      toast.error(t("settings.toastFileTooLarge"));
       return;
     }
     setAvatarFile(file);
@@ -90,7 +91,7 @@ const Settings = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
-      toast.success("Профиль обновлён");
+      toast.success(t("settings.toastSaved"));
       setAvatarFile(null);
     },
     onError: (e: any) => toast.error(e.message),
@@ -107,8 +108,8 @@ const Settings = () => {
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Настройки профиля</h1>
-        <p className="text-muted-foreground text-sm mt-1">Обновите ваши личные данные</p>
+        <h1 className="text-2xl font-bold text-foreground">{t("settings.title")}</h1>
+        <p className="text-muted-foreground text-sm mt-1">{t("settings.subtitle")}</p>
       </div>
 
       {/* Avatar */}
@@ -128,7 +129,7 @@ const Settings = () => {
           </div>
         </button>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-        <p className="text-xs text-muted-foreground">Нажмите для загрузки (макс. 2 МБ). Форматы: JPG, PNG, GIF, WebP</p>
+        <p className="text-xs text-muted-foreground">{t("settings.avatarHint")}</p>
       </div>
 
       {/* Form */}
@@ -140,7 +141,7 @@ const Settings = () => {
         className="space-y-4"
       >
         <div>
-          <label className="text-sm font-medium text-foreground">Полное имя</label>
+          <label className="text-sm font-medium text-foreground">{t("settings.labelFullName")}</label>
           <input
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
@@ -150,14 +151,14 @@ const Settings = () => {
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-foreground">Должность</label>
+          <label className="text-sm font-medium text-foreground">{t("settings.labelPosition")}</label>
           <select
             value={positionId}
             onChange={(e) => setPositionId(e.target.value)}
             disabled={positionsLoading || positions.length === 0}
             className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary disabled:opacity-50"
           >
-            <option value="">— Выберите должность —</option>
+            <option value="">{t("settings.selectPosition")}</option>
             {positions.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.title}{p.department ? ` · ${p.department}` : ""}
@@ -166,12 +167,12 @@ const Settings = () => {
           </select>
           {!positionsLoading && positions.length === 0 && (
             <p className="mt-1 text-xs text-muted-foreground">
-              В компании пока нет должностей. Их создаёт HRD в разделе «Должности».
+              {t("settings.noPositions")}
             </p>
           )}
           {selectedPosition?.department && (
             <p className="mt-1 text-xs text-muted-foreground">
-              Отдел: <span className="text-foreground">{selectedPosition.department}</span>
+              {t("settings.dept")} <span className="text-foreground">{selectedPosition.department}</span>
             </p>
           )}
         </div>
@@ -182,7 +183,7 @@ const Settings = () => {
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg gradient-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
-          {saveMutation.isPending ? "Сохранение..." : "Сохранить"}
+          {saveMutation.isPending ? t("settings.saving") : t("settings.save")}
         </button>
       </form>
     </div>
