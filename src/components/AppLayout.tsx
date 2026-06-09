@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import AppSidebar from "./AppSidebar";
 import ImpersonationBanner from "./ImpersonationBanner";
 import { Bell, Search, PanelLeftOpen } from "lucide-react";
 import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ThemeToggle from "./ThemeToggle";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 const SIDEBAR_FULL = 260;
 const SIDEBAR_COLLAPSED = 72;
@@ -17,7 +19,14 @@ const AppLayout = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
-  const roleLabels: Record<string, string> = { employee: "Сотрудник", manager: "Руководитель", hrd: "Администратор HRD", superadmin: "Суперадмин", company_admin: "Админ компании" };
+  const { t } = useTranslation();
+  const roleLabels: Record<string, string> = {
+    employee: t("roles.employee"),
+    manager: t("roles.manager"),
+    hrd: t("roles.hrdLong"),
+    superadmin: t("roles.superadmin"),
+    company_admin: t("roles.company_admin"),
+  };
   const initials = profile?.full_name
     ? profile.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : "??";
@@ -70,7 +79,7 @@ const AppLayout = () => {
     <div className="min-h-screen bg-background">
       {isSandbox && (
         <div className="sticky top-0 z-[80] bg-warning text-warning-foreground text-xs md:text-sm font-medium text-center py-1.5 px-3">
-          SANDBOX — тестовое окружение, данные могут быть удалены
+          {t("layout.sandboxBanner")}
         </div>
       )}
       {/* Backdrop when sidebar is shown over content (mobile or hidden-toggle on desktop) */}
@@ -104,7 +113,7 @@ const AppLayout = () => {
               <button
                 onClick={() => setHidden(false)}
                 className="p-2 rounded-lg hover:bg-secondary transition-colors"
-                aria-label="Показать меню"
+                aria-label={t("layout.showMenu")}
               >
                 <PanelLeftOpen className="w-5 h-5 text-muted-foreground" />
               </button>
@@ -113,12 +122,13 @@ const AppLayout = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Поиск..."
+                placeholder={t("actions.search")}
                 className="pl-10 pr-4 py-2 w-48 md:w-72 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
               />
             </div>
           </div>
           <div className="flex items-center gap-1 md:gap-3">
+            <LanguageSwitcher />
             <ThemeToggle />
             <button onClick={() => navigate("/notifications")} className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
               <Bell className="w-5 h-5 text-muted-foreground" />
@@ -129,7 +139,7 @@ const AppLayout = () => {
                 {initials}
               </div>
               <div className="text-sm hidden md:block">
-                <p className="font-medium text-foreground">{profile?.full_name || "Загрузка..."}</p>
+                <p className="font-medium text-foreground">{profile?.full_name || t("layout.loading")}</p>
                 <p className="text-muted-foreground text-xs">{profile?.position || roleLabels[role]}</p>
               </div>
             </div>

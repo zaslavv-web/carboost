@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -66,35 +67,36 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
   const { signOut } = useAuth();
   const role = usePrimaryRole();
   const { data: profile } = useUserProfile();
+  const { t } = useTranslation();
 
   const getNavItems = (): NavEntry[] => {
     const common: NavItem[] = [
-      { icon: LayoutDashboard, label: "Дашборд", path: "/dashboard" },
+      { icon: LayoutDashboard, label: t("nav.dashboard"), path: "/dashboard" },
     ];
 
     if (role === "superadmin") {
       return [
         ...common,
-        { icon: Shield, label: "Компании", path: "/companies" },
-        { icon: UserCog, label: "Пользователи", path: "/users" },
-        { icon: LifeBuoy, label: "Обращения", path: "/support" },
-        { icon: Banknote, label: "Заявки на тарифы", path: "/pricing-inquiries" },
-        { icon: Mail, label: "Почтовый сервис", path: "/email-settings" },
-        { icon: Settings, label: "Настройки", path: "/settings" },
+        { icon: Shield, label: t("nav.companies"), path: "/companies" },
+        { icon: UserCog, label: t("nav.users"), path: "/users" },
+        { icon: LifeBuoy, label: t("nav.support"), path: "/support" },
+        { icon: Banknote, label: t("nav.pricingInquiries"), path: "/pricing-inquiries" },
+        { icon: Mail, label: t("nav.emailService"), path: "/email-settings" },
+        { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
 
     if (role === "company_admin") {
       return [
         ...common,
-        { icon: Rocket, label: "Запуск компании", path: "/onboarding" },
-        { icon: Mail, label: "Приглашения", path: "/invitations" },
-        { icon: UserCog, label: "Пользователи", path: "/users" },
-        { icon: Users, label: "Сотрудники", path: "/employees" },
-        { icon: BarChart3, label: "Аналитика", path: "/analytics" },
-        { icon: Briefcase, label: "Должности", path: "/positions" },
-        { icon: LifeBuoy, label: "Обращения", path: "/support" },
-        { icon: Settings, label: "Настройки", path: "/settings" },
+        { icon: Rocket, label: t("nav.onboarding"), path: "/onboarding" },
+        { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
+        { icon: UserCog, label: t("nav.users"), path: "/users" },
+        { icon: Users, label: t("nav.employees"), path: "/employees" },
+        { icon: BarChart3, label: t("nav.analytics"), path: "/analytics" },
+        { icon: Briefcase, label: t("nav.positions"), path: "/positions" },
+        { icon: LifeBuoy, label: t("nav.support"), path: "/support" },
+        { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
 
@@ -103,72 +105,72 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         ...common,
         {
           icon: Users,
-          label: "Сотрудники",
+          label: t("nav.employeesGroup"),
           children: [
-            { icon: Users, label: "Список сотрудников", path: "/employees" },
-            { icon: Mail, label: "Приглашения", path: "/invitations" },
-            { icon: Rocket, label: "Запуск компании", path: "/onboarding" },
+            { icon: Users, label: t("nav.employeesList"), path: "/employees" },
+            { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
+            { icon: Rocket, label: t("nav.onboarding"), path: "/onboarding" },
           ],
         },
         {
           icon: BarChart3,
-          label: "Аналитика",
+          label: t("nav.analyticsGroup"),
           children: [
-            { icon: BarChart3, label: "Общая аналитика", path: "/analytics" },
-            { icon: Activity, label: "Риски и удержание", path: "/risk-analytics" },
+            { icon: BarChart3, label: t("nav.analyticsOverview"), path: "/analytics" },
+            { icon: Activity, label: t("nav.riskAnalytics"), path: "/risk-analytics" },
           ],
         },
         {
           icon: ClipboardList,
-          label: "Оценка и тесты",
+          label: t("nav.assessmentGroup"),
           children: [
-            { icon: FileJson, label: "Сценарии оценки", path: "/scenarios" },
-            { icon: ClipboardList, label: "Тесты", path: "/tests" },
-            { icon: ClipboardList, label: "Проверка этапов", path: "/career-reviews" },
+            { icon: FileJson, label: t("nav.scenarios"), path: "/scenarios" },
+            { icon: ClipboardList, label: t("nav.tests"), path: "/tests" },
+            { icon: ClipboardList, label: t("nav.careerReviews"), path: "/career-reviews" },
           ],
         },
         {
           icon: Route,
-          label: "Карьера",
+          label: t("nav.careerGroup"),
           children: [
-            { icon: Briefcase, label: "Должности", path: "/positions" },
-            { icon: Route, label: "Карьерные треки", path: "/career-tracks-mgmt" },
+            { icon: Briefcase, label: t("nav.positions"), path: "/positions" },
+            { icon: Route, label: t("nav.careerTracksMgmt"), path: "/career-tracks-mgmt" },
           ],
         },
         {
           icon: Trophy,
-          label: "Вовлечённость",
+          label: t("nav.engagementGroup"),
           children: [
-            { icon: Trophy, label: "Геймификация", path: "/gamification" },
-            { icon: Heart, label: "Лента признания", path: "/recognition" },
-            { icon: Store, label: "Магазин и валюта", path: "/shop-admin" },
+            { icon: Trophy, label: t("nav.gamification"), path: "/gamification" },
+            { icon: Heart, label: t("nav.recognitionFeed"), path: "/recognition" },
+            { icon: Store, label: t("nav.shopAdmin"), path: "/shop-admin" },
           ],
         },
-        { icon: Shield, label: "Политики", path: "/hr-policies" },
-        { icon: Settings, label: "Настройки", path: "/settings" },
+        { icon: Shield, label: t("nav.hrPolicies"), path: "/hr-policies" },
+        { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
 
   if (role === "manager") {
     return [
       ...common,
-      { icon: Users, label: "Моя команда", path: "/team" },
-      { icon: ClipboardList, label: "Проверка этапов", path: "/career-reviews" },
-      { icon: Settings, label: "Настройки", path: "/settings" },
+      { icon: Users, label: t("nav.myTeam"), path: "/team" },
+      { icon: ClipboardList, label: t("nav.careerReviews"), path: "/career-reviews" },
+      { icon: Settings, label: t("nav.settings"), path: "/settings" },
     ];
   }
 
   // Employee
   return [
     ...common,
-    { icon: MessageSquare, label: "AI Оценка", path: "/assessment" },
-    { icon: ClipboardCheck, label: "Анкета", path: "/employee-questionnaire" },
-    { icon: User, label: "Цифровой паспорт", path: "/passport" },
-    { icon: Target, label: "Карьерный трек", path: "/career-track" },
-    { icon: Heart, label: "Признание коллег", path: "/recognition" },
-    { icon: ShoppingBag, label: "Магазин", path: "/shop" },
-    { icon: Bell, label: "Уведомления", path: "/notifications" },
-    { icon: Settings, label: "Настройки", path: "/settings" },
+    { icon: MessageSquare, label: t("nav.aiAssessment"), path: "/assessment" },
+    { icon: ClipboardCheck, label: t("nav.questionnaire"), path: "/employee-questionnaire" },
+    { icon: User, label: t("nav.passport"), path: "/passport" },
+    { icon: Target, label: t("nav.careerTrack"), path: "/career-track" },
+    { icon: Heart, label: t("nav.recognition"), path: "/recognition" },
+    { icon: ShoppingBag, label: t("nav.shop"), path: "/shop" },
+    { icon: Bell, label: t("nav.notifications"), path: "/notifications" },
+    { icon: Settings, label: t("nav.settings"), path: "/settings" },
   ];
 };
 
@@ -186,11 +188,11 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     setOpenGroups((p) => ({ ...p, [label]: !p[label] }));
 
   const roleLabels: Record<string, string> = {
-    employee: "Сотрудник",
-    manager: "Руководитель",
-    hrd: "HRD",
-    company_admin: "Админ компании",
-    superadmin: "Суперадмин",
+    employee: t("roles.employee"),
+    manager: t("roles.manager"),
+    hrd: t("roles.hrd"),
+    company_admin: t("roles.company_admin"),
+    superadmin: t("roles.superadmin"),
   };
 
   return (
@@ -203,14 +205,14 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       <div className="flex items-center gap-3 px-5 h-16 border-b border-sidebar-border">
         <img
           src={brandLogo}
-          alt="Пик Роста"
+          alt={t("brand.logoAlt")}
           width={32}
           height={32}
           className="w-8 h-8 flex-shrink-0 object-contain"
         />
         {!collapsed && (
           <div className="leading-tight">
-            <span className="block font-bold text-base tracking-tight">Пик Роста</span>
+            <span className="block font-bold text-base tracking-tight">{t("brand.name")}</span>
             <span className="block text-[10px] font-medium tracking-[0.15em] text-sidebar-foreground/50 uppercase">Growth Peak</span>
           </div>
         )}
@@ -219,7 +221,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       {/* Role badge */}
       {!collapsed && (
         <div className="mx-3 mt-3 px-3 py-2 rounded-lg bg-sidebar-accent/50">
-          <p className="text-xs text-sidebar-foreground/50">Роль</p>
+          <p className="text-xs text-sidebar-foreground/50">{t("roles.label")}</p>
           <p className="text-sm font-medium text-sidebar-primary">{roleLabels[role]}</p>
         </div>
       )}
@@ -318,12 +320,12 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         {!collapsed && profile && (
           <div className="px-3 py-2 mb-2">
             <p className="text-sm font-medium text-sidebar-foreground truncate">{profile.full_name}</p>
-            <p className="text-xs text-sidebar-foreground/50 truncate">{profile.position || "Не указана"}</p>
+            <p className="text-xs text-sidebar-foreground/50 truncate">{profile.position || t("layout.positionUnknown")}</p>
           </div>
         )}
         <button onClick={() => { signOut(); navigate("/login"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors ${collapsed ? "justify-center" : ""}`}>
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span>Выйти</span>}
+          {!collapsed && <span>{t("actions.signOut")}</span>}
         </button>
       </div>
 
@@ -332,7 +334,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         <button
           onClick={onHide}
           className="absolute right-3 top-3 w-10 h-10 rounded-lg bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors flex items-center justify-center"
-          aria-label="Скрыть меню"
+          aria-label={t("layout.hideMenu")}
         >
           <X className="w-5 h-5" />
         </button>
@@ -340,7 +342,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         <button
           onClick={onToggle}
           className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-          aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
+          aria-label={collapsed ? t("layout.expandMenu") : t("layout.collapseMenu")}
         >
           {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </button>

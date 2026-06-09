@@ -1,0 +1,82 @@
+{
+  "brand": {
+    "name": "Пик Роста",
+    "tagline": "Growth Peak",
+    "logoAlt": "Пик Роста"
+  },
+  "actions": {
+    "signOut": "Выйти",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "create": "Создать",
+    "confirm": "Подтвердить",
+    "back": "Назад",
+    "next": "Далее",
+    "close": "Закрыть",
+    "search": "Поиск..."
+  },
+  "roles": {
+    "label": "Роль",
+    "employee": "Сотрудник",
+    "manager": "Руководитель",
+    "hrd": "HRD",
+    "hrdLong": "Администратор HRD",
+    "company_admin": "Админ компании",
+    "superadmin": "Суперадмин"
+  },
+  "language": {
+    "label": "Язык",
+    "switch": "Переключить язык",
+    "ru": "Русский",
+    "en": "English"
+  },
+  "nav": {
+    "dashboard": "Дашборд",
+    "companies": "Компании",
+    "users": "Пользователи",
+    "support": "Обращения",
+    "pricingInquiries": "Заявки на тарифы",
+    "emailService": "Почтовый сервис",
+    "settings": "Настройки",
+    "onboarding": "Запуск компании",
+    "invitations": "Приглашения",
+    "employees": "Сотрудники",
+    "analytics": "Аналитика",
+    "positions": "Должности",
+    "employeesGroup": "Сотрудники",
+    "employeesList": "Список сотрудников",
+    "analyticsGroup": "Аналитика",
+    "analyticsOverview": "Общая аналитика",
+    "riskAnalytics": "Риски и удержание",
+    "assessmentGroup": "Оценка и тесты",
+    "scenarios": "Сценарии оценки",
+    "tests": "Тесты",
+    "careerReviews": "Проверка этапов",
+    "careerGroup": "Карьера",
+    "careerTracksMgmt": "Карьерные треки",
+    "engagementGroup": "Вовлечённость",
+    "gamification": "Геймификация",
+    "recognitionFeed": "Лента признания",
+    "shopAdmin": "Магазин и валюта",
+    "hrPolicies": "Политики",
+    "myTeam": "Моя команда",
+    "aiAssessment": "AI Оценка",
+    "questionnaire": "Анкета",
+    "passport": "Цифровой паспорт",
+    "careerTrack": "Карьерный трек",
+    "recognition": "Признание коллег",
+    "shop": "Магазин",
+    "notifications": "Уведомления"
+  },
+  "layout": {
+    "sandboxBanner": "SANDBOX — тестовое окружение, данные могут быть удалены",
+    "showMenu": "Показать меню",
+    "hideMenu": "Скрыть меню",
+    "expandMenu": "Развернуть меню",
+    "collapseMenu": "Свернуть меню",
+    "positionUnknown": "Не указана",
+    "loading": "Загрузка..."
+  }
+}

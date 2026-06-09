@@ -1,0 +1,82 @@
+{
+  "brand": {
+    "name": "Growth Peak",
+    "tagline": "Growth Peak",
+    "logoAlt": "Growth Peak"
+  },
+  "actions": {
+    "signOut": "Sign out",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close",
+    "search": "Search..."
+  },
+  "roles": {
+    "label": "Role",
+    "employee": "Employee",
+    "manager": "Manager",
+    "hrd": "HRD",
+    "hrdLong": "HRD Administrator",
+    "company_admin": "Company Admin",
+    "superadmin": "Superadmin"
+  },
+  "language": {
+    "label": "Language",
+    "switch": "Switch language",
+    "ru": "Русский",
+    "en": "English"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "companies": "Companies",
+    "users": "Users",
+    "support": "Support tickets",
+    "pricingInquiries": "Pricing inquiries",
+    "emailService": "Email service",
+    "settings": "Settings",
+    "onboarding": "Company onboarding",
+    "invitations": "Invitations",
+    "employees": "Employees",
+    "analytics": "Analytics",
+    "positions": "Positions",
+    "employeesGroup": "Employees",
+    "employeesList": "Employee list",
+    "analyticsGroup": "Analytics",
+    "analyticsOverview": "Overview analytics",
+    "riskAnalytics": "Risk & retention",
+    "assessmentGroup": "Assessment & tests",
+    "scenarios": "Assessment scenarios",
+    "tests": "Tests",
+    "careerReviews": "Stage reviews",
+    "careerGroup": "Career",
+    "careerTracksMgmt": "Career tracks",
+    "engagementGroup": "Engagement",
+    "gamification": "Gamification",
+    "recognitionFeed": "Recognition feed",
+    "shopAdmin": "Shop & currency",
+    "hrPolicies": "Policies",
+    "myTeam": "My team",
+    "aiAssessment": "AI Assessment",
+    "questionnaire": "Questionnaire",
+    "passport": "Digital passport",
+    "careerTrack": "Career track",
+    "recognition": "Peer recognition",
+    "shop": "Shop",
+    "notifications": "Notifications"
+  },
+  "layout": {
+    "sandboxBanner": "SANDBOX — test environment, data may be wiped",
+    "showMenu": "Show menu",
+    "hideMenu": "Hide menu",
+    "expandMenu": "Expand menu",
+    "collapseMenu": "Collapse menu",
+    "positionUnknown": "Not specified",
+    "loading": "Loading..."
+  }
+}
