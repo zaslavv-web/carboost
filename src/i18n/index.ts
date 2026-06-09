@@ -10,6 +10,12 @@ import ruLanding from "./locales/ru/landing.json";
 import enLanding from "./locales/en/landing.json";
 import ruEmployee from "./locales/ru/employee.json";
 import enEmployee from "./locales/en/employee.json";
+import ruManager from "./locales/ru/manager.json";
+import enManager from "./locales/en/manager.json";
+import ruAdmin from "./locales/ru/admin.json";
+import enAdmin from "./locales/en/admin.json";
+import ruErrors from "./locales/ru/errors.json";
+import enErrors from "./locales/en/errors.json";
 
 export const SUPPORTED_LANGUAGES = ["ru", "en"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
@@ -17,8 +23,8 @@ export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 export const LANGUAGE_STORAGE_KEY = "ct-lang";
 
 const resources = {
-  ru: { common: ruCommon, auth: ruAuth, landing: ruLanding, employee: ruEmployee },
-  en: { common: enCommon, auth: enAuth, landing: enLanding, employee: enEmployee },
+  ru: { common: ruCommon, auth: ruAuth, landing: ruLanding, employee: ruEmployee, manager: ruManager, admin: ruAdmin, errors: ruErrors },
+  en: { common: enCommon, auth: enAuth, landing: enLanding, employee: enEmployee, manager: enManager, admin: enAdmin, errors: enErrors },
 } as const;
 
 i18n
