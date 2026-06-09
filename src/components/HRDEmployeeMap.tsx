@@ -505,9 +505,9 @@ const HRDEmployeeMap = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-foreground">Карта сотрудников</h3>
+          <h3 className="text-lg font-semibold text-foreground">{t("employeeMap.title")}</h3>
           <p className="text-xs text-muted-foreground">
-            Сплошные стрелки — иерархия (руководитель → сотрудник). Пунктирные — горизонтальные HR-связи.
+            {t("employeeMap.subtitle")}
           </p>
         </div>
         <Button
