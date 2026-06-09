@@ -50,6 +50,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import { getIntlLocale } from "@/lib/dateLocale";
 import { formatCoins } from "@/hooks/useCurrency";
 import {
   PieChart,
