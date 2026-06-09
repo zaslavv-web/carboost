@@ -308,5 +308,76 @@
       "noSkills": "Нет данных о компетенциях"
     }
   },
-  "roleDashboard": {}
+  "roleDashboard": {},
+  "employeeMap": {
+    "title": "Карта сотрудников",
+    "subtitle": "Сплошные стрелки — иерархия (руководитель → сотрудник). Пунктирные — горизонтальные HR-связи.",
+    "newTask": "Новая HR-задача",
+    "assignTask": "Назначить HR-задачу",
+    "noEmployees": "Нет сотрудников",
+    "inviteHint": "Пригласите сотрудников, чтобы построить карту.",
+    "noName": "Без имени",
+    "manages": "руководит",
+    "clickHint": "Кликните по карточке сотрудника, чтобы увидеть детали",
+    "tabs": {
+      "overview": "Обзор",
+      "tasks": "Задачи",
+      "shop": "Магазин"
+    },
+    "overview": {
+      "effectiveness": "Эффективность",
+      "balance": "Баланс",
+      "trackProgress": "Прогресс по треку",
+      "hrTasksDone": "HR-задачи (выполнено)",
+      "profileScore": "Оценка профиля",
+      "rewards": "Награды"
+    },
+    "tasks": {
+      "empty": "Нет HR-задач, связанных с сотрудником",
+      "assigneesShort": "{{count}} исп.",
+      "confirm": "Подтвердить",
+      "reject": "Отклонить",
+      "status": {
+        "open": "Открыта",
+        "in_review": "На проверке",
+        "completed": "Выполнена",
+        "rejected": "Отклонена",
+        "cancelled": "Отменена"
+      }
+    },
+    "shop": {
+      "orders": "Заказов",
+      "spent": "Потрачено",
+      "breakdown": "На что тратит",
+      "noOrders": "Сотрудник пока не делал заказов"
+    },
+    "toasts": {
+      "noCompany": "Нет компании",
+      "created": "HR-задача создана",
+      "confirmed": "Задача подтверждена, монеты начислены",
+      "rejected": "Задача отклонена",
+      "deleted": "Удалено",
+      "needTitle": "Укажите название",
+      "needAssignee": "Выберите хотя бы одного исполнителя"
+    },
+    "dialog": {
+      "title": "Новая HR-задача",
+      "name": "Название",
+      "namePlaceholder": "Например: Провести воркшоп для команды",
+      "description": "Описание",
+      "category": "Категория",
+      "reward": "Награда (монеты)",
+      "deadline": "Дедлайн",
+      "assignees": "Исполнители ({{count}})",
+      "cancel": "Отмена",
+      "create": "Создать"
+    },
+    "categories": {
+      "collaboration": "Совместная работа",
+      "mentorship": "Менторство",
+      "knowledge_sharing": "Обмен знаниями",
+      "project": "Проект",
+      "onboarding": "Онбординг"
+    }
+  }
 }

@@ -50,6 +50,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import { getIntlLocale } from "@/lib/dateLocale";
 import { formatCoins } from "@/hooks/useCurrency";
 import {
   PieChart,
@@ -100,6 +102,7 @@ const initials = (name: string) =>
     .join("");
 
 const HRDEmployeeMap = () => {
+  const { t } = useTranslation("manager");
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const companyId = profile?.company_id;
@@ -215,7 +218,7 @@ const HRDEmployeeMap = () => {
           data: {
             label: (
               <div className="text-left">
-                <div className="font-semibold text-xs truncate max-w-[200px]">{e.full_name || "Без имени"}</div>
+                <div className="font-semibold text-xs truncate max-w-[200px]">{e.full_name || t("employeeMap.noName")}</div>
                 <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">
                   {e.position || "—"}
                 </div>
@@ -247,7 +250,7 @@ const HRDEmployeeMap = () => {
         animated: false,
         style: { stroke: "hsl(var(--info))", strokeWidth: 2 },
         markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--info))" },
-        label: "руководит",
+        label: t("employeeMap.manages"),
         labelStyle: { fill: "hsl(var(--muted-foreground))", fontSize: 10 },
       });
     });
@@ -398,7 +401,7 @@ const HRDEmployeeMap = () => {
       deadline: string | null;
       assigneeIds: string[];
     }) => {
-      if (!companyId || !user) throw new Error("Нет компании");
+      if (!companyId || !user) throw new Error(t("employeeMap.toasts.noCompany"));
       const { data: task, error } = await laravelDb
         .from("hr_tasks")
         .insert({
@@ -423,7 +426,7 @@ const HRDEmployeeMap = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hrd_map_hr_tasks"] });
-      toast.success("HR-задача создана");
+      toast.success(t("employeeMap.toasts.created"));
       setCreateTaskOpen(false);
     },
     onError: (e: any) => toast.error(e.message),
@@ -441,7 +444,7 @@ const HRDEmployeeMap = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hrd_map_hr_tasks"] });
       qc.invalidateQueries({ queryKey: ["hrd_map_balances"] });
-      toast.success("Задача подтверждена, монеты начислены");
+      toast.success(t("employeeMap.toasts.confirmed"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -457,7 +460,7 @@ const HRDEmployeeMap = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hrd_map_hr_tasks"] });
-      toast.success("Задача отклонена");
+      toast.success(t("employeeMap.toasts.rejected"));
     },
   });
 
@@ -468,7 +471,7 @@ const HRDEmployeeMap = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hrd_map_hr_tasks"] });
-      toast.success("Удалено");
+      toast.success(t("employeeMap.toasts.deleted"));
     },
   });
 
@@ -484,8 +487,8 @@ const HRDEmployeeMap = () => {
     return (
       <div className="bg-card rounded-xl p-12 text-center border border-border">
         <UsersIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="font-semibold text-foreground mb-2">Нет сотрудников</h3>
-        <p className="text-sm text-muted-foreground">Пригласите сотрудников, чтобы построить карту.</p>
+        <h3 className="font-semibold text-foreground mb-2">{t("employeeMap.noEmployees")}</h3>
+        <p className="text-sm text-muted-foreground">{t("employeeMap.inviteHint")}</p>
       </div>
     );
   }
@@ -502,9 +505,9 @@ const HRDEmployeeMap = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-foreground">Карта сотрудников</h3>
+          <h3 className="text-lg font-semibold text-foreground">{t("employeeMap.title")}</h3>
           <p className="text-xs text-muted-foreground">
-            Сплошные стрелки — иерархия (руководитель → сотрудник). Пунктирные — горизонтальные HR-связи.
+            {t("employeeMap.subtitle")}
           </p>
         </div>
         <Button
@@ -514,7 +517,7 @@ const HRDEmployeeMap = () => {
             setCreateTaskOpen(true);
           }}
         >
-          <Plus className="w-4 h-4 mr-2" /> Новая HR-задача
+          <Plus className="w-4 h-4 mr-2" /> {t("employeeMap.newTask")}
         </Button>
       </div>
 
@@ -546,7 +549,7 @@ const HRDEmployeeMap = () => {
         <div className="bg-card rounded-xl border border-border overflow-hidden flex flex-col">
           {!selected ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              Кликните по карточке сотрудника, чтобы увидеть детали
+              {t("employeeMap.clickHint")}
             </div>
           ) : (
             <>
@@ -573,22 +576,22 @@ const HRDEmployeeMap = () => {
               <ScrollArea className="flex-1 max-h-[calc(70vh-72px)]">
                 <Tabs defaultValue="overview" className="p-3">
                   <TabsList className="grid grid-cols-3 w-full">
-                    <TabsTrigger value="overview">Обзор</TabsTrigger>
-                    <TabsTrigger value="tasks">Задачи</TabsTrigger>
-                    <TabsTrigger value="shop">Магазин</TabsTrigger>
+                    <TabsTrigger value="overview">{t("employeeMap.tabs.overview")}</TabsTrigger>
+                    <TabsTrigger value="tasks">{t("employeeMap.tabs.tasks")}</TabsTrigger>
+                    <TabsTrigger value="shop">{t("employeeMap.tabs.shop")}</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="overview" className="space-y-3 mt-3">
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-secondary/50 rounded-lg p-3">
                         <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3" /> Эффективность
+                          <TrendingUp className="w-3 h-3" /> {t("employeeMap.overview.effectiveness")}
                         </div>
                         <div className="text-2xl font-bold text-foreground">{composite?.composite ?? 0}</div>
                       </div>
                       <div className="bg-secondary/50 rounded-lg p-3">
                         <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <Coins className="w-3 h-3" /> Баланс
+                          <Coins className="w-3 h-3" /> {t("employeeMap.overview.balance")}
                         </div>
                         <div className="text-2xl font-bold text-foreground">
                           {formatCoins(balanceMap.get(selected.user_id) || 0)}
@@ -598,21 +601,21 @@ const HRDEmployeeMap = () => {
                     {composite && (
                       <div className="space-y-2 text-xs">
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Прогресс по треку</span>
+                          <span className="text-muted-foreground">{t("employeeMap.overview.trackProgress")}</span>
                           <span className="font-medium">{composite.trackProgress}%</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">HR-задачи (выполнено)</span>
+                          <span className="text-muted-foreground">{t("employeeMap.overview.hrTasksDone")}</span>
                           <span className="font-medium">
                             {composite.completedTasks}/{composite.totalTasks} ({composite.taskRatio}%)
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Оценка профиля</span>
+                          <span className="text-muted-foreground">{t("employeeMap.overview.profileScore")}</span>
                           <span className="font-medium">{composite.overall}/100</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Награды</span>
+                          <span className="text-muted-foreground">{t("employeeMap.overview.rewards")}</span>
                           <span className="font-medium">{composite.rewardsCount}</span>
                         </div>
                       </div>
@@ -626,80 +629,76 @@ const HRDEmployeeMap = () => {
                         setCreateTaskOpen(true);
                       }}
                     >
-                      <Plus className="w-4 h-4 mr-1" /> Назначить HR-задачу
+                      <Plus className="w-4 h-4 mr-1" /> {t("employeeMap.assignTask")}
                     </Button>
                   </TabsContent>
 
                   <TabsContent value="tasks" className="space-y-2 mt-3">
                     {selectedTasks.length === 0 && (
                       <p className="text-xs text-muted-foreground text-center py-4">
-                        Нет HR-задач, связанных с сотрудником
+                        {t("employeeMap.tasks.empty")}
                       </p>
                     )}
-                    {selectedTasks.map((t) => (
-                      <div key={t.id} className="border border-border rounded-lg p-3 space-y-2">
+                    {selectedTasks.map((task) => (
+                      <div key={task.id} className="border border-border rounded-lg p-3 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="font-medium text-sm text-foreground truncate">{t.title}</div>
-                            {t.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-2">{t.description}</p>
+                            <div className="font-medium text-sm text-foreground truncate">{task.title}</div>
+                            {task.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
                             )}
                           </div>
                           <Badge
                             variant={
-                              t.status === "completed"
+                              task.status === "completed"
                                 ? "default"
-                                : t.status === "in_review"
+                                : task.status === "in_review"
                                 ? "secondary"
-                                : t.status === "rejected"
+                                : task.status === "rejected"
                                 ? "destructive"
                                 : "outline"
                             }
                             className="shrink-0 text-[10px]"
                           >
-                            {t.status === "open" && "Открыта"}
-                            {t.status === "in_review" && "На проверке"}
-                            {t.status === "completed" && "Выполнена"}
-                            {t.status === "rejected" && "Отклонена"}
-                            {t.status === "cancelled" && "Отменена"}
+                            {t(`employeeMap.tasks.status.${task.status}`, task.status)}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
                           <span className="flex items-center gap-1">
-                            <Coins className="w-3 h-3" /> {t.reward_coins}
+                            <Coins className="w-3 h-3" /> {task.reward_coins}
                           </span>
-                          {t.deadline && (
+                          {task.deadline && (
                             <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> {new Date(t.deadline).toLocaleDateString("ru-RU")}
+                              <Clock className="w-3 h-3" /> {new Date(task.deadline).toLocaleDateString(getIntlLocale())}
                             </span>
                           )}
-                          <span>· {t.assignees.length} исп.</span>
+                          <span>· {t("employeeMap.tasks.assigneesShort", { count: task.assignees.length })}</span>
                         </div>
-                        {t.status !== "completed" && t.status !== "cancelled" && (
+                        {task.status !== "completed" && task.status !== "cancelled" && (
                           <div className="flex gap-2">
                             <Button
                               size="sm"
                               variant="default"
                               className="h-7 text-xs flex-1"
-                              onClick={() => completeTaskMutation.mutate(t.id)}
+                              onClick={() => completeTaskMutation.mutate(task.id)}
                               disabled={completeTaskMutation.isPending}
                             >
                               <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Подтвердить
+                              {t("employeeMap.tasks.confirm")}
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
                               className="h-7 text-xs"
-                              onClick={() => rejectTaskMutation.mutate(t.id)}
+                              onClick={() => rejectTaskMutation.mutate(task.id)}
                             >
-                              Отклонить
+                              {t("employeeMap.tasks.reject")}
                             </Button>
                             <Button
                               size="icon"
                               variant="ghost"
                               className="h-7 w-7"
-                              onClick={() => deleteTaskMutation.mutate(t.id)}
+                              onClick={() => deleteTaskMutation.mutate(task.id)}
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
@@ -713,13 +712,13 @@ const HRDEmployeeMap = () => {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-secondary/50 rounded-lg p-3">
                         <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <ShoppingBag className="w-3 h-3" /> Заказов
+                          <ShoppingBag className="w-3 h-3" /> {t("employeeMap.shop.orders")}
                         </div>
                         <div className="text-2xl font-bold text-foreground">{shopActivity?.ordersCount ?? 0}</div>
                       </div>
                       <div className="bg-secondary/50 rounded-lg p-3">
                         <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <Coins className="w-3 h-3" /> Потрачено
+                          <Coins className="w-3 h-3" /> {t("employeeMap.shop.spent")}
                         </div>
                         <div className="text-2xl font-bold text-foreground">
                           {formatCoins(shopActivity?.totalSpent || 0)}
@@ -728,7 +727,7 @@ const HRDEmployeeMap = () => {
                     </div>
                     {shopActivity && shopActivity.spendBreakdown.length > 0 ? (
                       <div>
-                        <div className="text-xs font-medium text-foreground mb-2">На что тратит</div>
+                        <div className="text-xs font-medium text-foreground mb-2">{t("employeeMap.shop.breakdown")}</div>
                         <ResponsiveContainer width="100%" height={180}>
                           <PieChart>
                             <Pie
@@ -738,7 +737,7 @@ const HRDEmployeeMap = () => {
                               cx="50%"
                               cy="50%"
                               outerRadius={60}
-                              label={(e) => `${e.name?.slice(0, 10)}`}
+                              label={(e: any) => `${(e?.name as string)?.slice(0, 10) ?? ""}`}
                             >
                               {shopActivity.spendBreakdown.map((_, i) => (
                                 <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
@@ -757,7 +756,7 @@ const HRDEmployeeMap = () => {
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground text-center py-4">
-                        Сотрудник пока не делал заказов
+                        {t("employeeMap.shop.noOrders")}
                       </p>
                     )}
                   </TabsContent>
@@ -796,13 +795,7 @@ interface CreateHrTaskDialogProps {
   isPending: boolean;
 }
 
-const CATEGORIES = [
-  { value: "collaboration", label: "Совместная работа" },
-  { value: "mentorship", label: "Менторство" },
-  { value: "knowledge_sharing", label: "Обмен знаниями" },
-  { value: "project", label: "Проект" },
-  { value: "onboarding", label: "Онбординг" },
-];
+const CATEGORY_VALUES = ["collaboration", "mentorship", "knowledge_sharing", "project", "onboarding"] as const;
 
 const CreateHrTaskDialog = ({
   open,
@@ -812,6 +805,7 @@ const CreateHrTaskDialog = ({
   onSubmit,
   isPending,
 }: CreateHrTaskDialogProps) => {
+  const { t } = useTranslation("manager");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("collaboration");
@@ -837,11 +831,11 @@ const CreateHrTaskDialog = ({
 
   const submit = () => {
     if (!title.trim()) {
-      toast.error("Укажите название");
+      toast.error(t("employeeMap.toasts.needTitle"));
       return;
     }
     if (assigneeIds.length === 0) {
-      toast.error("Выберите хотя бы одного исполнителя");
+      toast.error(t("employeeMap.toasts.needAssignee"));
       return;
     }
     onSubmit({
@@ -858,40 +852,40 @@ const CreateHrTaskDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Новая HR-задача</DialogTitle>
+          <DialogTitle>{t("employeeMap.dialog.title")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label>Название</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Например: Провести воркшоп для команды" />
+            <Label>{t("employeeMap.dialog.name")}</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("employeeMap.dialog.namePlaceholder")} />
           </div>
           <div>
-            <Label>Описание</Label>
+            <Label>{t("employeeMap.dialog.description")}</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label>Категория</Label>
+              <Label>{t("employeeMap.dialog.category")}</Label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  {CATEGORY_VALUES.map((c) => (
+                    <SelectItem key={c} value={c}>{t(`employeeMap.categories.${c}`)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Награда (монеты)</Label>
+              <Label>{t("employeeMap.dialog.reward")}</Label>
               <Input type="number" min={0} value={reward} onChange={(e) => setReward(Number(e.target.value))} />
             </div>
           </div>
           <div>
-            <Label>Дедлайн</Label>
+            <Label>{t("employeeMap.dialog.deadline")}</Label>
             <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
           </div>
           <div>
-            <Label>Исполнители ({assigneeIds.length})</Label>
+            <Label>{t("employeeMap.dialog.assignees", { count: assigneeIds.length })}</Label>
             <ScrollArea className="h-40 border border-border rounded-lg p-2 mt-1">
               <div className="space-y-1">
                 {employees.map((e) => (
@@ -922,10 +916,10 @@ const CreateHrTaskDialog = ({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Отмена</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("employeeMap.dialog.cancel")}</Button>
           <Button onClick={submit} disabled={isPending}>
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Создать
+            {t("employeeMap.dialog.create")}
           </Button>
         </DialogFooter>
       </DialogContent>
