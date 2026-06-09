@@ -56,7 +56,7 @@ export default function MyOrders() {
                     <p className="font-semibold">{t("myOrders.order")} #{o.id.substring(0, 8)}</p>
                     <p className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleString(getIntlLocale())}</p>
                   </div>
-                  <Badge variant={STATUS_VARIANT[o.status] ?? "outline"}>{t(`myOrders.status.${o.status}`, o.status)}</Badge>
+                  <Badge variant={STATUS_VARIANT[o.status] ?? "outline"}>{t(`myOrders.status.${o.status}`, { defaultValue: o.status }) as string}</Badge>
                 </div>
                 <div className="space-y-1 text-sm">
                   {o.items?.map((it: any) => (

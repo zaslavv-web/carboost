@@ -120,7 +120,7 @@ export default function ShopProductDetail() {
                   <Badge variant="outline" className="ml-2">
                     {t("shopProduct.periodLimit", {
                       count: product.max_per_period,
-                      period: t(`shopProduct.period.${product.period_kind}`, product.period_kind),
+                      period: t(`shopProduct.period.${product.period_kind}`, { defaultValue: product.period_kind }) as string,
                     })}
                   </Badge>
                 )}
