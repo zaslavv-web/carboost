@@ -727,7 +727,7 @@ const HRDEmployeeMap = () => {
                     </div>
                     {shopActivity && shopActivity.spendBreakdown.length > 0 ? (
                       <div>
-                        <div className="text-xs font-medium text-foreground mb-2">На что тратит</div>
+                        <div className="text-xs font-medium text-foreground mb-2">{t("employeeMap.shop.breakdown")}</div>
                         <ResponsiveContainer width="100%" height={180}>
                           <PieChart>
                             <Pie
