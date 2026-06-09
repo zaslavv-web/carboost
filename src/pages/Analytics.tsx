@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { laravelDb } from "@/integrations/laravel/db";
-import { BarChart3, TrendingUp, Users, Target, Loader2, Download, ImageDown, FileSpreadsheet } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Target, Loader2, ImageDown, FileSpreadsheet } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
@@ -10,6 +10,7 @@ import {
 import { toPng } from "html-to-image";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 const useAnalyticsData = () =>
   useQuery({
@@ -32,7 +33,6 @@ const useAnalyticsData = () =>
     },
   });
 
-/** Triggers a browser download of a Blob/dataURL */
 const downloadFile = (data: Blob | string, filename: string) => {
   const url = typeof data === "string" ? data : URL.createObjectURL(data);
   const link = document.createElement("a");
@@ -47,6 +47,7 @@ const downloadFile = (data: Blob | string, filename: string) => {
 const todayStamp = () => new Date().toISOString().slice(0, 10);
 
 const Analytics = () => {
+  const { t } = useTranslation("manager");
   const { data, isLoading } = useAnalyticsData();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [exportingPng, setExportingPng] = useState(false);
@@ -73,10 +74,9 @@ const Analytics = () => {
   const completedGoals = goals.filter((g) => g.status === "completed").length;
   const totalGoals = goals.length;
 
-  // Department scores
   const deptMap = new Map<string, { count: number; totalScore: number; totalReadiness: number }>();
   profiles.forEach((p) => {
-    const dept = p.department || "Без отдела";
+    const dept = p.department || t("analytics.noDept");
     const cur = deptMap.get(dept) || { count: 0, totalScore: 0, totalReadiness: 0 };
     cur.count++;
     cur.totalScore += p.overall_score || 0;
@@ -90,7 +90,6 @@ const Analytics = () => {
     employees: d.count,
   }));
 
-  // Competency averages
   const skillMap = new Map<string, { total: number; count: number }>();
   competencies.forEach((c) => {
     const cur = skillMap.get(c.skill_name) || { total: 0, count: 0 };
@@ -103,7 +102,6 @@ const Analytics = () => {
     value: Math.round(d.total / d.count),
   }));
 
-  // Assessment trend (by month)
   const monthMap = new Map<string, { total: number; count: number }>();
   assessments.forEach((a) => {
     const month = a.created_at.slice(0, 7);
@@ -120,12 +118,10 @@ const Analytics = () => {
       assessments: d.count,
     }));
 
-  // Role distribution
   const roleCounts: Record<string, number> = {};
   roles.forEach((r) => {
     roleCounts[r.role] = (roleCounts[r.role] || 0) + 1;
   });
-  const roleLabels: Record<string, string> = { employee: "Сотрудники", manager: "Руководители", hrd: "HRD", superadmin: "Суперадмины" };
   const roleColors: Record<string, string> = {
     employee: "hsl(var(--primary))",
     manager: "hsl(var(--info))",
@@ -133,101 +129,88 @@ const Analytics = () => {
     superadmin: "hsl(var(--destructive))",
   };
   const roleDistribution = Object.entries(roleCounts).map(([role, value]) => ({
-    name: roleLabels[role] || role,
+    name: t(`analytics.roles.${role}`, { defaultValue: role }),
     value,
     color: roleColors[role] || "hsl(var(--muted))",
   }));
 
-  /** Capture the dashboard area as PNG. Resolves CSS var colors via current computed styles. */
   const handleExportPng = async () => {
     if (!dashboardRef.current) return;
     setExportingPng(true);
     try {
-      // Resolve background to opaque colour so PNG isn't transparent
       const bgColor = getComputedStyle(document.body).backgroundColor || "#ffffff";
       const dataUrl = await toPng(dashboardRef.current, {
         cacheBust: true,
         pixelRatio: 2,
         backgroundColor: bgColor,
         filter: (node) => {
-          // Exclude the export toolbar from the snapshot
           if (node instanceof HTMLElement && node.dataset.exportExclude === "true") return false;
           return true;
         },
       });
       downloadFile(dataUrl, `analytics-dashboard-${todayStamp()}.png`);
-      toast.success("Дашборд сохранён в PNG");
+      toast.success(t("analytics.toast.pngSaved"));
     } catch (err) {
       console.error("PNG export failed", err);
-      toast.error("Не удалось сохранить PNG");
+      toast.error(t("analytics.toast.pngError"));
     } finally {
       setExportingPng(false);
     }
   };
 
-  /** Export every dataset as separate sheets in one universal .xlsx workbook. */
   const handleExportXlsx = () => {
     setExportingXlsx(true);
     try {
       const wb = XLSX.utils.book_new();
 
-      // Sheet 1 — Summary metrics (key-value)
+      const kMetric = t("analytics.metrics.avgScore");
       const summaryRows = [
-        { Показатель: "Средний балл", Значение: avgScore },
-        { Показатель: "Готовность к роли (%)", Значение: avgReadiness },
-        { Показатель: "Оценок проведено", Значение: assessments.length },
-        { Показатель: "Целей достигнуто", Значение: completedGoals },
-        { Показатель: "Целей всего", Значение: totalGoals },
-        { Показатель: "Сотрудников в выгрузке", Значение: profiles.length },
-        { Показатель: "Дата выгрузки", Значение: todayStamp() },
+        { [kMetric]: t("analytics.metrics.avgScore"), value: avgScore },
+        { [kMetric]: t("analytics.metrics.roleReadiness") + " (%)", value: avgReadiness },
+        { [kMetric]: t("analytics.metrics.assessmentsDone"), value: assessments.length },
+        { [kMetric]: t("analytics.metrics.goalsCompleted"), value: completedGoals },
+        { [kMetric]: "Total goals", value: totalGoals },
+        { [kMetric]: "Employees", value: profiles.length },
+        { [kMetric]: "Export date", value: todayStamp() },
       ];
       const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
       wsSummary["!cols"] = [{ wch: 32 }, { wch: 18 }];
-      XLSX.utils.book_append_sheet(wb, wsSummary, "Сводка");
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
 
-      // Sheet 2 — Динамика по месяцам
       const wsTrend = XLSX.utils.json_to_sheet(
-        trendData.map((r) => ({ Месяц: r.month, "Средний балл": r.avgScore, "Кол-во оценок": r.assessments }))
+        trendData.map((r) => ({ Month: r.month, AvgScore: r.avgScore, Assessments: r.assessments }))
       );
-      wsTrend["!cols"] = [{ wch: 12 }, { wch: 16 }, { wch: 16 }];
-      XLSX.utils.book_append_sheet(wb, wsTrend, "Динамика оценок");
+      XLSX.utils.book_append_sheet(wb, wsTrend, "Trend");
 
-      // Sheet 3 — Распределение ролей
       const wsRoles = XLSX.utils.json_to_sheet(
-        roleDistribution.map((r) => ({ Роль: r.name, "Кол-во пользователей": r.value }))
+        roleDistribution.map((r) => ({ Role: r.name, Count: r.value }))
       );
-      wsRoles["!cols"] = [{ wch: 24 }, { wch: 22 }];
-      XLSX.utils.book_append_sheet(wb, wsRoles, "Распределение ролей");
+      XLSX.utils.book_append_sheet(wb, wsRoles, "Roles");
 
-      // Sheet 4 — Сравнение отделов
       const wsDept = XLSX.utils.json_to_sheet(
         departmentData.map((d) => ({
-          Отдел: d.name,
-          "Сотрудников": d.employees,
-          "Средний балл": d.avgScore,
-          "Готовность (%)": d.avgReadiness,
+          Department: d.name,
+          Employees: d.employees,
+          AvgScore: d.avgScore,
+          Readiness: d.avgReadiness,
         }))
       );
-      wsDept["!cols"] = [{ wch: 28 }, { wch: 14 }, { wch: 16 }, { wch: 16 }];
-      XLSX.utils.book_append_sheet(wb, wsDept, "Отделы");
+      XLSX.utils.book_append_sheet(wb, wsDept, "Departments");
 
-      // Sheet 5 — Средние компетенции
       const wsSkills = XLSX.utils.json_to_sheet(
-        skillData.map((s) => ({ Компетенция: s.name, "Средний уровень": s.value }))
+        skillData.map((s) => ({ Competency: s.name, AvgLevel: s.value }))
       );
-      wsSkills["!cols"] = [{ wch: 36 }, { wch: 18 }];
-      XLSX.utils.book_append_sheet(wb, wsSkills, "Компетенции");
+      XLSX.utils.book_append_sheet(wb, wsSkills, "Competencies");
 
-      // Write as binary array — universal .xlsx readable by Excel/LibreOffice/Numbers/Google Sheets
       const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
       const blob = new Blob([wbout], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       downloadFile(blob, `analytics-${todayStamp()}.xlsx`);
-      toast.success("Таблицы выгружены в XLSX");
+      toast.success(t("analytics.toast.xlsxSaved"));
     } catch (err) {
       console.error("XLSX export failed", err);
-      toast.error("Не удалось выгрузить таблицы");
+      toast.error(t("analytics.toast.xlsxError"));
     } finally {
       setExportingXlsx(false);
     }
@@ -237,8 +220,8 @@ const Analytics = () => {
     <div className="space-y-8 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4" data-export-exclude="true">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Аналитика 📊</h1>
-          <p className="text-muted-foreground mt-1">Сводные данные по компании</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("analytics.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("analytics.subtitle")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -247,7 +230,7 @@ const Analytics = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card hover:bg-secondary text-sm font-medium transition-colors disabled:opacity-60"
           >
             {exportingPng ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageDown className="w-4 h-4" />}
-            Скачать PNG
+            {t("analytics.exportPng")}
           </button>
           <button
             onClick={handleExportXlsx}
@@ -255,23 +238,22 @@ const Analytics = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 text-sm font-medium transition-opacity disabled:opacity-60"
           >
             {exportingXlsx ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-            Скачать XLSX
+            {t("analytics.exportXlsx")}
           </button>
         </div>
       </div>
 
       <div ref={dashboardRef} className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          <MetricCard title="Средний балл" value={String(avgScore)} subtitle="По всем сотрудникам" icon={TrendingUp} />
-          <MetricCard title="Готовность к роли" value={`${avgReadiness}%`} subtitle="Средняя по компании" icon={Target} />
-          <MetricCard title="Оценок проведено" value={String(assessments.length)} icon={BarChart3} />
-          <MetricCard title="Целей достигнуто" value={`${completedGoals}/${totalGoals}`} icon={Users} />
+          <MetricCard title={t("analytics.metrics.avgScore")} value={String(avgScore)} subtitle={t("analytics.metrics.allEmployees")} icon={TrendingUp} />
+          <MetricCard title={t("analytics.metrics.roleReadiness")} value={`${avgReadiness}%`} subtitle={t("analytics.metrics.avgPerCompany")} icon={Target} />
+          <MetricCard title={t("analytics.metrics.assessmentsDone")} value={String(assessments.length)} icon={BarChart3} />
+          <MetricCard title={t("analytics.metrics.goalsCompleted")} value={`${completedGoals}/${totalGoals}`} icon={Users} />
         </div>
 
-        {/* Trend + Role distribution */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-card rounded-xl p-6 shadow-card border border-border">
-            <h3 className="font-semibold text-foreground mb-4">Динамика оценок по месяцам</h3>
+            <h3 className="font-semibold text-foreground mb-4">{t("analytics.charts.trendTitle")}</h3>
             {trendData.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={trendData}>
@@ -280,17 +262,17 @@ const Analytics = () => {
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                   <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
                   <Legend />
-                  <Line type="monotone" dataKey="avgScore" stroke="hsl(var(--primary))" strokeWidth={2} name="Средний балл" />
-                  <Line type="monotone" dataKey="assessments" stroke="hsl(var(--info))" strokeWidth={2} name="Кол-во оценок" />
+                  <Line type="monotone" dataKey="avgScore" stroke="hsl(var(--primary))" strokeWidth={2} name={t("analytics.charts.avgScoreLine")} />
+                  <Line type="monotone" dataKey="assessments" stroke="hsl(var(--info))" strokeWidth={2} name={t("analytics.charts.assessmentsLine")} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">Нет данных об оценках</p>
+              <p className="text-sm text-muted-foreground text-center py-8">{t("analytics.charts.noAssessments")}</p>
             )}
           </div>
 
           <div className="bg-card rounded-xl p-6 shadow-card border border-border">
-            <h3 className="font-semibold text-foreground mb-4">Распределение ролей</h3>
+            <h3 className="font-semibold text-foreground mb-4">{t("analytics.charts.roleDistTitle")}</h3>
             {roleDistribution.length > 0 ? (
               <>
                 <ResponsiveContainer width="100%" height={180}>
@@ -316,15 +298,14 @@ const Analytics = () => {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">Нет данных</p>
+              <p className="text-sm text-muted-foreground text-center py-8">{t("analytics.charts.noData")}</p>
             )}
           </div>
         </div>
 
-        {/* Department comparison + Skills */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-card rounded-xl p-6 shadow-card border border-border">
-            <h3 className="font-semibold text-foreground mb-4">Сравнение отделов</h3>
+            <h3 className="font-semibold text-foreground mb-4">{t("analytics.charts.deptCompTitle")}</h3>
             {departmentData.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={departmentData}>
@@ -333,17 +314,17 @@ const Analytics = () => {
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                   <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
                   <Legend />
-                  <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Средний балл" />
-                  <Bar dataKey="avgReadiness" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} name="Готовность" />
+                  <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name={t("analytics.charts.avgScoreBar")} />
+                  <Bar dataKey="avgReadiness" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} name={t("analytics.charts.readinessBar")} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">Нет данных</p>
+              <p className="text-sm text-muted-foreground text-center py-8">{t("analytics.charts.noData")}</p>
             )}
           </div>
 
           <div className="bg-card rounded-xl p-6 shadow-card border border-border">
-            <h3 className="font-semibold text-foreground mb-4">Средние компетенции</h3>
+            <h3 className="font-semibold text-foreground mb-4">{t("analytics.charts.skillsTitle")}</h3>
             {skillData.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={skillData} layout="vertical">
@@ -351,11 +332,11 @@ const Analytics = () => {
                   <XAxis type="number" domain={[0, 100]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                   <YAxis dataKey="name" type="category" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} width={120} />
                   <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Средний уровень" />
+                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name={t("analytics.charts.avgLevelBar")} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">Нет данных о компетенциях</p>
+              <p className="text-sm text-muted-foreground text-center py-8">{t("analytics.charts.noSkills")}</p>
             )}
           </div>
         </div>
