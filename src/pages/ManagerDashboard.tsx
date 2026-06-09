@@ -6,6 +6,7 @@ import { Users, TrendingUp, Target, Award, Eye, Loader2, UserPlus, X, Search } f
 import MetricCard from "@/components/MetricCard";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 interface TeamMember {
   user_id: string;
@@ -20,6 +21,7 @@ interface TeamMember {
 }
 
 const ManagerDashboard = () => {
+  const { t } = useTranslation("manager");
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -121,7 +123,7 @@ const ManagerDashboard = () => {
       queryClient.invalidateQueries({ queryKey: ["team_members"] });
       queryClient.invalidateQueries({ queryKey: ["manager_team_data"] });
       queryClient.invalidateQueries({ queryKey: ["manager_team_competencies"] });
-      toast.success("Сотрудник добавлен в команду");
+      toast.success(t("managerDashboard.employeeAdded"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -135,7 +137,7 @@ const ManagerDashboard = () => {
       queryClient.invalidateQueries({ queryKey: ["team_members"] });
       queryClient.invalidateQueries({ queryKey: ["manager_team_data"] });
       queryClient.invalidateQueries({ queryKey: ["manager_team_competencies"] });
-      toast.success("Сотрудник удалён из команды");
+      toast.success(t("managerDashboard.employeeRemoved"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -171,34 +173,34 @@ const ManagerDashboard = () => {
     <div className="space-y-8 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Дашборд руководителя 📊</h1>
-          <p className="text-muted-foreground mt-1">Обзор команды и прогресса развития</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("managerDashboard.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("managerDashboard.subtitle")}</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
         >
-          <UserPlus className="w-4 h-4" /> Добавить в команду
+          <UserPlus className="w-4 h-4" /> {t("managerDashboard.addToTeam")}
         </button>
       </div>
 
       {/* Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <MetricCard title="Сотрудников в команде" value={String(teamMembers.length)} icon={Users} />
-        <MetricCard title="Средний прогресс" value={`${avgProgress}%`} subtitle="По карьерным трекам" icon={TrendingUp} />
-        <MetricCard title="Целей в работе" value={String(totalGoals)} subtitle={atRiskCount > 0 ? `${atRiskCount} под угрозой` : undefined} icon={Target} />
-        <MetricCard title="Средний балл" value={String(avgScore)} subtitle="Компетенции команды" icon={Award} />
+        <MetricCard title={t("managerDashboard.metrics.teamSize")} value={String(teamMembers.length)} icon={Users} />
+        <MetricCard title={t("managerDashboard.metrics.avgProgress")} value={`${avgProgress}%`} subtitle={t("managerDashboard.metrics.careerTracks")} icon={TrendingUp} />
+        <MetricCard title={t("managerDashboard.metrics.goalsInProgress")} value={String(totalGoals)} subtitle={atRiskCount > 0 ? t("managerDashboard.metrics.atRisk", { count: atRiskCount }) : undefined} icon={Target} />
+        <MetricCard title={t("managerDashboard.metrics.avgScore")} value={String(avgScore)} subtitle={t("managerDashboard.metrics.teamCompetencies")} icon={Award} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Team members list */}
         <div className="lg:col-span-2 bg-card rounded-xl p-6 shadow-card border border-border">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-foreground">Моя команда</h3>
-            <span className="text-xs text-muted-foreground">{teamMembers.length} сотрудников</span>
+            <h3 className="font-semibold text-foreground">{t("managerDashboard.myTeam")}</h3>
+            <span className="text-xs text-muted-foreground">{t("managerDashboard.employeeCount", { count: teamMembers.length })}</span>
           </div>
           {teamMembers.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">Добавьте сотрудников в команду</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{t("managerDashboard.addEmployees")}</p>
           ) : (
             <div className="space-y-3">
               {teamMembers.map((member, i) => {
@@ -222,7 +224,7 @@ const ManagerDashboard = () => {
                     <div className="flex items-center gap-4 flex-shrink-0">
                       <div className="w-24">
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-muted-foreground">Прогресс</span>
+                          <span className="text-muted-foreground">{t("managerDashboard.progress")}</span>
                           <span className="font-medium text-foreground">{member.goalProgress}%</span>
                         </div>
                         <div className="w-full bg-muted rounded-full h-1.5">
@@ -231,12 +233,12 @@ const ManagerDashboard = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-bold text-foreground">{member.overall_score || 0}</p>
-                        <p className="text-xs text-muted-foreground">балл</p>
+                        <p className="text-xs text-muted-foreground">{t("managerDashboard.score")}</p>
                       </div>
                       <button
                         onClick={() => removeMemberMutation.mutate(member.user_id)}
                         className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
-                        title="Убрать из команды"
+                        title={t("managerDashboard.removeFromTeam")}
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -250,7 +252,7 @@ const ManagerDashboard = () => {
 
         {/* Team competencies radar */}
         <div className="bg-card rounded-xl p-6 shadow-card border border-border">
-          <h3 className="font-semibold text-foreground mb-4">Компетенции команды</h3>
+          <h3 className="font-semibold text-foreground mb-4">{t("managerDashboard.metrics.teamCompetencies")}</h3>
           {teamCompetencies.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
               <RadarChart data={teamCompetencies}>
@@ -261,28 +263,28 @@ const ManagerDashboard = () => {
             </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-[240px] text-sm text-muted-foreground">
-              Нет данных о компетенциях
+              {t("managerDashboard.noCompetencyData")}
             </div>
           )}
           <div className="mt-4 space-y-2">
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-success" />
-                <span className="text-muted-foreground">В графике</span>
+                <span className="text-muted-foreground">{t("managerDashboard.onTrack")}</span>
               </div>
               <span className="font-medium text-foreground">{teamMembers.filter((m) => getStatus(m) === "on_track").length}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-destructive" />
-                <span className="text-muted-foreground">Под угрозой</span>
+                <span className="text-muted-foreground">{t("managerDashboard.atRiskLabel")}</span>
               </div>
               <span className="font-medium text-foreground">{teamMembers.filter((m) => getStatus(m) === "at_risk").length}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary" />
-                <span className="text-muted-foreground">Завершили трек</span>
+                <span className="text-muted-foreground">{t("managerDashboard.completedTrack")}</span>
               </div>
               <span className="font-medium text-foreground">{teamMembers.filter((m) => getStatus(m) === "completed").length}</span>
             </div>
@@ -294,7 +296,7 @@ const ManagerDashboard = () => {
       {teamMembers.length > 0 && (() => {
         const deptMap = new Map<string, { count: number; totalScore: number }>();
         teamMembers.forEach((m) => {
-          const dept = m.department || "Без отдела";
+          const dept = m.department || t("managerDashboard.noDept");
           const cur = deptMap.get(dept) || { count: 0, totalScore: 0 };
           cur.count++;
           cur.totalScore += m.overall_score || 0;
@@ -307,15 +309,15 @@ const ManagerDashboard = () => {
         }));
         return (
           <div className="bg-card rounded-xl p-6 shadow-card border border-border">
-            <h3 className="font-semibold text-foreground mb-4">Эффективность по отделам</h3>
+            <h3 className="font-semibold text-foreground mb-4">{t("managerDashboard.deptEfficiency")}</h3>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={deptData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                 <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                 <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
-                <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Средний балл" />
-                <Bar dataKey="employees" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} name="Сотрудников" />
+                <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name={t("managerDashboard.avgScoreBar")} />
+                <Bar dataKey="employees" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} name={t("managerDashboard.employeesBar")} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -327,7 +329,7 @@ const ManagerDashboard = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowAddModal(false)}>
           <div className="bg-card rounded-xl border border-border p-6 w-full max-w-md max-h-[70vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-foreground">Добавить в команду</h3>
+              <h3 className="font-semibold text-foreground">{t("managerDashboard.addModal.title")}</h3>
               <button onClick={() => setShowAddModal(false)} className="p-1 rounded-lg hover:bg-secondary"><X className="w-4 h-4" /></button>
             </div>
             <div className="relative mb-4">
@@ -335,7 +337,7 @@ const ManagerDashboard = () => {
               <input
                 value={searchAdd}
                 onChange={(e) => setSearchAdd(e.target.value)}
-                placeholder="Поиск..."
+                placeholder={t("managerDashboard.addModal.searchPlaceholder")}
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
               />
             </div>
@@ -356,7 +358,7 @@ const ManagerDashboard = () => {
                 </div>
               ))}
               {availableToAdd.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Нет доступных сотрудников</p>
+                <p className="text-sm text-muted-foreground text-center py-4">{t("managerDashboard.addModal.noAvailable")}</p>
               )}
             </div>
           </div>

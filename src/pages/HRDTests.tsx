@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Upload, Loader2, FileText, Trash2, Power, PowerOff, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -19,6 +20,7 @@ interface ParsedQuestion {
 }
 
 const HRDTests = () => {
+  const { t } = useTranslation("manager");
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
@@ -62,33 +64,30 @@ const HRDTests = () => {
   });
 
   const positionTitle = useMemo(
-    () => (id: string | null) => positions.find((p) => p.id === id)?.title || "Все должности",
-    [positions]
+    () => (id: string | null) => positions.find((p) => p.id === id)?.title || t("hrdTests.allPositions"),
+    [positions, t]
   );
 
   const handleParse = async () => {
     if (!file || !user || !profile?.company_id) {
-      toast.error("Выберите файл");
+      toast.error(t("hrdTests.toast.selectFile"));
       return;
     }
     setParsing(true);
     try {
-      // Upload to storage
       const ext = file.name.split(".").pop() || "bin";
       const path = `${profile.company_id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const { error: upErr } = await laravelStorage.from("hrd-tests").upload(path, file, { upsert: false });
       if (upErr) throw upErr;
       const { data: signed } = await laravelStorage.from("hrd-tests").createSignedUrl(path, 60 * 30);
-      if (!signed?.signedUrl) throw new Error("Не удалось получить ссылку на файл");
+      if (!signed?.signedUrl) throw new Error(t("hrdTests.toast.noFileUrl"));
 
-      // Parse via edge function
       const { data, error } = await aiInvoke("parse-test-document", {
         body: { fileUrl: signed.signedUrl, fileName: file.name },
       });
       if (error) throw error;
-      if (!data?.questions?.length) throw new Error("AI не нашёл закрытых вопросов с правильными ответами");
+      if (!data?.questions?.length) throw new Error(t("hrdTests.toast.noQuestions"));
 
-      // Insert test
       const { data: inserted, error: insErr } = await laravelDb
         .from("closed_question_tests")
         .insert({
@@ -106,7 +105,7 @@ const HRDTests = () => {
         .single();
       if (insErr) throw insErr;
 
-      toast.success(`Загружено ${data.questions.length} вопросов`);
+      toast.success(t("hrdTests.toast.uploaded", { count: data.questions.length }));
       setFile(null);
       setTitle("");
       setDescription("");
@@ -116,7 +115,7 @@ const HRDTests = () => {
       queryClient.invalidateQueries({ queryKey: ["hrd_tests"] });
     } catch (e: any) {
       console.error(e);
-      toast.error(e.message || "Ошибка обработки файла");
+      toast.error(e.message || t("hrdTests.toast.parseError"));
     }
     setParsing(false);
   };
@@ -136,7 +135,7 @@ const HRDTests = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Тест удалён");
+      toast.success(t("hrdTests.toast.deleted"));
       queryClient.invalidateQueries({ queryKey: ["hrd_tests"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -145,40 +144,38 @@ const HRDTests = () => {
   return (
     <div className="max-w-5xl mx-auto animate-fade-in space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Тесты с закрытыми вопросами</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Загрузите Excel или PDF — AI извлечёт вопросы, варианты и правильные ответы. Сотрудники будут проходить активные тесты.
-        </p>
+        <h1 className="text-2xl font-bold text-foreground">{t("hrdTests.title")}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{t("hrdTests.subtitle")}</p>
       </div>
 
       {/* Upload form */}
       <div className="bg-card rounded-xl border border-border p-5 shadow-card">
-        <h2 className="text-base font-semibold text-foreground mb-4">Загрузить новый тест</h2>
+        <h2 className="text-base font-semibold text-foreground mb-4">{t("hrdTests.uploadSection")}</h2>
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-medium text-foreground">Название (необязательно)</label>
+            <label className="text-xs font-medium text-foreground">{t("hrdTests.nameLabel")}</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="AI заполнит из файла"
+              placeholder={t("hrdTests.namePlaceholder")}
               className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-foreground">Привязать к должности (опционально)</label>
+            <label className="text-xs font-medium text-foreground">{t("hrdTests.positionLabel")}</label>
             <select
               value={positionId}
               onChange={(e) => setPositionId(e.target.value)}
               className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
             >
-              <option value="">— Все должности —</option>
+              <option value="">{t("hrdTests.allPositions")}</option>
               {positions.map((p) => (
                 <option key={p.id} value={p.id}>{p.title}</option>
               ))}
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className="text-xs font-medium text-foreground">Описание (необязательно)</label>
+            <label className="text-xs font-medium text-foreground">{t("hrdTests.descLabel")}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -187,14 +184,14 @@ const HRDTests = () => {
             />
           </div>
           <div className="md:col-span-2">
-            <label className="text-xs font-medium text-foreground">Файл теста (Excel .xlsx, .csv или PDF, .docx)</label>
+            <label className="text-xs font-medium text-foreground">{t("hrdTests.fileLabel")}</label>
             <input
               type="file"
               accept=".xlsx,.xls,.csv,.pdf,.docx"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="mt-1 w-full text-sm"
             />
-            {file && <p className="mt-1 text-xs text-muted-foreground">{file.name} · {(file.size / 1024).toFixed(0)} КБ</p>}
+            {file && <p className="mt-1 text-xs text-muted-foreground">{t("hrdTests.fileInfo", { name: file.name, size: (file.size / 1024).toFixed(0) })}</p>}
           </div>
         </div>
         <div className="mt-4 flex justify-end">
@@ -204,7 +201,7 @@ const HRDTests = () => {
             className="flex items-center gap-2 px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
           >
             {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            {parsing ? "Обрабатываем..." : "Загрузить и распарсить"}
+            {parsing ? t("hrdTests.processing") : t("hrdTests.uploadBtn")}
           </button>
         </div>
       </div>
@@ -213,14 +210,14 @@ const HRDTests = () => {
       {previewQuestions.length > 0 && (
         <div className="bg-card rounded-xl border border-border p-5 shadow-card">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold text-foreground">Предпросмотр ({previewQuestions.length} вопросов)</h2>
-            <button onClick={() => { setPreviewQuestions([]); setPreviewTestId(null); }} className="text-xs text-muted-foreground hover:text-foreground">Скрыть</button>
+            <h2 className="text-base font-semibold text-foreground">{t("hrdTests.previewTitle", { count: previewQuestions.length })}</h2>
+            <button onClick={() => { setPreviewQuestions([]); setPreviewTestId(null); }} className="text-xs text-muted-foreground hover:text-foreground">{t("hrdTests.hide")}</button>
           </div>
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {previewQuestions.slice(0, 10).map((q, i) => (
               <div key={q.id} className="text-sm border-l-2 border-primary/50 pl-3">
                 <p className="font-medium">{i + 1}. {q.text}</p>
-                <p className="text-xs text-muted-foreground">Компетенция: {q.competency}</p>
+                <p className="text-xs text-muted-foreground">{t("hrdTests.competencyLabel")} {q.competency}</p>
                 <ul className="mt-1 space-y-0.5">
                   {q.options.map((o) => (
                     <li key={o.id} className={o.id === q.correct_option_id ? "text-success" : "text-muted-foreground"}>
@@ -230,7 +227,7 @@ const HRDTests = () => {
                 </ul>
               </div>
             ))}
-            {previewQuestions.length > 10 && <p className="text-xs text-muted-foreground">…и ещё {previewQuestions.length - 10}</p>}
+            {previewQuestions.length > 10 && <p className="text-xs text-muted-foreground">{t("hrdTests.moreQuestions", { count: previewQuestions.length - 10 })}</p>}
           </div>
         </div>
       )}
@@ -238,43 +235,43 @@ const HRDTests = () => {
       {/* List */}
       <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
         <div className="px-5 py-4 border-b border-border">
-          <h2 className="text-base font-semibold text-foreground">Загруженные тесты</h2>
+          <h2 className="text-base font-semibold text-foreground">{t("hrdTests.listTitle")}</h2>
         </div>
         {tests.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">
-            Пока нет загруженных тестов. Сотрудники будут получать AI-сгенерированные тесты под их должность.
+            {t("hrdTests.empty")}
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {tests.map((t: any) => (
-              <div key={t.id} className="px-5 py-3 flex items-center gap-3">
-                <FileText className={`w-5 h-5 ${t.is_active ? "text-primary" : "text-muted-foreground"}`} />
+            {tests.map((item: any) => (
+              <div key={item.id} className="px-5 py-3 flex items-center gap-3">
+                <FileText className={`w-5 h-5 ${item.is_active ? "text-primary" : "text-muted-foreground"}`} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{t.title}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {(t.questions?.length || 0)} вопр. · {positionTitle(t.position_id)} · {t.source_file_name || "—"}
+                    {t("hrdTests.questionCount", { count: item.questions?.length || 0 })} · {positionTitle(item.position_id)} · {item.source_file_name || "—"}
                   </p>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${t.is_active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
-                  {t.is_active ? "Активен" : "Выключен"}
+                <span className={`text-xs px-2 py-0.5 rounded-full ${item.is_active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
+                  {item.is_active ? t("hrdTests.active") : t("hrdTests.inactive")}
                 </span>
                 <button
-                  onClick={() => { setPreviewQuestions(t.questions || []); setPreviewTestId(t.id); }}
-                  title="Просмотр"
+                  onClick={() => { setPreviewQuestions(item.questions || []); setPreviewTestId(item.id); }}
+                  title={t("hrdTests.previewBtn")}
                   className="p-2 rounded-lg hover:bg-secondary"
                 >
                   <Eye className="w-4 h-4 text-muted-foreground" />
                 </button>
                 <button
-                  onClick={() => toggleActive.mutate({ id: t.id, value: !t.is_active })}
-                  title={t.is_active ? "Выключить" : "Включить"}
+                  onClick={() => toggleActive.mutate({ id: item.id, value: !item.is_active })}
+                  title={item.is_active ? t("hrdTests.disableBtn") : t("hrdTests.enableBtn")}
                   className="p-2 rounded-lg hover:bg-secondary"
                 >
-                  {t.is_active ? <PowerOff className="w-4 h-4 text-muted-foreground" /> : <Power className="w-4 h-4 text-success" />}
+                  {item.is_active ? <PowerOff className="w-4 h-4 text-muted-foreground" /> : <Power className="w-4 h-4 text-success" />}
                 </button>
                 <button
-                  onClick={() => { if (confirm("Удалить тест?")) deleteTest.mutate(t.id); }}
-                  title="Удалить"
+                  onClick={() => { if (confirm(t("hrdTests.confirmDelete"))) deleteTest.mutate(item.id); }}
+                  title={t("hrdTests.deleteBtn")}
                   className="p-2 rounded-lg hover:bg-destructive/10"
                 >
                   <Trash2 className="w-4 h-4 text-destructive" />
