@@ -53,7 +53,9 @@
     "roleManager": "Manager",
     "roleHrd": "HRD",
     "roleCompanyAdmin": "Company Admin",
-    "roleSuperadmin": "Superadmin"
+    "roleSuperadmin": "Superadmin",
+    "fullNamePlaceholder": "Jane Smith",
+    "toastResetSentEmail": "Password reset email sent to {{email}}"
   },
   "settings": {
     "title": "Profile Settings",

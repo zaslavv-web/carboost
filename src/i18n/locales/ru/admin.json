@@ -53,7 +53,9 @@
     "roleManager": "Руководитель",
     "roleHrd": "HRD",
     "roleCompanyAdmin": "Админ компании",
-    "roleSuperadmin": "Суперадмин"
+    "roleSuperadmin": "Суперадмин",
+    "fullNamePlaceholder": "Иванов Иван",
+    "toastResetSentEmail": "Письмо для восстановления отправлено на {{email}}"
   },
   "settings": {
     "title": "Настройки профиля",
