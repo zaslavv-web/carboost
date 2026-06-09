@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import HRDCareerTracksAnalytics from "@/components/HRDCareerTracksAnalytics";
 import HRDEmployeeMap from "@/components/HRDEmployeeMap";
 import type { AppRole } from "@/hooks/useUserProfile";
+import { useTranslation } from "react-i18next";
 
 interface EmployeeWithRole {
   user_id: string;
@@ -37,12 +38,16 @@ interface Competency {
   skill_value: number;
 }
 
-const roleBadge: Record<AppRole, { label: string; cls: string }> = {
-  employee: { label: "Сотрудник", cls: "bg-secondary text-secondary-foreground" },
-  manager: { label: "Руководитель", cls: "bg-info/10 text-info" },
-  hrd: { label: "HRD", cls: "bg-warning/10 text-warning" },
-  company_admin: { label: "Админ компании", cls: "bg-primary/10 text-primary" },
-  superadmin: { label: "Суперадмин", cls: "bg-destructive/10 text-destructive" },
+const useRoleBadge = () => {
+  const { t } = useTranslation("manager");
+  const roleBadge: Record<AppRole, { label: string; cls: string }> = {
+    employee: { label: t("hrdDashboard.roles.employee"), cls: "bg-secondary text-secondary-foreground" },
+    manager: { label: t("hrdDashboard.roles.manager"), cls: "bg-info/10 text-info" },
+    hrd: { label: t("hrdDashboard.roles.hrd"), cls: "bg-warning/10 text-warning" },
+    company_admin: { label: t("hrdDashboard.roles.company_admin"), cls: "bg-primary/10 text-primary" },
+    superadmin: { label: t("hrdDashboard.roles.superadmin"), cls: "bg-destructive/10 text-destructive" },
+  };
+  return roleBadge;
 };
 
 type RoleFilter = "all" | AppRole;
