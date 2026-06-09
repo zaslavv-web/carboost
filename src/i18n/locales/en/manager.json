@@ -308,5 +308,76 @@
       "noSkills": "No competency data"
     }
   },
-  "roleDashboard": {}
+  "roleDashboard": {},
+  "employeeMap": {
+    "title": "Employee map",
+    "subtitle": "Solid arrows — hierarchy (manager → employee). Dashed — horizontal HR links.",
+    "newTask": "New HR task",
+    "assignTask": "Assign HR task",
+    "noEmployees": "No employees",
+    "inviteHint": "Invite employees to build the map.",
+    "noName": "No name",
+    "manages": "manages",
+    "clickHint": "Click an employee card to see details",
+    "tabs": {
+      "overview": "Overview",
+      "tasks": "Tasks",
+      "shop": "Shop"
+    },
+    "overview": {
+      "effectiveness": "Effectiveness",
+      "balance": "Balance",
+      "trackProgress": "Track progress",
+      "hrTasksDone": "HR tasks (done)",
+      "profileScore": "Profile score",
+      "rewards": "Rewards"
+    },
+    "tasks": {
+      "empty": "No HR tasks linked to this employee",
+      "assigneesShort": "{{count}} asgn.",
+      "confirm": "Approve",
+      "reject": "Reject",
+      "status": {
+        "open": "Open",
+        "in_review": "In review",
+        "completed": "Completed",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled"
+      }
+    },
+    "shop": {
+      "orders": "Orders",
+      "spent": "Spent",
+      "breakdown": "Spending breakdown",
+      "noOrders": "Employee has not placed any orders yet"
+    },
+    "toasts": {
+      "noCompany": "No company",
+      "created": "HR task created",
+      "confirmed": "Task approved, coins awarded",
+      "rejected": "Task rejected",
+      "deleted": "Deleted",
+      "needTitle": "Enter a title",
+      "needAssignee": "Select at least one assignee"
+    },
+    "dialog": {
+      "title": "New HR task",
+      "name": "Title",
+      "namePlaceholder": "E.g.: Run a team workshop",
+      "description": "Description",
+      "category": "Category",
+      "reward": "Reward (coins)",
+      "deadline": "Deadline",
+      "assignees": "Assignees ({{count}})",
+      "cancel": "Cancel",
+      "create": "Create"
+    },
+    "categories": {
+      "collaboration": "Collaboration",
+      "mentorship": "Mentorship",
+      "knowledge_sharing": "Knowledge sharing",
+      "project": "Project",
+      "onboarding": "Onboarding"
+    }
+  }
 }
