@@ -585,7 +585,7 @@ const HRDEmployeeMap = () => {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-secondary/50 rounded-lg p-3">
                         <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3" /> Эффективность
+                          <TrendingUp className="w-3 h-3" /> {t("employeeMap.overview.effectiveness")}
                         </div>
                         <div className="text-2xl font-bold text-foreground">{composite?.composite ?? 0}</div>
                       </div>
