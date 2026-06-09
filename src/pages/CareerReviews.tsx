@@ -7,11 +7,11 @@ import { toast } from "sonner";
 import { Loader2, FileText, CheckCircle2, XCircle, Download, Clock, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { getDateFnsLocale } from "@/lib/dateLocale";
+import { getDateLocale } from "@/lib/dateLocale";
 
 const CareerReviews = () => {
   const { t } = useTranslation("manager");
-  const dfLocale = getDateFnsLocale();
+  const dfLocale = getDateLocale();
   const qc = useQueryClient();
   const [reasonFor, setReasonFor] = useState<string | null>(null);
   const [reason, setReason] = useState("");
