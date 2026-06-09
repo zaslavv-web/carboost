@@ -795,13 +795,7 @@ interface CreateHrTaskDialogProps {
   isPending: boolean;
 }
 
-const CATEGORIES = [
-  { value: "collaboration", label: "Совместная работа" },
-  { value: "mentorship", label: "Менторство" },
-  { value: "knowledge_sharing", label: "Обмен знаниями" },
-  { value: "project", label: "Проект" },
-  { value: "onboarding", label: "Онбординг" },
-];
+const CATEGORY_VALUES = ["collaboration", "mentorship", "knowledge_sharing", "project", "onboarding"] as const;
 
 const CreateHrTaskDialog = ({
   open,
@@ -811,6 +805,7 @@ const CreateHrTaskDialog = ({
   onSubmit,
   isPending,
 }: CreateHrTaskDialogProps) => {
+  const { t } = useTranslation("manager");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("collaboration");
@@ -836,11 +831,11 @@ const CreateHrTaskDialog = ({
 
   const submit = () => {
     if (!title.trim()) {
-      toast.error("Укажите название");
+      toast.error(t("employeeMap.toasts.needTitle"));
       return;
     }
     if (assigneeIds.length === 0) {
-      toast.error("Выберите хотя бы одного исполнителя");
+      toast.error(t("employeeMap.toasts.needAssignee"));
       return;
     }
     onSubmit({
@@ -857,40 +852,40 @@ const CreateHrTaskDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Новая HR-задача</DialogTitle>
+          <DialogTitle>{t("employeeMap.dialog.title")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label>Название</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Например: Провести воркшоп для команды" />
+            <Label>{t("employeeMap.dialog.name")}</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("employeeMap.dialog.namePlaceholder")} />
           </div>
           <div>
-            <Label>Описание</Label>
+            <Label>{t("employeeMap.dialog.description")}</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label>Категория</Label>
+              <Label>{t("employeeMap.dialog.category")}</Label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  {CATEGORY_VALUES.map((c) => (
+                    <SelectItem key={c} value={c}>{t(`employeeMap.categories.${c}`)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Награда (монеты)</Label>
+              <Label>{t("employeeMap.dialog.reward")}</Label>
               <Input type="number" min={0} value={reward} onChange={(e) => setReward(Number(e.target.value))} />
             </div>
           </div>
           <div>
-            <Label>Дедлайн</Label>
+            <Label>{t("employeeMap.dialog.deadline")}</Label>
             <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
           </div>
           <div>
-            <Label>Исполнители ({assigneeIds.length})</Label>
+            <Label>{t("employeeMap.dialog.assignees", { count: assigneeIds.length })}</Label>
             <ScrollArea className="h-40 border border-border rounded-lg p-2 mt-1">
               <div className="space-y-1">
                 {employees.map((e) => (
@@ -921,10 +916,10 @@ const CreateHrTaskDialog = ({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Отмена</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("employeeMap.dialog.cancel")}</Button>
           <Button onClick={submit} disabled={isPending}>
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Создать
+            {t("employeeMap.dialog.create")}
           </Button>
         </DialogFooter>
       </DialogContent>
