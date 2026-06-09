@@ -7,20 +7,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Cloud, Server, Mail, Phone, Building2, Users } from "lucide-react";
 import { format } from "date-fns";
-import { ru } from "date-fns/locale";
+import { getDateLocale } from "@/lib/dateLocale";
 import { useState } from "react";
 import { toast } from "sonner";
-
-const STATUS_LABEL: Record<string, string> = {
-  new: "Новая",
-  contacted: "В работе",
-  won: "Закрыта продажей",
-  lost: "Отказ",
-};
+import { useTranslation } from "react-i18next";
 
 export default function PricingInquiries() {
   const qc = useQueryClient();
+  const { t } = useTranslation("admin");
   const [notes, setNotes] = useState<Record<string, string>>({});
+
+  const STATUS_LABEL: Record<string, string> = {
+    new: t("pricingInquiries.statusNew"),
+    contacted: t("pricingInquiries.statusContacted"),
+    won: t("pricingInquiries.statusWon"),
+    lost: t("pricingInquiries.statusLost"),
+  };
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["pricing_inquiries"],
@@ -40,7 +42,7 @@ export default function PricingInquiries() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Сохранено");
+      toast.success(t("pricingInquiries.toastSaved"));
       qc.invalidateQueries({ queryKey: ["pricing_inquiries"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -49,14 +51,14 @@ export default function PricingInquiries() {
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Заявки на тарифы</h1>
-        <p className="text-muted-foreground">Запросы с публичной страницы тарифов</p>
+        <h1 className="text-3xl font-bold">{t("pricingInquiries.title")}</h1>
+        <p className="text-muted-foreground">{t("pricingInquiries.subtitle")}</p>
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Загрузка...</p>
+        <p className="text-muted-foreground">{t("pricingInquiries.loading")}</p>
       ) : items.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">Пока нет заявок</CardContent></Card>
+        <Card><CardContent className="py-12 text-center text-muted-foreground">{t("pricingInquiries.noInquiries")}</CardContent></Card>
       ) : (
         <div className="grid gap-4">
           {items.map((i: any) => {
@@ -71,7 +73,7 @@ export default function PricingInquiries() {
                     <div>
                       <CardTitle className="text-lg">{i.name}</CardTitle>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(i.created_at), "d MMM yyyy, HH:mm", { locale: ru })} · {i.plan === "cloud" ? "Cloud" : "On-Premise"}
+                        {format(new Date(i.created_at), "d MMM yyyy, HH:mm", { locale: getDateLocale() })} · {i.plan === "cloud" ? "Cloud" : "On-Premise"}
                       </p>
                     </div>
                   </div>
@@ -84,7 +86,7 @@ export default function PricingInquiries() {
                     <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-muted-foreground" /><a href={`mailto:${i.email}`} className="text-primary hover:underline">{i.email}</a></div>
                     {i.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-muted-foreground" />{i.phone}</div>}
                     {i.company && <div className="flex items-center gap-2"><Building2 className="w-4 h-4 text-muted-foreground" />{i.company}</div>}
-                    {i.headcount && <div className="flex items-center gap-2"><Users className="w-4 h-4 text-muted-foreground" />{i.headcount} чел.</div>}
+                    {i.headcount && <div className="flex items-center gap-2"><Users className="w-4 h-4 text-muted-foreground" />{t("pricingInquiries.headcount", { n: i.headcount })}</div>}
                   </div>
                   {i.message && <div className="text-sm bg-muted p-3 rounded-md">{i.message}</div>}
                   <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-border">
@@ -97,7 +99,7 @@ export default function PricingInquiries() {
                       </SelectContent>
                     </Select>
                     <Textarea
-                      placeholder="Заметки менеджера"
+                      placeholder={t("pricingInquiries.notesPlaceholder")}
                       defaultValue={i.admin_notes ?? ""}
                       onChange={(e) => setNotes({ ...notes, [i.id]: e.target.value })}
                       rows={2}
@@ -107,7 +109,7 @@ export default function PricingInquiries() {
                       variant="outline"
                       onClick={() => update.mutate({ id: i.id, patch: { admin_notes: notes[i.id] ?? i.admin_notes } })}
                     >
-                      Сохранить
+                      {t("pricingInquiries.saveBtn")}
                     </Button>
                   </div>
                 </CardContent>

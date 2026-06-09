@@ -3,9 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { Building2, Plus, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 const Companies = () => {
   const queryClient = useQueryClient();
+  const { t } = useTranslation("admin");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -47,7 +49,7 @@ const Companies = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["companies"] });
-      toast.success("Компания создана");
+      toast.success(t("companies.toastCreated"));
       resetForm();
     },
     onError: (e: any) => toast.error(e.message),
@@ -64,7 +66,7 @@ const Companies = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["companies"] });
-      toast.success("Компания обновлена");
+      toast.success(t("companies.toastUpdated"));
       resetForm();
     },
     onError: (e: any) => toast.error(e.message),
@@ -77,7 +79,7 @@ const Companies = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["companies"] });
-      toast.success("Компания удалена");
+      toast.success(t("companies.toastDeleted"));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -109,42 +111,42 @@ const Companies = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Компании</h1>
-          <p className="text-muted-foreground text-sm mt-1">Управление компаниями-клиентами</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("companies.title")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t("companies.subtitle")}</p>
         </div>
         <button
           onClick={() => { resetForm(); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
         >
-          <Plus className="w-4 h-4" /> Добавить
+          <Plus className="w-4 h-4" /> {t("companies.addBtn")}
         </button>
       </div>
 
       {showForm && (
         <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground">{editId ? "Редактировать" : "Новая компания"}</h3>
+            <h3 className="font-semibold text-foreground">{editId ? t("companies.formEditTitle") : t("companies.formNewTitle")}</h3>
             <button onClick={resetForm}><X className="w-4 h-4 text-muted-foreground" /></button>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-foreground">Название</label>
+              <label className="text-sm font-medium text-foreground">{t("companies.labelName")}</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
                 className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
-                placeholder="ООО «Название»"
+                placeholder={t("companies.placeholderName")}
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-foreground">Описание</label>
+              <label className="text-sm font-medium text-foreground">{t("companies.labelDescription")}</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
                 className="w-full mt-1.5 px-4 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary resize-none"
-                placeholder="Краткое описание компании"
+                placeholder={t("companies.placeholderDescription")}
               />
             </div>
             <button
@@ -152,7 +154,7 @@ const Companies = () => {
               disabled={createMutation.isPending || updateMutation.isPending}
               className="px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {editId ? "Сохранить" : "Создать"}
+              {editId ? t("companies.save") : t("companies.create")}
             </button>
           </form>
         </div>
@@ -163,7 +165,7 @@ const Companies = () => {
       ) : companies.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p>Компании ещё не созданы</p>
+          <p>{t("companies.empty")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -176,7 +178,7 @@ const Companies = () => {
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground truncate">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">{companyCounts[c.id] || 0} сотрудников</p>
+                    <p className="text-xs text-muted-foreground">{t("companies.employees", { count: companyCounts[c.id] || 0 })}</p>
                   </div>
                 </div>
                 <div className="flex gap-1">
@@ -185,7 +187,7 @@ const Companies = () => {
                   </button>
                   <button
                     onClick={() => {
-                      if (confirm("Удалить компанию?")) deleteMutation.mutate(c.id);
+                      if (confirm(t("companies.confirmDelete"))) deleteMutation.mutate(c.id);
                     }}
                     className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
                   >
