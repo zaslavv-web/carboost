@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { X, Upload, Loader2, FileText, Trash2, AlertTriangle, Info, CheckCircle2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   assignmentId: string;
@@ -34,6 +35,7 @@ const allowedEvidenceMimeTypes = [
 const evidenceAccept = ".docx,.pdf,.jpg,.jpeg,.png,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,image/jpeg,image/png";
 
 const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, onClose }: Props) => {
+  const { t } = useTranslation("employee");
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const qc = useQueryClient();
@@ -100,7 +102,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
     const fs = e.target.files;
     if (!fs?.length || !user) return;
     if (!profile?.company_id) {
-      toast.error("Загрузка доступна после привязки сотрудника к компании");
+      toast.error(t("stepDialog.noCompany"));
       if (fileRef.current) fileRef.current.value = "";
       return;
     }
@@ -110,7 +112,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
       return !allowedEvidenceExtensions.includes(ext) || !allowedEvidenceMimeTypes.includes(file.type);
     });
     if (invalidFiles.length > 0) {
-      toast.error("Можно загрузить только DOCX, PDF, JPG или PNG");
+      toast.error(t("stepDialog.invalidType"));
       if (fileRef.current) fileRef.current.value = "";
       return;
     }
@@ -126,9 +128,9 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
         uploaded.push({ url: path, name: file.name });
       }
       setFiles((prev) => [...prev, ...uploaded]);
-      toast.success(`Загружено ${uploaded.length} файл(ов)`);
+      toast.success(t("stepDialog.uploaded", { count: uploaded.length }));
     } catch (e: any) {
-      toast.error(e.message || "Ошибка загрузки");
+      toast.error(e.message || t("stepDialog.uploadError"));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -140,7 +142,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
     const correct = questions.reduce((s, q, i) => s + (answers[i] === q.correct ? 1 : 0), 0);
     const pct = Math.round((correct / Math.max(1, questions.length)) * 100);
     if (pct < minScore) {
-      toast.error(`Балл ${pct}% ниже порога ${minScore}%. Попробуйте ещё раз.`);
+      toast.error(t("stepDialog.lowScore", { got: pct, need: minScore }));
       setAnswers({});
       return;
     }
@@ -164,7 +166,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
     setTestAttemptId(data.id);
     setTestScore(pct);
     setShowTest(false);
-    toast.success(`Тест пройден на ${pct}%`);
+    toast.success(t("stepDialog.testPassed", { score: pct }));
   };
 
   const submitMutation = useMutation({
@@ -181,7 +183,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my_step_submissions"] });
       qc.invalidateQueries({ queryKey: ["my_step_attempts"] });
-      toast.success("Материалы отправлены на проверку");
+      toast.success(t("stepDialog.submitted"));
       onClose();
     },
     onError: (e: any) => toast.error(e.message),
@@ -200,7 +202,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
       <div className="fixed inset-0 bg-background/95 z-50 overflow-y-auto p-4">
         <div className="max-w-2xl mx-auto bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Контрольный тест этапа · мин. {minScore}%</h3>
+            <h3 className="font-semibold">{t("stepDialog.testHeader", { score: minScore })}</h3>
             <button onClick={() => setShowTest(false)} className="text-muted-foreground hover:text-foreground">
               <X className="w-5 h-5" />
             </button>
@@ -231,13 +233,15 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
             ))}
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setShowTest(false)} className="px-4 py-2 rounded-lg text-sm hover:bg-secondary/60">Отмена</button>
+            <button onClick={() => setShowTest(false)} className="px-4 py-2 rounded-lg text-sm hover:bg-secondary/60">
+              {t("stepDialog.cancel")}
+            </button>
             <button
               onClick={submitTest}
               disabled={!allAnswered}
               className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
             >
-              Завершить тест
+              {t("stepDialog.finishTest")}
             </button>
           </div>
         </div>
@@ -250,7 +254,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
       <div className="bg-card rounded-xl border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-border sticky top-0 bg-card z-10">
           <div>
-            <h3 className="font-semibold text-foreground">Отправить этап на проверку</h3>
+            <h3 className="font-semibold text-foreground">{t("stepDialog.title")}</h3>
             <p className="text-xs text-muted-foreground mt-0.5">{stepTitle}</p>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -262,11 +266,11 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
           {isReinforced && (
             <div className="rounded-lg bg-warning/10 border border-warning/30 p-3 text-xs">
               <div className="flex items-center gap-2 text-warning font-medium mb-1">
-                <AlertTriangle className="w-4 h-4" /> Усиленный сценарий повторного прохождения
+                <AlertTriangle className="w-4 h-4" /> {t("stepDialog.reinforced")}
               </div>
-              {lastReason && <p className="text-foreground/80">Причина прошлого отклонения: {lastReason}</p>}
+              {lastReason && <p className="text-foreground/80">{t("stepDialog.lastReason", { reason: lastReason })}</p>}
               <p className="text-muted-foreground mt-1">
-                Требуется минимум {minFiles} файла, тест ≥ {minScore}%, развёрнутый комментарий.
+                {t("stepDialog.reinforcedDesc", { files: minFiles, score: minScore })}
               </p>
             </div>
           )}
@@ -282,7 +286,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
 
           {testRequired && (
             <div>
-              <p className="text-sm font-medium mb-2">Контрольный тест (мин. {minScore}%)</p>
+              <p className="text-sm font-medium mb-2">{t("stepDialog.controlTest", { score: minScore })}</p>
               <button
                 type="button"
                 onClick={() => setShowTest(true)}
@@ -294,10 +298,12 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
               >
                 <p className="text-sm font-medium flex items-center gap-2">
                   {testAttemptId && <CheckCircle2 className="w-4 h-4 text-success" />}
-                  {stepTest?.title || "Тест этапа"}
+                  {stepTest?.title || t("stepDialog.testFallback")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {testAttemptId ? `✓ Пройден на ${testScore}%` : `${questions.length} вопросов · нажмите, чтобы пройти`}
+                  {testAttemptId
+                    ? t("stepDialog.passedAt", { score: testScore })
+                    : t("stepDialog.questionsCount", { count: questions.length })}
                 </p>
               </button>
             </div>
@@ -305,7 +311,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
 
           <div>
             <p className="text-sm font-medium mb-2">
-              Подтверждающие файлы ({files.length}/{minFiles} мин.)
+              {t("stepDialog.evidenceFiles", { files: files.length, min: minFiles })}
             </p>
             <div className="space-y-2 mb-2">
               {files.map((f, i) => (
@@ -329,19 +335,19 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border text-sm hover:bg-secondary/40 transition-colors disabled:opacity-50"
             >
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              Загрузить DOCX, PDF, JPG или PNG
+              {t("stepDialog.uploadHint")}
             </button>
           </div>
 
           <div>
             <p className="text-sm font-medium mb-2">
-              Комментарий{scenario?.requires_comment && <span className="text-destructive"> *</span>}
+              {t("stepDialog.comment")}{scenario?.requires_comment && <span className="text-destructive"> *</span>}
             </p>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={4}
-              placeholder="Опишите, что было сделано, какие результаты достигнуты"
+              placeholder={t("stepDialog.commentPlaceholder")}
               className="w-full px-3 py-2 rounded-lg bg-secondary text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none"
             />
           </div>
@@ -349,7 +355,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
 
         <div className="flex justify-end gap-2 p-5 border-t border-border sticky bottom-0 bg-card">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm hover:bg-secondary/60 transition-colors">
-            Отмена
+            {t("stepDialog.cancel")}
           </button>
           <button
             onClick={() => submitMutation.mutate()}
@@ -357,7 +363,7 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
             className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
           >
             {submitMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-            Отправить на проверку
+            {t("stepDialog.submit")}
           </button>
         </div>
       </div>

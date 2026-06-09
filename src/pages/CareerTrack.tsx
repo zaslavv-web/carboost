@@ -7,16 +7,18 @@ import { Check, Clock, ChevronDown, ChevronRight, Target, Loader2, Plus, X, Rout
 import { toast } from "sonner";
 import { format } from "date-fns";
 import CareerTrackStepCard, { type RichStep } from "@/components/CareerTrackStepCard";
+import { useTranslation } from "react-i18next";
 
-const statusConfig: Record<string, { label: string; color: string; textColor: string }> = {
-  completed: { label: "Завершено", color: "bg-success", textColor: "text-success" },
-  in_progress: { label: "В процессе", color: "bg-info", textColor: "text-info" },
-  at_risk: { label: "Под угрозой", color: "bg-destructive", textColor: "text-destructive" },
+const statusConfig: Record<string, { color: string; textColor: string }> = {
+  completed: { color: "bg-success", textColor: "text-success" },
+  in_progress: { color: "bg-info", textColor: "text-info" },
+  at_risk: { color: "bg-destructive", textColor: "text-destructive" },
 };
 
 type Step = RichStep;
 
 const CareerTrack = () => {
+  const { t } = useTranslation("employee");
   const effectiveUserId = useEffectiveUserId();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -30,16 +32,14 @@ const CareerTrack = () => {
 
   useEffect(() => {
     if (fromAssessment) {
-      // remove the query flag without reloading
-      const t = setTimeout(() => {
+      const timer = setTimeout(() => {
         searchParams.delete("from");
         setSearchParams(searchParams, { replace: true });
       }, 200);
-      return () => clearTimeout(t);
+      return () => clearTimeout(timer);
     }
   }, [fromAssessment, searchParams, setSearchParams]);
 
-  // Career goals
   const { data: goals = [], isLoading: goalsLoading } = useQuery({
     queryKey: ["career_goals_full", effectiveUserId],
     queryFn: async () => {
@@ -57,7 +57,6 @@ const CareerTrack = () => {
     enabled: !!effectiveUserId,
   });
 
-  // Assigned career tracks
   const { data: assignments = [], isLoading: assignLoading } = useQuery({
     queryKey: ["my_career_assignments", effectiveUserId],
     queryFn: async () => {
@@ -103,7 +102,6 @@ const CareerTrack = () => {
     },
   });
 
-  // My rewards
   const { data: myRewards = [] } = useQuery({
     queryKey: ["my_rewards", effectiveUserId],
     queryFn: async () => {
@@ -125,11 +123,10 @@ const CareerTrack = () => {
   });
 
   const posMap = Object.fromEntries(positions.map(p => [p.id, p]));
-  const templateMap = Object.fromEntries(templates.map(t => [t.id, t]));
+  const templateMap = Object.fromEntries(templates.map(tmpl => [tmpl.id, tmpl]));
   const rewardTypeMap = Object.fromEntries(rewardTypes.map(r => [r.id, r]));
   const totalPoints = myRewards.reduce((s, r) => s + (rewardTypeMap[r.reward_type_id]?.points || 0), 0);
 
-  // Goal mutations
   const toggleItemMutation = useMutation({
     mutationFn: async ({ itemId, isDone }: { itemId: string; isDone: boolean }) => {
       const { error } = await laravelDb.from("goal_checklist_items").update({ is_done: isDone }).eq("id", itemId);
@@ -147,7 +144,7 @@ const CareerTrack = () => {
 
   const addGoalMutation = useMutation({
     mutationFn: async () => {
-      if (!effectiveUserId) throw new Error("Пользователь не определён");
+      if (!effectiveUserId) throw new Error(t("careerTrack.userNotDefined"));
       const { error } = await laravelDb.from("career_goals").insert({
         user_id: effectiveUserId, title: newGoal.title, description: newGoal.description || null, deadline: newGoal.deadline || null,
       });
@@ -156,7 +153,7 @@ const CareerTrack = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["career_goals_full"] });
       setShowAddGoal(false); setNewGoal({ title: "", description: "", deadline: "" });
-      toast.success("Цель добавлена");
+      toast.success(t("careerTrack.goalAdded"));
     },
   });
 
@@ -192,8 +189,8 @@ const CareerTrack = () => {
   return (
     <div className="space-y-5 md:space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-foreground">Мой карьерный трек</h1>
-        <p className="text-muted-foreground text-xs md:text-sm mt-1">Карьерный путь, цели и награды</p>
+        <h1 className="text-xl md:text-2xl font-bold text-foreground">{t("careerTrack.title")}</h1>
+        <p className="text-muted-foreground text-xs md:text-sm mt-1">{t("careerTrack.subtitle")}</p>
       </div>
 
       {showAssessmentBanner && (
@@ -201,7 +198,7 @@ const CareerTrack = () => {
           <button
             onClick={() => setShowAssessmentBanner(false)}
             className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Закрыть"
+            aria-label={t("careerTrack.close")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -210,16 +207,13 @@ const CareerTrack = () => {
               <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-success" />
             </div>
             <div className="min-w-0">
-              <p className="font-semibold text-foreground text-sm md:text-base">Оценка завершена!</p>
-              <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
-                Ваш карьерный трек обновлён с учётом новых результатов. Проверьте этапы и рекомендации ниже.
-              </p>
+              <p className="font-semibold text-foreground text-sm md:text-base">{t("careerTrack.assessmentDone")}</p>
+              <p className="text-xs md:text-sm text-muted-foreground mt-0.5">{t("careerTrack.assessmentDoneDesc")}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Summary cards */}
       <div className="grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-4">
         <div className="bg-card rounded-xl p-3 md:p-5 shadow-card border border-border">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-3">
@@ -228,7 +222,7 @@ const CareerTrack = () => {
             </div>
             <div>
               <p className="text-lg md:text-2xl font-bold text-foreground leading-tight">{assignments.length}</p>
-              <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">Треков</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">{t("careerTrack.tracks")}</p>
             </div>
           </div>
         </div>
@@ -239,7 +233,7 @@ const CareerTrack = () => {
             </div>
             <div>
               <p className="text-lg md:text-2xl font-bold text-foreground leading-tight">{goals.filter(g => g.status === "completed").length}/{goals.length}</p>
-              <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">Целей</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">{t("careerTrack.goals")}</p>
             </div>
           </div>
         </div>
@@ -250,39 +244,37 @@ const CareerTrack = () => {
             </div>
             <div>
               <p className="text-lg md:text-2xl font-bold text-foreground leading-tight">{totalPoints}</p>
-              <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">Очков</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">{t("careerTrack.points")}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto -mx-1 px-1">
-        {(["tracks", "goals", "rewards"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
-            {t === "tracks" ? "Карьерный путь" : t === "goals" ? "Мои цели" : "Награды"}
+        {(["tracks", "goals", "rewards"] as const).map(tabKey => (
+          <button key={tabKey} onClick={() => setTab(tabKey)}
+            className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${tab === tabKey ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
+            {t(`careerTrack.tabs.${tabKey}`)}
           </button>
         ))}
       </div>
 
-      {/* Tracks tab */}
       {tab === "tracks" && (
         <div className="space-y-4">
           {assignments.length === 0 && (
             <div className="bg-card rounded-xl p-12 text-center border border-border">
               <Route className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-semibold text-foreground mb-2">Нет назначенных карьерных треков</h3>
-              <p className="text-sm text-muted-foreground">Ваш HR-менеджер назначит вам карьерный путь</p>
+              <h3 className="font-semibold text-foreground mb-2">{t("careerTrack.noTracks")}</h3>
+              <p className="text-sm text-muted-foreground">{t("careerTrack.noTracksDesc")}</p>
             </div>
           )}
           {assignments.map(a => {
-            const t = templateMap[a.template_id];
-            if (!t) return null;
-            const fromPos = t.from_position_id ? posMap[t.from_position_id] : null;
-            const toPos = t.to_position_id ? posMap[t.to_position_id] : null;
-            const steps = (t.steps as unknown as Step[]) || [];
-            const tActions = levelActions.filter(la => la.template_id === t.id);
+            const tmpl = templateMap[a.template_id];
+            if (!tmpl) return null;
+            const fromPos = tmpl.from_position_id ? posMap[tmpl.from_position_id] : null;
+            const toPos = tmpl.to_position_id ? posMap[tmpl.to_position_id] : null;
+            const steps = (tmpl.steps as unknown as Step[]) || [];
+            const tActions = levelActions.filter(la => la.template_id === tmpl.id);
             return (
               <div key={a.id} className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
                 <button
@@ -296,16 +288,16 @@ const CareerTrack = () => {
                       <Route className="w-6 h-6 text-primary-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-foreground">{t.title}</h3>
+                      <h3 className="text-lg font-semibold text-foreground">{tmpl.title}</h3>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                         {fromPos && <span>{fromPos.title}</span>}
                         {fromPos && toPos && <ArrowRight className="w-4 h-4" />}
                         {toPos && <span className="text-primary font-medium">{toPos.title}</span>}
-                        {t.estimated_months && <span className="ml-2">· ~{t.estimated_months} мес.</span>}
+                        {tmpl.estimated_months && <span className="ml-2">· ~{tmpl.estimated_months} {t("careerTrack.months")}</span>}
                       </div>
                     </div>
                     <span className={`text-xs px-3 py-1 rounded-full ${a.status === "completed" ? "bg-success/20 text-success" : "bg-info/20 text-info"}`}>
-                      {a.status === "completed" ? "Завершён" : "Активен"}
+                      {a.status === "completed" ? t("careerTrack.trackCompleted") : t("careerTrack.trackActive")}
                     </span>
                     {expandedTrack === a.id
                       ? <ChevronDown className="w-5 h-5 text-muted-foreground" />
@@ -315,21 +307,21 @@ const CareerTrack = () => {
 
                 {expandedTrack === a.id && (
                   <div className="px-5 pb-5 border-t border-border pt-4 animate-fade-in">
-                    {t.description && <p className="text-sm text-muted-foreground mb-4">{t.description}</p>}
+                    {tmpl.description && <p className="text-sm text-muted-foreground mb-4">{tmpl.description}</p>}
 
-                    {(t.motivation_text || a.personal_motivation) && (
+                    {(tmpl.motivation_text || a.personal_motivation) && (
                       <div className="bg-primary/5 border border-primary/10 rounded-lg p-4 mb-4">
                         <div className="flex items-center gap-2 mb-2">
                           <Sparkles className="w-4 h-4 text-primary" />
-                          <h4 className="text-sm font-medium text-primary">Мотивация</h4>
+                          <h4 className="text-sm font-medium text-primary">{t("careerTrack.motivation")}</h4>
                         </div>
-                        <p className="text-sm text-foreground">{a.personal_motivation || t.motivation_text}</p>
+                        <p className="text-sm text-foreground">{a.personal_motivation || tmpl.motivation_text}</p>
                       </div>
                     )}
 
                     {steps.length > 0 ? (
                       <div className="mb-4">
-                        <h4 className="text-sm font-medium text-foreground mb-3">Этапы карьерного пути</h4>
+                        <h4 className="text-sm font-medium text-foreground mb-3">{t("careerTrack.stagesTitle")}</h4>
                         <div className="relative">
                           {steps.map((s, i) => (
                             <CareerTrackStepCard
@@ -346,18 +338,18 @@ const CareerTrack = () => {
                         </div>
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground mb-4">У трека пока нет детализированных этапов — HRD скоро добавит их.</p>
+                      <p className="text-sm text-muted-foreground mb-4">{t("careerTrack.noStages")}</p>
                     )}
 
                     {tActions.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-medium text-foreground mb-2">Что нужно для перехода на следующий уровень</h4>
+                        <h4 className="text-sm font-medium text-foreground mb-2">{t("careerTrack.nextLevelTitle")}</h4>
                         <div className="space-y-1.5">
                           {tActions.map(act => (
                             <div key={act.id} className="flex items-center gap-2.5 p-2.5 bg-secondary/30 rounded-lg">
                               <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${act.is_required ? "text-primary" : "text-muted-foreground"}`} />
                               <span className="text-sm text-foreground flex-1">{act.action_text}</span>
-                              {act.is_required && <span className="text-xs text-primary">обязательно</span>}
+                              {act.is_required && <span className="text-xs text-primary">{t("careerTrack.required")}</span>}
                             </div>
                           ))}
                         </div>
@@ -371,26 +363,25 @@ const CareerTrack = () => {
         </div>
       )}
 
-      {/* Goals tab */}
       {tab === "goals" && (
         <div className="space-y-4">
           <div className="flex justify-end">
             <button onClick={() => setShowAddGoal(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm">
-              <Plus className="w-4 h-4" /> Новая цель
+              <Plus className="w-4 h-4" /> {t("careerTrack.newGoal")}
             </button>
           </div>
 
           {showAddGoal && (
             <div className="bg-card rounded-xl p-6 shadow-card border border-primary/20 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-foreground">Новая карьерная цель</h3>
+                <h3 className="font-semibold text-foreground">{t("careerTrack.newGoalTitle")}</h3>
                 <button onClick={() => setShowAddGoal(false)}><X className="w-5 h-5 text-muted-foreground" /></button>
               </div>
-              <input type="text" placeholder="Название цели" value={newGoal.title}
+              <input type="text" placeholder={t("careerTrack.goalName")} value={newGoal.title}
                 onChange={e => setNewGoal({ ...newGoal, title: e.target.value })}
                 className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground" />
-              <input type="text" placeholder="Описание (необязательно)" value={newGoal.description}
+              <input type="text" placeholder={t("careerTrack.goalDescription")} value={newGoal.description}
                 onChange={e => setNewGoal({ ...newGoal, description: e.target.value })}
                 className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground" />
               <input type="date" value={newGoal.deadline}
@@ -398,7 +389,7 @@ const CareerTrack = () => {
                 className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground" />
               <button onClick={() => addGoalMutation.mutate()} disabled={!newGoal.title || addGoalMutation.isPending}
                 className="px-6 py-2.5 rounded-lg gradient-primary text-primary-foreground text-sm disabled:opacity-50">
-                {addGoalMutation.isPending ? "Сохранение..." : "Создать цель"}
+                {addGoalMutation.isPending ? t("careerTrack.saving") : t("careerTrack.createGoal")}
               </button>
             </div>
           )}
@@ -406,8 +397,8 @@ const CareerTrack = () => {
           {goals.length === 0 && !showAddGoal && (
             <div className="bg-card rounded-xl p-12 text-center border border-border">
               <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-semibold text-foreground mb-2">Нет карьерных целей</h3>
-              <button onClick={() => setShowAddGoal(true)} className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm">Создать цель</button>
+              <h3 className="font-semibold text-foreground mb-2">{t("careerTrack.noGoals")}</h3>
+              <button onClick={() => setShowAddGoal(true)} className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm">{t("careerTrack.createGoal")}</button>
             </div>
           )}
 
@@ -422,14 +413,16 @@ const CareerTrack = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className={`font-semibold text-foreground ${goal.status === "completed" ? "line-through opacity-60" : ""}`}>{goal.title}</h3>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${config.textColor} bg-accent`}>{config.label}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${config.textColor} bg-accent`}>
+                        {t(`careerTrack.status.${goal.status}`, t("careerTrack.status.in_progress"))}
+                      </span>
                     </div>
                     {goal.description && <p className="text-sm text-muted-foreground mt-0.5">{goal.description}</p>}
                   </div>
                   <div className="flex items-center gap-4 flex-shrink-0">
                     <div className="text-right">
                       <p className="text-sm font-medium text-foreground">{goal.progress}%</p>
-                      {goal.deadline && <p className="text-xs text-muted-foreground">до {format(new Date(goal.deadline), "dd.MM.yyyy")}</p>}
+                      {goal.deadline && <p className="text-xs text-muted-foreground">{t("careerTrack.until")} {format(new Date(goal.deadline), "dd.MM.yyyy")}</p>}
                     </div>
                     {isExpanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
                   </div>
@@ -459,7 +452,7 @@ const CareerTrack = () => {
                       ))}
                     </div>
                     <div className="mt-3 flex gap-2">
-                      <input type="text" placeholder="Новая задача..." value={newItemText[goal.id] || ""}
+                      <input type="text" placeholder={t("careerTrack.newTask")} value={newItemText[goal.id] || ""}
                         onChange={e => setNewItemText({ ...newItemText, [goal.id]: e.target.value })}
                         onKeyDown={e => {
                           if (e.key === "Enter" && newItemText[goal.id]?.trim()) {
@@ -486,7 +479,6 @@ const CareerTrack = () => {
         </div>
       )}
 
-      {/* Rewards tab */}
       {tab === "rewards" && (
         <div className="space-y-4">
           {totalPoints > 0 && (
@@ -496,8 +488,8 @@ const CareerTrack = () => {
                   <Award className="w-7 h-7 text-warning" />
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-foreground">{totalPoints} очков</p>
-                  <p className="text-sm text-muted-foreground">{myRewards.length} наград получено</p>
+                  <p className="text-3xl font-bold text-foreground">{t("careerTrack.totalPoints", { count: totalPoints })}</p>
+                  <p className="text-sm text-muted-foreground">{t("careerTrack.rewardsReceived", { count: myRewards.length })}</p>
                 </div>
               </div>
             </div>
@@ -506,8 +498,8 @@ const CareerTrack = () => {
           {myRewards.length === 0 && (
             <div className="bg-card rounded-xl p-12 text-center border border-border">
               <Award className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-semibold text-foreground mb-2">Пока нет наград</h3>
-              <p className="text-sm text-muted-foreground">Выполняйте задачи и продвигайтесь по карьерному пути!</p>
+              <h3 className="font-semibold text-foreground mb-2">{t("careerTrack.noRewards")}</h3>
+              <p className="text-sm text-muted-foreground">{t("careerTrack.noRewardsDesc")}</p>
             </div>
           )}
 
@@ -519,9 +511,9 @@ const CareerTrack = () => {
                 <div key={r.id} className="bg-card rounded-xl p-4 shadow-card border border-border flex items-center gap-4">
                   <span className="text-2xl">{iconEmoji}</span>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{rt?.title || "Награда"}</p>
+                    <p className="text-sm font-medium text-foreground">{rt?.title || t("careerTrack.rewardFallback")}</p>
                     {r.description && <p className="text-xs text-muted-foreground">{r.description}</p>}
-                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(r.awarded_at).toLocaleDateString("ru")}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(r.awarded_at).toLocaleDateString()}</p>
                   </div>
                   <span className="text-sm font-bold text-primary">+{rt?.points || 0}</span>
                 </div>

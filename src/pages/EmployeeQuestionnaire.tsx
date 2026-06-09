@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import { laravelStorage } from "@/integrations/laravel/storage";
@@ -41,12 +42,6 @@ const allowedFileTypes = [
   "image/png",
 ];
 const allowedExtensions = ["docx", "pdf", "jpg", "jpeg", "png"];
-const levelHints = [
-  "Понимаю основы и применяю с поддержкой",
-  "Выполняю типовые задачи самостоятельно",
-  "Уверенно применяю в сложных ситуациях",
-  "Экспертно развиваю практику и обучаю других",
-];
 
 const normalizeCompetencies = (position: any): Competency[] => {
   const templateCompetencies = position?.profile_template?.competencies;
@@ -64,6 +59,7 @@ const normalizeCompetencies = (position: any): Competency[] => {
 };
 
 const EmployeeQuestionnaire = () => {
+  const { t } = useTranslation("employee");
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
@@ -86,6 +82,16 @@ const EmployeeQuestionnaire = () => {
   const [questionnaireId, setQuestionnaireId] = useState<string | null>(null);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [draftText, setDraftText] = useState("");
+
+  const levelHints = t("questionnaire.levelHints", { returnObjects: true }) as string[];
+  const driverItems = t("questionnaire.driverItems", { returnObjects: true }) as string[];
+
+  const levelLabels: Record<number, string> = {
+    1: t("questionnaire.levels.basic"),
+    2: t("questionnaire.levels.confident"),
+    3: t("questionnaire.levels.advanced"),
+    4: t("questionnaire.levels.expert"),
+  };
 
   const { data: positions = [], isLoading: positionsLoading } = useQuery({
     queryKey: ["questionnaire_positions", profile?.company_id],
@@ -124,12 +130,12 @@ const EmployeeQuestionnaire = () => {
   });
 
   const formatDraft = (draft: ProfileDraft) => [
-    `Резюме профиля:\n${draft.summary || ""}`,
-    `\nСильные стороны:\n${(draft.strengths || []).map((item) => `• ${item}`).join("\n")}`,
-    `\nЗоны роста:\n${(draft.growth_areas || []).map((item) => `• ${item}`).join("\n")}`,
-    `\nРекомендации:\n${(draft.recommendations || []).map((item) => `• ${item}`).join("\n")}`,
-    `\nКарьерный фокус:\n${draft.career_focus || ""}`,
-    draft.risk_notes?.length ? `\nРиски/наблюдения:\n${draft.risk_notes.map((item) => `• ${item}`).join("\n")}` : "",
+    `${t("questionnaire.draftSections.summary")}\n${draft.summary || ""}`,
+    `\n${t("questionnaire.draftSections.strengths")}\n${(draft.strengths || []).map((item) => `• ${item}`).join("\n")}`,
+    `\n${t("questionnaire.draftSections.growth")}\n${(draft.growth_areas || []).map((item) => `• ${item}`).join("\n")}`,
+    `\n${t("questionnaire.draftSections.recommendations")}\n${(draft.recommendations || []).map((item) => `• ${item}`).join("\n")}`,
+    `\n${t("questionnaire.draftSections.focus")}\n${draft.career_focus || ""}`,
+    draft.risk_notes?.length ? `\n${t("questionnaire.draftSections.risks")}\n${draft.risk_notes.map((item) => `• ${item}`).join("\n")}` : "",
   ].filter(Boolean).join("\n");
 
   const uploadFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -140,7 +146,7 @@ const EmployeeQuestionnaire = () => {
       return !allowedExtensions.includes(ext) || !allowedFileTypes.includes(file.type);
     });
     if (invalid) {
-      toast.error("Можно прикрепить только DOCX, PDF, JPG или PNG");
+      toast.error(t("questionnaire.fileTypeError"));
       if (fileRef.current) fileRef.current.value = "";
       return;
     }
@@ -155,9 +161,9 @@ const EmployeeQuestionnaire = () => {
         uploaded.push({ path, name: file.name, size: file.size, type: file.type });
       }
       setFiles((prev) => [...prev, ...uploaded]);
-      toast.success(`Добавлено файлов: ${uploaded.length}`);
+      toast.success(t("questionnaire.filesAdded", { count: uploaded.length }));
     } catch (error: any) {
-      toast.error(error.message || "Не удалось загрузить файлы");
+      toast.error(error.message || t("questionnaire.uploadFail"));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -166,8 +172,8 @@ const EmployeeQuestionnaire = () => {
 
   const saveMutation = useMutation({
     mutationFn: async (status: "draft" | "submitted") => {
-      if (!user || !profile?.company_id) throw new Error("Профиль сотрудника не привязан к компании");
-      if (!positionId && !otherPosition.trim()) throw new Error("Выберите должность или укажите вариант вручную");
+      if (!user || !profile?.company_id) throw new Error(t("questionnaire.noCompany"));
+      if (!positionId && !otherPosition.trim()) throw new Error(t("questionnaire.pickPosition"));
       const answers = buildAnswers();
       const { data: questionnaireId, error } = await laravelRpc("submit_employee_questionnaire" as any, {
         _questionnaire_id: null,
@@ -196,7 +202,7 @@ const EmployeeQuestionnaire = () => {
         queryClient.invalidateQueries({ queryKey: ["competencies"] });
         queryClient.invalidateQueries({ queryKey: ["assessments"] });
         setQuestionnaireId(questionnaireId);
-        toast.success(status === "draft" ? "Черновик анкеты сохранён" : "Анкета отправлена, цифровой паспорт обновлён");
+        toast.success(status === "draft" ? t("questionnaire.draftSaved") : t("questionnaire.submitted"));
         if (status === "submitted") {
           const { data, error } = await aiInvoke("generate-questionnaire-profile", {
             body: { answers, skillGaps, positionTitle: selectedPosition?.title || otherPosition },
@@ -208,15 +214,15 @@ const EmployeeQuestionnaire = () => {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
       } catch (error: any) {
-        toast.error(error.message || "Анкета сохранена, но черновик профиля не сгенерирован");
+        toast.error(error.message || t("questionnaire.aiFail"));
       }
     },
-    onError: (error: any) => toast.error(error.message || "Не удалось сохранить анкету"),
+    onError: (error: any) => toast.error(error.message || t("questionnaire.saveFail")),
   });
 
   const confirmDraftMutation = useMutation({
     mutationFn: async () => {
-      if (!questionnaireId || !profileDraft) throw new Error("Черновик профиля не найден");
+      if (!questionnaireId || !profileDraft) throw new Error(t("questionnaire.draftNotFound"));
       const { error } = await laravelDb
         .from("employee_questionnaires" as any)
         .update({
@@ -228,10 +234,10 @@ const EmployeeQuestionnaire = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["latest_employee_questionnaire"] });
-      toast.success("Черновик профиля подтверждён");
+      toast.success(t("questionnaire.draftConfirmed"));
       navigate("/passport");
     },
-    onError: (error: any) => toast.error(error.message || "Не удалось подтвердить профиль"),
+    onError: (error: any) => toast.error(error.message || t("questionnaire.confirmFail")),
   });
 
   if (positionsLoading) {
@@ -242,13 +248,13 @@ const EmployeeQuestionnaire = () => {
     return (
       <div className="space-y-6 animate-fade-in">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-foreground">Черновик цифрового профиля</h1>
-          <p className="text-xs md:text-sm text-muted-foreground mt-1">Проверьте AI-рекомендации, отредактируйте при необходимости и подтвердите профиль</p>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">{t("questionnaire.draftTitle")}</h1>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">{t("questionnaire.draftSubtitle")}</p>
         </div>
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg"><Sparkles className="h-5 w-5 text-primary" />AI-интерпретация анкеты</CardTitle>
-            <CardDescription>После подтверждения черновик сохранится в истории анкеты и будет использоваться в цифровом паспорте</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-lg"><Sparkles className="h-5 w-5 text-primary" />{t("questionnaire.aiInterpretation")}</CardTitle>
+            <CardDescription>{t("questionnaire.aiInterpretationDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Textarea value={draftText} onChange={(e) => setDraftText(e.target.value)} className="min-h-[420px] font-mono text-sm" />
@@ -257,17 +263,17 @@ const EmployeeQuestionnaire = () => {
                 <div key={gap.name} className="rounded-lg border border-border p-3">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-medium text-foreground">{gap.name}</p>
-                    <Badge variant="outline">Gap {gap.gap}</Badge>
+                    <Badge variant="outline">{t("questionnaire.gap")} {gap.gap}</Badge>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">Ваш уровень {gap.current_level} / эталон {gap.required_level}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t("questionnaire.yourLevel", { cur: gap.current_level, req: gap.required_level })}</p>
                 </div>
               ))}
             </div>
             <div className="flex flex-col gap-2 md:flex-row md:justify-end">
-              <Button variant="outline" onClick={() => setProfileDraft(null)}>Вернуться к анкете</Button>
+              <Button variant="outline" onClick={() => setProfileDraft(null)}>{t("questionnaire.backToForm")}</Button>
               <Button onClick={() => confirmDraftMutation.mutate()} disabled={confirmDraftMutation.isPending}>
                 {confirmDraftMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Подтвердить профиль
+                {t("questionnaire.confirmProfile")}
               </Button>
             </div>
           </CardContent>
@@ -280,12 +286,12 @@ const EmployeeQuestionnaire = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-foreground">Анкета сотрудника</h1>
-          <p className="text-xs md:text-sm text-muted-foreground mt-1">Первичное заполнение и самооценка для цифрового паспорта</p>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">{t("questionnaire.title")}</h1>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">{t("questionnaire.subtitle")}</p>
         </div>
         <div className="min-w-56 space-y-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Готовность</span><span>{completion}%</span>
+            <span>{t("questionnaire.readiness")}</span><span>{completion}%</span>
           </div>
           <Progress value={completion} className="h-2" />
         </div>
@@ -293,39 +299,39 @@ const EmployeeQuestionnaire = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg"><Briefcase className="h-5 w-5 text-primary" />Текущая должность</CardTitle>
-          <CardDescription>Обязательный шаг: от него зависит динамический набор компетенций</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-lg"><Briefcase className="h-5 w-5 text-primary" />{t("questionnaire.currentPosition")}</CardTitle>
+          <CardDescription>{t("questionnaire.currentPositionDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label>Утверждённый профиль должности</Label>
+            <Label>{t("questionnaire.approvedProfile")}</Label>
             <select value={positionId} onChange={(e) => { setPositionId(e.target.value); if (e.target.value) setOtherPosition(""); }} className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-              <option value="">Выберите должность</option>
+              <option value="">{t("questionnaire.selectPosition")}</option>
               {positions.map((position: any) => <option key={position.id} value={position.id}>{position.title}</option>)}
             </select>
           </div>
           <div className="space-y-2">
-            <Label>Другая должность</Label>
-            <Input value={otherPosition} onChange={(e) => { setOtherPosition(e.target.value); if (e.target.value) setPositionId(""); }} placeholder="Например: инженер по качеству" />
+            <Label>{t("questionnaire.otherPosition")}</Label>
+            <Input value={otherPosition} onChange={(e) => { setOtherPosition(e.target.value); if (e.target.value) setPositionId(""); }} placeholder={t("questionnaire.otherPositionPh")} />
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">1. Базовая информация</CardTitle>
+          <CardTitle className="text-lg">{t("questionnaire.section1")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2"><Label>ФИО</Label><Input value={basic.fullName} onChange={(e) => setBasic({ ...basic, fullName: e.target.value })} /></div>
-          <div className="space-y-2"><Label>Подразделение</Label><Input value={basic.department} onChange={(e) => setBasic({ ...basic, department: e.target.value })} /></div>
-          <div className="space-y-2"><Label>Текущий грейд</Label><Input value={basic.grade} onChange={(e) => setBasic({ ...basic, grade: e.target.value })} placeholder="Например: middle / grade 7" /></div>
+          <div className="space-y-2"><Label>{t("questionnaire.fullName")}</Label><Input value={basic.fullName} onChange={(e) => setBasic({ ...basic, fullName: e.target.value })} /></div>
+          <div className="space-y-2"><Label>{t("questionnaire.department")}</Label><Input value={basic.department} onChange={(e) => setBasic({ ...basic, department: e.target.value })} /></div>
+          <div className="space-y-2"><Label>{t("questionnaire.grade")}</Label><Input value={basic.grade} onChange={(e) => setBasic({ ...basic, grade: e.target.value })} placeholder={t("questionnaire.gradePh")} /></div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">2. Самооценка компетенций</CardTitle>
-          <CardDescription>{competencies.length ? `Компетенции загружены из эталона: ${competencies.length}` : "Выберите должность, чтобы подгрузить эталон компетенций"}</CardDescription>
+          <CardTitle className="text-lg">{t("questionnaire.section2")}</CardTitle>
+          <CardDescription>{competencies.length ? t("questionnaire.section2DescLoaded", { count: competencies.length }) : t("questionnaire.section2DescEmpty")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {competencies.map((competency) => {
@@ -335,22 +341,22 @@ const EmployeeQuestionnaire = () => {
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium text-foreground">{competency.name}</p>
                   <Badge variant="secondary">{competency.category || "Functional"}</Badge>
-                  <span className="text-xs text-muted-foreground">Эталон: уровень {competency.required_level || 2}</span>
+                  <span className="text-xs text-muted-foreground">{t("questionnaire.reference", { level: competency.required_level || 2 })}</span>
                 </div>
                 <div className="grid gap-2 md:grid-cols-4">
                   {[1, 2, 3, 4].map((level) => (
                     <button key={level} type="button" title={levelHints[level - 1]} onClick={() => setCompetencyAnswers((prev) => ({ ...prev, [competency.name]: { ...value, level } }))} className={`rounded-md border px-3 py-2 text-left text-xs transition-colors ${value.level === level ? "border-primary bg-primary/10 text-foreground" : "border-border hover:bg-secondary"}`}>
-                      <span className="block font-semibold">{level}. {level === 1 ? "Базовый" : level === 2 ? "Уверенный" : level === 3 ? "Продвинутый" : "Эксперт"}</span>
+                      <span className="block font-semibold">{level}. {levelLabels[level]}</span>
                       <span className="text-muted-foreground">{levelHints[level - 1]}</span>
                     </button>
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <Label>Behavioral примеры</Label>
+                  <Label>{t("questionnaire.behavioralExamples")}</Label>
                   {value.examples.slice(0, 3).map((example, index) => (
-                    <Input key={index} value={example} onChange={(e) => setCompetencyAnswers((prev) => ({ ...prev, [competency.name]: { ...value, examples: value.examples.map((item, i) => i === index ? e.target.value : item) } }))} placeholder="Опишите ситуацию, действие и результат" />
+                    <Input key={index} value={example} onChange={(e) => setCompetencyAnswers((prev) => ({ ...prev, [competency.name]: { ...value, examples: value.examples.map((item, i) => i === index ? e.target.value : item) } }))} placeholder={t("questionnaire.examplePh")} />
                   ))}
-                  {value.examples.length < 3 && <Button type="button" variant="outline" size="sm" onClick={() => setCompetencyAnswers((prev) => ({ ...prev, [competency.name]: { ...value, examples: [...value.examples, ""] } }))}><Plus className="h-4 w-4" />Добавить пример</Button>}
+                  {value.examples.length < 3 && <Button type="button" variant="outline" size="sm" onClick={() => setCompetencyAnswers((prev) => ({ ...prev, [competency.name]: { ...value, examples: [...value.examples, ""] } }))}><Plus className="h-4 w-4" />{t("questionnaire.addExample")}</Button>}
                 </div>
               </div>
             );
@@ -360,52 +366,52 @@ const EmployeeQuestionnaire = () => {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-lg">3. Опыт и достижения</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">{t("questionnaire.section3")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2"><Label>Опыт работы, лет</Label><Input type="number" min={0} value={experience.years} onChange={(e) => setExperience({ ...experience, years: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Предыдущие роли</Label><Textarea value={experience.previousRoles} onChange={(e) => setExperience({ ...experience, previousRoles: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Ключевые проекты и результаты</Label><Textarea value={experience.projects} onChange={(e) => setExperience({ ...experience, projects: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Сертификаты и обучение</Label><Textarea value={experience.certificates} onChange={(e) => setExperience({ ...experience, certificates: e.target.value })} /></div>
+            <div className="space-y-2"><Label>{t("questionnaire.yearsExp")}</Label><Input type="number" min={0} value={experience.years} onChange={(e) => setExperience({ ...experience, years: e.target.value })} /></div>
+            <div className="space-y-2"><Label>{t("questionnaire.prevRoles")}</Label><Textarea value={experience.previousRoles} onChange={(e) => setExperience({ ...experience, previousRoles: e.target.value })} /></div>
+            <div className="space-y-2"><Label>{t("questionnaire.keyProjects")}</Label><Textarea value={experience.projects} onChange={(e) => setExperience({ ...experience, projects: e.target.value })} /></div>
+            <div className="space-y-2"><Label>{t("questionnaire.certificates")}</Label><Textarea value={experience.certificates} onChange={(e) => setExperience({ ...experience, certificates: e.target.value })} /></div>
             <div className="space-y-2">
-              <Label>Файлы-доказательства</Label>
+              <Label>{t("questionnaire.evidenceFiles")}</Label>
               <Input ref={fileRef} type="file" multiple accept=".docx,.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={uploadFiles} />
-              {uploading && <p className="text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />Загрузка файлов</p>}
+              {uploading && <p className="text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />{t("questionnaire.uploading")}</p>}
               <div className="space-y-2">{files.map((file) => <div key={file.path} className="flex items-center justify-between rounded-md bg-secondary/50 px-3 py-2 text-sm"><span className="flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />{file.name}</span><button onClick={() => setFiles((prev) => prev.filter((item) => item.path !== file.path))} className="text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></button></div>)}</div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-lg">4–5. Мотивация и поведенческий профиль</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">{t("questionnaire.section45")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Приоритетные драйверы</Label>
+              <Label>{t("questionnaire.drivers")}</Label>
               <div className="flex flex-wrap gap-2">
-                {["Признание", "Автономия", "Сложность задач", "Финансы", "Баланс", "Рост", "Команда", "Стабильность"].map((item) => (
+                {driverItems.map((item) => (
                   <button key={item} type="button" onClick={() => setMotivators((prev) => prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item])} className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${motivators.includes(item) ? "border-primary bg-primary/10 text-foreground" : "border-border hover:bg-secondary"}`}>{item}</button>
                 ))}
               </div>
             </div>
-            <div className="space-y-2"><Label>Что сильнее всего влияет на вашу вовлечённость?</Label><Textarea value={motivationComment} onChange={(e) => setMotivationComment(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Как вы принимаете решения в неопределённости?</Label><Textarea value={behavioral.decision} onChange={(e) => setBehavioral({ ...behavioral, decision: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Как реагируете на стресс и сжатые сроки?</Label><Textarea value={behavioral.stress} onChange={(e) => setBehavioral({ ...behavioral, stress: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Как предпочитаете получать обратную связь?</Label><Textarea value={behavioral.feedback} onChange={(e) => setBehavioral({ ...behavioral, feedback: e.target.value })} /></div>
+            <div className="space-y-2"><Label>{t("questionnaire.engagementQ")}</Label><Textarea value={motivationComment} onChange={(e) => setMotivationComment(e.target.value)} /></div>
+            <div className="space-y-2"><Label>{t("questionnaire.decisionsQ")}</Label><Textarea value={behavioral.decision} onChange={(e) => setBehavioral({ ...behavioral, decision: e.target.value })} /></div>
+            <div className="space-y-2"><Label>{t("questionnaire.stressQ")}</Label><Textarea value={behavioral.stress} onChange={(e) => setBehavioral({ ...behavioral, stress: e.target.value })} /></div>
+            <div className="space-y-2"><Label>{t("questionnaire.feedbackQ")}</Label><Textarea value={behavioral.feedback} onChange={(e) => setBehavioral({ ...behavioral, feedback: e.target.value })} /></div>
           </CardContent>
         </Card>
       </div>
 
       {skillGaps.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Sparkles className="h-5 w-5 text-primary" />Предварительные skill gaps</CardTitle><CardDescription>Расчёт выполняется автоматически по самооценке и эталону должности</CardDescription></CardHeader>
+          <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Sparkles className="h-5 w-5 text-primary" />{t("questionnaire.skillGaps")}</CardTitle><CardDescription>{t("questionnaire.skillGapsDesc")}</CardDescription></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {skillGaps.map((gap) => <div key={gap.name} className="rounded-lg border border-border p-3"><div className="flex items-start justify-between gap-2"><p className="text-sm font-medium text-foreground">{gap.name}</p><Badge variant={gap.gap > 0 ? "outline" : "secondary"}>{gap.gap > 0 ? `Gap ${gap.gap}` : "OK"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Ваш уровень {gap.current_level} / эталон {gap.required_level}</p></div>)}
+            {skillGaps.map((gap) => <div key={gap.name} className="rounded-lg border border-border p-3"><div className="flex items-start justify-between gap-2"><p className="text-sm font-medium text-foreground">{gap.name}</p><Badge variant={gap.gap > 0 ? "outline" : "secondary"}>{gap.gap > 0 ? `${t("questionnaire.gap")} ${gap.gap}` : t("questionnaire.ok")}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{t("questionnaire.yourLevel", { cur: gap.current_level, req: gap.required_level })}</p></div>)}
           </CardContent>
         </Card>
       )}
 
       <div className="sticky bottom-4 z-10 flex flex-col gap-2 rounded-lg border border-border bg-card/95 p-3 shadow-card backdrop-blur md:flex-row md:justify-end">
-        <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending}><Save className="h-4 w-4" />Дозаполнить позже</Button>
-        <Button onClick={() => saveMutation.mutate("submitted")} disabled={saveMutation.isPending || completion < 60}>{saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}Сохранить в паспорт<ArrowRight className="h-4 w-4" /></Button>
+        <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending}><Save className="h-4 w-4" />{t("questionnaire.saveLater")}</Button>
+        <Button onClick={() => saveMutation.mutate("submitted")} disabled={saveMutation.isPending || completion < 60}>{saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{t("questionnaire.saveToPassport")}<ArrowRight className="h-4 w-4" /></Button>
       </div>
     </div>
   );

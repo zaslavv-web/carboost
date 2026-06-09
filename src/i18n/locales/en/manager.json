@@ -1,0 +1,312 @@
+{
+  "managerDashboard": {
+    "title": "Manager Dashboard 📊",
+    "subtitle": "Team overview and development progress",
+    "addToTeam": "Add to team",
+    "employeeAdded": "Employee added to team",
+    "employeeRemoved": "Employee removed from team",
+    "metrics": {
+      "teamSize": "Team members",
+      "avgProgress": "Average progress",
+      "careerTracks": "Across career tracks",
+      "goalsInProgress": "Goals in progress",
+      "atRisk": "{{count}} at risk",
+      "avgScore": "Average score",
+      "teamCompetencies": "Team competencies"
+    },
+    "myTeam": "My team",
+    "employeeCount": "{{count}} employees",
+    "addEmployees": "Add employees to your team",
+    "progress": "Progress",
+    "score": "score",
+    "removeFromTeam": "Remove from team",
+    "noCompetencyData": "No competency data",
+    "onTrack": "On track",
+    "atRiskLabel": "At risk",
+    "completedTrack": "Completed track",
+    "noDept": "No department",
+    "deptEfficiency": "Department efficiency",
+    "avgScoreBar": "Average score",
+    "employeesBar": "Employees",
+    "addModal": {
+      "title": "Add to team",
+      "searchPlaceholder": "Search...",
+      "noAvailable": "No available employees"
+    }
+  },
+  "hrdDashboard": {
+    "comparison": {
+      "title": "Competency comparison",
+      "match": "Position match",
+      "high": "High match — employee is ready for the position",
+      "medium": "Medium match — some competencies need development",
+      "low": "Low match — significant preparation required",
+      "noData": "No data for comparison. Make sure the position has a competency profile set.",
+      "positionBenchmark": "Position benchmark",
+      "employee": "Employee",
+      "competency": "Competency",
+      "benchmark": "Benchmark",
+      "diff": "Diff"
+    },
+    "roles": {
+      "employee": "Employee",
+      "manager": "Manager",
+      "hrd": "HRD",
+      "company_admin": "Company Admin",
+      "superadmin": "Superadmin"
+    },
+    "toast": {
+      "positionConfirmed": "Position confirmed",
+      "requestRejected": "Request rejected",
+      "mappingAdded": "Mapping added",
+      "mappingDeleted": "Mapping deleted",
+      "roleUpdated": "Role updated successfully",
+      "roleError": "Error assigning role",
+      "positionAssigned": "Position assigned"
+    },
+    "errors": {
+      "specifyDomainPosition": "Please specify domain and position",
+      "noCompany": "Company not identified",
+      "domainDuplicate": "This domain is already mapped"
+    },
+    "roleDistItems": {
+      "employees": "Employees",
+      "managers": "Managers",
+      "hrd": "HRD"
+    },
+    "noDept": "No department",
+    "hero": {
+      "title": "HRD Panel",
+      "subtitle": "Manage employees, roles and development.",
+      "risksBtn": "Risks & Retention",
+      "recognitionBtn": "Recognition Feed"
+    },
+    "metrics": {
+      "employees": "Employees",
+      "managersCount": "{{count}} managers",
+      "avgScore": "Average score",
+      "perCompany": "company-wide",
+      "managersLabel": "Managers",
+      "departments": "Departments"
+    },
+    "charts": {
+      "roleDistribution": "Role distribution",
+      "noData": "No data",
+      "avgScoreByDept": "Average score by department",
+      "avgScoreBar": "Average score",
+      "employeesBar": "Employees"
+    },
+    "tabs": {
+      "employees": "Employees",
+      "map": "Employee map",
+      "tracks": "Career tracks",
+      "requests": "Position requests",
+      "mappings": "Domain mappings"
+    },
+    "requests": {
+      "title": "Position confirmation requests",
+      "subtitle": "Employees who manually selected their position during registration. Confirm, change or reject.",
+      "empty": "No pending requests",
+      "claimedPosition": "Claimed position:",
+      "positionDeleted": "— position deleted —",
+      "changePositionTitle": "Change position",
+      "confirm": "Confirm",
+      "reject": "Reject"
+    },
+    "mappings": {
+      "title": "Auto-assign position by email domain",
+      "subtitle": "Employees with the specified email domain will automatically receive the selected position without manual confirmation.",
+      "selectPosition": "— Select position —",
+      "add": "Add",
+      "empty": "No mappings yet"
+    },
+    "table": {
+      "title": "All employees",
+      "searchPlaceholder": "Search by name or department...",
+      "filterAll": "All",
+      "colEmployee": "Employee",
+      "colPosition": "Position",
+      "colDept": "Department",
+      "colRole": "Role",
+      "colScore": "Score",
+      "colMatch": "Match",
+      "noPosition": "Not assigned",
+      "removePosition": "— Remove position",
+      "noPositions": "No positions. Create one in the Positions section.",
+      "compare": "Compare",
+      "noEmployees": "No employees in the system",
+      "noResults": "Nothing found",
+      "showing": "Showing {{shown}} of {{total}} employees"
+    }
+  },
+  "hrdTests": {
+    "title": "Closed-question tests",
+    "subtitle": "Upload Excel or PDF — AI will extract questions, options and correct answers. Employees will take active tests.",
+    "uploadSection": "Upload new test",
+    "nameLabel": "Title (optional)",
+    "namePlaceholder": "AI will fill from file",
+    "positionLabel": "Link to position (optional)",
+    "allPositions": "— All positions —",
+    "descLabel": "Description (optional)",
+    "fileLabel": "Test file (Excel .xlsx, .csv or PDF, .docx)",
+    "fileInfo": "{{name}} · {{size}} KB",
+    "processing": "Processing...",
+    "uploadBtn": "Upload and parse",
+    "previewTitle": "Preview ({{count}} questions)",
+    "hide": "Hide",
+    "competencyLabel": "Competency:",
+    "moreQuestions": "…and {{count}} more",
+    "listTitle": "Uploaded tests",
+    "empty": "No tests uploaded yet. Employees will receive AI-generated tests for their position.",
+    "questionCount": "{{count}} q.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "previewBtn": "Preview",
+    "disableBtn": "Disable",
+    "enableBtn": "Enable",
+    "deleteBtn": "Delete",
+    "confirmDelete": "Delete this test?",
+    "toast": {
+      "selectFile": "Please select a file",
+      "noQuestions": "AI found no closed questions with correct answers",
+      "uploaded": "{{count}} questions uploaded",
+      "deleted": "Test deleted",
+      "parseError": "Error processing file",
+      "noFileUrl": "Could not get file URL"
+    }
+  },
+  "riskAnalytics": {
+    "title": "Risks & Retention",
+    "subtitle": "Predictive analytics of attrition and burnout risk by employee and department.",
+    "recalcBtn": "Recalculate risks",
+    "toast": {
+      "recalculated": "Risk metrics recalculated"
+    },
+    "kpi": {
+      "employees": "Employees",
+      "covered": "Assessed: {{count}}",
+      "highRisk": "High risk",
+      "actionRequired": "Require action",
+      "mediumRisk": "Medium risk",
+      "engagement": "Engagement"
+    },
+    "heatmap": {
+      "title": "Risk heatmap by department",
+      "empty": "No data. Click «Recalculate risks»."
+    },
+    "detail": {
+      "title": "Details",
+      "selectEmployee": "Select an employee from the list below.",
+      "highRisk": "High risk",
+      "mediumRisk": "Medium risk",
+      "lowRisk": "Low risk",
+      "attrition": "Attrition",
+      "burnout": "Burnout",
+      "engagementLabel": "Engagement",
+      "factors": "Factors",
+      "recommendations": "Recommendations"
+    },
+    "table": {
+      "title": "Employees",
+      "loading": "Loading...",
+      "colEmployee": "Employee",
+      "colDept": "Department",
+      "colAttrition": "Attrition",
+      "colBurnout": "Burnout",
+      "colEngagement": "Engagement",
+      "colLevel": "Level",
+      "notScored": "not scored"
+    },
+    "noDept": "No department",
+    "factors": {
+      "lowCareerActivity": "Low career track activity",
+      "stableProgress": "Stable progress",
+      "highHrLoad": "High HR task load",
+      "normalLoad": "Normal load",
+      "lowSocialActivity": "Low participation in social activities",
+      "goodEngagement": "Good engagement"
+    },
+    "recs": {
+      "oneOnOne": "1:1 with manager",
+      "reviewGoals": "Review career goals",
+      "reduceLoad": "Reduce workload",
+      "scheduleReview": "Schedule a review",
+      "addMentor": "Assign a mentor",
+      "maintainPace": "Maintain current pace"
+    }
+  },
+  "careerReviews": {
+    "title": "Career Track Stage Reviews",
+    "subtitle": "Approve or reject materials submitted by employees",
+    "pendingTitle": "Pending review ({{count}})",
+    "allProcessed": "All requests processed",
+    "historyTitle": "History ({{count}})",
+    "status": {
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "pending": "Under review"
+    },
+    "toast": {
+      "approved": "Stage approved",
+      "rejected": "Stage rejected",
+      "fileError": "Could not retrieve file"
+    },
+    "employeeFallback": "Employee",
+    "track": "Track:",
+    "step": "stage",
+    "attempt": "Attempt",
+    "reinforced": "reinforced scenario",
+    "testResult": "Test result:",
+    "employeeComment": "Employee comment:",
+    "files": "Files ({{count}}):",
+    "fileFallback": "File",
+    "rejectionReason": "Rejection reason:",
+    "rejectPlaceholder": "Rejection reason (will be sent to the employee)",
+    "cancel": "Cancel",
+    "confirmReject": "Confirm rejection",
+    "confirmApprove": "Approve",
+    "rejectBtn": "Reject"
+  },
+  "analytics": {
+    "title": "Analytics 📊",
+    "subtitle": "Company-wide summary data",
+    "exportPng": "Download PNG",
+    "exportXlsx": "Download XLSX",
+    "toast": {
+      "pngSaved": "Dashboard saved as PNG",
+      "pngError": "Failed to save PNG",
+      "xlsxSaved": "Tables exported to XLSX",
+      "xlsxError": "Failed to export tables"
+    },
+    "noDept": "No department",
+    "roles": {
+      "employee": "Employees",
+      "manager": "Managers",
+      "hrd": "HRD",
+      "superadmin": "Superadmins"
+    },
+    "metrics": {
+      "avgScore": "Average score",
+      "allEmployees": "Across all employees",
+      "roleReadiness": "Role readiness",
+      "avgPerCompany": "Company average",
+      "assessmentsDone": "Assessments done",
+      "goalsCompleted": "Goals completed"
+    },
+    "charts": {
+      "trendTitle": "Assessment trend by month",
+      "avgScoreLine": "Average score",
+      "assessmentsLine": "Assessment count",
+      "noAssessments": "No assessment data",
+      "roleDistTitle": "Role distribution",
+      "noData": "No data",
+      "deptCompTitle": "Department comparison",
+      "avgScoreBar": "Average score",
+      "readinessBar": "Readiness",
+      "skillsTitle": "Average competencies",
+      "avgLevelBar": "Average level",
+      "noSkills": "No competency data"
+    }
+  },
+  "roleDashboard": {}
+}

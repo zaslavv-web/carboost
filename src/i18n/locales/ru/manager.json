@@ -1,0 +1,312 @@
+{
+  "managerDashboard": {
+    "title": "Дашборд руководителя 📊",
+    "subtitle": "Обзор команды и прогресса развития",
+    "addToTeam": "Добавить в команду",
+    "employeeAdded": "Сотрудник добавлен в команду",
+    "employeeRemoved": "Сотрудник удалён из команды",
+    "metrics": {
+      "teamSize": "Сотрудников в команде",
+      "avgProgress": "Средний прогресс",
+      "careerTracks": "По карьерным трекам",
+      "goalsInProgress": "Целей в работе",
+      "atRisk": "{{count}} под угрозой",
+      "avgScore": "Средний балл",
+      "teamCompetencies": "Компетенции команды"
+    },
+    "myTeam": "Моя команда",
+    "employeeCount": "{{count}} сотрудников",
+    "addEmployees": "Добавьте сотрудников в команду",
+    "progress": "Прогресс",
+    "score": "балл",
+    "removeFromTeam": "Убрать из команды",
+    "noCompetencyData": "Нет данных о компетенциях",
+    "onTrack": "В графике",
+    "atRiskLabel": "Под угрозой",
+    "completedTrack": "Завершили трек",
+    "noDept": "Без отдела",
+    "deptEfficiency": "Эффективность по отделам",
+    "avgScoreBar": "Средний балл",
+    "employeesBar": "Сотрудников",
+    "addModal": {
+      "title": "Добавить в команду",
+      "searchPlaceholder": "Поиск...",
+      "noAvailable": "Нет доступных сотрудников"
+    }
+  },
+  "hrdDashboard": {
+    "comparison": {
+      "title": "Сравнение компетенций",
+      "match": "Соответствие должности",
+      "high": "Высокое соответствие — сотрудник готов к должности",
+      "medium": "Среднее соответствие — требуется развитие отдельных компетенций",
+      "low": "Низкое соответствие — необходима серьёзная подготовка",
+      "noData": "Нет данных для сравнения. Убедитесь, что у должности задан профиль компетенций.",
+      "positionBenchmark": "Эталон должности",
+      "employee": "Сотрудник",
+      "competency": "Компетенция",
+      "benchmark": "Эталон",
+      "diff": "Разница"
+    },
+    "roles": {
+      "employee": "Сотрудник",
+      "manager": "Руководитель",
+      "hrd": "HRD",
+      "company_admin": "Админ компании",
+      "superadmin": "Суперадмин"
+    },
+    "toast": {
+      "positionConfirmed": "Должность подтверждена",
+      "requestRejected": "Заявка отклонена",
+      "mappingAdded": "Маппинг добавлен",
+      "mappingDeleted": "Маппинг удалён",
+      "roleUpdated": "Роль успешно обновлена",
+      "roleError": "Ошибка при назначении роли",
+      "positionAssigned": "Должность назначена"
+    },
+    "errors": {
+      "specifyDomainPosition": "Укажите домен и должность",
+      "noCompany": "Не определена компания",
+      "domainDuplicate": "Этот домен уже сопоставлен"
+    },
+    "roleDistItems": {
+      "employees": "Сотрудники",
+      "managers": "Руководители",
+      "hrd": "HRD"
+    },
+    "noDept": "Без отдела",
+    "hero": {
+      "title": "Панель HRD",
+      "subtitle": "Управление сотрудниками, ролями и развитием.",
+      "risksBtn": "Риски и удержание",
+      "recognitionBtn": "Лента признания"
+    },
+    "metrics": {
+      "employees": "Сотрудников",
+      "managersCount": "{{count}} руководителей",
+      "avgScore": "Средний балл",
+      "perCompany": "по компании",
+      "managersLabel": "Руководителей",
+      "departments": "Отделов"
+    },
+    "charts": {
+      "roleDistribution": "Распределение ролей",
+      "noData": "Нет данных",
+      "avgScoreByDept": "Средний балл по отделам",
+      "avgScoreBar": "Средний балл",
+      "employeesBar": "Сотрудников"
+    },
+    "tabs": {
+      "employees": "Сотрудники",
+      "map": "Карта сотрудников",
+      "tracks": "Карьерные треки",
+      "requests": "Заявки на должность",
+      "mappings": "Маппинг доменов"
+    },
+    "requests": {
+      "title": "Заявки на подтверждение должности",
+      "subtitle": "Сотрудники, выбравшие свою должность вручную при регистрации. Подтвердите, измените или отклоните.",
+      "empty": "Нет заявок на подтверждение",
+      "claimedPosition": "Заявленная должность:",
+      "positionDeleted": "— должность удалена —",
+      "changePositionTitle": "Изменить должность",
+      "confirm": "Подтвердить",
+      "reject": "Отклонить"
+    },
+    "mappings": {
+      "title": "Автоназначение должности по email",
+      "subtitle": "Сотрудники с email указанного домена будут автоматически получать выбранную должность без ручного подтверждения.",
+      "selectPosition": "— Выберите должность —",
+      "add": "Добавить",
+      "empty": "Маппингов пока нет"
+    },
+    "table": {
+      "title": "Все сотрудники",
+      "searchPlaceholder": "Поиск по имени или отделу...",
+      "filterAll": "Все",
+      "colEmployee": "Сотрудник",
+      "colPosition": "Должность",
+      "colDept": "Отдел",
+      "colRole": "Роль",
+      "colScore": "Балл",
+      "colMatch": "Соответствие",
+      "noPosition": "Не назначена",
+      "removePosition": "— Снять должность",
+      "noPositions": "Нет должностей. Создайте в разделе «Должности».",
+      "compare": "Сравнить",
+      "noEmployees": "Нет сотрудников в системе",
+      "noResults": "Ничего не найдено",
+      "showing": "Показано {{shown}} из {{total}} сотрудников"
+    }
+  },
+  "hrdTests": {
+    "title": "Тесты с закрытыми вопросами",
+    "subtitle": "Загрузите Excel или PDF — AI извлечёт вопросы, варианты и правильные ответы. Сотрудники будут проходить активные тесты.",
+    "uploadSection": "Загрузить новый тест",
+    "nameLabel": "Название (необязательно)",
+    "namePlaceholder": "AI заполнит из файла",
+    "positionLabel": "Привязать к должности (опционально)",
+    "allPositions": "— Все должности —",
+    "descLabel": "Описание (необязательно)",
+    "fileLabel": "Файл теста (Excel .xlsx, .csv или PDF, .docx)",
+    "fileInfo": "{{name}} · {{size}} КБ",
+    "processing": "Обрабатываем...",
+    "uploadBtn": "Загрузить и распарсить",
+    "previewTitle": "Предпросмотр ({{count}} вопросов)",
+    "hide": "Скрыть",
+    "competencyLabel": "Компетенция:",
+    "moreQuestions": "…и ещё {{count}}",
+    "listTitle": "Загруженные тесты",
+    "empty": "Пока нет загруженных тестов. Сотрудники будут получать AI-сгенерированные тесты под их должность.",
+    "questionCount": "{{count}} вопр.",
+    "active": "Активен",
+    "inactive": "Выключен",
+    "previewBtn": "Просмотр",
+    "disableBtn": "Выключить",
+    "enableBtn": "Включить",
+    "deleteBtn": "Удалить",
+    "confirmDelete": "Удалить тест?",
+    "toast": {
+      "selectFile": "Выберите файл",
+      "noQuestions": "AI не нашёл закрытых вопросов с правильными ответами",
+      "uploaded": "Загружено {{count}} вопросов",
+      "deleted": "Тест удалён",
+      "parseError": "Ошибка обработки файла",
+      "noFileUrl": "Не удалось получить ссылку на файл"
+    }
+  },
+  "riskAnalytics": {
+    "title": "Риски и удержание",
+    "subtitle": "Predictive-аналитика риска оттока и выгорания по сотрудникам и отделам.",
+    "recalcBtn": "Пересчитать риски",
+    "toast": {
+      "recalculated": "Риск-метрики пересчитаны"
+    },
+    "kpi": {
+      "employees": "Сотрудников",
+      "covered": "Покрыто оценкой: {{count}}",
+      "highRisk": "Высокий риск",
+      "actionRequired": "Требуют действий",
+      "mediumRisk": "Средний риск",
+      "engagement": "Вовлечённость"
+    },
+    "heatmap": {
+      "title": "Heatmap риска по отделам",
+      "empty": "Нет данных. Нажмите «Пересчитать риски»."
+    },
+    "detail": {
+      "title": "Детализация",
+      "selectEmployee": "Выберите сотрудника в списке ниже.",
+      "highRisk": "Высокий риск",
+      "mediumRisk": "Средний риск",
+      "lowRisk": "Низкий риск",
+      "attrition": "Отток",
+      "burnout": "Выгорание",
+      "engagementLabel": "Вовлечённость",
+      "factors": "Факторы",
+      "recommendations": "Рекомендации"
+    },
+    "table": {
+      "title": "Сотрудники",
+      "loading": "Загрузка...",
+      "colEmployee": "Сотрудник",
+      "colDept": "Отдел",
+      "colAttrition": "Отток",
+      "colBurnout": "Выгорание",
+      "colEngagement": "Вовлечённость",
+      "colLevel": "Уровень",
+      "notScored": "не оценён"
+    },
+    "noDept": "Без отдела",
+    "factors": {
+      "lowCareerActivity": "Низкая активность в карьерном треке",
+      "stableProgress": "Стабильное продвижение",
+      "highHrLoad": "Высокая нагрузка по HR-задачам",
+      "normalLoad": "Нагрузка в норме",
+      "lowSocialActivity": "Низкое участие в социальных активностях",
+      "goodEngagement": "Хорошая вовлечённость"
+    },
+    "recs": {
+      "oneOnOne": "1:1 с руководителем",
+      "reviewGoals": "Пересмотр карьерных целей",
+      "reduceLoad": "Снизить нагрузку",
+      "scheduleReview": "Запланировать ревью",
+      "addMentor": "Подключить ментора",
+      "maintainPace": "Поддерживать текущий темп"
+    }
+  },
+  "careerReviews": {
+    "title": "Проверка этапов карьерных треков",
+    "subtitle": "Подтверждайте или отклоняйте материалы, отправленные сотрудниками",
+    "pendingTitle": "Ожидают проверки ({{count}})",
+    "allProcessed": "Все заявки обработаны",
+    "historyTitle": "История ({{count}})",
+    "status": {
+      "approved": "Подтверждён",
+      "rejected": "Отклонён",
+      "pending": "На проверке"
+    },
+    "toast": {
+      "approved": "Этап подтверждён",
+      "rejected": "Этап отклонён",
+      "fileError": "Не удалось получить файл"
+    },
+    "employeeFallback": "Сотрудник",
+    "track": "Трек:",
+    "step": "этап",
+    "attempt": "Попытка",
+    "reinforced": "усиленный сценарий",
+    "testResult": "Результат теста:",
+    "employeeComment": "Комментарий сотрудника:",
+    "files": "Файлы ({{count}}):",
+    "fileFallback": "Файл",
+    "rejectionReason": "Причина отклонения:",
+    "rejectPlaceholder": "Причина отклонения (будет отправлена сотруднику)",
+    "cancel": "Отмена",
+    "confirmReject": "Подтвердить отклонение",
+    "confirmApprove": "Подтвердить",
+    "rejectBtn": "Отклонить"
+  },
+  "analytics": {
+    "title": "Аналитика 📊",
+    "subtitle": "Сводные данные по компании",
+    "exportPng": "Скачать PNG",
+    "exportXlsx": "Скачать XLSX",
+    "toast": {
+      "pngSaved": "Дашборд сохранён в PNG",
+      "pngError": "Не удалось сохранить PNG",
+      "xlsxSaved": "Таблицы выгружены в XLSX",
+      "xlsxError": "Не удалось выгрузить таблицы"
+    },
+    "noDept": "Без отдела",
+    "roles": {
+      "employee": "Сотрудники",
+      "manager": "Руководители",
+      "hrd": "HRD",
+      "superadmin": "Суперадмины"
+    },
+    "metrics": {
+      "avgScore": "Средний балл",
+      "allEmployees": "По всем сотрудникам",
+      "roleReadiness": "Готовность к роли",
+      "avgPerCompany": "Средняя по компании",
+      "assessmentsDone": "Оценок проведено",
+      "goalsCompleted": "Целей достигнуто"
+    },
+    "charts": {
+      "trendTitle": "Динамика оценок по месяцам",
+      "avgScoreLine": "Средний балл",
+      "assessmentsLine": "Кол-во оценок",
+      "noAssessments": "Нет данных об оценках",
+      "roleDistTitle": "Распределение ролей",
+      "noData": "Нет данных",
+      "deptCompTitle": "Сравнение отделов",
+      "avgScoreBar": "Средний балл",
+      "readinessBar": "Готовность",
+      "skillsTitle": "Средние компетенции",
+      "avgLevelBar": "Средний уровень",
+      "noSkills": "Нет данных о компетенциях"
+    }
+  },
+  "roleDashboard": {}
+}
