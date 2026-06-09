@@ -426,7 +426,7 @@ const HRDEmployeeMap = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hrd_map_hr_tasks"] });
-      toast.success("HR-задача создана");
+      toast.success(t("employeeMap.toasts.created"));
       setCreateTaskOpen(false);
     },
     onError: (e: any) => toast.error(e.message),
