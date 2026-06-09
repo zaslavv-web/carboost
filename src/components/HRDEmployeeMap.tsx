@@ -601,21 +601,21 @@ const HRDEmployeeMap = () => {
                     {composite && (
                       <div className="space-y-2 text-xs">
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Прогресс по треку</span>
+                          <span className="text-muted-foreground">{t("employeeMap.overview.trackProgress")}</span>
                           <span className="font-medium">{composite.trackProgress}%</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">HR-задачи (выполнено)</span>
+                          <span className="text-muted-foreground">{t("employeeMap.overview.hrTasksDone")}</span>
                           <span className="font-medium">
                             {composite.completedTasks}/{composite.totalTasks} ({composite.taskRatio}%)
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Оценка профиля</span>
+                          <span className="text-muted-foreground">{t("employeeMap.overview.profileScore")}</span>
                           <span className="font-medium">{composite.overall}/100</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Награды</span>
+                          <span className="text-muted-foreground">{t("employeeMap.overview.rewards")}</span>
                           <span className="font-medium">{composite.rewardsCount}</span>
                         </div>
                       </div>
