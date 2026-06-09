@@ -487,8 +487,8 @@ const HRDEmployeeMap = () => {
     return (
       <div className="bg-card rounded-xl p-12 text-center border border-border">
         <UsersIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="font-semibold text-foreground mb-2">Нет сотрудников</h3>
-        <p className="text-sm text-muted-foreground">Пригласите сотрудников, чтобы построить карту.</p>
+        <h3 className="font-semibold text-foreground mb-2">{t("employeeMap.noEmployees")}</h3>
+        <p className="text-sm text-muted-foreground">{t("employeeMap.inviteHint")}</p>
       </div>
     );
   }
