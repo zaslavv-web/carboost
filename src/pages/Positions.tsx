@@ -477,7 +477,7 @@ const PositionEditor = ({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" type="button" onClick={() => setProfileTemplate({ ...profileTemplate, methodology: eightBlockJobProfileGuide.rules, blocks: eightBlockJobProfileGuide.blocks, generation_source: "manual", review_frequency: "12 месяцев или при изменении технологии/стратегии" })}>
+            <Button size="sm" variant="outline" type="button" onClick={() => setProfileTemplate({ ...profileTemplate, methodology: eightBlockJobProfileGuide.rules, blocks: eightBlockJobProfileGuide.blocks, generation_source: "manual", review_frequency: t("positions.reviewFreqDefault") })}>
               {t("positions.apply8Blocks")}
             </Button>
             {miningPilotProfiles.map((template) => (
@@ -559,11 +559,11 @@ const PositionEditor = ({
                className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
             <Button size="sm" onClick={handleFileUpload} disabled={parsing}>
               {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              Распознать
+              {t("positions.recognizeBtn")}
             </Button>
             <Button size="sm" variant="outline" onClick={loadFromHrDocuments} disabled={loadingFromDocs} type="button">
               {loadingFromDocs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              Подтянуть из HR-документов
+              {t("positions.pullFromHrDocs")}
             </Button>
           </div>
         </div>
@@ -622,7 +622,7 @@ const PositionEditor = ({
             disabled={!title || isSaving}
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Сохранить
+            {t("positions.saveBtn")}
           </Button>
         </div>
       </div>
@@ -832,7 +832,7 @@ const OrgStructureUpload = () => {
             className="text-sm text-muted-foreground file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:bg-secondary file:text-foreground file:text-xs file:font-medium file:border-0 file:cursor-pointer" />
           <Button size="sm" onClick={() => uploadMutation.mutate()} disabled={uploading}>
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            Загрузить
+            {t("positions.uploadBtn")}
           </Button>
         </div>
       </div>
@@ -845,7 +845,7 @@ const OrgStructureUpload = () => {
           </p>
           <Button size="sm" variant="outline" onClick={() => generatePositionsMutation.mutate()} disabled={generatingPositions}>
             {generatingPositions ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            Сгенерировать должности (AI)
+            {t("positions.genPositionsBtn")}
           </Button>
         </div>
       )}
@@ -931,13 +931,13 @@ const EdgeEditor = ({
         <div className="flex justify-between gap-2 pt-2">
           <Button variant="ghost" className="text-destructive" onClick={onDelete} disabled={isDeleting || isSaving}>
             {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            Удалить связь
+            {t("positions.deleteEdge")}
           </Button>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>Отмена</Button>
+            <Button variant="outline" onClick={onClose}>{t("positions.cancelBtn")}</Button>
             <Button
               onClick={() => {
-                if (from === to) { toast.error("Нельзя создать связь должности самой с собой"); return; }
+                if (from === to) { toast.error(t("positions.toastSelfLink")); return; }
                 onSave({
                   from_position_id: from,
                   to_position_id: to,
@@ -948,7 +948,7 @@ const EdgeEditor = ({
               disabled={isSaving || isDeleting}
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Сохранить
+              {t("positions.saveBtn")}
             </Button>
           </div>
         </div>
@@ -1227,10 +1227,10 @@ const Positions = () => {
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => generatePathsMutation.mutate()} disabled={generating || positions.length < 2}>
               {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              Автопостроение путей (AI)
+              {t("positions.autoPathsBtn")}
             </Button>
             <Button onClick={() => setEditingPosition("new")}>
-              <Plus className="w-4 h-4" /> Добавить должность
+              <Plus className="w-4 h-4" /> {t("positions.addPositionBtn")}
             </Button>
           </div>
 
@@ -1246,7 +1246,7 @@ const Positions = () => {
               <Panel position="top-right">
                 {hasUnsavedPaths && (
                   <Button size="sm" onClick={() => savePathsMutation.mutate()} disabled={savePathsMutation.isPending}>
-                    <Save className="w-4 h-4" /> Сохранить связи
+                    <Save className="w-4 h-4" /> {t("positions.savePathsBtn")}
                   </Button>
                 )}
               </Panel>
