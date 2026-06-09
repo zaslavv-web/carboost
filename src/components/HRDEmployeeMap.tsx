@@ -660,11 +660,7 @@ const HRDEmployeeMap = () => {
                             }
                             className="shrink-0 text-[10px]"
                           >
-                            {t.status === "open" && "Открыта"}
-                            {t.status === "in_review" && "На проверке"}
-                            {t.status === "completed" && "Выполнена"}
-                            {t.status === "rejected" && "Отклонена"}
-                            {t.status === "cancelled" && "Отменена"}
+                            {t(`employeeMap.tasks.status.${t_status(t.status)}`, t.status)}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
