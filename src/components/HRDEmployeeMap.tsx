@@ -756,7 +756,7 @@ const HRDEmployeeMap = () => {
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground text-center py-4">
-                        Сотрудник пока не делал заказов
+                        {t("employeeMap.shop.noOrders")}
                       </p>
                     )}
                   </TabsContent>
