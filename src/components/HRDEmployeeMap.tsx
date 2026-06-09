@@ -639,66 +639,66 @@ const HRDEmployeeMap = () => {
                         {t("employeeMap.tasks.empty")}
                       </p>
                     )}
-                    {selectedTasks.map((t) => (
-                      <div key={t.id} className="border border-border rounded-lg p-3 space-y-2">
+                    {selectedTasks.map((task) => (
+                      <div key={task.id} className="border border-border rounded-lg p-3 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="font-medium text-sm text-foreground truncate">{t.title}</div>
-                            {t.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-2">{t.description}</p>
+                            <div className="font-medium text-sm text-foreground truncate">{task.title}</div>
+                            {task.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
                             )}
                           </div>
                           <Badge
                             variant={
-                              t.status === "completed"
+                              task.status === "completed"
                                 ? "default"
-                                : t.status === "in_review"
+                                : task.status === "in_review"
                                 ? "secondary"
-                                : t.status === "rejected"
+                                : task.status === "rejected"
                                 ? "destructive"
                                 : "outline"
                             }
                             className="shrink-0 text-[10px]"
                           >
-                            {t(`employeeMap.tasks.status.${t_status(t.status)}`, t.status)}
+                            {t(`employeeMap.tasks.status.${task.status}`, task.status)}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
                           <span className="flex items-center gap-1">
-                            <Coins className="w-3 h-3" /> {t.reward_coins}
+                            <Coins className="w-3 h-3" /> {task.reward_coins}
                           </span>
-                          {t.deadline && (
+                          {task.deadline && (
                             <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> {new Date(t.deadline).toLocaleDateString("ru-RU")}
+                              <Clock className="w-3 h-3" /> {new Date(task.deadline).toLocaleDateString(getIntlLocale())}
                             </span>
                           )}
-                          <span>· {t.assignees.length} исп.</span>
+                          <span>· {t("employeeMap.tasks.assigneesShort", { count: task.assignees.length })}</span>
                         </div>
-                        {t.status !== "completed" && t.status !== "cancelled" && (
+                        {task.status !== "completed" && task.status !== "cancelled" && (
                           <div className="flex gap-2">
                             <Button
                               size="sm"
                               variant="default"
                               className="h-7 text-xs flex-1"
-                              onClick={() => completeTaskMutation.mutate(t.id)}
+                              onClick={() => completeTaskMutation.mutate(task.id)}
                               disabled={completeTaskMutation.isPending}
                             >
                               <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Подтвердить
+                              {t("employeeMap.tasks.confirm")}
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
                               className="h-7 text-xs"
-                              onClick={() => rejectTaskMutation.mutate(t.id)}
+                              onClick={() => rejectTaskMutation.mutate(task.id)}
                             >
-                              Отклонить
+                              {t("employeeMap.tasks.reject")}
                             </Button>
                             <Button
                               size="icon"
                               variant="ghost"
                               className="h-7 w-7"
-                              onClick={() => deleteTaskMutation.mutate(t.id)}
+                              onClick={() => deleteTaskMutation.mutate(task.id)}
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
