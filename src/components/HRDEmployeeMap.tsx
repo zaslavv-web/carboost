@@ -102,6 +102,7 @@ const initials = (name: string) =>
     .join("");
 
 const HRDEmployeeMap = () => {
+  const { t } = useTranslation("manager");
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const companyId = profile?.company_id;
