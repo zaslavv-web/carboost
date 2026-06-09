@@ -144,7 +144,14 @@
     "toastDone": "Готово",
     "errorNoCompany": "Нет компании",
     "errorSelectEmployee": "Выберите сотрудника",
-    "errorOnlyJpgPng": "Только JPG/PNG"
+    "errorOnlyJpgPng": "Только JPG/PNG",
+    "toastAwarded": "Начислено {{amount}} {{icon}}",
+    "defaultAwardDesc": "Начисление за участие в мероприятии",
+    "defaultCurrencyName": "Монеты",
+    "errorNoData": "Нет данных",
+    "errorEnterTitle": "Введите заголовок",
+    "errorDescTooLong": "Описание не может быть длиннее 200 символов",
+    "errorPricePositive": "Цена должна быть больше 0"
   },
   "positions": {
     "title": "Должности и оргструктура",
