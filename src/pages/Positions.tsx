@@ -124,8 +124,8 @@ const PsychProfileEditor = ({
   onChange: (v: PsychItem[]) => void;
 }) => {
   const { t } = useTranslation("admin");
-  const levels = ["низкое", "ниже среднего", "среднее", "выше среднего", "высокое"];
-  const add = () => onChange([...value, { trait: "", level: "среднее" }]);
+  const levels = PSYCH_LEVEL_KEYS;
+  const add = () => onChange([...value, { trait: "", level: "average" }]);
   const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
   const update = (i: number, field: keyof PsychItem, val: string) =>
     onChange(value.map((item, idx) => (idx === i ? { ...item, [field]: val } : item)));
@@ -157,7 +157,7 @@ const PsychProfileEditor = ({
             className="px-3 py-1.5 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
           >
             {levels.map((l) => (
-              <option key={l} value={l}>{l}</option>
+              <option key={l} value={l}>{t(`positions.psychLevels.${l}`)}</option>
             ))}
           </select>
           <Button variant="ghost" size="icon" onClick={() => remove(i)} className="text-destructive h-7 w-7">
@@ -320,7 +320,7 @@ const PositionEditor = ({
 
         const psych = Array.isArray(data.psychological_profile) ? data.psychological_profile : [];
         psych.forEach((p: any) => {
-          if (p?.trait) collectedPsych.set(p.trait, p.level || "среднее");
+          if (p?.trait) collectedPsych.set(p.trait, normalizePsychLevel(p.level));
         });
       });
 
