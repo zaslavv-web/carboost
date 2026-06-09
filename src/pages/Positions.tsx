@@ -178,7 +178,7 @@ const PsychProfileEditor = ({
             className="flex-1 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
           <select
-            value={item.level}
+            value={normalizePsychLevel(item.level)}
             onChange={(e) => update(i, "level", e.target.value)}
             className="px-3 py-1.5 rounded-lg bg-secondary text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
           >
