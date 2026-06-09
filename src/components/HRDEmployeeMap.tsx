@@ -591,7 +591,7 @@ const HRDEmployeeMap = () => {
                       </div>
                       <div className="bg-secondary/50 rounded-lg p-3">
                         <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <Coins className="w-3 h-3" /> Баланс
+                          <Coins className="w-3 h-3" /> {t("employeeMap.overview.balance")}
                         </div>
                         <div className="text-2xl font-bold text-foreground">
                           {formatCoins(balanceMap.get(selected.user_id) || 0)}
