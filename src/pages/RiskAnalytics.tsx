@@ -20,6 +20,7 @@ import {
   Cell,
 } from "recharts";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 interface RiskRow {
   id: string;
@@ -47,6 +48,7 @@ const heatColor = (val: number) => {
 };
 
 const RiskAnalytics = () => {
+  const { t } = useTranslation("manager");
   const { data: profile } = useUserProfile();
   const qc = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
@@ -101,16 +103,16 @@ const RiskAnalytics = () => {
           engagement_score: engagement,
           risk_level,
           factors: [
-            attrition > 50 ? "Низкая активность в карьерном треке" : "Стабильное продвижение",
-            burnout > 50 ? "Высокая нагрузка по HR-задачам" : "Нагрузка в норме",
-            engagement < 50 ? "Низкое участие в социальных активностях" : "Хорошая вовлечённость",
+            attrition > 50 ? t("riskAnalytics.factors.lowCareerActivity") : t("riskAnalytics.factors.stableProgress"),
+            burnout > 50 ? t("riskAnalytics.factors.highHrLoad") : t("riskAnalytics.factors.normalLoad"),
+            engagement < 50 ? t("riskAnalytics.factors.lowSocialActivity") : t("riskAnalytics.factors.goodEngagement"),
           ],
           recommendations:
             risk_level === "high"
-              ? ["1:1 с руководителем", "Пересмотр карьерных целей", "Снизить нагрузку"]
+              ? [t("riskAnalytics.recs.oneOnOne"), t("riskAnalytics.recs.reviewGoals"), t("riskAnalytics.recs.reduceLoad")]
               : risk_level === "medium"
-              ? ["Запланировать ревью", "Подключить ментора"]
-              : ["Поддерживать текущий темп"],
+              ? [t("riskAnalytics.recs.scheduleReview"), t("riskAnalytics.recs.addMentor")]
+              : [t("riskAnalytics.recs.maintainPace")],
         };
       });
       const { error } = await laravelDb
@@ -119,7 +121,7 @@ const RiskAnalytics = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Риск-метрики пересчитаны");
+      toast.success(t("riskAnalytics.toast.recalculated"));
       qc.invalidateQueries({ queryKey: ["risk-scores"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -147,7 +149,7 @@ const RiskAnalytics = () => {
   const byDept = useMemo(() => {
     const map = new Map<string, { dept: string; high: number; medium: number; low: number; total: number; avgRisk: number }>();
     employees.forEach((e: any) => {
-      const dept = e.department || "Без отдела";
+      const dept = e.department || t("riskAnalytics.noDept");
       const score = scoreMap.get(e.user_id);
       if (!map.has(dept)) map.set(dept, { dept, high: 0, medium: 0, low: 0, total: 0, avgRisk: 0 });
       const row = map.get(dept)!;
@@ -179,9 +181,9 @@ const RiskAnalytics = () => {
               <Activity className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Риски и удержание</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{t("riskAnalytics.title")}</h1>
               <p className="text-muted-foreground mt-1 max-w-2xl">
-                Predictive-аналитика риска оттока и выгорания по сотрудникам и отделам.
+                {t("riskAnalytics.subtitle")}
               </p>
             </div>
           </div>
@@ -191,7 +193,7 @@ const RiskAnalytics = () => {
             className="gradient-primary text-primary-foreground shadow-glow"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${recompute.isPending ? "animate-spin" : ""}`} />
-            Пересчитать риски
+            {t("riskAnalytics.recalcBtn")}
           </Button>
         </div>
       </div>
@@ -200,27 +202,27 @@ const RiskAnalytics = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="glass p-4 hover-lift">
           <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wide">
-            <Users className="w-4 h-4" /> Сотрудников
+            <Users className="w-4 h-4" /> {t("riskAnalytics.kpi.employees")}
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{summary.total}</div>
-          <div className="text-xs text-muted-foreground mt-1">Покрыто оценкой: {summary.covered}</div>
+          <div className="text-xs text-muted-foreground mt-1">{t("riskAnalytics.kpi.covered", { count: summary.covered })}</div>
         </Card>
         <Card className="glass p-4 hover-lift border-destructive/30">
           <div className="flex items-center gap-2 text-destructive text-xs uppercase tracking-wide">
-            <AlertTriangle className="w-4 h-4" /> Высокий риск
+            <AlertTriangle className="w-4 h-4" /> {t("riskAnalytics.kpi.highRisk")}
           </div>
           <div className="mt-2 text-3xl font-bold text-destructive">{summary.high}</div>
-          <div className="text-xs text-muted-foreground mt-1">Требуют действий</div>
+          <div className="text-xs text-muted-foreground mt-1">{t("riskAnalytics.kpi.actionRequired")}</div>
         </Card>
         <Card className="glass p-4 hover-lift border-warning/30">
           <div className="flex items-center gap-2 text-warning text-xs uppercase tracking-wide">
-            <TrendingDown className="w-4 h-4" /> Средний риск
+            <TrendingDown className="w-4 h-4" /> {t("riskAnalytics.kpi.mediumRisk")}
           </div>
           <div className="mt-2 text-3xl font-bold text-warning">{summary.medium}</div>
         </Card>
         <Card className="glass p-4 hover-lift border-success/30">
           <div className="flex items-center gap-2 text-success text-xs uppercase tracking-wide">
-            <TrendingUp className="w-4 h-4" /> Вовлечённость
+            <TrendingUp className="w-4 h-4" /> {t("riskAnalytics.kpi.engagement")}
           </div>
           <div className="mt-2 text-3xl font-bold text-success">{summary.avgEngagement}%</div>
         </Card>
@@ -229,9 +231,9 @@ const RiskAnalytics = () => {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Heatmap by department */}
         <Card className="glass p-5 lg:col-span-2">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Heatmap риска по отделам</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-4">{t("riskAnalytics.heatmap.title")}</h3>
           {byDept.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Нет данных. Нажмите "Пересчитать риски".</p>
+            <p className="text-sm text-muted-foreground">{t("riskAnalytics.heatmap.empty")}</p>
           ) : (
             <div className="space-y-2">
               {byDept.map((row) => (
@@ -304,9 +306,9 @@ const RiskAnalytics = () => {
 
         {/* Detail panel */}
         <Card className="glass p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Детализация</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-4">{t("riskAnalytics.detail.title")}</h3>
           {!selectedScore || !selectedEmp ? (
-            <p className="text-sm text-muted-foreground">Выберите сотрудника в списке ниже.</p>
+            <p className="text-sm text-muted-foreground">{t("riskAnalytics.detail.selectEmployee")}</p>
           ) : (
             <div className="space-y-4">
               <div>
@@ -315,10 +317,10 @@ const RiskAnalytics = () => {
               </div>
               <Badge className={`${levelColor(selectedScore.risk_level)} border`}>
                 {selectedScore.risk_level === "high"
-                  ? "Высокий риск"
+                  ? t("riskAnalytics.detail.highRisk")
                   : selectedScore.risk_level === "medium"
-                  ? "Средний риск"
-                  : "Низкий риск"}
+                  ? t("riskAnalytics.detail.mediumRisk")
+                  : t("riskAnalytics.detail.lowRisk")}
               </Badge>
 
               <div className="h-40">
@@ -327,9 +329,9 @@ const RiskAnalytics = () => {
                     innerRadius="40%"
                     outerRadius="100%"
                     data={[
-                      { name: "Отток", value: selectedScore.attrition_risk, fill: "hsl(var(--destructive))" },
-                      { name: "Выгорание", value: selectedScore.burnout_risk, fill: "hsl(var(--warning))" },
-                      { name: "Вовлечённость", value: selectedScore.engagement_score, fill: "hsl(var(--success))" },
+                      { name: t("riskAnalytics.detail.attrition"), value: selectedScore.attrition_risk, fill: "hsl(var(--destructive))" },
+                      { name: t("riskAnalytics.detail.burnout"), value: selectedScore.burnout_risk, fill: "hsl(var(--warning))" },
+                      { name: t("riskAnalytics.detail.engagementLabel"), value: selectedScore.engagement_score, fill: "hsl(var(--success))" },
                     ]}
                     startAngle={90}
                     endAngle={-270}
@@ -348,7 +350,7 @@ const RiskAnalytics = () => {
               </div>
 
               <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Факторы</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">{t("riskAnalytics.detail.factors")}</div>
                 <ul className="space-y-1 text-sm">
                   {(selectedScore.factors as string[]).map((f, i) => (
                     <li key={i} className="flex gap-2">
@@ -361,7 +363,7 @@ const RiskAnalytics = () => {
 
               <div>
                 <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" /> Рекомендации
+                  <Sparkles className="w-3 h-3" /> {t("riskAnalytics.detail.recommendations")}
                 </div>
                 <ul className="space-y-1 text-sm">
                   {(selectedScore.recommendations as string[]).map((r, i) => (
@@ -379,20 +381,20 @@ const RiskAnalytics = () => {
 
       {/* Employee table with risk pills */}
       <Card className="glass p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-4">Сотрудники</h3>
+        <h3 className="text-sm font-semibold text-foreground mb-4">{t("riskAnalytics.table.title")}</h3>
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Загрузка...</p>
+          <p className="text-sm text-muted-foreground">{t("riskAnalytics.table.loading")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="text-left py-2 font-medium">Сотрудник</th>
-                  <th className="text-left py-2 font-medium">Отдел</th>
-                  <th className="text-center py-2 font-medium">Отток</th>
-                  <th className="text-center py-2 font-medium">Выгорание</th>
-                  <th className="text-center py-2 font-medium">Вовлечённость</th>
-                  <th className="text-center py-2 font-medium">Уровень</th>
+                  <th className="text-left py-2 font-medium">{t("riskAnalytics.table.colEmployee")}</th>
+                  <th className="text-left py-2 font-medium">{t("riskAnalytics.table.colDept")}</th>
+                  <th className="text-center py-2 font-medium">{t("riskAnalytics.table.colAttrition")}</th>
+                  <th className="text-center py-2 font-medium">{t("riskAnalytics.table.colBurnout")}</th>
+                  <th className="text-center py-2 font-medium">{t("riskAnalytics.table.colEngagement")}</th>
+                  <th className="text-center py-2 font-medium">{t("riskAnalytics.table.colLevel")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -435,7 +437,7 @@ const RiskAnalytics = () => {
                             {s.risk_level}
                           </Badge>
                         ) : (
-                          <span className="text-muted-foreground text-xs">не оценён</span>
+                          <span className="text-muted-foreground text-xs">{t("riskAnalytics.table.notScored")}</span>
                         )}
                       </td>
                     </tr>
