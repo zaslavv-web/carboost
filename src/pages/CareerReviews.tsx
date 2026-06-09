@@ -91,7 +91,7 @@ const CareerReviews = () => {
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["career_reviews_pending"] });
-      toast.success(vars.approve ? "Этап подтверждён" : "Этап отклонён");
+      toast.success(vars.approve ? t("careerReviews.toast.approved") : t("careerReviews.toast.rejected"));
       setReasonFor(null);
       setReason("");
     },
@@ -101,7 +101,7 @@ const CareerReviews = () => {
   const downloadFile = async (path: string, name: string) => {
     const { data, error } = await laravelStorage.from("career-submissions").createSignedUrl(path, 600);
     if (error) {
-      toast.error("Не удалось получить файл");
+      toast.error(t("careerReviews.toast.fileError"));
       return;
     }
     window.open(data.signedUrl, "_blank");
@@ -134,52 +134,52 @@ const CareerReviews = () => {
       <div key={s.id} className="bg-card rounded-xl border border-border p-4 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-medium text-foreground">{profile?.full_name || "Сотрудник"}</p>
+            <p className="font-medium text-foreground">{profile?.full_name || t("careerReviews.employeeFallback")}</p>
             <p className="text-xs text-muted-foreground">
               {profile?.position || "—"} · {profile?.department || "—"}
             </p>
           </div>
           <span className={`text-xs px-2 py-1 rounded-full ${statusBadge}`}>
-            {s.status === "approved" ? "Подтверждён" : s.status === "rejected" ? "Отклонён" : "На проверке"}
+            {s.status === "approved" ? t("careerReviews.status.approved") : s.status === "rejected" ? t("careerReviews.status.rejected") : t("careerReviews.status.pending")}
           </span>
         </div>
 
         <div className="text-sm">
-          <span className="text-muted-foreground">Трек:</span>{" "}
-          <span className="font-medium">{template?.title}</span> · этап {s.step_order + 1}
+          <span className="text-muted-foreground">{t("careerReviews.track")}</span>{" "}
+          <span className="font-medium">{template?.title}</span> · {t("careerReviews.step")} {s.step_order + 1}
           {stepData?.title && <span className="text-muted-foreground"> · {stepData.title}</span>}
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            {formatDistanceToNow(new Date(s.created_at), { addSuffix: true, locale: ru })}
+            {formatDistanceToNow(new Date(s.created_at), { addSuffix: true, locale: dfLocale })}
           </span>
-          <span>· Попытка {s.attempt_no}</span>
+          <span>· {t("careerReviews.attempt")} {s.attempt_no}</span>
           {s.is_reinforced && (
             <span className="flex items-center gap-1 text-warning">
-              <RefreshCw className="w-3 h-3" /> усиленный сценарий
+              <RefreshCw className="w-3 h-3" /> {t("careerReviews.reinforced")}
             </span>
           )}
         </div>
 
         {attempt && (
           <div className="text-xs bg-secondary/40 rounded-lg p-2">
-            <span className="text-muted-foreground">Результат теста: </span>
+            <span className="text-muted-foreground">{t("careerReviews.testResult")} </span>
             <span className="font-medium">{attempt.score}%</span>
           </div>
         )}
 
         {s.comment && (
           <div className="text-sm bg-secondary/40 rounded-lg p-3">
-            <p className="text-xs text-muted-foreground mb-1">Комментарий сотрудника:</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("careerReviews.employeeComment")}</p>
             <p className="text-foreground/90 whitespace-pre-wrap">{s.comment}</p>
           </div>
         )}
 
         {stepFiles.length > 0 && (
           <div>
-            <p className="text-xs text-muted-foreground mb-2">Файлы ({stepFiles.length}):</p>
+            <p className="text-xs text-muted-foreground mb-2">{t("careerReviews.files", { count: stepFiles.length })}</p>
             <div className="space-y-1">
               {stepFiles.map((f) => (
                 <button
@@ -188,7 +188,7 @@ const CareerReviews = () => {
                   className="w-full flex items-center gap-2 p-2 rounded-lg bg-secondary/40 hover:bg-secondary/60 text-sm transition-colors text-left"
                 >
                   <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span className="flex-1 truncate">{f.file_name || "Файл"}</span>
+                  <span className="flex-1 truncate">{f.file_name || t("careerReviews.fileFallback")}</span>
                   <Download className="w-4 h-4 text-muted-foreground" />
                 </button>
               ))}
@@ -198,7 +198,7 @@ const CareerReviews = () => {
 
         {s.rejection_reason && (
           <div className="text-xs bg-destructive/10 border border-destructive/20 rounded-lg p-2 text-destructive">
-            Причина отклонения: {s.rejection_reason}
+            {t("careerReviews.rejectionReason")} {s.rejection_reason}
           </div>
         )}
 
@@ -210,7 +210,7 @@ const CareerReviews = () => {
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   rows={2}
-                  placeholder="Причина отклонения (будет отправлена сотруднику)"
+                  placeholder={t("careerReviews.rejectPlaceholder")}
                   className="w-full px-3 py-2 rounded-lg bg-secondary text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none"
                 />
                 <div className="flex justify-end gap-2">
@@ -221,14 +221,14 @@ const CareerReviews = () => {
                     }}
                     className="px-3 py-1.5 rounded-lg text-sm hover:bg-secondary/60"
                   >
-                    Отмена
+                    {t("careerReviews.cancel")}
                   </button>
                   <button
                     disabled={!reason.trim() || reviewMutation.isPending}
                     onClick={() => reviewMutation.mutate({ id: s.id, approve: false, why: reason })}
                     className="px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-sm disabled:opacity-50"
                   >
-                    Подтвердить отклонение
+                    {t("careerReviews.confirmReject")}
                   </button>
                 </div>
               </div>
@@ -239,13 +239,13 @@ const CareerReviews = () => {
                   onClick={() => reviewMutation.mutate({ id: s.id, approve: true })}
                   className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-success text-success-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
                 >
-                  <CheckCircle2 className="w-4 h-4" /> Подтвердить
+                  <CheckCircle2 className="w-4 h-4" /> {t("careerReviews.confirmApprove")}
                 </button>
                 <button
                   onClick={() => setReasonFor(s.id)}
                   className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20"
                 >
-                  <XCircle className="w-4 h-4" /> Отклонить
+                  <XCircle className="w-4 h-4" /> {t("careerReviews.rejectBtn")}
                 </button>
               </div>
             )}
@@ -258,18 +258,18 @@ const CareerReviews = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Проверка этапов карьерных треков</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t("careerReviews.title")}</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Подтверждайте или отклоняйте материалы, отправленные сотрудниками
+          {t("careerReviews.subtitle")}
         </p>
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold text-foreground mb-3">Ожидают проверки ({pending.length})</h2>
+        <h2 className="text-lg font-semibold text-foreground mb-3">{t("careerReviews.pendingTitle", { count: pending.length })}</h2>
         {pending.length === 0 ? (
           <div className="text-center py-12 bg-card rounded-xl border border-border">
             <CheckCircle2 className="w-10 h-10 text-success mx-auto mb-2" />
-            <p className="text-muted-foreground text-sm">Все заявки обработаны</p>
+            <p className="text-muted-foreground text-sm">{t("careerReviews.allProcessed")}</p>
           </div>
         ) : (
           <div className="space-y-3">{pending.map(renderItem)}</div>
@@ -278,7 +278,7 @@ const CareerReviews = () => {
 
       {history.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold text-foreground mb-3">История ({history.length})</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-3">{t("careerReviews.historyTitle", { count: history.length })}</h2>
           <div className="space-y-3">{history.map(renderItem)}</div>
         </div>
       )}
