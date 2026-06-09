@@ -16,17 +16,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { getDateLocale } from "@/lib/dateLocale";
+import { useTranslation } from "react-i18next";
 
 const CATEGORIES = [
-  { value: "thanks", label: "Благодарность", icon: HandHeart, color: "text-rose-500" },
-  { value: "achievement", label: "Достижение", icon: Trophy, color: "text-warning" },
-  { value: "help", label: "Помощь команде", icon: Sparkles, color: "text-primary" },
-  { value: "innovation", label: "Идея/инновация", icon: Lightbulb, color: "text-info" },
-  { value: "mentorship", label: "Менторство", icon: Award, color: "text-success" },
+  { value: "thanks", icon: HandHeart, color: "text-rose-500" },
+  { value: "achievement", icon: Trophy, color: "text-warning" },
+  { value: "help", icon: Sparkles, color: "text-primary" },
+  { value: "innovation", icon: Lightbulb, color: "text-info" },
+  { value: "mentorship", icon: Award, color: "text-success" },
 ];
 
 const Recognition = () => {
+  const { t } = useTranslation("employee");
   const { data: profile } = useUserProfile();
   const qc = useQueryClient();
 
@@ -98,9 +100,9 @@ const Recognition = () => {
 
   const create = useMutation({
     mutationFn: async () => {
-      if (!profile?.company_id || !profile?.user_id) throw new Error("Нет профиля");
-      if (!recipientId) throw new Error("Выберите получателя");
-      if (!message.trim()) throw new Error("Напишите сообщение");
+      if (!profile?.company_id || !profile?.user_id) throw new Error(t("recognition.noProfile"));
+      if (!recipientId) throw new Error(t("recognition.selectRecipient"));
+      if (!message.trim()) throw new Error(t("recognition.writeMessage"));
       const { error } = await laravelDb.from("peer_recognitions").insert({
         company_id: profile.company_id,
         from_user_id: profile.user_id,
@@ -112,7 +114,7 @@ const Recognition = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Признание отправлено!");
+      toast.success(t("recognition.sent"));
       setMessage("");
       setRecipientId("");
       setCoins(0);
@@ -148,7 +150,7 @@ const Recognition = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Удалено");
+      toast.success(t("recognition.deleted"));
       qc.invalidateQueries({ queryKey: ["recognitions-feed"] });
     },
   });
@@ -166,9 +168,9 @@ const Recognition = () => {
             <Heart className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Лента признания</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">{t("recognition.title")}</h1>
             <p className="text-muted-foreground mt-1 max-w-2xl">
-              Поблагодарите коллегу, отметьте достижение или поделитесь идеей. Можно прикрепить игровые монеты — они спишутся с вашего баланса и зачислятся получателю.
+              {t("recognition.subtitle")}
             </p>
           </div>
         </div>
@@ -178,10 +180,10 @@ const Recognition = () => {
       <Card className="glass-strong p-5 md:p-6 shadow-card">
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Кому</label>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("recognition.to")}</label>
             <Select value={recipientId} onValueChange={setRecipientId}>
               <SelectTrigger className="bg-background/60">
-                <SelectValue placeholder="Выберите коллегу" />
+                <SelectValue placeholder={t("recognition.selectColleague")} />
               </SelectTrigger>
               <SelectContent>
                 {colleagues.map((c: any) => (
@@ -193,25 +195,27 @@ const Recognition = () => {
             </Select>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Категория</label>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("recognition.category")}</label>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger className="bg-background/60">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {CATEGORIES.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  <SelectItem key={c.value} value={c.value}>
+                    {t(`recognition.categories.${c.value}`)}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
         </div>
         <div className="mt-4 space-y-2">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Сообщение</label>
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("recognition.message")}</label>
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="За что вы благодарите коллегу?"
+            placeholder={t("recognition.messagePlaceholder")}
             rows={3}
             className="bg-background/60 resize-none"
           />
@@ -236,21 +240,21 @@ const Recognition = () => {
             className="gradient-primary text-primary-foreground shadow-glow hover:shadow-elevated"
           >
             <Send className="w-4 h-4 mr-2" />
-            Отправить признание
+            {t("recognition.send")}
           </Button>
         </div>
       </Card>
 
       {/* Feed */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground px-1">Последние благодарности</h2>
+        <h2 className="text-lg font-semibold text-foreground px-1">{t("recognition.feedTitle")}</h2>
         {isLoading && (
-          <Card className="p-6 text-center text-muted-foreground">Загрузка...</Card>
+          <Card className="p-6 text-center text-muted-foreground">{t("recognition.loading")}</Card>
         )}
         {!isLoading && feed.length === 0 && (
           <Card className="p-10 text-center text-muted-foreground">
             <HandHeart className="w-10 h-10 mx-auto mb-3 opacity-50" />
-            Пока пусто. Будьте первым, кто поблагодарит коллегу.
+            {t("recognition.empty")}
           </Card>
         )}
         {feed.map((rec) => {
@@ -270,7 +274,7 @@ const Recognition = () => {
                     <span className="font-semibold text-foreground">{rec.to?.full_name ?? "—"}</span>
                     <Badge variant="secondary" className="ml-1 gap-1">
                       <Icon className={`w-3 h-3 ${cat.color}`} />
-                      {cat.label}
+                      {t(`recognition.categories.${cat.value}`)}
                     </Badge>
                     {rec.coin_reward > 0 && (
                       <Badge className="bg-warning/20 text-warning border-warning/40 gap-1">
@@ -291,13 +295,13 @@ const Recognition = () => {
                     </button>
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(rec.created_at), { addSuffix: true, locale: ru })}
+                        {formatDistanceToNow(new Date(rec.created_at), { addSuffix: true, locale: getDateLocale() })}
                       </span>
                       {isMine && (
                         <button
                           onClick={() => remove.mutate(rec.id)}
                           className="text-muted-foreground hover:text-destructive transition-colors"
-                          aria-label="Удалить"
+                          aria-label={t("recognition.delete")}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

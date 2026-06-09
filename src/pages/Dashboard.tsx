@@ -29,9 +29,11 @@ import {
   PolarRadiusAxis,
 } from "recharts";
 import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { getDateLocale } from "@/lib/dateLocale";
+import { useTranslation } from "react-i18next";
 
 const Dashboard = () => {
+  const { t } = useTranslation("employee");
   const effectiveUserId = useEffectiveUserId();
   const { data: profile } = useUserProfile();
   const navigate = useNavigate();
@@ -101,7 +103,7 @@ const Dashboard = () => {
     competencies.length > 0
       ? Math.round(competencies.reduce((s, c) => s + c.value, 0) / competencies.length)
       : 0;
-  const firstName = profile?.full_name?.split(" ")[0] || "пользователь";
+  const firstName = profile?.full_name?.split(" ")[0] || t("dashboard.userFallback");
   const topSkills = [...competencies].sort((a, b) => b.value - a.value).slice(0, 4);
 
   // AI tips — simple heuristics for now (real impl would call edge function)
@@ -109,32 +111,32 @@ const Dashboard = () => {
     const tips: { title: string; cta: string; href: string; icon: any }[] = [];
     if (competencies.length === 0) {
       tips.push({
-        title: "Начните с AI-оценки, чтобы открыть профиль компетенций",
-        cta: "Пройти оценку",
+        title: t("dashboard.tips.startAssessment"),
+        cta: t("dashboard.tips.startAssessmentCta"),
         href: "/assessment",
         icon: MessageSquare,
       });
     }
     if (totalGoals === 0) {
       tips.push({
-        title: "У вас нет активных целей. Постройте карьерный трек.",
-        cta: "Открыть трек",
+        title: t("dashboard.tips.noGoals"),
+        cta: t("dashboard.tips.openTrackCta"),
         href: "/career-track",
         icon: Target,
       });
     }
     if (avgCompetency > 0 && avgCompetency < 50) {
       tips.push({
-        title: "Сфокусируйтесь на двух самых слабых навыках в этом месяце",
-        cta: "Посмотреть план",
+        title: t("dashboard.tips.focusWeak"),
+        cta: t("dashboard.tips.viewPlanCta"),
         href: "/career-track",
         icon: Sparkles,
       });
     }
     if (tips.length === 0) {
       tips.push({
-        title: "Отличный темп! Поблагодарите коллегу, который помог вам в этом месяце.",
-        cta: "Открыть ленту",
+        title: t("dashboard.tips.greatPace"),
+        cta: t("dashboard.tips.openFeedCta"),
         href: "/recognition",
         icon: Heart,
       });
@@ -158,13 +160,13 @@ const Dashboard = () => {
           </div>
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wider text-primary/80 font-medium">
-              Цифровой паспорт
+              {t("dashboard.passport")}
             </p>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mt-1">
-              Привет, {firstName} 👋
+              {t("dashboard.hello", { name: firstName })}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {profile?.position || "Должность не указана"}
+              {profile?.position || t("dashboard.noPosition")}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {topSkills.slice(0, 5).map((s) => (
@@ -174,13 +176,13 @@ const Dashboard = () => {
               ))}
               {topSkills.length === 0 && (
                 <Badge variant="secondary" className="text-muted-foreground">
-                  Профиль навыков пока пустой
+                  {t("dashboard.emptySkills")}
                 </Badge>
               )}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Карьерный уровень</div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">{t("dashboard.level")}</div>
             <div className="text-4xl md:text-5xl font-bold gradient-text mt-1">{overallProgress}%</div>
             <div className="mt-3 w-48 ml-auto h-2 rounded-full bg-background/40 overflow-hidden">
               <div
@@ -196,29 +198,29 @@ const Dashboard = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card className="glass p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <Target className="w-4 h-4 text-primary" /> Прогресс трека
+            <Target className="w-4 h-4 text-primary" /> {t("dashboard.kpi.trackProgress")}
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">{overallProgress}%</div>
           <div className="text-xs text-muted-foreground mt-1">
-            {completedGoals} из {totalGoals} целей
+            {t("dashboard.kpi.goalsOf", { done: completedGoals, total: totalGoals })}
           </div>
         </Card>
         <Card className="glass p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <TrendingUp className="w-4 h-4 text-info" /> Компетенции
+            <TrendingUp className="w-4 h-4 text-info" /> {t("dashboard.kpi.competencies")}
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">{competencies.length}</div>
-          <div className="text-xs text-muted-foreground mt-1">Средний балл: {avgCompetency}</div>
+          <div className="text-xs text-muted-foreground mt-1">{t("dashboard.kpi.avgScore", { value: avgCompetency })}</div>
         </Card>
         <Card className="glass p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <Award className="w-4 h-4 text-warning" /> Достижения
+            <Award className="w-4 h-4 text-warning" /> {t("dashboard.kpi.achievements")}
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">{achievements.length}</div>
         </Card>
         <Card className="glass p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <Sparkles className="w-4 h-4 text-success" /> Готовность к роли
+            <Sparkles className="w-4 h-4 text-success" /> {t("dashboard.kpi.roleReadiness")}
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">{profile?.role_readiness ?? 0}%</div>
           <div className="text-xs text-muted-foreground mt-1 truncate">{profile?.position || "—"}</div>
@@ -232,21 +234,21 @@ const Dashboard = () => {
         {/* Career timeline */}
         <Card className="glass p-6 lg:col-span-2">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-foreground">Карьерный трек</h3>
+            <h3 className="font-semibold text-foreground">{t("dashboard.careerTrack")}</h3>
             <button
               onClick={() => navigate("/career-track")}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
-              Подробнее <ChevronRight className="w-3 h-3" />
+              {t("dashboard.more")} <ChevronRight className="w-3 h-3" />
             </button>
           </div>
           {goals.length === 0 ? (
             <div className="text-center py-10 text-sm text-muted-foreground">
               <Target className="w-10 h-10 mx-auto mb-3 opacity-40" />
-              Карьерный трек ещё не построен.
+              {t("dashboard.noTrack")}
               <div className="mt-3">
                 <Button onClick={() => navigate("/career-track")} variant="outline" size="sm">
-                  Открыть трек
+                  {t("dashboard.openTrack")}
                 </Button>
               </div>
             </div>
@@ -303,22 +305,22 @@ const Dashboard = () => {
               <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-primary" />
               </div>
-              <h3 className="font-semibold text-foreground">AI-рекомендации</h3>
+              <h3 className="font-semibold text-foreground">{t("dashboard.aiTips")}</h3>
             </div>
             <ul className="space-y-3">
-              {aiTips.map((t, i) => {
-                const Icon = t.icon;
+              {aiTips.map((tip, i) => {
+                const Icon = tip.icon;
                 return (
                   <li key={i} className="rounded-lg p-3 bg-background/40 border border-border/50">
                     <div className="flex gap-3">
                       <Icon className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground leading-snug">{t.title}</p>
+                        <p className="text-sm text-foreground leading-snug">{tip.title}</p>
                         <button
-                          onClick={() => navigate(t.href)}
+                          onClick={() => navigate(tip.href)}
                           className="text-xs text-primary hover:underline mt-1 inline-flex items-center gap-1"
                         >
-                          {t.cta} <ChevronRight className="w-3 h-3" />
+                          {tip.cta} <ChevronRight className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
@@ -329,7 +331,7 @@ const Dashboard = () => {
           </Card>
 
           <Card className="glass p-5">
-            <h3 className="font-semibold text-foreground mb-3">Профиль навыков</h3>
+            <h3 className="font-semibold text-foreground mb-3">{t("dashboard.skillsProfile")}</h3>
             {competencies.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>
                 <RadarChart data={competencies}>
@@ -350,7 +352,7 @@ const Dashboard = () => {
               </ResponsiveContainer>
             ) : (
               <div className="text-center py-6 text-xs text-muted-foreground">
-                Пройдите AI-оценку для формирования радара навыков
+                {t("dashboard.takeAssessmentRadar")}
               </div>
             )}
           </Card>
@@ -360,7 +362,7 @@ const Dashboard = () => {
       {/* Activity + Quick actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="glass p-6 lg:col-span-2">
-          <h3 className="font-semibold text-foreground mb-4">Последняя активность</h3>
+          <h3 className="font-semibold text-foreground mb-4">{t("dashboard.recentActivity")}</h3>
           {notifications.length > 0 ? (
             <ul className="space-y-3">
               {notifications.map((n) => (
@@ -380,14 +382,14 @@ const Dashboard = () => {
                     <p className="text-sm text-foreground">{n.title}</p>
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                       <Clock className="w-3 h-3" />
-                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ru })}
+                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: getDateLocale() })}
                     </p>
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">Нет уведомлений</p>
+            <p className="text-sm text-muted-foreground text-center py-4">{t("dashboard.noNotifications")}</p>
           )}
         </Card>
 
@@ -402,9 +404,9 @@ const Dashboard = () => {
               </div>
               <div>
                 <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                  AI-оценка
+                  {t("dashboard.aiAssessment")}
                 </h4>
-                <p className="text-xs text-muted-foreground mt-0.5">Сильные стороны и зоны роста</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("dashboard.aiAssessmentDesc")}</p>
               </div>
             </div>
           </button>
@@ -418,9 +420,9 @@ const Dashboard = () => {
               </div>
               <div>
                 <h4 className="font-semibold text-foreground group-hover:text-rose-500 transition-colors">
-                  Поблагодарить коллегу
+                  {t("dashboard.thankColleague")}
                 </h4>
-                <p className="text-xs text-muted-foreground mt-0.5">Признание + игровая валюта</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("dashboard.thankColleagueDesc")}</p>
               </div>
             </div>
           </button>
