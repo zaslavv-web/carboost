@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { getDateLocale } from "@/lib/dateLocale";
+import { useTranslation } from "react-i18next";
 
 interface InviteRow {
   email: string;
@@ -21,6 +22,7 @@ interface InviteRow {
 const Invitations = () => {
   const queryClient = useQueryClient();
   const { data: profile } = useUserProfile();
+  const { t } = useTranslation("admin");
   const companyId = profile?.company_id;
 
   const [draft, setDraft] = useState<InviteRow[]>([{ email: "" }]);
@@ -61,13 +63,13 @@ const Invitations = () => {
       const cleaned = invites
         .map((i) => ({ ...i, email: i.email.trim().toLowerCase() }))
         .filter((i) => i.email.includes("@"));
-      if (cleaned.length === 0) throw new Error("Нет валидных email");
+      if (cleaned.length === 0) throw new Error(t("invitations.errorNoValidEmail"));
       const { data, error } = await laravelRpc("bulk_invite_employees" as any, { _invites: cleaned });
       if (error) throw error;
       return data as any;
     },
     onSuccess: (res: any) => {
-      toast.success(`Создано: ${res.created}, пропущено: ${res.skipped}`);
+      toast.success(t("invitations.toastSent", { created: res.created, skipped: res.skipped }));
       setDraft([{ email: "" }]);
       queryClient.invalidateQueries({ queryKey: ["invitations", companyId] });
     },
@@ -101,13 +103,13 @@ const Invitations = () => {
         }))
         .filter((r) => r.email.includes("@"));
       if (parsed.length === 0) {
-        toast.error("Не найдено валидных email. Колонки: email, full_name, department");
+        toast.error(t("invitations.errorNoValidEmail"));
         return;
       }
       setDraft(parsed);
-      toast.success(`Загружено ${parsed.length} строк`);
+      toast.success(t("invitations.toastLoadedRows", { count: parsed.length }));
     } catch (e: any) {
-      toast.error("Не удалось прочитать файл: " + e.message);
+      toast.error(e.message);
     } finally {
       setParsing(false);
     }
@@ -119,7 +121,7 @@ const Invitations = () => {
     return "bg-warning/10 text-warning";
   };
   const statusLabel = (s: string) =>
-    s === "claimed" ? "Принято" : s === "cancelled" ? "Отменено" : "Ожидает";
+    s === "claimed" ? t("invitations.statusClaimed") : s === "cancelled" ? t("invitations.statusCancelled") : t("invitations.statusPending");
 
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl">
@@ -128,16 +130,16 @@ const Invitations = () => {
           <Mail className="w-6 h-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Приглашения сотрудников</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("invitations.title")}</h1>
           <p className="text-muted-foreground text-sm">
-            Массовый импорт XLSX/CSV или ручной список. Сотрудник заявит профиль при регистрации.
+            {t("invitations.subtitle")}
           </p>
         </div>
       </div>
 
       <div className="bg-card rounded-xl border border-border p-5 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h3 className="font-semibold text-foreground">Новые приглашения</h3>
+          <h3 className="font-semibold text-foreground">{t("invitations.newInvitations")}</h3>
           <div className="flex gap-2">
             <label className="cursor-pointer">
               <input
@@ -148,11 +150,11 @@ const Invitations = () => {
               />
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted transition-colors">
                 {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-                Загрузить XLSX/CSV
+                {t("invitations.uploadXlsxBtn")}
               </span>
             </label>
             <Button size="sm" variant="outline" onClick={() => setDraft([...draft, { email: "" }])}>
-              <Plus className="w-4 h-4 mr-1" /> Строка
+              <Plus className="w-4 h-4 mr-1" /> {t("invitations.addRowBtn")}
             </Button>
           </div>
         </div>
@@ -161,10 +163,10 @@ const Invitations = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-muted-foreground border-b border-border">
-                <th className="py-2 pr-2">Email *</th>
-                <th className="py-2 pr-2">ФИО</th>
-                <th className="py-2 pr-2">Должность</th>
-                <th className="py-2 pr-2">Отдел</th>
+                <th className="py-2 pr-2">{t("invitations.colEmail")}</th>
+                <th className="py-2 pr-2">{t("invitations.colFullName")}</th>
+                <th className="py-2 pr-2">{t("invitations.colPosition")}</th>
+                <th className="py-2 pr-2">{t("invitations.colDept")}</th>
                 <th className="py-2 w-8"></th>
               </tr>
             </thead>
@@ -244,30 +246,30 @@ const Invitations = () => {
           className="w-full sm:w-auto"
         >
           {sendMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-          Отправить приглашения
+          {t("invitations.sendBtn")}
         </Button>
       </div>
 
       <div className="bg-card rounded-xl border border-border p-5">
         <div className="flex items-center gap-2 mb-4">
           <Users className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-foreground">Список приглашений ({invitations.length})</h3>
+          <h3 className="font-semibold text-foreground">{t("invitations.listTitle", { count: invitations.length })}</h3>
         </div>
 
         {isLoading ? (
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         ) : invitations.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">Пока нет приглашений</p>
+          <p className="text-sm text-muted-foreground italic">{t("invitations.noInvitations")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground border-b border-border">
                   <th className="py-2 pr-2">Email</th>
-                  <th className="py-2 pr-2">ФИО</th>
-                  <th className="py-2 pr-2">Отдел</th>
-                  <th className="py-2 pr-2">Статус</th>
-                  <th className="py-2 pr-2">Создано</th>
+                  <th className="py-2 pr-2">{t("invitations.colFullName")}</th>
+                  <th className="py-2 pr-2">{t("invitations.colDept")}</th>
+                  <th className="py-2 pr-2">{t("invitations.colStatus")}</th>
+                  <th className="py-2 pr-2">{t("invitations.colCreated")}</th>
                   <th className="py-2 w-8"></th>
                 </tr>
               </thead>
@@ -283,14 +285,14 @@ const Invitations = () => {
                       </span>
                     </td>
                     <td className="py-2 pr-2 text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(inv.created_at), { addSuffix: true, locale: ru })}
+                      {formatDistanceToNow(new Date(inv.created_at), { addSuffix: true, locale: getDateLocale() })}
                     </td>
                     <td className="py-2">
                       {inv.status === "pending" && (
                         <button
                           onClick={() => cancelMutation.mutate(inv.id)}
                           className="p-1 rounded hover:bg-destructive/10 text-destructive"
-                          title="Отменить"
+                          title={t("invitations.cancelTitle")}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
