@@ -401,7 +401,7 @@ const HRDEmployeeMap = () => {
       deadline: string | null;
       assigneeIds: string[];
     }) => {
-      if (!companyId || !user) throw new Error("Нет компании");
+      if (!companyId || !user) throw new Error(t("employeeMap.toasts.noCompany"));
       const { data: task, error } = await laravelDb
         .from("hr_tasks")
         .insert({
