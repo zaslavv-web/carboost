@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { Camera, Save, User } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const Settings = () => {
   const { user } = useAuth();
