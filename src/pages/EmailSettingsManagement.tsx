@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useTranslation } from "react-i18next";
+import { getIntlLocale } from "@/lib/dateLocale";
 
 interface EmailSetting {
   id: string;
@@ -58,6 +60,7 @@ const normalizeYandexSmtp = (next: typeof emptyForm) => {
 
 const EmailSettingsManagement = () => {
   const queryClient = useQueryClient();
+  const { t } = useTranslation("admin");
   const [form, setForm] = useState(emptyForm);
   const [testTo, setTestTo] = useState("");
 
@@ -101,9 +104,9 @@ const EmailSettingsManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email_settings"] });
       setForm((prev) => ({ ...prev, password: "" }));
-      toast.success("SMTP-настройки сохранены");
+      toast.success(t("emailSettings.toastSaved"));
     },
-    onError: (e: any) => toast.error(e.message || "Не удалось сохранить настройки"),
+    onError: (e: any) => toast.error(e.message || t("emailSettings.toastSaveFail")),
   });
 
   const testMutation = useMutation({
@@ -114,11 +117,11 @@ const EmailSettingsManagement = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email_settings"] });
-      toast.success("Тестовое письмо отправлено");
+      toast.success(t("emailSettings.toastTestSent"));
     },
     onError: (e: any) => {
       queryClient.invalidateQueries({ queryKey: ["email_settings"] });
-      toast.error(e.message || "Тест SMTP не прошёл");
+      toast.error(e.message || t("emailSettings.toastTestFail"));
     },
   });
 
@@ -129,9 +132,9 @@ const EmailSettingsManagement = () => {
       return data;
     },
     onSuccess: (result) => {
-      toast.success(`SMTP handshake успешен: ${result?.host}:${result?.port}, auth ${result?.username ? "OK" : "не требуется"}`);
+      toast.success(`SMTP handshake OK: ${result?.host}:${result?.port}`);
     },
-    onError: (e: any) => toast.error(e.message || "SMTP handshake не прошёл"),
+    onError: (e: any) => toast.error(e.message || t("emailSettings.toastHandshakeFail")),
   });
 
   const applyPreset = (provider: string) => {
@@ -153,24 +156,24 @@ const EmailSettingsManagement = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Почтовый сервис</h1>
-          <p className="text-sm text-muted-foreground mt-1">SMTP для системных писем, уведомлений и восстановления паролей</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("emailSettings.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("emailSettings.subtitle")}</p>
         </div>
         <div className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${setting?.is_active ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
           {setting?.is_active ? <ShieldCheck className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-          {setting?.is_active ? "Активно" : "Не активно"}
+          {setting?.is_active ? t("emailSettings.statusActive") : t("emailSettings.statusInactive")}
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg"><Mail className="w-5 h-5 text-primary" /> SMTP-подключение</CardTitle>
-          <CardDescription>Пароль сохраняется в зашифрованном виде и не возвращается в интерфейс.</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-lg"><Mail className="w-5 h-5 text-primary" /> {t("emailSettings.smtpCardTitle")}</CardTitle>
+          <CardDescription>{t("emailSettings.smtpCardDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Провайдер</Label>
+              <Label>{t("emailSettings.labelProvider")}</Label>
               <Select value={form.provider} onValueChange={applyPreset}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -179,8 +182,8 @@ const EmailSettingsManagement = () => {
               </Select>
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label>Подсказка</Label>
-              <div className="min-h-10 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">{selectedPreset?.hint || "Введите параметры SMTP-сервера."}</div>
+              <Label>{t("emailSettings.labelHint")}</Label>
+              <div className="min-h-10 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">{selectedPreset?.hint || t("emailSettings.hintDefault")}</div>
             </div>
           </div>
 
@@ -188,17 +191,17 @@ const EmailSettingsManagement = () => {
             <div className="space-y-2 md:col-span-2"><Label>Host</Label><Input value={form.host} onChange={(e) => setForm(normalizeYandexSmtp({ ...form, host: e.target.value }))} placeholder="smtp.example.com" /></div>
             <div className="space-y-2"><Label>Port</Label><Input type="number" value={form.port} onChange={(e) => setForm(normalizeYandexSmtp({ ...form, port: Number(e.target.value) }))} /></div>
             <div className="space-y-2">
-              <Label>Шифрование</Label>
+              <Label>{t("emailSettings.labelEncryption")}</Label>
               <Select value={form.encryption} onValueChange={(v: "ssl" | "tls" | "none") => setForm(normalizeYandexSmtp({ ...form, encryption: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="tls">TLS</SelectItem><SelectItem value="ssl">SSL</SelectItem><SelectItem value="none">Без шифрования</SelectItem></SelectContent>
+                <SelectContent><SelectItem value="tls">TLS</SelectItem><SelectItem value="ssl">SSL</SelectItem><SelectItem value="none">{t("emailSettings.encryptionNone")}</SelectItem></SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2"><Label>Логин</Label><Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="mail@example.com" /></div>
-            <div className="space-y-2"><Label>Пароль {setting?.has_password ? "(оставьте пустым, чтобы не менять)" : ""}</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} autoComplete="new-password" /></div>
+            <div className="space-y-2"><Label>{t("emailSettings.labelLogin")}</Label><Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="mail@example.com" /></div>
+            <div className="space-y-2"><Label>{setting?.has_password ? t("emailSettings.labelPasswordNoChange") : t("emailSettings.labelPassword")}</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} autoComplete="new-password" /></div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -208,27 +211,27 @@ const EmailSettingsManagement = () => {
           </div>
 
           <div className="flex items-center justify-between gap-4 rounded-lg bg-muted/50 p-4">
-            <div><p className="text-sm font-medium text-foreground">Использовать для системных писем</p><p className="text-xs text-muted-foreground">Применяется к восстановлению паролей, приглашениям и уведомлениям.</p></div>
+            <div><p className="text-sm font-medium text-foreground">{t("emailSettings.labelSystemEmails")}</p><p className="text-xs text-muted-foreground">{t("emailSettings.systemEmailsDesc")}</p></div>
             <Switch checked={form.is_active} onCheckedChange={(checked) => setForm({ ...form, is_active: checked })} />
           </div>
 
           {setting?.last_tested_at && (
             <div className={`rounded-lg p-3 text-sm ${setting.last_test_error ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"}`}>
-              {setting.last_test_error ? setting.last_test_error : `Последний тест успешен: ${new Date(setting.last_tested_at).toLocaleString("ru-RU")}`}
+              {setting.last_test_error ? setting.last_test_error : `OK: ${new Date(setting.last_tested_at).toLocaleString(getIntlLocale())}`}
             </div>
           )}
 
           <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between border-t border-border pt-5">
             <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-              {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />} Сохранить SMTP
+              {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />} {t("emailSettings.saveSmtp")}
             </Button>
             <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
               <Button variant="outline" onClick={() => preflightMutation.mutate()} disabled={preflightMutation.isPending || !setting}>
-                {preflightMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlugZap className="w-4 h-4" />} Проверить соединение
+                {preflightMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlugZap className="w-4 h-4" />} {t("emailSettings.checkConnection")}
               </Button>
-              <Input className="sm:w-72" type="email" value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="email для теста" />
+              <Input className="sm:w-72" type="email" value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder={t("emailSettings.testEmailPlaceholder")} />
               <Button variant="secondary" onClick={() => testMutation.mutate()} disabled={testMutation.isPending || !setting}>
-                {testMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Отправить тест
+                {testMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} {t("emailSettings.sendTest")}
               </Button>
             </div>
           </div>
