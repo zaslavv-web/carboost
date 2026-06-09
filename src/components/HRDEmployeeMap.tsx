@@ -576,9 +576,9 @@ const HRDEmployeeMap = () => {
               <ScrollArea className="flex-1 max-h-[calc(70vh-72px)]">
                 <Tabs defaultValue="overview" className="p-3">
                   <TabsList className="grid grid-cols-3 w-full">
-                    <TabsTrigger value="overview">Обзор</TabsTrigger>
-                    <TabsTrigger value="tasks">Задачи</TabsTrigger>
-                    <TabsTrigger value="shop">Магазин</TabsTrigger>
+                    <TabsTrigger value="overview">{t("employeeMap.tabs.overview")}</TabsTrigger>
+                    <TabsTrigger value="tasks">{t("employeeMap.tabs.tasks")}</TabsTrigger>
+                    <TabsTrigger value="shop">{t("employeeMap.tabs.shop")}</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="overview" className="space-y-3 mt-3">
