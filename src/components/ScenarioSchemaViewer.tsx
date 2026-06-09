@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ReactFlow,
   Background,
@@ -19,6 +20,7 @@ interface ScenarioSchemaViewerProps {
 }
 
 const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) => {
+  const { t } = useTranslation();
   const data = scenario.scenario_data;
 
   const { nodes, edges } = useMemo(() => {
@@ -71,7 +73,7 @@ const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) 
         data: {
           label: (
             <div className="max-w-[260px]">
-              <div className="font-semibold text-xs mb-1">Резюме</div>
+              <div className="font-semibold text-xs mb-1">{t("scenarioViewer.summary")}</div>
               <div className="text-[10px] opacity-80 line-clamp-3">{data.summary}</div>
             </div>
           ),
@@ -106,12 +108,12 @@ const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) 
         data: {
           label: (
             <div className="max-w-[260px]">
-              <div className="font-semibold text-xs mb-1">Ключевые пункты</div>
+              <div className="font-semibold text-xs mb-1">{t("scenarioViewer.keyPoints")}</div>
               <ul className="text-[10px] opacity-80 space-y-0.5 list-disc list-inside">
                 {keyPoints.slice(0, 5).map((kp, i) => (
                   <li key={i} className="line-clamp-1">{kp}</li>
                 ))}
-                {keyPoints.length > 5 && <li>...ещё {keyPoints.length - 5}</li>}
+                {keyPoints.length > 5 && <li>{t("scenarioViewer.more", { count: keyPoints.length - 5 })}</li>}
               </ul>
             </div>
           ),
@@ -146,8 +148,8 @@ const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) 
         data: {
           label: (
             <div className="text-center">
-              <div className="font-semibold text-xs">Вопросы оценки</div>
-              <div className="text-[10px] opacity-70">{questions.length} вопросов</div>
+              <div className="font-semibold text-xs">{t("scenarioViewer.questions")}</div>
+              <div className="text-[10px] opacity-70">{t("scenarioViewer.questionsCount", { count: questions.length })}</div>
             </div>
           ),
         },
@@ -191,14 +193,14 @@ const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) 
                   <span className="font-semibold text-[10px] opacity-50">#{i + 1}</span>
                   {q.max_score && (
                     <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                      макс. {q.max_score}
+                      {t("scenarioViewer.maxShort", { count: q.max_score })}
                     </span>
                   )}
                 </div>
                 <div className="text-[11px] font-medium line-clamp-2">{q.question}</div>
                 {q.criteria && (
                   <div className="text-[9px] mt-1 opacity-60 line-clamp-1">
-                    Критерий: {q.criteria}
+                    {t("scenarioViewer.criterion")} {q.criteria}
                   </div>
                 )}
               </div>
@@ -237,7 +239,7 @@ const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) 
         data: {
           label: (
             <div className="text-center">
-              <div className="font-semibold text-xs mb-1">Оцениваемые компетенции</div>
+              <div className="font-semibold text-xs mb-1">{t("scenarioViewer.competencies")}</div>
               <div className="flex flex-wrap gap-1 justify-center max-w-[200px]">
                 {competencies.map((c, i) => (
                   <span
@@ -283,8 +285,8 @@ const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) 
         data: {
           label: (
             <div className="max-w-[260px]">
-              <div className="font-semibold text-xs mb-1">Структура данных</div>
-              <div className="text-[10px] opacity-70 mb-1">{data.length} записей</div>
+              <div className="font-semibold text-xs mb-1">{t("scenarioViewer.dataStructure")}</div>
+              <div className="text-[10px] opacity-70 mb-1">{t("scenarioViewer.recordsCount", { count: data.length })}</div>
               <div className="flex flex-wrap gap-1">
                 {keys.map((k, i) => (
                   <span key={i} className="text-[9px] px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
@@ -322,7 +324,7 @@ const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) 
           data: {
             label: (
               <div className="max-w-[240px]">
-                <div className="font-semibold text-[10px] opacity-50 mb-1">Запись #{i + 1}</div>
+                <div className="font-semibold text-[10px] opacity-50 mb-1">{t("scenarioViewer.record", { n: i + 1 })}</div>
                 {keys.slice(0, 4).map((k) => (
                   <div key={k} className="text-[10px] truncate">
                     <span className="font-medium">{k}:</span>{" "}
@@ -362,7 +364,7 @@ const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) 
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div>
             <h2 className="text-lg font-semibold text-foreground">{scenario.title}</h2>
-            <p className="text-xs text-muted-foreground">Схема сценария оценки</p>
+            <p className="text-xs text-muted-foreground">{t("scenarioViewer.subtitle")}</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="w-4 h-4" />

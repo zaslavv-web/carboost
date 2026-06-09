@@ -78,5 +78,56 @@
     "collapseMenu": "Свернуть меню",
     "positionUnknown": "Не указана",
     "loading": "Загрузка..."
+  },
+  "theme": {
+    "light": "Светлая тема",
+    "dark": "Тёмная тема",
+    "switchToLight": "Включить светлую тему",
+    "switchToDark": "Включить тёмную тему"
+  },
+  "currencyWidget": {
+    "defaultName": "Монеты",
+    "toShop": "В магазин",
+    "recent": "Последние операции",
+    "empty": "Пока нет транзакций"
+  },
+  "impersonation": {
+    "viewingAs": "Вы просматриваете как:",
+    "returnBtn": "Вернуться в суперадмин"
+  },
+  "verification": {
+    "title": "Ожидание верификации",
+    "description": "Ваша регистрация ожидает подтверждения суперадмином. Вы получите доступ к системе после верификации.",
+    "checkStatus": "Проверить статус"
+  },
+  "scenarioViewer": {
+    "subtitle": "Схема сценария оценки",
+    "summary": "Резюме",
+    "keyPoints": "Ключевые пункты",
+    "more": "...ещё {{count}}",
+    "questions": "Вопросы оценки",
+    "questionsCount": "{{count}} вопросов",
+    "maxShort": "макс. {{count}}",
+    "criterion": "Критерий:",
+    "competencies": "Оцениваемые компетенции",
+    "dataStructure": "Структура данных",
+    "recordsCount": "{{count}} записей",
+    "record": "Запись #{{n}}"
+  },
+  "tracksAnalytics": {
+    "stage": "Этап {{n}}",
+    "noData": "Нет данных",
+    "noDataDesc": "Пока нет назначенных карьерных треков с активными участниками.",
+    "activeTracks": "Активных треков",
+    "totalParticipants": "Всего участников",
+    "avgProgress": "Средний прогресс",
+    "summaryTitle": "Сводка по трекам",
+    "colTrack": "Трек",
+    "colParticipants": "Участников",
+    "colCompleted": "Завершили",
+    "colFailed": "Срыв",
+    "colAvgStep": "Ср. этап",
+    "colAvgProgress": "Ср. прогресс",
+    "stepDistribution": "{{title}} — распределение по этапам"
   }
 }
