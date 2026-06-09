@@ -265,7 +265,9 @@
     "toastNeedTwoPositions": "At least 2 positions are required to build paths",
     "toastAiNoCareerPaths": "AI could not build career paths",
     "toastBuiltPaths": "Built {{count}} career paths",
-    "reviewFreqDefault": "12 months or when technology/strategy changes"
+    "reviewFreqDefault": "12 months or when technology/strategy changes",
+    "templateMiningShiftLead": "Processing Plant Shift Supervisor",
+    "templateMiningDigitalEngineer": "Production Digitalization Engineer"
   },
   "scenarios": {
     "title": "Assessment Scenarios",

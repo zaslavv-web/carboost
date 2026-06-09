@@ -265,7 +265,9 @@
     "toastNeedTwoPositions": "Нужно минимум 2 должности для построения путей",
     "toastAiNoCareerPaths": "AI не смог построить карьерные пути",
     "toastBuiltPaths": "Построено {{count}} карьерных путей",
-    "reviewFreqDefault": "12 месяцев или при изменении технологии/стратегии"
+    "reviewFreqDefault": "12 месяцев или при изменении технологии/стратегии",
+    "templateMiningShiftLead": "Начальник смены обогатительной фабрики",
+    "templateMiningDigitalEngineer": "Инженер по цифровизации производства"
   },
   "scenarios": {
     "title": "Сценарии оценки",
