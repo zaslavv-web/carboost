@@ -1,6 +1,7 @@
 import { laravelDb } from "@/integrations/laravel/db";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useMyBalance, useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart, Package, ClipboardList } from "lucide-react";
 
 export default function Shop() {
+  const { t } = useTranslation("employee");
   const { data: profile } = useUserProfile();
   const { data: balance = 0 } = useMyBalance();
   const { data: settings } = useCurrencySettings();
@@ -30,20 +32,20 @@ export default function Shop() {
   });
 
   const icon = settings?.currency_icon ?? "🪙";
-  const name = settings?.currency_name ?? "Монеты";
+  const name = settings?.currency_name ?? t("shop.coinsFallback");
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold">🛍️ Магазин</h1>
-          <p className="text-muted-foreground">Покупайте товары за {name.toLowerCase()}</p>
+          <h1 className="text-3xl font-bold">{t("shop.title")}</h1>
+          <p className="text-muted-foreground">{t("shop.subtitle", { currency: name.toLowerCase() })}</p>
         </div>
         <div className="flex items-center gap-2">
           <Card className="px-4 py-2 flex items-center gap-2">
             <span className="text-2xl">{icon}</span>
             <div>
-              <p className="text-xs text-muted-foreground">Баланс</p>
+              <p className="text-xs text-muted-foreground">{t("shop.balance")}</p>
               <p className="font-bold text-lg">{formatCoins(balance)} <span className="text-sm font-normal">{name}</span></p>
             </div>
           </Card>
@@ -53,11 +55,11 @@ export default function Shop() {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Загрузка…</p>
+        <p className="text-muted-foreground">{t("shop.loading")}</p>
       ) : products.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">
           <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          В магазине пока нет товаров
+          {t("shop.empty")}
         </CardContent></Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -76,7 +78,7 @@ export default function Shop() {
                   {p.description && <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>}
                   <div className="flex items-center justify-between pt-2">
                     <span className="font-bold text-primary text-lg">{formatCoins(p.price)} {icon}</span>
-                    {p.max_per_user && <Badge variant="outline" className="text-xs">макс. {p.max_per_user}</Badge>}
+                    {p.max_per_user && <Badge variant="outline" className="text-xs">{t("shop.maxShort", { count: p.max_per_user })}</Badge>}
                   </div>
                 </CardContent>
               </Card>

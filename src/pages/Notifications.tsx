@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useAuth } from "@/contexts/AuthContext";
-import { Check, Info, AlertTriangle, Award, Loader2, Route, ShoppingBag, GraduationCap, ClipboardCheck, XCircle } from "lucide-react";
+import { Check, Info, AlertTriangle, Award, Loader2, Route, ShoppingBag, ClipboardCheck, XCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { getDateLocale } from "@/lib/dateLocale";
 import { toast } from "sonner";
 
 const typeConfig: Record<string, { icon: any; color: string }> = {
@@ -20,6 +21,7 @@ const typeConfig: Record<string, { icon: any; color: string }> = {
 };
 
 const Notifications = () => {
+  const { t } = useTranslation("employee");
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -49,7 +51,7 @@ const Notifications = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      toast.success("Все уведомления отмечены как прочитанные");
+      toast.success(t("notifications.allMarked"));
     },
   });
 
@@ -71,8 +73,8 @@ const Notifications = () => {
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Уведомления</h1>
-          <p className="text-muted-foreground text-sm mt-1">{unread} непрочитанных</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("notifications.title")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t("notifications.unread", { count: unread })}</p>
         </div>
         {unread > 0 && (
           <button
@@ -80,7 +82,7 @@ const Notifications = () => {
             disabled={markAllReadMutation.isPending}
             className="text-sm text-primary hover:underline"
           >
-            Отметить все как прочитанные
+            {t("notifications.markAllRead")}
           </button>
         )}
       </div>
@@ -107,7 +109,7 @@ const Notifications = () => {
                   </div>
                   {n.description && <p className="text-sm text-muted-foreground mt-0.5">{n.description}</p>}
                   <p className="text-xs text-muted-foreground mt-2">
-                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ru })}
+                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: getDateLocale() })}
                   </p>
                 </div>
               </div>
@@ -116,8 +118,8 @@ const Notifications = () => {
         }) : (
           <div className="bg-card rounded-xl p-12 shadow-card border border-border text-center">
             <Info className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-semibold text-foreground mb-2">Нет уведомлений</h3>
-            <p className="text-sm text-muted-foreground">Новые уведомления появятся здесь</p>
+            <h3 className="font-semibold text-foreground mb-2">{t("notifications.empty")}</h3>
+            <p className="text-sm text-muted-foreground">{t("notifications.emptyDesc")}</p>
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -30,6 +31,7 @@ interface Props {
 }
 
 const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
+  const { t } = useTranslation("employee");
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
@@ -61,7 +63,6 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
       const earned = detailed.reduce((s, a) => s + (a.is_correct ? (a.weight || 1) : 0), 0);
       const scorePct = Math.round((earned / Math.max(1, totalWeight)) * 100);
 
-      // Per-competency breakdown
       const compMap = new Map<string, { earned: number; total: number }>();
       for (const a of detailed) {
         const cur = compMap.get(a.competency) || { earned: 0, total: 0 };
@@ -75,7 +76,6 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
         total: v.total,
       }));
 
-      // Save attempt
       const { error: attemptErr } = await laravelDb.from("test_attempts").insert({
         user_id: user.id,
         company_id: profile?.company_id ?? null,
@@ -88,7 +88,6 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
       });
       if (attemptErr) throw attemptErr;
 
-      // Save assessment + competencies (so career-track recompute works)
       await laravelDb.from("assessments").insert({
         user_id: user.id,
         company_id: profile?.company_id ?? null,
@@ -123,12 +122,12 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
       queryClient.invalidateQueries({ queryKey: ["assessments"] });
 
       setResult({ score: scorePct, total: 100, breakdown });
-      toast.success(`Тест завершён: ${scorePct}/100`);
+      toast.success(t("testRunner.completed", { score: scorePct }));
 
       setTimeout(() => navigate("/career-track?from=assessment", { replace: true }), 2000);
     } catch (e: any) {
       console.error(e);
-      toast.error("Не удалось сохранить результаты: " + e.message);
+      toast.error(t("testRunner.saveError", { msg: e.message }));
     }
     setSubmitting(false);
   };
@@ -139,8 +138,8 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
         <div className="flex items-center gap-3 mb-4">
           <CheckCircle2 className="w-8 h-8 text-success" />
           <div>
-            <h2 className="text-xl font-bold text-foreground">Тест завершён</h2>
-            <p className="text-sm text-muted-foreground">Открываем ваш карьерный трек...</p>
+            <h2 className="text-xl font-bold text-foreground">{t("testRunner.done")}</h2>
+            <p className="text-sm text-muted-foreground">{t("testRunner.openingTrack")}</p>
           </div>
         </div>
         <div className="text-3xl font-bold text-foreground mb-2">{result.score}/100</div>
@@ -162,7 +161,7 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
         <h1 className="text-xl md:text-2xl font-bold text-foreground">{test.title}</h1>
         {test.description && <p className="text-muted-foreground text-sm mt-1">{test.description}</p>}
         <p className="text-xs text-muted-foreground mt-2">
-          {test.source === "hrd" ? "Тест от HRD вашей компании" : "AI-сгенерированный тест по вашей должности"} · {test.questions.length} вопросов
+          {test.source === "hrd" ? t("testRunner.hrdSource") : t("testRunner.aiSource")} · {t("testRunner.questionsCount", { count: test.questions.length })}
         </p>
       </div>
 
@@ -173,7 +172,7 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
               <span className="text-xs font-mono text-muted-foreground mt-1">{idx + 1}.</span>
               <div className="flex-1">
                 <p className="text-sm font-medium text-foreground">{q.text}</p>
-                <p className="text-xs text-muted-foreground mt-1">Компетенция: {q.competency}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("testRunner.competency", { name: q.competency })}</p>
               </div>
             </div>
             <div className="space-y-2 mt-3">
@@ -205,11 +204,11 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
 
       <div className="sticky bottom-4 mt-6 flex items-center gap-3 bg-card border border-border rounded-xl p-4 shadow-elevated">
         <span className="text-sm text-muted-foreground flex-1">
-          Отвечено: {Object.keys(answers).length}/{test.questions.length}
+          {t("testRunner.answered", { done: Object.keys(answers).length, total: test.questions.length })}
         </span>
         {onRetake && (
           <button onClick={onRetake} className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80">
-            Сменить тест
+            {t("testRunner.changeTest")}
           </button>
         )}
         <button
@@ -218,7 +217,7 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
           className="px-5 py-2 rounded-lg gradient-primary text-primary-foreground text-sm font-medium disabled:opacity-50 flex items-center gap-2"
         >
           {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          Завершить
+          {t("testRunner.finish")}
         </button>
       </div>
     </div>

@@ -1,7 +1,8 @@
 import { laravelDb } from "@/integrations/laravel/db";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Clock, Target, CheckCircle2, Award, AlertTriangle, Gauge, Send, Gift, Hourglass, XCircle } from "lucide-react";
+import { Check, Clock, Target, CheckCircle2, AlertTriangle, Gauge, Send, Gift, Hourglass, XCircle } from "lucide-react";
 import StepSubmissionDialog from "@/components/StepSubmissionDialog";
 
 export interface RichStep {
@@ -59,6 +60,7 @@ const Section = ({
 };
 
 const CareerTrackStepCard = ({ step, index, totalSteps, isCompleted, isCurrent, assignmentId, templateId }: Props) => {
+  const { t } = useTranslation("employee");
   const [showSubmit, setShowSubmit] = useState(false);
 
   const { data: latestSubmission } = useQuery({
@@ -110,15 +112,15 @@ const CareerTrackStepCard = ({ step, index, totalSteps, isCompleted, isCurrent, 
           </p>
           <span className="text-[11px] text-muted-foreground flex items-center gap-1 flex-shrink-0">
             <Clock className="w-3 h-3" />
-            {step.duration_months} мес.
+            {step.duration_months} {t("stepCard.months")}
           </span>
         </div>
         {step.description && <p className="text-xs text-muted-foreground">{step.description}</p>}
 
-        <Section icon={<Target className="w-3 h-3" />} title="Ключевые цели" items={step.goals} tone="info" />
+        <Section icon={<Target className="w-3 h-3" />} title={t("stepCard.keyGoals")} items={step.goals} tone="info" />
         <Section
           icon={<CheckCircle2 className="w-3 h-3" />}
-          title="Условия прохождения"
+          title={t("stepCard.passConditions")}
           items={step.pass_conditions}
           tone="success"
         />
@@ -126,30 +128,29 @@ const CareerTrackStepCard = ({ step, index, totalSteps, isCompleted, isCurrent, 
         {step.rewards && step.rewards.length > 0 && (
           <Section
             icon={<Gift className="w-3 h-3" />}
-            title="🎁 Награда за прохождение этапа"
+            title={t("stepCard.rewardTitle")}
             items={step.rewards}
             tone="success"
             highlight
           />
         )}
 
-        <Section icon={<AlertTriangle className="w-3 h-3" />} title="При непрохождении" items={step.penalty} tone="warning" />
-        <Section icon={<Gauge className="w-3 h-3" />} title="Метрики успеха" items={step.success_metrics} tone="muted" />
+        <Section icon={<AlertTriangle className="w-3 h-3" />} title={t("stepCard.onFail")} items={step.penalty} tone="warning" />
+        <Section icon={<Gauge className="w-3 h-3" />} title={t("stepCard.successMetrics")} items={step.success_metrics} tone="muted" />
 
-        {/* Submission status / actions */}
         {isCurrent && assignmentId && templateId && (
           <div className="mt-3 pt-3 border-t border-border/50">
             {pendingReview ? (
               <div className="flex items-center gap-2 text-xs text-info bg-info/10 rounded-lg p-2">
                 <Hourglass className="w-4 h-4 flex-shrink-0" />
-                <span>Материалы отправлены и ждут проверки руководителя/HRD</span>
+                <span>{t("stepCard.pendingReview")}</span>
               </div>
             ) : wasRejected ? (
               <div className="space-y-2">
                 <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 rounded-lg p-2">
                   <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium">Этап отклонён</p>
+                    <p className="font-medium">{t("stepCard.rejected")}</p>
                     {latestSubmission?.rejection_reason && (
                       <p className="text-foreground/80 mt-0.5">{latestSubmission.rejection_reason}</p>
                     )}
@@ -160,7 +161,7 @@ const CareerTrackStepCard = ({ step, index, totalSteps, isCompleted, isCurrent, 
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-warning text-warning-foreground text-xs font-medium hover:opacity-90"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  Запустить усиленный сценарий повтора
+                  {t("stepCard.retryReinforced")}
                 </button>
               </div>
             ) : (
@@ -169,7 +170,7 @@ const CareerTrackStepCard = ({ step, index, totalSteps, isCompleted, isCurrent, 
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90"
               >
                 <Send className="w-3.5 h-3.5" />
-                Этап пройден — отправить на проверку
+                {t("stepCard.submitForReview")}
               </button>
             )}
           </div>
