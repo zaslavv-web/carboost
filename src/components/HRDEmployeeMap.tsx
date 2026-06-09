@@ -737,7 +737,7 @@ const HRDEmployeeMap = () => {
                               cx="50%"
                               cy="50%"
                               outerRadius={60}
-                              label={(e) => `${e.name?.slice(0, 10)}`}
+                              label={(e: any) => `${(e?.name as string)?.slice(0, 10) ?? ""}`}
                             >
                               {shopActivity.spendBreakdown.map((_, i) => (
                                 <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
