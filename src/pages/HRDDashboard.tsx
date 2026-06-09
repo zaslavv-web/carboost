@@ -139,7 +139,7 @@ const CompetencyComparisonModal = ({
       >
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Сравнение компетенций</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t("hrdDashboard.comparison.title")}</h2>
             <p className="text-sm text-muted-foreground">
               {employee.full_name} → {position.title}
             </p>
@@ -159,13 +159,13 @@ const CompetencyComparisonModal = ({
             {matchPercent}%
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">Соответствие должности</p>
+            <p className="text-sm font-medium text-foreground">{t("hrdDashboard.comparison.match")}</p>
             <p className="text-xs text-muted-foreground">
               {matchPercent >= 80
-                ? "Высокое соответствие — сотрудник готов к должности"
+                ? t("hrdDashboard.comparison.high")
                 : matchPercent >= 50
-                ? "Среднее соответствие — требуется развитие отдельных компетенций"
-                : "Низкое соответствие — необходима серьёзная подготовка"}
+                ? t("hrdDashboard.comparison.medium")
+                : t("hrdDashboard.comparison.low")}
             </p>
           </div>
         </div>
@@ -176,7 +176,7 @@ const CompetencyComparisonModal = ({
           </div>
         ) : radarData.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">
-            Нет данных для сравнения. Убедитесь, что у должности задан профиль компетенций.
+            {t("hrdDashboard.comparison.noData")}
           </p>
         ) : (
           <>
@@ -187,8 +187,8 @@ const CompetencyComparisonModal = ({
                   <PolarGrid stroke="hsl(var(--border))" />
                   <PolarAngleAxis dataKey="skill" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
                   <PolarRadiusAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} domain={[0, 10]} />
-                  <Radar name="Эталон должности" dataKey="required" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} strokeWidth={2} />
-                  <Radar name="Сотрудник" dataKey="actual" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.2} strokeWidth={2} />
+                  <Radar name={t("hrdDashboard.comparison.positionBenchmark")} dataKey="required" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} strokeWidth={2} />
+                  <Radar name={t("hrdDashboard.comparison.employee")} dataKey="actual" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.2} strokeWidth={2} />
                   <Legend />
                   <Tooltip
                     contentStyle={{
@@ -206,10 +206,10 @@ const CompetencyComparisonModal = ({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-secondary/30 border-b border-border">
-                    <th className="text-left py-2 px-4 text-muted-foreground font-medium">Компетенция</th>
-                    <th className="text-center py-2 px-4 text-muted-foreground font-medium">Эталон</th>
-                    <th className="text-center py-2 px-4 text-muted-foreground font-medium">Сотрудник</th>
-                    <th className="text-center py-2 px-4 text-muted-foreground font-medium">Разница</th>
+                    <th className="text-left py-2 px-4 text-muted-foreground font-medium">{t("hrdDashboard.comparison.competency")}</th>
+                    <th className="text-center py-2 px-4 text-muted-foreground font-medium">{t("hrdDashboard.comparison.benchmark")}</th>
+                    <th className="text-center py-2 px-4 text-muted-foreground font-medium">{t("hrdDashboard.comparison.employee")}</th>
+                    <th className="text-center py-2 px-4 text-muted-foreground font-medium">{t("hrdDashboard.comparison.diff")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -296,7 +296,7 @@ const HRDDashboard = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hrd_employees"] });
-      toast.success("Должность подтверждена");
+      toast.success(t("hrdDashboard.toast.positionConfirmed"));
     },
     onError: (err: any) => toast.error(err.message),
   });
@@ -308,15 +308,15 @@ const HRDDashboard = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hrd_employees"] });
-      toast.success("Заявка отклонена");
+      toast.success(t("hrdDashboard.toast.requestRejected"));
     },
     onError: (err: any) => toast.error(err.message),
   });
 
   const addMappingMutation = useMutation({
     mutationFn: async () => {
-      if (!newMapDomain.trim() || !newMapPositionId) throw new Error("Укажите домен и должность");
-      if (!user || !myProfile?.company_id) throw new Error("Не определена компания");
+      if (!newMapDomain.trim() || !newMapPositionId) throw new Error(t("hrdDashboard.errors.specifyDomainPosition"));
+      if (!user || !myProfile?.company_id) throw new Error(t("hrdDashboard.errors.noCompany"));
       const domain = newMapDomain.trim().toLowerCase().replace(/^@/, "");
       const { error } = await laravelDb.from("email_domain_position_mappings").insert({
         company_id: myProfile.company_id,
@@ -330,9 +330,9 @@ const HRDDashboard = () => {
       queryClient.invalidateQueries({ queryKey: ["email_domain_mappings"] });
       setNewMapDomain("");
       setNewMapPositionId("");
-      toast.success("Маппинг добавлен");
+      toast.success(t("hrdDashboard.toast.mappingAdded"));
     },
-    onError: (err: any) => toast.error(err.message?.includes("duplicate") ? "Этот домен уже сопоставлен" : err.message),
+    onError: (err: any) => toast.error(err.message?.includes("duplicate") ? t("hrdDashboard.errors.domainDuplicate") : err.message),
   });
 
   const deleteMappingMutation = useMutation({
@@ -342,7 +342,7 @@ const HRDDashboard = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email_domain_mappings"] });
-      toast.success("Маппинг удалён");
+      toast.success(t("hrdDashboard.toast.mappingDeleted"));
     },
   });
 
@@ -357,9 +357,9 @@ const HRDDashboard = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hrd_employees"] });
       queryClient.invalidateQueries({ queryKey: ["user_roles"] });
-      toast.success("Роль успешно обновлена");
+      toast.success(t("hrdDashboard.toast.roleUpdated"));
     },
-    onError: (err: any) => toast.error(err.message || "Ошибка при назначении роли"),
+    onError: (err: any) => toast.error(err.message || t("hrdDashboard.toast.roleError")),
   });
 
   const assignPositionMutation = useMutation({
@@ -373,7 +373,7 @@ const HRDDashboard = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hrd_employees"] });
       setShowPositionMenu(null);
-      toast.success("Должность назначена");
+      toast.success(t("hrdDashboard.toast.positionAssigned"));
     },
     onError: (err: any) => toast.error(err.message),
   });
@@ -398,14 +398,14 @@ const HRDDashboard = () => {
   };
 
   const roleDistribution = [
-    { name: "Сотрудники", value: roleCounts.employee, color: "hsl(var(--primary))" },
-    { name: "Руководители", value: roleCounts.manager, color: "hsl(var(--info))" },
-    { name: "HRD", value: roleCounts.hrd, color: "hsl(var(--warning))" },
+    { name: t("hrdDashboard.roleDistItems.employees"), value: roleCounts.employee, color: "hsl(var(--primary))" },
+    { name: t("hrdDashboard.roleDistItems.managers"), value: roleCounts.manager, color: "hsl(var(--info))" },
+    { name: t("hrdDashboard.roleDistItems.hrd"), value: roleCounts.hrd, color: "hsl(var(--warning))" },
   ];
 
   const deptMap = new Map<string, { count: number; totalScore: number }>();
   employees.forEach((e) => {
-    const dept = e.department || "Без отдела";
+    const dept = e.department || t("hrdDashboard.noDept");
     const cur = deptMap.get(dept) || { count: 0, totalScore: 0 };
     cur.count++;
     cur.totalScore += e.overall_score || 0;
@@ -444,16 +444,16 @@ const HRDDashboard = () => {
               <Shield className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Панель HRD</h1>
-              <p className="text-muted-foreground mt-1">Управление сотрудниками, ролями и развитием.</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{t("hrdDashboard.hero.title")}</h1>
+              <p className="text-muted-foreground mt-1">{t("hrdDashboard.hero.subtitle")}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => (window.location.href = "/risk-analytics")} variant="outline" className="bg-background/40 backdrop-blur-sm">
-              Риски и удержание
+              {t("hrdDashboard.hero.risksBtn")}
             </Button>
             <Button onClick={() => (window.location.href = "/recognition")} className="gradient-primary text-primary-foreground shadow-glow">
-              Лента признания
+              {t("hrdDashboard.hero.recognitionBtn")}
             </Button>
           </div>
         </div>
@@ -463,27 +463,27 @@ const HRDDashboard = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <div className="glass rounded-xl p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <Users className="w-4 h-4 text-primary" /> Сотрудников
+            <Users className="w-4 h-4 text-primary" /> {t("hrdDashboard.metrics.employees")}
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{employees.length}</div>
-          <div className="text-xs text-muted-foreground mt-1">{roleCounts.manager} руководителей</div>
+          <div className="text-xs text-muted-foreground mt-1">{t("hrdDashboard.metrics.managersCount", { count: roleCounts.manager })}</div>
         </div>
         <div className="glass rounded-xl p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <TrendingUp className="w-4 h-4 text-info" /> Средний балл
+            <TrendingUp className="w-4 h-4 text-info" /> {t("hrdDashboard.metrics.avgScore")}
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{avgScore}</div>
-          <div className="text-xs text-muted-foreground mt-1">по компании</div>
+          <div className="text-xs text-muted-foreground mt-1">{t("hrdDashboard.metrics.perCompany")}</div>
         </div>
         <div className="glass rounded-xl p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <Shield className="w-4 h-4 text-warning" /> Руководителей
+            <Shield className="w-4 h-4 text-warning" /> {t("hrdDashboard.metrics.managersLabel")}
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{roleCounts.manager}</div>
         </div>
         <div className="glass rounded-xl p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <BarChart3 className="w-4 h-4 text-success" /> Отделов
+            <BarChart3 className="w-4 h-4 text-success" /> {t("hrdDashboard.metrics.departments")}
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{deptMap.size}</div>
         </div>
@@ -492,7 +492,7 @@ const HRDDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Role distribution */}
         <div className="glass rounded-xl p-6">
-          <h3 className="font-semibold text-foreground mb-4">Распределение ролей</h3>
+          <h3 className="font-semibold text-foreground mb-4">{t("hrdDashboard.charts.roleDistribution")}</h3>
           {roleDistribution.some((r) => r.value > 0) ? (
             <>
               <ResponsiveContainer width="100%" height={200}>
@@ -518,13 +518,13 @@ const HRDDashboard = () => {
               </div>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">Нет данных</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{t("hrdDashboard.charts.noData")}</p>
           )}
         </div>
 
         {/* Department comparison */}
         <div className="lg:col-span-2 glass rounded-xl p-6">
-          <h3 className="font-semibold text-foreground mb-4">Средний балл по отделам</h3>
+          <h3 className="font-semibold text-foreground mb-4">{t("hrdDashboard.charts.avgScoreByDept")}</h3>
           {departmentData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={departmentData}>
@@ -533,12 +533,12 @@ const HRDDashboard = () => {
                 <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                 <Tooltip contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
                 <Legend />
-                <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name="Средний балл" />
-                <Bar dataKey="employees" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} name="Сотрудников" />
+                <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name={t("hrdDashboard.charts.avgScoreBar")} />
+                <Bar dataKey="employees" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} name={t("hrdDashboard.charts.employeesBar")} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">Нет данных</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{t("hrdDashboard.charts.noData")}</p>
           )}
         </div>
       </div>
@@ -546,11 +546,11 @@ const HRDDashboard = () => {
       {/* Section tabs */}
       <div className="flex gap-2 overflow-x-auto -mx-1 px-1">
         {([
-          { key: "employees", label: "Сотрудники", icon: Users, count: employees.length },
-          { key: "map", label: "Карта сотрудников", icon: GitCompareArrows, count: 0 },
-          { key: "tracks", label: "Карьерные треки", icon: Route, count: 0 },
-          { key: "requests", label: "Заявки на должность", icon: Briefcase, count: pendingRequests.length },
-          { key: "mappings", label: "Маппинг доменов", icon: Mail, count: mappings.length },
+          { key: "employees", label: t("hrdDashboard.tabs.employees"), icon: Users, count: employees.length },
+          { key: "map", label: t("hrdDashboard.tabs.map"), icon: GitCompareArrows, count: 0 },
+          { key: "tracks", label: t("hrdDashboard.tabs.tracks"), icon: Route, count: 0 },
+          { key: "requests", label: t("hrdDashboard.tabs.requests"), icon: Briefcase, count: pendingRequests.length },
+          { key: "mappings", label: t("hrdDashboard.tabs.mappings"), icon: Mail, count: mappings.length },
         ] as const).map((t) => (
           <button
             key={t.key}
@@ -578,15 +578,15 @@ const HRDDashboard = () => {
       {activePanel === "requests" && (
         <div className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
           <div className="p-5 border-b border-border">
-            <h3 className="font-semibold text-foreground">Заявки на подтверждение должности</h3>
+            <h3 className="font-semibold text-foreground">{t("hrdDashboard.requests.title")}</h3>
             <p className="text-xs text-muted-foreground mt-1">
-              Сотрудники, выбравшие свою должность вручную при регистрации. Подтвердите, измените или отклоните.
+              {t("hrdDashboard.requests.subtitle")}
             </p>
           </div>
           {pendingRequests.length === 0 ? (
             <div className="p-12 text-center">
               <Briefcase className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-              <p className="text-sm text-muted-foreground">Нет заявок на подтверждение</p>
+              <p className="text-sm text-muted-foreground">{t("hrdDashboard.requests.empty")}</p>
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -602,7 +602,7 @@ const HRDDashboard = () => {
                       <div className="min-w-0">
                         <p className="font-medium text-foreground truncate">{emp.full_name}</p>
                         <p className="text-xs text-muted-foreground truncate">
-                          Заявленная должность: <span className="text-foreground font-medium">{requestedPos?.title || "— должность удалена —"}</span>
+                          {t("hrdDashboard.requests.claimedPosition")} <span className="text-foreground font-medium">{requestedPos?.title || t("hrdDashboard.requests.positionDeleted")}</span>
                           {requestedPos?.department && <span className="ml-1">· {requestedPos.department}</span>}
                         </p>
                       </div>
@@ -618,7 +618,7 @@ const HRDDashboard = () => {
                             }
                           }}
                           className="text-xs px-3 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 max-w-[180px]"
-                          title="Изменить должность"
+                          title={t("hrdDashboard.requests.changePositionTitle")}
                         >
                           {positions.map((p) => (
                             <option key={p.id} value={p.id}>{p.title}</option>
@@ -631,7 +631,7 @@ const HRDDashboard = () => {
                         disabled={!requestedPos || approvePositionMutation.isPending}
                         className="gap-1"
                       >
-                        <Check className="w-3.5 h-3.5" /> Подтвердить
+                        <Check className="w-3.5 h-3.5" /> {t("hrdDashboard.requests.confirm")}
                       </Button>
                       <Button
                         size="sm"
@@ -640,7 +640,7 @@ const HRDDashboard = () => {
                         disabled={rejectPositionMutation.isPending}
                         className="text-destructive hover:text-destructive gap-1"
                       >
-                        <X className="w-3.5 h-3.5" /> Отклонить
+                        <X className="w-3.5 h-3.5" /> {t("hrdDashboard.requests.reject")}
                       </Button>
                     </div>
                   </div>
@@ -655,9 +655,9 @@ const HRDDashboard = () => {
       {activePanel === "mappings" && (
         <div className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
           <div className="p-5 border-b border-border">
-            <h3 className="font-semibold text-foreground">Автоназначение должности по email</h3>
+            <h3 className="font-semibold text-foreground">{t("hrdDashboard.mappings.title")}</h3>
             <p className="text-xs text-muted-foreground mt-1">
-              Сотрудники с email указанного домена будут автоматически получать выбранную должность без ручного подтверждения.
+              {t("hrdDashboard.mappings.subtitle")}
             </p>
           </div>
           <div className="p-5 border-b border-border bg-secondary/20">
@@ -674,7 +674,7 @@ const HRDDashboard = () => {
                 onChange={(e) => setNewMapPositionId(e.target.value)}
                 className="px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
               >
-                <option value="">— Выберите должность —</option>
+                <option value="">{t("hrdDashboard.mappings.selectPosition")}</option>
                 {positions.map((p) => (
                   <option key={p.id} value={p.id}>{p.title}{p.department ? ` · ${p.department}` : ""}</option>
                 ))}
@@ -684,14 +684,14 @@ const HRDDashboard = () => {
                 disabled={addMappingMutation.isPending || !newMapDomain.trim() || !newMapPositionId}
                 className="gap-1"
               >
-                <Plus className="w-4 h-4" /> Добавить
+                <Plus className="w-4 h-4" /> {t("hrdDashboard.mappings.add")}
               </Button>
             </div>
           </div>
           {mappings.length === 0 ? (
             <div className="p-12 text-center">
               <Mail className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-              <p className="text-sm text-muted-foreground">Маппингов пока нет</p>
+              <p className="text-sm text-muted-foreground">{t("hrdDashboard.mappings.empty")}</p>
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -718,7 +718,7 @@ const HRDDashboard = () => {
       <div className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
         <div className="p-6 border-b border-border">
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <h3 className="font-semibold text-foreground">Все сотрудники</h3>
+            <h3 className="font-semibold text-foreground">{t("hrdDashboard.table.title")}</h3>
             <div className="flex items-center gap-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -726,7 +726,7 @@ const HRDDashboard = () => {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Поиск по имени или отделу..."
+                  placeholder={t("hrdDashboard.table.searchPlaceholder")}
                   className="pl-10 pr-4 py-2 w-64 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                 />
               </div>
@@ -739,7 +739,7 @@ const HRDDashboard = () => {
                       roleFilter === r ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-secondary"
                     }`}
                   >
-                    {r === "all" ? "Все" : roleBadge[r].label}
+                    {r === "all" ? t("hrdDashboard.table.filterAll") : roleBadge[r].label}
                   </button>
                 ))}
               </div>
@@ -750,12 +750,12 @@ const HRDDashboard = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/30">
-                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Сотрудник</th>
-                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Должность</th>
-                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Отдел</th>
-                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Роль</th>
-                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Балл</th>
-                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Соответствие</th>
+                <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("hrdDashboard.table.colEmployee")}</th>
+                <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("hrdDashboard.table.colPosition")}</th>
+                <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("hrdDashboard.table.colDept")}</th>
+                <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("hrdDashboard.table.colRole")}</th>
+                <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("hrdDashboard.table.colScore")}</th>
+                <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("hrdDashboard.table.colMatch")}</th>
               </tr>
             </thead>
             <tbody>
@@ -784,7 +784,7 @@ const HRDDashboard = () => {
                           onClick={() => setShowPositionMenu(showPositionMenu === emp.user_id ? null : emp.user_id)}
                           className="text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity bg-secondary text-secondary-foreground"
                         >
-                          {empPosition ? empPosition.title : "Не назначена"} <ChevronDown className="w-3 h-3" />
+                          {empPosition ? empPosition.title : t("hrdDashboard.table.noPosition")} <ChevronDown className="w-3 h-3" />
                         </button>
                         {showPositionMenu === emp.user_id && (
                           <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-elevated z-10 py-1 min-w-[200px] max-h-[200px] overflow-y-auto">
@@ -794,7 +794,7 @@ const HRDDashboard = () => {
                               }}
                               className="w-full text-left px-3 py-2 text-xs hover:bg-secondary transition-colors text-muted-foreground"
                             >
-                              — Снять должность
+                              {t("hrdDashboard.table.removePosition")}
                             </button>
                             {positions.map((pos) => (
                               <button
@@ -811,7 +811,7 @@ const HRDDashboard = () => {
                               </button>
                             ))}
                             {positions.length === 0 && (
-                              <p className="px-3 py-2 text-xs text-muted-foreground">Нет должностей. Создайте в разделе «Должности».</p>
+                              <p className="px-3 py-2 text-xs text-muted-foreground">{t("hrdDashboard.table.noPositions")}</p>
                             )}
                           </div>
                         )}
@@ -862,7 +862,7 @@ const HRDDashboard = () => {
                           className="text-xs gap-1"
                         >
                           <GitCompareArrows className="w-3.5 h-3.5" />
-                          Сравнить
+                          {t("hrdDashboard.table.compare")}
                         </Button>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
@@ -874,7 +874,7 @@ const HRDDashboard = () => {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-muted-foreground">
-                    {employees.length === 0 ? "Нет сотрудников в системе" : "Ничего не найдено"}
+                    {employees.length === 0 ? t("hrdDashboard.table.noEmployees") : t("hrdDashboard.table.noResults")}
                   </td>
                 </tr>
               )}
@@ -882,7 +882,7 @@ const HRDDashboard = () => {
           </table>
         </div>
         <div className="p-4 text-sm text-muted-foreground border-t border-border">
-          Показано {filtered.length} из {employees.length} сотрудников
+          {t("hrdDashboard.table.showing", { shown: filtered.length, total: employees.length })}
         </div>
       </div>
       )}
