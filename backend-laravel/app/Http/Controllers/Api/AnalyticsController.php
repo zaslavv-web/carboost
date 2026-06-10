@@ -341,7 +341,9 @@ class AnalyticsController extends Controller
     public function userTimeline(Request $request)
     {
         $scope = $this->scope($request);
-        $userId = $request->validate(['user_id' => 'required|uuid'])['user_id'];
+        $userId = $request->validate([
+            'user_id' => ['required','string','max:64','regex:/^[A-Za-z0-9_\-]+$/'],
+        ])['user_id'];
         $sessionId = $request->get('session_id');
 
         $q = DB::table('analytics_events')->where('user_id', $userId);
