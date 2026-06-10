@@ -201,9 +201,9 @@ class AnalyticsController extends Controller
 
             $totalEvents = (clone $events)->count();
             $dau = (clone $events)
-                ->selectRaw("TO_CHAR(DATE(occurred_at), 'YYYY-MM-DD') as d,
-                             COUNT(DISTINCT user_id)::bigint as users,
-                             COUNT(*)::bigint as events")
+                ->selectRaw("DATE_FORMAT(occurred_at, '%Y-%m-%d') as d,
+                             COUNT(DISTINCT user_id) as users,
+                             COUNT(*) as events")
                 ->groupByRaw('DATE(occurred_at)')
                 ->orderByRaw('DATE(occurred_at)')
                 ->get();
@@ -211,14 +211,15 @@ class AnalyticsController extends Controller
             $erroredSessions = (clone $sessions)->where('errors_count', '>', 0)->count();
             $avgDuration = (clone $sessions)
                 ->whereNotNull('ended_at')
-                ->selectRaw('AVG(EXTRACT(EPOCH FROM (ended_at - started_at))) as s')->value('s');
+                ->selectRaw('AVG(TIMESTAMPDIFF(SECOND, started_at, ended_at)) as s')->value('s');
 
             $topRoutes = (clone $events)->where('event_type', 'page_view')
-                ->select('route', DB::raw('COUNT(*)::bigint as count'))
+                ->select('route', DB::raw('COUNT(*) as count'))
                 ->groupBy('route')->orderByDesc('count')->limit(8)->get();
             $topActions = (clone $events)->where('event_type', 'action')
-                ->select('event_name', DB::raw('COUNT(*)::bigint as count'))
+                ->select('event_name', DB::raw('COUNT(*) as count'))
                 ->groupBy('event_name')->orderByDesc('count')->limit(8)->get();
+
 
             return response()->json([
                 'total_events' => $totalEvents,
