@@ -143,13 +143,15 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     Route::post('/impersonation/start', [ImpersonationController::class, 'start']);
     Route::post('/impersonation/stop',  [ImpersonationController::class, 'stop']);
 
-    // Продуктовая аналитика — отчёты (доступ для superadmin/company_admin/hrd проверяется в контроллере)
-    Route::get('/analytics/overview',      [\App\Http\Controllers\Api\AnalyticsController::class, 'overview']);
-    Route::get('/analytics/events',        [\App\Http\Controllers\Api\AnalyticsController::class, 'events']);
-    Route::get('/analytics/paths',         [\App\Http\Controllers\Api\AnalyticsController::class, 'paths']);
-    Route::get('/analytics/problems',      [\App\Http\Controllers\Api\AnalyticsController::class, 'problems']);
-    Route::get('/analytics/user-timeline', [\App\Http\Controllers\Api\AnalyticsController::class, 'userTimeline']);
-    Route::get('/analytics/sessions',      [\App\Http\Controllers\Api\AnalyticsController::class, 'sessions']);
+    // Продуктовая аналитика — отчёты доступны только суперадмину (gate + контроллер).
+    Route::middleware('can:viewProductAnalytics')->group(function () {
+        Route::get('/analytics/overview',      [\App\Http\Controllers\Api\AnalyticsController::class, 'overview']);
+        Route::get('/analytics/events',        [\App\Http\Controllers\Api\AnalyticsController::class, 'events']);
+        Route::get('/analytics/paths',         [\App\Http\Controllers\Api\AnalyticsController::class, 'paths']);
+        Route::get('/analytics/problems',      [\App\Http\Controllers\Api\AnalyticsController::class, 'problems']);
+        Route::get('/analytics/user-timeline', [\App\Http\Controllers\Api\AnalyticsController::class, 'userTimeline']);
+        Route::get('/analytics/sessions',      [\App\Http\Controllers\Api\AnalyticsController::class, 'sessions']);
+    });
 
     // Phase 13: admin создаёт пользователя (заменяет admin-create-user edge function)
     // redeploy marker: ensure PATCH /admin/users/{userId}/company is registered (route:cache rebuild)

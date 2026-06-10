@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
+import { usePrimaryRole, useRealPrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -66,6 +66,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const role = usePrimaryRole();
+  const realRole = useRealPrimaryRole();
+  const isSuperadmin = realRole === "superadmin";
   const { data: profile } = useUserProfile();
   const { t } = useTranslation();
 

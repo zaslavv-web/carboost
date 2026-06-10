@@ -97,5 +97,8 @@ class AuthServiceProvider extends ServiceProvider
         );
 
         Gate::define('view-demo-requests', fn ($user) => $user->hasRole('superadmin'));
+
+        // Продуктовая аналитика — только суперадмин
+        Gate::define('viewProductAnalytics', fn ($user) => $user->hasRole('superadmin'));
     }
 }

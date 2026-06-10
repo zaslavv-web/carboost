@@ -43,9 +43,12 @@ class AnalyticsController extends Controller
 
         $user = Auth::guard('sanctum')->user();
         $userId    = $user?->id;
-        $companyId = $user?->company_id ?? null;
-        $role      = is_array($user?->roles ?? null) ? ($user->roles[0] ?? null) : null;
-        $impersonator = method_exists($user, 'getImpersonator') ? null : null;
+        $companyId = $user && method_exists($user, 'companyId') ? $user->companyId() : null;
+        $role      = $userId
+            ? (DB::table('user_roles')->where('user_id', $userId)->value('role'))
+            : null;
+        $imp       = $request->attributes->get('impersonator');
+        $impersonator = $imp?->id;
 
         $ipSalt  = date('Y-m-d');
         $ipHash  = $request->ip() ? hash('sha256', $request->ip() . '|' . $ipSalt) : null;
@@ -145,13 +148,13 @@ class AnalyticsController extends Controller
     {
         $user = $request->user();
         abort_if(!$user, 401);
-        $isSuper  = in_array('superadmin', (array)($user->roles ?? []), true);
-        $isCAdmin = in_array('company_admin', (array)($user->roles ?? []), true);
-        $isHrd    = in_array('hrd', (array)($user->roles ?? []), true);
-        abort_if(!$isSuper && !$isCAdmin && !$isHrd, 403, 'Нет доступа к продуктовой аналитике');
+        $imp = $request->attributes->get('impersonator');
+        $isSuper = (method_exists($user, 'hasRole') && $user->hasRole('superadmin'))
+            || ($imp && method_exists($imp, 'hasRole') && $imp->hasRole('superadmin'));
+        abort_if(!$isSuper, 403, 'Нет доступа к продуктовой аналитике');
         return [
-            'is_super'   => $isSuper,
-            'company_id' => $user->company_id ?? null,
+            'is_super'   => true,
+            'company_id' => method_exists($user, 'companyId') ? $user->companyId() : null,
         ];
     }
 
