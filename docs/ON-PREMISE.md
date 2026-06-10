@@ -88,9 +88,8 @@ VITE_LARAVEL_API_URL=/api
 
 ### 4. Что **отсутствует** в on-premise
 
-- Lovable Cloud / Supabase — не используется.
-- Внешние preview-домены — не используется.
-- Lovable AI Gateway — заменён на любой OpenAI-совместимый endpoint через `AI_API_URL`.
+- Внешние SaaS-зависимости отсутствуют полностью.
+- AI работает через ваш собственный endpoint, указанный в `AI_API_URL`.
 
 ### 5. Smoke-проверка после деплоя
 
