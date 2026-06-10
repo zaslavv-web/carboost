@@ -1,8 +1,6 @@
 /**
- * Drop-in replacement for `supabase.rpc(name, params)` (Phase 10).
- *
- * Returns the same `{ data, error }` shape so call sites can switch by
- * changing only the import.
+ * RPC client backed by the Laravel `/api/rpc/{name}` bridge.
+ * Returns `{ data, error }`.
  */
 
 import { laravel, type LaravelInvokeResult } from "./client";

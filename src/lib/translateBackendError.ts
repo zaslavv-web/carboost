@@ -1,6 +1,6 @@
 import i18n from "@/i18n";
 
-/** Shape of a Supabase / PostgREST error (subset we care about). */
+/** Shape of a backend / PostgREST-like error (subset we care about). */
 interface BackendError {
   message?: string;
   code?: string;
@@ -11,10 +11,10 @@ interface BackendError {
 const t = (key: string) => i18n.t(key, { ns: "errors" });
 
 /**
- * Maps a Supabase / Postgres / network error to a localized string
+ * Maps a backend / Postgres / network error to a localized string
  * from the "errors" i18n namespace.
  *
- * Pass either a raw Error, a PostgrestError-shaped object, or a plain string.
+ * Pass either a raw Error, a PostgREST-shaped error object, or a plain string.
  */
 export function translateBackendError(
   err: BackendError | Error | string | null | undefined,

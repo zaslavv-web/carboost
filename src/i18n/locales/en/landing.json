@@ -150,7 +150,6 @@
         "features": [
           "Full control over data",
           "Deployment via Docker / Helm / install.sh",
-          "Bring your own Supabase + Postgres",
           "Bring your own AI provider",
           "Customize to your processes",
           "Premium SLA support"

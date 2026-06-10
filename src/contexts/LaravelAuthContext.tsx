@@ -1,11 +1,9 @@
 /**
- * Laravel-backed AuthContext (Phase 9).
+ * Laravel-backed AuthContext.
  *
- * Drop-in compatible shape with the existing Supabase AuthContext: same
- * `{ session, user, loading, signOut }` so all consumers (`useAuth`) keep
- * working unchanged. Adds explicit helpers for login/register/google/reset.
- *
- * Switch the active backend via `VITE_AUTH_BACKEND=laravel` (see main.tsx).
+ * Exposes `{ session, user, loading, signOut }` plus explicit helpers for
+ * login / register / google / reset. Consumers use `useAuth()` from
+ * `@/contexts/AuthContext`.
  */
 
 import {
