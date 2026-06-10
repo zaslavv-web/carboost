@@ -50,6 +50,7 @@ import EmployeeQuestionnaire from "@/pages/EmployeeQuestionnaire";
 import ScrollToTop from "@/components/ScrollToTop";
 import AnalyticsBootstrap from "@/components/AnalyticsBootstrap";
 import ProductAnalytics from "@/pages/ProductAnalytics";
+import SuperadminOnly from "@/components/SuperadminOnly";
 
 const queryClient = new QueryClient();
 
@@ -81,7 +82,7 @@ const App = () => (
                 <Route path="/team" element={<ManagerDashboard />} />
                 <Route path="/employees" element={<HRDDashboard />} />
                 <Route path="/analytics" element={<Analytics />} />
-                <Route path="/product-analytics" element={<ProductAnalytics />} />
+                <Route path="/product-analytics" element={<SuperadminOnly><ProductAnalytics /></SuperadminOnly>} />
                 <Route path="/superadmin" element={<SuperadminDashboard />} />
                 <Route path="/companies" element={<Companies />} />
                 <Route path="/users" element={<UsersManagement />} />
