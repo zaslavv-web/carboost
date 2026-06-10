@@ -447,6 +447,12 @@ const UsersManagement = () => {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-1.5">
+                      <Link
+                        to={`/users/${u.user_id}`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-medium hover:bg-accent/80 transition-colors"
+                      >
+                        <IdCard className="w-3.5 h-3.5" /> Карточка
+                      </Link>
                       <button
                         onClick={() => handleImpersonate(u)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
