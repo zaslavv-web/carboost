@@ -1,8 +1,6 @@
 /**
- * Drop-in subset of `supabase.storage.from(bucket).*` (Phase 11).
- *
- * Backed by the Laravel `/api/storage/{bucket}/*` bridge. Covers the methods
- * the project uses: upload, createSignedUrl, getPublicUrl, remove.
+ * Bucket storage client backed by the Laravel `/api/storage/{bucket}/*`
+ * bridge. Methods: upload, createSignedUrl, getPublicUrl, remove.
  */
 
 import { laravel, laravelAuth, type LaravelInvokeResult } from "./client";

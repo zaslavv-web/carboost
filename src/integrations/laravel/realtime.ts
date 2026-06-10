@@ -1,6 +1,6 @@
 /**
- * Drop-in subset of `supabase.channel(...).on('postgres_changes', cb).subscribe()`
- * (Phase 11).
+ * Realtime channel client with a `.on('postgres_changes', filter, cb).subscribe()`
+ * surface.
  *
  * Backed by Laravel Reverb (или любой Pusher-совместимый сервер). Лениво
  * грузит `laravel-echo` + `pusher-js`, чтобы не раздувать main bundle, если
@@ -73,8 +73,8 @@ class LaravelChannel {
       const echo = await getEcho();
       this.rawChannel = echo.private(this.name);
       // Bind to a single broadcast event "PostgresChange" emitted by the
-      // server (see app/Events/PostgresChange.php). Server pushes the same
-      // payload shape Supabase Realtime uses, so existing handlers Just Work.
+      // server (see app/Events/PostgresChange.php). Payload shape matches
+      // what existing handlers expect.
       this.rawChannel.listen("PostgresChange", (p: PostgresChangesPayload) => {
         for (const { filter, cb } of this.listeners) {
           if (filter.table && filter.table !== p.table) continue;

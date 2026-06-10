@@ -1,7 +1,5 @@
 /**
- * Drop-in subset of `supabase.from(table).select().eq()...` (Phase 10).
- *
- * Implements the chainable PostgREST-style query builder against the Laravel
+ * Chainable PostgREST-style query builder for the Laravel
  * `/api/db/{table}` bridge. Covers what the project actually uses:
  *   .select(cols)        .eq/.neq/.gt/.gte/.lt/.lte
  *   .in(col, [...])      .is(col, null)

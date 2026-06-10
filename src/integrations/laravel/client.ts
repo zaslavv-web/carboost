@@ -1,13 +1,11 @@
 /**
- * Laravel REST client (Phase 8).
+ * Laravel REST client.
  *
- * Drop-in replacement for `supabase.functions.invoke(name, { body })` for all
- * AI scenarios. Returns the same `{ data, error }` shape so call sites only
- * need to swap the import.
+ * Provides `aiInvoke(name, { body })` for AI scenarios and a generic
+ * request helper. Returns `{ data, error }`.
  *
  * Configure via `VITE_LARAVEL_API_URL` (defaults to `/api`). The Sanctum
- * bearer token is read from `localStorage.laravel_token` (set by AuthContext
- * once the Laravel auth migration ships).
+ * bearer token is read from `localStorage.laravel_token` (set by AuthContext).
  */
 
 const BASE_URL =
@@ -107,7 +105,7 @@ async function request<T>(
   }
 }
 
-/** Drop-in for `supabase.functions.invoke("name", { body })`. */
+/** Invoke a Laravel AI endpoint at `/ai/{name}` with `{ body }`. */
 export function aiInvoke<T = any>(
   name: string,
   options: { body?: any } = {},
