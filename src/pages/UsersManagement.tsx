@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
+import { laravel } from "@/integrations/laravel/client";
 import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
@@ -57,10 +58,10 @@ const UsersManagement = () => {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users_list"],
     queryFn: async () => {
-      const [profilesRes, rolesRes, usersRes] = await Promise.all([
+      const [profilesRes, rolesRes, emailsRes] = await Promise.all([
         laravelDb.from("profiles").select("*"),
         laravelDb.from("user_roles").select("user_id, role"),
-        laravelDb.from("users").select("id, email"),
+        laravel.get<{ data: any[] } | any[]>("/profiles?per_page=500"),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (rolesRes.error) throw rolesRes.error;
@@ -75,8 +76,11 @@ const UsersManagement = () => {
       }
 
       const emailMap = new Map<string, string>();
-      for (const u of (usersRes.data || [])) {
-        if (u?.id && u?.email) emailMap.set(u.id, u.email);
+      const emailItems: any[] = Array.isArray(emailsRes.data)
+        ? (emailsRes.data as any[])
+        : ((emailsRes.data as any)?.data || []);
+      for (const p of emailItems) {
+        if (p?.user_id && p?.email) emailMap.set(p.user_id, p.email);
       }
 
       return (profilesRes.data || []).map((p: any) => ({
