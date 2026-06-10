@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
  * Создаёт/обновляет пользователей напрямую в таблице `users` (MySQL/Laravel-схема).
  *
  * Все операции идут в таблицу `users` напрямую через DB::table('users').
- * Никакой Supabase-схемы auth.users здесь нет.
+ * Никакой legacy-схемы auth.users здесь нет.
  */
 class AuthUserService
 {

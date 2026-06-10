@@ -7,7 +7,7 @@ use App\Models\User;
 /**
  * Базовый класс политик.
  *
- * Зеркалит RLS-логику Supabase:
+ * Зеркалит RLS-логику legacy:
  *   - superadmin: всё
  *   - company_admin / hrd: всё в рамках своей компании
  *   - manager: своя команда (определяется в наследниках)

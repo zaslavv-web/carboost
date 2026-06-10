@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Gate;
 class AuthServiceProvider extends ServiceProvider
 {
     /**
-     * Карта моделей → политик. Зеркалит RLS-политики Supabase.
+     * Карта моделей → политик. Зеркалит RLS-политики legacy.
      *
      *  CompanyScopedPolicy — справочники компании (view all, manage = hrd|company_admin).
      *  OwnedRecordPolicy   — пользовательские записи (own all, hrd/company_admin read-only).

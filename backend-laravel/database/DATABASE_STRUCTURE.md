@@ -226,7 +226,7 @@ profiles ──→ team_members (как manager/employee)
 
 ## 🛡 RLS / Policies
 
-В Supabase это были Postgres RLS. В Laravel перенесены в **Policies** (`app/Policies/`) + middleware `EnsureHasCompany`, `EnsureVerified`. Принцип:
+В legacy это были Postgres RLS. В Laravel перенесены в **Policies** (`app/Policies/`) + middleware `EnsureHasCompany`, `EnsureVerified`. Принцип:
 
 - **employee** — видит только свои данные (`user_id = auth.id`)
 - **manager** — + данные подчинённых через `team_members`

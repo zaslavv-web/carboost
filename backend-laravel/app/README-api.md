@@ -47,7 +47,7 @@
 ## Что НЕ сделано в Фазе 6 (по плану — Фазы 7+)
 
 - Edge Functions → Laravel-сервисы (Gemini AI: assessment-chat, parse-*, generate-*).
-- Storage (Supabase Storage → S3/MinIO) и контроллеры файлов.
-- Realtime (Supabase Realtime → Reverb).
+- Storage (legacy Storage → S3/MinIO) и контроллеры файлов.
+- Realtime (legacy Realtime → Reverb).
 - Admin/superadmin endpoints (companies CRUD, demo_requests, currency settings).
 - Дочерние сущности (goal_checklist_items, career_level_actions, *_files) — авторизация через родителя.

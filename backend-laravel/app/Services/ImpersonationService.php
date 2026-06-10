@@ -36,7 +36,7 @@ class ImpersonationService
             throw new RuntimeException('Target user id is required.');
         }
 
-        // В Supabase-версии impersonation — клиентский режим поверх прав
+        // В legacy-версии impersonation — клиентский режим поверх прав
         // superadmin. На MySQL-схеме поиск по UUID в integer-колонке может
         // упасть с SQLSTATE[22007], поэтому resolveTargetUser обёрнут в try
         // и failure не блокирует endpoint — фронт всё равно работает со
@@ -107,7 +107,7 @@ class ImpersonationService
         $target = $tryFind(fn () => User::query()->whereKey($targetUserId)->first());
         if ($target) return $target;
 
-        // legacy: users.meta может содержать sub = UUID из старого Supabase
+        // legacy: users.meta может содержать sub = UUID из старого legacy
         $target = $tryFind(function () use ($targetUserId) {
             if (! Schema::hasColumn('users', 'meta')) return null;
             return User::query()

@@ -1,6 +1,6 @@
 # Phase 4 — Policies + BelongsToCompany scope
 
-Заменяем Supabase RLS на серверную авторизацию Laravel.
+Заменяем legacy RLS на серверную авторизацию Laravel.
 
 ## Архитектура
 
@@ -14,7 +14,7 @@ Middleware            ──  EnsureVerified, EnsureHasCompany, role:hrd|...
 
 ## Карта политик RLS → Policy
 
-| Supabase policy                                  | Laravel policy             |
+| legacy policy                                  | Laravel policy             |
 |--------------------------------------------------|----------------------------|
 | profiles `*`                                      | `ProfilePolicy`            |
 | companies `*`                                     | `CompanyPolicy`            |
@@ -65,4 +65,4 @@ public function update(Request $r, Department $department)
 
 В Phase 7 (deployment) роль приложения подключается с `BYPASSRLS`, либо
 RLS политики удаляются миграцией. До этого момента совместимости с прямыми
-SQL-запросами через Supabase JS не теряется.
+SQL-запросами через legacy JS не теряется.

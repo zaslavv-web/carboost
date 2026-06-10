@@ -67,7 +67,7 @@ Route::post('/auth/login',    [AuthController::class, 'login']);
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 
-// Phase 13: password reset (заменяет supabase.auth.resetPasswordForEmail/updateUser)
+// Phase 13: password reset (заменяет legacy.auth.resetPasswordForEmail/updateUser)
 Route::post('/auth/forgot-password', [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'forgot']);
 Route::post('/auth/reset-password',  [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'reset']);
 
@@ -210,7 +210,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         // Teams
         Route::apiResource('team-members', TeamMemberController::class);
 
-        // ---- AI services (Phase 7, replaces Supabase Edge Functions) ----
+        // ---- AI services (Phase 7, replaces legacy Edge Functions) ----
         Route::prefix('ai')->group(function () {
             Route::post('assessment-chat',              [AiController::class, 'assessmentChat']);
             Route::post('generate-closed-test',         [AiController::class, 'generateClosedTest']);
@@ -226,16 +226,16 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
             Route::post('parse-test-document',          [AiController::class, 'parseTestDocument']);
         });
 
-        // ---- Generic CRUD bridge (Phase 10, replaces supabase.from(...)) ----
+        // ---- Generic CRUD bridge (Phase 10, replaces legacy.from(...)) ----
         Route::get   ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'index']);
         Route::post  ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'store']);
         Route::patch ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'update']);
         Route::delete('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'destroy']);
 
-        // ---- RPC bridge (Phase 10, replaces supabase.rpc(...)) ----
+        // ---- RPC bridge (Phase 10, replaces legacy.rpc(...)) ----
         Route::post('/rpc/{name}', [\App\Http\Controllers\Api\RpcController::class, 'call']);
 
-        // ---- Storage bridge (Phase 11, replaces supabase.storage.from(bucket).*) ----
+        // ---- Storage bridge (Phase 11, replaces legacy.storage.from(bucket).*) ----
         Route::post  ('/storage/{bucket}/upload', [\App\Http\Controllers\Api\StorageController::class, 'upload']);
         Route::get   ('/storage/{bucket}/sign',   [\App\Http\Controllers\Api\StorageController::class, 'sign']);
         Route::delete('/storage/{bucket}',        [\App\Http\Controllers\Api\StorageController::class, 'destroy']);
