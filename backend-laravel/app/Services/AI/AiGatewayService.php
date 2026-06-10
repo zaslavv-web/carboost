@@ -10,11 +10,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Central AI gateway client. Compatible with any OpenAI-style Chat Completions
- * endpoint (Lovable AI, OpenAI, OpenRouter, vLLM, Ollama).
+ * endpoint (OpenAI, OpenRouter, vLLM, Ollama, self-hosted gateway).
  *
  * Configured via env:
  *   AI_API_URL   — full Chat Completions endpoint
- *   AI_API_KEY   — bearer token (falls back to LOVABLE_API_KEY)
+ *   AI_API_KEY   — bearer token
  *   AI_MODEL     — default model id
  */
 class AiGatewayService
@@ -25,12 +25,12 @@ class AiGatewayService
         protected ?string $defaultModel = null,
     ) {
         $infra = \App\Support\ServiceInfra::ai();
-        $this->apiUrl ??= ($infra['url'] ?? null) ?: env('AI_API_URL', 'https://ai.gateway.lovable.dev/v1/chat/completions');
-        $this->apiKey ??= ($infra['api_key'] ?? null) ?: env('AI_API_KEY', env('LOVABLE_API_KEY'));
-        $this->defaultModel ??= ($infra['model'] ?? null) ?: env('AI_MODEL', 'google/gemini-2.5-flash');
+        $this->apiUrl ??= ($infra['url'] ?? null) ?: env('AI_API_URL', 'https://api.openai.com/v1/chat/completions');
+        $this->apiKey ??= ($infra['api_key'] ?? null) ?: env('AI_API_KEY');
+        $this->defaultModel ??= ($infra['model'] ?? null) ?: env('AI_MODEL', 'gpt-4o-mini');
 
         if (! $this->apiKey) {
-            throw new RuntimeException('AI gateway is not configured: set AI_API_KEY (or LOVABLE_API_KEY)');
+            throw new RuntimeException('AI gateway is not configured: set AI_API_KEY');
         }
     }
 
