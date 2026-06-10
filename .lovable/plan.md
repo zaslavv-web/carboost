@@ -1,90 +1,92 @@
-# План: перевод продукта на английский + переключатель языков
+# Внутренняя продуктовая аналитика
 
-## Объём
+Цель — собрать собственный аналог Mixpanel/Amplitude/Grafana внутри Growth Peak: фиксировать события, сессии, ошибки и строить отчёты по путям, функционалу и проблемам. Никаких внешних сервисов (GDPR/контур заказчика).
 
-- **69 файлов** с русским текстом (`src/pages` + `src/components` + `src/data`).
-- **~1772 строки** с локализуемыми фразами — лендинг, личный кабинет всех 5 ролей (Employee, Manager, HRD, Company Admin, Superadmin), админки, диалоги, ошибки.
-- Сейчас в проекте **нет i18n-библиотеки**, все строки захардкожены в JSX.
+## 1. Что собираем (схема событий)
 
-## Технический подход
-
-### 1. Подключаем `react-i18next`
-
-Стандарт де-факто, ленивая загрузка namespace'ов, поддержка плюрализации, интерполяции, `Trans` для JSX внутри переводов. Альтернативы (`react-intl`, `lingui`) тяжелее и без выгоды под наш кейс.
+Единая таблица `analytics_events` на Laravel-бэке:
 
 ```text
-src/i18n/
-├── index.ts              ← init i18next + detector
-├── locales/
-│   ├── ru/
-│   │   ├── common.json   ← кнопки, статусы, общее
-│   │   ├── auth.json     ← Login, Register, Reset
-│   │   ├── landing.json  ← лендинг + Pricing
-│   │   ├── dashboard.json← все RoleDashboard страницы
-│   │   ├── career.json   ← CareerTrack, Passport, Positions
-│   │   ├── hrd.json      ← HRD-аналитика, Tests, Scenarios
-│   │   ├── admin.json    ← Users/Companies/Email/Gamification mgmt
-│   │   ├── shop.json     ← Shop, Cart, Orders, ShopAdmin
-│   │   ├── support.json  ← Support, Notifications
-│   │   └── errors.json   ← локализованные ошибки бэка
-│   └── en/  ← зеркало структуры
-└── languages.ts          ← список языков, метаданные
+id, occurred_at, received_at,
+session_id (uuid с фронта), user_id (nullable), company_id (nullable),
+role (employee/manager/hrd/...), impersonated_by (nullable),
+event_type:   page_view | action | api_call | api_error | js_error | session_start | session_end | perf
+event_name:   "career_track.step.submit", "shop.checkout.click", ...
+route, path, referrer,
+component (опц.), target (опц.),
+duration_ms (опц.), status_code (опц.),
+properties jsonb, ua, ip_hash, app_version, locale
 ```
 
-### 2. Переключатель языка
+Дополнительно:
+- `analytics_sessions` — id, user_id, started_at, ended_at, last_seen_at, pages_count, errors_count, ended_reason (`idle|navigation|crash|logout`), entry_route, exit_route, device, viewport.
+- `analytics_user_groups` — пользовательские сегменты (HRD сам задаёт признак группировки: role / department / company / position / custom tag).
 
-- Компонент `<LanguageSwitcher />` в шапке (десктоп) и в мобильном drawer.
-- Опции: **RU / EN** с флагами + кодами.
-- Сохраняем выбор в `localStorage` (`ct-lang`) + `<html lang="...">`.
-- Дефолт: определяем по `navigator.language`; если не EN/RU → RU (основной рынок).
-- Synced для авторизованных пользователей: поле `users.locale` в БД (миграция), грузим при логине.
+Индексы по `(company_id, occurred_at)`, `(session_id)`, `(event_name, occurred_at)`, GIN по `properties`.
 
-### 3. Миграция строк
+## 2. Сбор данных
 
-Делается итеративно, **по группам файлов**, чтобы не сломать всё разом:
+### Фронт (React)
+- `src/lib/analytics/tracker.ts` — singleton:
+  - инициирует `session_id` (sessionStorage, TTL 30 мин неактивности),
+  - буферит события и шлёт батчем (`navigator.sendBeacon` на unload, иначе fetch каждые 5 c / 20 событий),
+  - автотрекинг: `page_view` через React Router, клики по `[data-track]`, отправка форм, время на странице,
+  - перехват ошибок: `window.onerror`, `unhandledrejection`, React `ErrorBoundary` (см. `AppLayout`),
+  - перехват `fetch`/`axios` для `api_call`/`api_error` (статус, длительность, route),
+  - perf: LCP/CLS/INP через `web-vitals` (раз за сессию).
+- Хелпер `track(name, props?)` для ручных событий в ключевых местах (HRDEmployeeMap, Assessment, CareerTrack submit, Shop checkout, Support создание тикета и т.п.).
+- Уважение настройки приватности: если `profile.analytics_opt_out=true` — шлём только агрегированные счётчики без `properties`.
 
-1. **Common UI** — кнопки, табы, статусы, валидации (`AppSidebar`, `AppLayout`, `MobileEmployeeLayout`, общие диалоги).
-2. **Auth + лендинг** — `Login`, `ResetPassword`, `CompleteRegistration`, `Landing`, `Pricing`, `FeaturePage`, `DemoRequestDialog`.
-3. **Employee** — `Dashboard`, `CareerTrack`, `Passport`, `Assessment`, `EmployeeQuestionnaire`, `Notifications`, `Recognition`, `Shop`, `Cart`, `MyOrders`.
-4. **Manager + HRD** — `ManagerDashboard`, `HRDDashboard`, `Analytics`, `RiskAnalytics`, `HRDTests`, `Scenarios`, `HRPolicies`, `CareerReviews`, `HRDCareerTracksAnalytics`, `HRDEmployeeMap`.
-5. **Admin / Superadmin** — `UsersManagement`, `Companies`, `Positions`, `CareerTracksManagement`, `EmailSettingsManagement`, `GamificationManagement`, `ShopAdmin`, `SuperadminDashboard`, `PricingInquiries`, `Invitations`, `Settings`, `Onboarding`.
-6. **Данные-каталоги** — `src/data/features.ts`, `src/data/jobProfileTemplates.ts` (карточки фич/шаблонов — переводим, либо делаем `i18nKey` поля).
-7. **Бэкенд-ошибки** — мапы локализации в `src/integrations/laravel/*` уже есть; добавляем EN-вариант, выбор по текущему языку.
+### Бэк (Laravel)
+- `POST /api/analytics/ingest` — принимает батч, валидирует, ставит в очередь (`AnalyticsIngestJob`), пишет в `analytics_events` пачкой. Rate-limit per session.
+- Middleware `TrackApiCall` пишет `api_call`/`api_error` для всех `/api/*` (route, status, ms, user_id, company_id).
+- Команда `analytics:rollup` (Scheduler, каждые 5 мин) считает агрегаты в `analytics_daily_*` (события/день, воронки, top routes, error-rate) — для быстрых дашбордов.
+- Ретеншн: команда `analytics:prune` удаляет сырые события старше N дней (по умолчанию 180), агрегаты хранятся бессрочно.
 
-### 4. Что **не** трогаем
+## 3. Админ-дашборд `/admin/analytics`
 
-- Имена/фамилии пользователей, названия компаний, контент, который ввёл сам пользователь (продукты магазина, треки, должности).
-- Системные коды ролей (`employee`/`manager`/…) — только их подписи в UI.
-- Технические логи и Laravel-сообщения сервера (там своя i18n).
+Доступ: `superadmin` (глобально) и `company_admin`/`hrd` (только своя `company_id`). RLS-эквивалент в Laravel-политике `AnalyticsPolicy`.
 
-### 5. Тестирование и поиск ошибок
+Разделы (вкладки, всё локализовано RU/EN):
 
-После миграции каждой группы прогоняем:
+1. **Обзор** — DAU/WAU/MAU, средняя длина сессии, % сессий с ошибкой, топ-5 экранов, топ-5 действий. Фильтры: период, компания, роль, сегмент.
+2. **Пути пользователей**
+   - Sankey-диаграмма переходов между экранами (Recharts + `@nivo/sankey` или собственный SVG).
+   - Переключатель: **по группе** (группировка по любому полю — role, department, company, custom segment из `analytics_user_groups`) / **по конкретному пользователю** (поиск по ФИО/email, таймлайн всех событий сессии).
+3. **Функционал**
+   - Таблица `event_name` × количество × уникальные пользователи × % от MAU.
+   - Воронки-конструктор: HRD выбирает 2–5 событий, видит конверсию шаг-за-шагом и среднее время.
+   - «Реальные задачи»: топ последовательностей из 3 событий (n-grams), помогает увидеть какие сценарии действительно проходят.
+4. **Проблемы**
+   - **Дропы сессий** — экраны/действия, после которых сессия чаще всего обрывается (exit-rate, rage-clicks: ≥3 клика по одному селектору за 2 c).
+   - **Неработающий функционал**:
+     - JS-ошибки сгруппированы по `message + component` со счётчиком, последним стеком, затронутыми пользователями, ссылкой на сессии.
+     - API-ошибки: route × статус × количество × % от вызовов.
+     - «Незавершённые операции» — настраиваемые пары `started → completed` (например, `assessment.started` без `assessment.completed` в той же сессии); показываем долю и срез по экранам/ролям.
+   - Кнопка «Открыть сессию» → плеер таймлайна событий пользователя (без rrweb — текстовый таймлайн route+action+error с относительным временем).
 
-- `bunx vitest run` — юнит-тесты (тесты с захардкоженным русским текстом обновляем на ключи).
-- `bunx tsc --noEmit` — типобезопасность.
-- **Визуальная проверка через preview** (browser-tools): по очереди для RU и EN
-  - Лендинг, Pricing, Login.
-  - Дашборд каждой из 5 ролей (логинимся под тест-аккаунтами или через Impersonation).
-  - Ключевые формы: Onboarding, CompleteRegistration, EmployeeQuestionnaire, диалоги создания.
-- Скрипт-аудит: `rg '[А-Яа-я]' -g '*.tsx' src` после переключения на EN не должен находить русский текст в рендере (кроме user-content и data-fixtures).
-- Скрипт-аудит на отсутствующие ключи: i18next dev-mode логирует `missingKey` в консоль — собираем и закрываем.
-- **Найденные баги (опечатки, обрывы строк, кривая вёрстка из-за длины EN-слов, незакрытые диалоги) — сразу фиксим**, отдельным коммитом в рамках той же группы.
+## 4. Сегменты (группировка по признаку HRD)
 
-### 6. Деплой
+UI «Сегменты»: HRD создаёт сегмент правилом (`role = manager AND department = Продажи AND last_session > 7d ago`). Сохраняется в `analytics_user_groups.rules` (jsonb). Любой отчёт можно отфильтровать по сегменту.
 
-- Не публикуем, пока не пройдут все 7 групп + чек-листы RU/EN.
-- В конце — единый smoke-run по всем ролям в обеих локалях, отчёт о найденном/исправленном.
+## 5. Приватность и безопасность
 
-## Оценка масштаба
+- IP только в виде `sha256(ip + daily_salt)`.
+- `properties` запрещают PII по белому списку ключей; payload-санитайзер на бэке.
+- Настройка компании `analytics_enabled` (по умолчанию on) и пользовательский opt-out в Settings.
+- Все ответы ingest — 204, никакой утечки данных наружу.
 
-Это самая большая правка с момента запуска. Реалистично — **5–7 итераций чата** (по 1–2 группе за раз), иначе не вытяну в один проход без обрывов. После каждой группы кратко отчитываюсь и иду дальше.
+## 6. Этапы внедрения
 
-## Уточни перед стартом
+1. Миграции (`analytics_events`, `analytics_sessions`, `analytics_user_groups`, агрегаты) + политики.
+2. Laravel: `AnalyticsController@ingest`, `TrackApiCall` middleware, jobs, scheduler, rollup, prune.
+3. Фронт-трекер + ErrorBoundary + автотрекинг роутов и `[data-track]` + web-vitals.
+4. Ручные `track()` в ключевых флоу (онбординг, ассессмент, карьерный трек, магазин, саппорт).
+5. Страница `/admin/analytics` с 4 вкладками + конструктор воронок + сегменты.
+6. Локализация RU/EN, доступ по ролям, ретеншн и opt-out, доки в `backend-laravel/app/README-*`.
 
-1. **Английский — формальный (US business)** или нейтральный (UK)? По умолчанию возьму **US, формально-нейтральный** (HR-tech стандарт).
-2. **Бренд-термины** оставляем как есть на обоих языках: `Career Track`, `Sandstorm`, названия ролей в UI — `Employee / Manager / HRD / Company Admin / Superadmin`. Подтверди.
-3. **Сохранять выбор языка в БД** (поле `users.locale`, миграция) или только в `localStorage`? БД-вариант = язык переезжает между устройствами, но требует миграцию на проде. **Рекомендую localStorage сейчас + БД-поле позже**, если попросишь.
-4. **Идти подряд группами 1→7** (как в плане) или сначала только лендинг + Login + Employee-дашборд (минимум для демо), а админки потом?
+## Открытые вопросы
 
-Жду ответов — и стартую с группы 1 (инфра i18n + Common UI).
+1. Срок хранения сырых событий — 180 дней ок или нужно больше/меньше?
+2. Нужен ли полноценный session-replay (rrweb, тяжело и приватно-чувствительно) или достаточно текстового таймлайна событий?
+3. Делать ли воронки/сегменты доступными HRD компании, или только Superadmin на старте (быстрее запустим)?
