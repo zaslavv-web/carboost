@@ -78,6 +78,10 @@ Route::post('/rpc/submit_demo_request',    fn (\Illuminate\Http\Request $r) =>
 Route::post('/rpc/submit_pricing_inquiry', fn (\Illuminate\Http\Request $r) =>
     app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'submit_pricing_inquiry'));
 
+// Продуктовая аналитика: ingest публичный (события можно слать и без логина —
+// например, с лендинга). Запросы данных закрыты ниже под auth:sanctum.
+Route::post('/analytics/ingest', [\App\Http\Controllers\Api\AnalyticsController::class, 'ingest']);
+
 // /auth/me публичный: если sanctum-токен есть и валиден — контроллер прочитает его
 // через Auth::guard('sanctum')->user(); если нет — отдаст чистый 401 JSON.
 // До этого роут стоял в auth:sanctum-группе и при любом сбое Sanctum (легаси-схема
@@ -138,6 +142,14 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::post('/impersonation/start', [ImpersonationController::class, 'start']);
     Route::post('/impersonation/stop',  [ImpersonationController::class, 'stop']);
+
+    // Продуктовая аналитика — отчёты (доступ для superadmin/company_admin/hrd проверяется в контроллере)
+    Route::get('/analytics/overview',      [\App\Http\Controllers\Api\AnalyticsController::class, 'overview']);
+    Route::get('/analytics/events',        [\App\Http\Controllers\Api\AnalyticsController::class, 'events']);
+    Route::get('/analytics/paths',         [\App\Http\Controllers\Api\AnalyticsController::class, 'paths']);
+    Route::get('/analytics/problems',      [\App\Http\Controllers\Api\AnalyticsController::class, 'problems']);
+    Route::get('/analytics/user-timeline', [\App\Http\Controllers\Api\AnalyticsController::class, 'userTimeline']);
+    Route::get('/analytics/sessions',      [\App\Http\Controllers\Api\AnalyticsController::class, 'sessions']);
 
     // Phase 13: admin создаёт пользователя (заменяет admin-create-user edge function)
     // redeploy marker: ensure PATCH /admin/users/{userId}/company is registered (route:cache rebuild)

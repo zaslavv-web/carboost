@@ -48,6 +48,8 @@ import Recognition from "@/pages/Recognition";
 import RiskAnalytics from "@/pages/RiskAnalytics";
 import EmployeeQuestionnaire from "@/pages/EmployeeQuestionnaire";
 import ScrollToTop from "@/components/ScrollToTop";
+import AnalyticsBootstrap from "@/components/AnalyticsBootstrap";
+import ProductAnalytics from "@/pages/ProductAnalytics";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +63,7 @@ const App = () => (
         <ImpersonationProvider>
           <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
             <ScrollToTop />
+            <AnalyticsBootstrap />
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/pricing" element={<Pricing />} />
@@ -78,6 +81,7 @@ const App = () => (
                 <Route path="/team" element={<ManagerDashboard />} />
                 <Route path="/employees" element={<HRDDashboard />} />
                 <Route path="/analytics" element={<Analytics />} />
+                <Route path="/product-analytics" element={<ProductAnalytics />} />
                 <Route path="/superadmin" element={<SuperadminDashboard />} />
                 <Route path="/companies" element={<Companies />} />
                 <Route path="/users" element={<UsersManagement />} />
