@@ -2,19 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
-// lovable-tagger подключаем только в dev и только если пакет установлен.
-// На on-premise сборке этого пакета может не быть — это нормально.
-async function loadComponentTagger() {
-  try {
-    const mod = await import("lovable-tagger");
-    return mod.componentTagger();
-  } catch {
-    return null;
-  }
-}
-
 // https://vitejs.dev/config/
-export default defineConfig(async ({ mode }) => ({
+export default defineConfig(({ mode }) => ({
   // Базовый путь сборки. По-умолчанию — корень.
   // Для песочницы выставляется VITE_BASE_PATH=/sandstorm/ (см. docker-compose.sandstorm.yml).
   base: process.env.VITE_BASE_PATH ?? "/",
@@ -25,10 +14,7 @@ export default defineConfig(async ({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [
-    react(),
-    mode === "development" ? await loadComponentTagger() : null,
-  ].filter(Boolean),
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

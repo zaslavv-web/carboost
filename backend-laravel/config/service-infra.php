@@ -50,7 +50,7 @@ return [
     'ai_gateway' => [
         'url'     => env('AI_API_URL', 'https://api.openai.com/v1/chat/completions'),
         'model'   => env('AI_MODEL', 'gpt-4o-mini'),
-        'api_key' => env('AI_API_KEY', env('LOVABLE_API_KEY')),
+        'api_key' => env('AI_API_KEY'),
     ],
 
     'frontend' => [

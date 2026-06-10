@@ -1,124 +1,77 @@
-# План: расширение профиля сотрудника
+# План: отвязка Supabase + подготовка on-premise (вариант А)
 
-Все изменения подвязываются к существующему профилю (страница `Passport.tsx` для self-view и `UsersManagement.tsx` для админ-просмотра). Создаётся новый компонент `UserProfileFull` с табами, который рендерится на маршруте `/users/:userId` и переиспользуется на странице «Мой профиль».
+Цель — оставить только Laravel + MySQL/Postgres как единственный бэкенд и убрать все артефакты Lovable/Supabase в архивную папку `old/`, чтобы проект разворачивался на любом российском контуре без внешних зависимостей.
 
-## 1. Email сотрудника в профиле + поиск по email
+## 1. Архивация (перенос в `old/`, без удаления — на случай отката)
 
-**Backend (`ProfileController`)**
-- В `show()`, `me()`, `index()` подмешивать `email` из `users.email` (join по `profiles.user_id = users.id`).
-- В `index()` добавить параметр `?search=` — `WHERE users.email ILIKE %q% OR profiles.full_name ILIKE %q%`.
+Создаётся папка `old/lovable-supabase/` со структурой:
 
-**Frontend**
-- В `UsersManagement.tsx` в строке поиска фильтровать также по `email` (уже есть локальный фильтр — добавить поле).
-- В `Passport.tsx` и новой карточке профиля показывать строку «Контакт: email» (кликабельный `mailto:`).
-
-## 2. Продуктовая статистика пользователя (только superadmin)
-
-Эндпоинт уже есть: `GET /analytics/user-timeline?user_id=...` (см. `AnalyticsController::userTimeline`, строки 347-360) — он отдаёт события и сессии конкретного user_id, защищён `abort_if(!$isSuper, 403)`.
-
-**Frontend**
-- Новый таб **«Продуктовая аналитика»** в карточке пользователя, видим только если `useRealLaravelPrimaryRole() === 'superadmin'`.
-- Внутри: метрики (events, sessions, avg session, errors), график активности по дням (Recharts AreaChart), таблица последних 20 событий, топ-маршруты пользователя.
-- Период — селектор 7/14/30/90 дней.
-
-## 3. Похожие сотрудники (по компании и глобально)
-
-**Backend — новый эндпоинт** `GET /profiles/{userId}/similar?scope=company|global&limit=10`
-Доступ: сам пользователь, его менеджер (`team_members`), HRD/company_admin той же компании, superadmin.
-
-Алгоритм похожести (без ML, на SQL):
-- Базовые признаки целевого пользователя: `position_id`, `department`, текущая ступень `career_track_templates` (через `employee_career_assignments`), множество skills (`competencies.skill_name` с весом `skill_value`).
-- Скор для каждого кандидата (исключая самого пользователя):
-  - +40 если совпадает `position_id`
-  - +20 если совпадает `department`
-  - +20 если есть активное назначение на тот же `template_id`
-  - +20 * (cosine между векторами компетенций) — реализуется как `SUM(min(a.skill_value,b.skill_value)) / SQRT(SUM(a^2)*SUM(b^2))` по общим skill_name.
-- `scope=company` фильтрует по `company_id` целевого пользователя, `scope=global` — по всей базе (для superadmin/HRD).
-- Возвращаем top-N: `user_id, full_name, avatar_url, position, department, company_name, similarity_score, matched_reasons[]`.
-
-**Frontend**
-- Таб **«Похожие сотрудники»** с двумя вкладками: «В компании» / «По всей платформе» (вторая видна только HRD/company_admin/superadmin).
-- Карточки сотрудников + объяснение совпадения (бейджи: «та же должность», «общие навыки: 5», «тот же трек»).
-
-## 4. Бизнес-окружение (BPMN-стиль)
-
-Доступ: сам пользователь, руководитель (через `team_members.manager_id`), HRD, company_admin, superadmin. Менеджер видит только своих подчинённых; HRD — всех в компании.
-
-**Backend — новый эндпоинт** `GET /profiles/{userId}/environment`
-Возвращает:
-```json
-{
-  "user": {...},
-  "manager": {...},                 // team_members.manager_id -> profiles+users
-  "direct_reports": [...],          // team_members.employee_id where manager_id=user
-  "department_head": {...},         // departments.head_user_id по profiles.department
-  "peers": [...],                   // та же должность/отдел, top 6
-  "interactions": [                 // векторы взаимодействия
-     {"with_user_id":..., "type":"reports_to|manages|peer|hr_review|recognition", "weight": n}
-  ],
-  "future_projection": {            // картина через год
-     "target_position": {...},      // position_career_paths.next_position_id или career_track_templates.to_position_id
-     "track_template": {...},
-     "expected_step": n,
-     "expected_skills": [...]       // из шагов career_track_templates.steps
-  }
-}
+```text
+old/lovable-supabase/
+├── README.md                      ← описание, что и зачем перенесено
+├── src-integrations-supabase/     ← из src/integrations/supabase/
+├── supabase/                      ← из ./supabase/ (миграции, functions, config.toml)
+└── docs/
+    ├── AUTH_DOMAIN_SETUP.md       ← если содержит lovable-специфику
+    └── notes.md
 ```
 
-Источники: `team_members`, `departments`, `profiles`, `positions`, `position_career_paths`, `employee_career_assignments` + `career_track_templates`, `peer_recognitions` (для interactions).
+Файлы, которые **переносятся целиком**:
+- `src/integrations/supabase/` (client.ts, types.ts) — фронтенд их не импортирует (0 ссылок).
+- `supabase/` — миграции и edge-functions Lovable Cloud.
 
-**Frontend — React Flow BPMN-диаграмма** (библиотека уже используется в `Scenarios.tsx`/`HRDEmployeeMap`).
-- Новый компонент `src/components/UserBusinessEnvironment.tsx`.
-- Layout:
+## 2. Чистка кода от упоминаний Lovable
+
+Файлы, которые **редактируются** (lovable-специфику убираем, файл остаётся):
+
+| Файл | Что меняем |
+|---|---|
+| `package.json` | Удалить зависимость `lovable-tagger` |
+| `vite.config.ts` | Удалить блок динамического `import("lovable-tagger")` |
+| `src/main.tsx` | Убрать ссылку/коммент на lovable |
+| `index.html` | Заменить `og:image`/`twitter:image` с `*.lovable.app` на локальный `/og-cover.png` (положить заглушку в `public/`); проверить `<title>` и meta |
+| `.env` / `.env.example` | Удалить `VITE_SUPABASE_URL`, `VITE_SUPABASE_PROJECT_ID`, `VITE_SUPABASE_PUBLISHABLE_KEY` |
+| `playwright.config.ts`, `playwright-fixture.ts` | Убрать baseURL/упоминания `*.lovable.app`, заменить на `http://localhost:8080` |
+| `DEPLOYMENT.md` | Переписать под чистый Docker/nginx + Laravel, без упоминаний Lovable |
+| `test-sync.md` | Удалить (служебный файл Lovable) или перенести в `old/` |
+| `backend-laravel/config/service-infra.php` | Убрать lovable-комментарии/дефолты |
+| `backend-laravel/app/Services/AI/AiGatewayService.php` | Заменить термин "Lovable AI Gateway" на нейтральное "AI Gateway"; логика через `AI_API_URL` / `AI_API_KEY` уже портабельная |
+| `backend-laravel/app/README-ai.md` | Аналогично — переписать без бренда |
+| `tsconfig.node.tsbuildinfo` | Удалить (артефакт сборки, регенерируется) |
+
+## 3. Очистка `.env` и документация on-premise
+
+- Обновить `.env.example` так, чтобы он содержал только нужное:
   ```text
-                 [Руководитель отдела]
-                          │
-                     [Менеджер]
-                          │
-        ┌─────── [ Сотрудник ] ───────┐
-        │            │                 │
-  [Подчинённые]  [Коллеги]    →   [Позиция через год]
+  VITE_LARAVEL_API_URL=/api
+  AI_API_URL=...        # любой совместимый Gateway (можно self-hosted)
+  AI_API_KEY=...
   ```
-- Узлы BPMN-стиля: pool «Текущее положение» и pool «Через год» (полупрозрачный, пунктирные стрелки). Стрелки подписаны типом взаимодействия. Toggle «Текущее ↔ Через год».
-- Таб **«Окружение»** в карточке профиля.
+- Создать `docs/ON-PREMISE.md` с инструкцией развёртывания:
+  1. `docker-compose up -d` (frontend + nginx).
+  2. Laravel-бэкенд из `backend-laravel/` (composer install, миграции, php-fpm).
+  3. MySQL/Postgres локально.
+  4. AI Gateway — указать любой внутренний эндпоинт через `AI_API_URL`.
+  Никаких внешних SaaS, никаких иностранных зависимостей в рантайме.
 
-## 5. Контроль доступа
+## 4. Удаление мёртвого Lovable Cloud
 
-Единый Policy метод `view-stats` на профиле:
+- В настройках проекта Lovable Cloud будет отключён (это делается вне репозитория — сообщу инструкцию после применения плана).
+- В коде после шагов 1–3 не останется ни одного импорта `@/integrations/supabase`.
 
-| Возможность                  | superadmin | company_admin | hrd | manager (своего) | user (себя) |
-|------------------------------|:----------:|:-------------:|:---:|:----------------:|:-----------:|
-| Продуктовая аналитика (п.1)  | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Похожие в компании           | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Похожие глобально            | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Бизнес-окружение (п.3)       | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Email в профиле              | ✅ | ✅ (своей компании) | ✅ | ✅ | ✅ |
+## 5. Проверка после изменений
 
-Проверки и на бэке (контроллеры), и на фронте (скрытие табов).
+- `bun install` (lovable-tagger уйдёт из lock).
+- `bun run build` — сборка должна пройти.
+- `rg -i lovable src backend-laravel public index.html vite.config.ts` — должно быть пусто (кроме `old/`).
+- `rg "integrations/supabase" src` — пусто.
+- Smoke: открыть preview, проверить что страницы грузятся, `growth-peak.pro/api` отвечает.
 
-## 6. UI-сборка
-
-- Новый маршрут `/users/:userId` → `UserProfileFull` с табами: **Обзор** (текущий Passport), **Окружение**, **Похожие**, **Продуктовая аналитика** (если superadmin).
-- В `UsersManagement.tsx` иконка «Eye» уже есть — направляем на `/users/:userId` вместо impersonation-only.
-- На `Passport.tsx` («Мой профиль») те же табы для self.
-
-## Технические детали
-
-**Новые файлы**
-- `backend-laravel/app/Http/Controllers/Api/UserInsightsController.php` — `similar()`, `environment()`.
-- Роуты в `routes/api.php`:
-  - `GET /profiles/{id}/similar`
-  - `GET /profiles/{id}/environment`
-  - расширить `GET /profiles` и `GET /profiles/{id}` (email).
-- `src/pages/UserProfileFull.tsx` + табы.
-- `src/components/UserBusinessEnvironment.tsx` (React Flow).
-- `src/components/UserSimilarEmployees.tsx`.
-- `src/components/UserProductAnalytics.tsx`.
-- Хуки: `useSimilarUsers`, `useUserEnvironment`, `useUserProductStats`.
-
-**Без миграций БД** — все данные уже есть в существующих таблицах. Только в `ProfileController` подмешиваем `email` через join.
-
-**Локализация** — все строки добавляются в `ru/common.json` и `ru/admin.json` (проект полностью локализован на ru).
+## Что **не** трогаем
+- Папку `node_modules` и lock-файлы — переустановятся при `bun install`.
+- Логику бизнес-фич и Laravel-контроллеры.
+- Дизайн-систему и компоненты UI.
 
 ## Открытый вопрос
-Для «картины через год» источник целевой позиции: использовать `position_career_paths` (граф карьерных путей) или активный `career_track_templates.to_position_id`? Предлагаю: если есть активный track — берём его; иначе — первый из `position_career_paths` от текущей должности.
+
+`docs/AUTH_DOMAIN_SETUP.md` — это инструкция по настройке домена для писем (упоминает Lovable Email). Перенести в `old/` целиком или переписать под отправку через локальный SMTP/Yandex 360? По умолчанию — переношу в `old/`, добавляю короткий `docs/EMAIL_SETUP.md` со ссылкой на стандартную Laravel Mail-конфигурацию (SMTP).
