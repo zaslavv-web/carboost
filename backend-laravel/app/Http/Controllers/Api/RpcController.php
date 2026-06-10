@@ -13,7 +13,7 @@ use Throwable;
 /**
  * Generic Postgres RPC proxy (Phase 10).
  *
- * Drop-in replacement for `supabase.rpc(name, params)`. Whitelisted Postgres
+ * Drop-in replacement for `legacy.rpc(name, params)`. Whitelisted Postgres
  * functions are invoked through the SECURITY DEFINER chain — they already
  * enforce role/company checks via `auth.uid()`, which we set per-request
  * using `set_config('request.jwt.claim.sub', ...)` so existing functions

@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Создание пользователя суперадмином/HRD.
- * Заменяет Supabase Edge Function `admin-create-user`.
+ * Заменяет legacy Edge Function `admin-create-user`.
  *
  * Только пользователь с ролью superadmin или company_admin может вызвать.
  * Для company_admin — company_id игнорируется и берётся из профиля.

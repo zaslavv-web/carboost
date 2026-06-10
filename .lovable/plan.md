@@ -1,87 +1,84 @@
-## Аудит упоминаний `supabase`
+## Полный аудит — 74 файла с упоминанием `supabase`
 
-Не всё «supabase» одинаково опасно. Разделил находки на 5 групп — удалять можно только часть, остальное либо безвредно, либо умышленно, либо вообще не подконтрольно мне.
-
----
-
-### Группа 1 — РАНТАЙМ-АРТЕФАКТЫ Lovable Cloud (удалять/нейтрализовать)
-
-
-| Файл                                  | Что                                                                              | Действие                                                                                                                                   |
-| ------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `.env`                                | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID` | Удалить 3 строки. Lovable Cloud их регенерирует — но фронт ими уже не пользуется, утечки публичного анон-ключа в прод-`.env` это уменьшит. |
-| `src/integrations/supabase/client.ts` | Сейчас inert-Proxy (нет импорта `@supabase/supabase-js`)                         | Оставить как есть — Lovable Cloud может перезаписать, но Proxy безвреден.                                                                  |
-| `src/integrations/supabase/types.ts`  | Autogen, файл **read-only**                                                      | Не могу удалить технически. Никем не импортируется. Оставить.                                                                              |
-| `supabase/config.toml`                | 1 строка `project_id`                                                            | Можно удалить, но Lovable Cloud перегенерирует. Оставить — безвреден.                                                                      |
-
+Сделал свежий рекурсивный скан. Прошлый план оставлял backend-laravel нетронутым по вашему явному решению — сейчас вы просите обратное. Прежде чем сносить, надо подтвердить, что мы понимаем последствия одинаково.
 
 ---
 
-### Группа 2 — КОММЕНТАРИИ и ИМЕНА API в активном фронте (можно вычистить)
+## Категории находок
 
-Это комментарии вида «drop-in replacement for `supabase.from(...)`» в `src/integrations/laravel/*` и `src/lib/translateBackendError.ts`, `src/contexts/AuthContext.tsx`, `LaravelAuthContext.tsx`. Они не выполняют код, но содержат слово `supabase`.
+### A. Inert — НЕ ТРОГАЕМ по вашему условию (2)
 
-**Предлагаю:** переписать комментарии в нейтральном виде («drop-in API совместимый с прежним клиентом БД»). Это косметика, ничего не ломает.
+- `src/integrations/supabase/client.ts` — inert Proxy
+- `src/integrations/supabase/types.ts` — autogen, read-only
 
----
+### B. Файлы, существующие **ради** Supabase-миграции (можно удалить целиком)
 
-### Группа 3 — ПОЛЬЗОВАТЕЛЬСКИЙ ТЕКСТ на лендинге (требует решения)
+1. `supabase/config.toml` (+ папка) — autogen Lovable Cloud, перегенерируется при сохранении
+2. `deploy/import-supabase-dump.sh` — bash-импортёр дампа
+3. `backend-laravel/app/Console/Commands/ImportSupabaseDump.php` — artisan-команда `supabase:import`
+4. `backend-laravel/database/dumps/careertrack_data_20260517_083114.sql` (287 строк) — исторический дамп данных
+5. `backend-laravel/database/dumps/README.md` — описывает дамп
+6. `.lovable/plan.md` — старый план (можно перезаписать новым)
 
-`src/i18n/locales/{ru,en}/landing.json` строка 153:
+### C. Артефакты сборки (перегенерируются)
 
-- RU: `"Свой Supabase + Postgres"`
-- EN: `"Bring your own Supabase + Postgres"`
+- `tsconfig.app.tsbuildinfo` — кэш TS
 
-Это маркетинговый пункт «портативность — можно подключить свой бэкенд». Удалять = убирать фичу с лендинга. **Нужно ваше решение** (см. вопрос ниже).
+### D. Документация миграции — backend-laravel (5 README, ~250 упоминаний)
 
----
+- `backend-laravel/README.md`
+- `backend-laravel/REVERB.md`
+- `backend-laravel/.env.example`
+- `backend-laravel/app/README-auth.md`
+- `backend-laravel/app/README-api.md`
+- `backend-laravel/app/README-policies.md`
+- `backend-laravel/app/README-frontend-auth.md`
+- `backend-laravel/app/README-db-rpc-storage.md`
+- `backend-laravel/database/migrations/README.md`
+- `backend-laravel/database/DATABASE_STRUCTURE.md`
+- `DEPLOYMENT.md`
 
-### Группа 4 — BACKEND LARAVEL (историческая документация миграции)
+### E. Активный PHP-код и миграции (~60 файлов)
 
-~50 файлов в `backend-laravel/`:
-
-- **READMEs** (`README-auth.md`, `README-api.md`, `README-db-rpc-storage.md`, `README-policies.md`, `README-frontend-auth.md`) — описывают, **как и почему** мигрировали с Supabase на Laravel. Это ценная инженерная документация для on-prem команды.
-- **Миграции** (`backend-laravel/database/migrations/*.php`) — в шапках указано «портировано из дампа Supabase». Это атрибуция источника схемы.
-- **Дамп данных** `backend-laravel/database/dumps/careertrack_data_20260517_083114.sql` — исторический дамп, импортируется командой ниже.
-- `**app/Console/Commands/ImportSupabaseDump.php**` — рабочая artisan-команда `php artisan supabase:import`, нужна при разворачивании on-prem с исторических данных.
-- **Комментарии в коде** (`ImpersonationService.php`, `AuthUserService.php`, `routes/api.php`, `config/filesystems.php`) — поясняют, что метод заменяет такой-то supabase-вызов.
-
-**Моё мнение:** ничего здесь не удалять. Это либо историческая атрибуция, либо рабочая утилита миграции, либо документация для on-prem развёртывания. Удаление = потеря знаний без выигрыша в безопасности (бэкенд к Supabase не ходит).
-
----
-
-### Группа 5 — `old/lovable-supabase/` (архив, 89 КБ)
-
-Уже вынесено в `old/`, помечено в README как «можно удалить, если откат не нужен».
-
-**Предлагаю:** удалить целиком, если вы подтверждаете, что откат на Lovable Cloud не нужен.
-
----
-
-### Группа 6 — Сборочные артефакты
-
-- `tsconfig.app.tsbuildinfo` — кэш TS, перегенерируется. Можно стереть, но появится снова.
-- `.lovable/plan.md` — внутренний план агента. Не трогаем.
+- 47 миграций `backend-laravel/database/migrations/0002_*.php` — в шапках: «перенос из Supabase», «bcrypt из Supabase», ссылки на `auth.users` (схема, созданная Supabase)
+- Сервисы: `ImpersonationService.php`, `AuthUserService.php`
+- Контроллеры: `RpcController.php`, `DbController.php`, `StorageController.php`, `GoogleAuthController.php`, `PasswordResetController.php`, `Admin/UsersController.php`
+- `Policies/BasePolicy.php`, `Providers/AuthServiceProvider.php`
+- `routes/api.php` (5 строк-комментариев)
+- `config/filesystems.php`
 
 ---
 
-## Что я предлагаю сделать (по умолчанию)
+## ⚠️ Реальные проблемы массового удаления
 
-1. **Группа 1**: удалить 3 строки `VITE_SUPABASE_*` из `.env`.
-2. **Группа 2**: вычистить слово `supabase` из комментариев в активном `src/` (laravel-адаптеры, AuthContext, translateBackendError).
-3. **Группа 5**: удалить `old/lovable-supabase/` целиком.
-4. **Группы 3 и 4**: НЕ трогать без вашего явного решения.
+1. **Backend сейчас фактически работает на Supabase-дампе.** Pароли в `users.password` — bcrypt из Supabase; схема `auth` создана Supabase-импортом; триггер `handle_new_user` — из supabase. Это не «упоминание», это **факт развёртывания**. Удаление комментариев скроет факт, но не изменит его.
+2. `**ImportSupabaseDump.php` + `import-supabase-dump.sh` + дамп `.sql**` — это инфраструктура on-prem старта. Без них новый on-prem инстанс не подымется с историческими данными. Если on-prem не нужен — можно удалить, но это **архитектурное решение**, не косметика.
+3. **47 миграций** — переписывать комментарии без потери смысла можно (заменить «Supabase» → «исходная схема» / «legacy»). Это ~150 точечных правок.
 
-## Что НЕ буду делать (объясняю)
+---
 
-- Не буду менять `src/integrations/supabase/{client.ts,types.ts}` — autogen Lovable Cloud (types.ts вообще read-only).
-- Не буду удалять `supabase/config.toml` — Lovable Cloud его регенерирует.
-- Не буду удалять READMEs/миграции/`ImportSupabaseDump.php` в backend-laravel — это рабочая on-prem документация и утилита.
+## Два варианта — выберите один
 
-## Вопросы, которые нужно решить перед запуском (group 3 и 4)
+### Вариант 1 — «Хирургический» (рекомендую)
 
-- **landing.json**: убрать пункт «Свой Supabase + Postgres» или переформулировать в «Свой Postgres-бэкенд»? = убрать
-- **backend-laravel READMEs/комментарии**: оставить как историю миграции (рекомендую) или всё-таки вычистить упоминания? = оставить
-- `old/lovable-supabase/`: удалять архив? - да
+- Удалить группы **B** + **C** целиком (если on-prem с историческим импортом больше не нужен)
+- В группах **D** и **E** — **переписать** упоминания на нейтральные («legacy schema», «исходный дамп», «PostgREST-style») без потери технического смысла
+- Inert-файлы (A) не трогаем
+- Сохранить функциональность бэкенда
 
-Перепроверь чтобы ничего не поломалось
+### Вариант 2 — «Выжечь напалмом»
+
+- Удалить группу **B**, **C**, **D** (все README) целиком
+- В группе **E** удалить все комментарии-упоминания (миграции/сервисы/контроллеры остаются работать, теряем только пояснения)
+- Inert-файлы (A) не трогаем
+- Документация миграции пропадает безвозвратно
+
+---
+
+## Вопросы — нужны ответы перед запуском
+
+1. **On-prem импорт исторического дампа Supabase** ещё нужен? (определяет, удаляем ли `ImportSupabaseDump.php`, `import-supabase-dump.sh`, `.sql`-дамп и README про дампы)
+2. **Вариант 1 или 2** по группам D и E? Рекомендую 1 — теряем только бренд, не знания.
+3. `**.lovable/plan.md**` — оставить старый план или перезаписать новым (этим)?
+
+вариант с хирургией

@@ -10,10 +10,10 @@ use Illuminate\Support\Facades\Gate;
 /**
  * Generic table CRUD bridge (Phase 10).
  *
- * Drop-in replacement for `supabase.from(table).select().eq()...`.
+ * Drop-in replacement for `legacy.from(table).select().eq()...`.
  *
  * Query string filters (compatible with PostgREST conventions used by the
- * supabase-js client):
+ * legacy-js client):
  *   ?select=col1,col2
  *   ?eq.col=value          ?neq.col=value
  *   ?gt.col=10             ?gte.col=10
@@ -85,7 +85,7 @@ class DbController extends Controller
         $this->applySelect($query, $request);
         $this->applyOrder($query, $request);
 
-        // count + head (Supabase: .select('id', { count: 'exact', head: true }))
+        // count + head (legacy: .select('id', { count: 'exact', head: true }))
         $countMode = $request->query('count');
         $head = $request->boolean('head');
         $count = null;

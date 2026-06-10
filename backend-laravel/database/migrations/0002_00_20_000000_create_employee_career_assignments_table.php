@@ -3,7 +3,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/** Auto-generated from Supabase Postgres schema (public.employee_career_assignments). */
+/** Auto-generated from legacy Postgres schema (public.employee_career_assignments). */
 return new class extends Migration {
     public function up(): void
     {

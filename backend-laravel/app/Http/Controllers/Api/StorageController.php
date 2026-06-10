@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Storage bridge (Phase 11).
  *
- * Drop-in replacement for `supabase.storage.from(bucket).upload/createSignedUrl/remove`.
- * Each Supabase bucket maps 1:1 to a Laravel filesystem disk configured in
+ * Drop-in replacement for `legacy.storage.from(bucket).upload/createSignedUrl/remove`.
+ * Each legacy bucket maps 1:1 to a Laravel filesystem disk configured in
  * `config/filesystems.php` (overlayed). Public buckets use the `public`
  * driver visibility and return permanent URLs; private ones return temporary
  * signed URLs.

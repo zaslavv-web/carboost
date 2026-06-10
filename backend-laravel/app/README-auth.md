@@ -3,9 +3,9 @@
 ## Стратегия
 
 - **Токены Sanctum** в `localStorage` (не cookies) — простой CORS, работает с любым фронт-доменом.
-- **Источник пользователей** — `auth.users` (схема Supabase). Eloquent работает через VIEW `public.users` (см. Фазу 2).
-- **Bcrypt-пароли Supabase** — Laravel `Hash::check()` читает их без миграции.
-- **Триггер `handle_new_user`** из дампа Supabase автоматически создаёт `profiles` + `user_roles` при `INSERT` в `auth.users` — мы это сохраняем.
+- **Источник пользователей** — `auth.users` (схема legacy). Eloquent работает через VIEW `public.users` (см. Фазу 2).
+- **Bcrypt-пароли legacy** — Laravel `Hash::check()` читает их без миграции.
+- **Триггер `handle_new_user`** из дампа legacy автоматически создаёт `profiles` + `user_roles` при `INSERT` в `auth.users` — мы это сохраняем.
 
 ## Эндпоинты
 
@@ -20,7 +20,7 @@
 
 ## Google SSO
 
-- **Линковка по email**: если `auth.users.email == google.email` — линкуем `google_id` в `raw_user_meta_data`. Существующие Google-пользователи Supabase продолжают входить.
+- **Линковка по email**: если `auth.users.email == google.email` — линкуем `google_id` в `raw_user_meta_data`. Существующие Google-пользователи legacy продолжают входить.
 - **Новые** — создаются с `email_confirmed_at = now()`, `provider=google` в meta.
 - Триггер `handle_new_user` создаст профиль + роль `employee` автоматически.
 
@@ -60,7 +60,7 @@ SANCTUM_EXPIRATION=                # пусто = бессрочно
 
 ## Что меняется для пользователя
 
-- Активная сессия (refresh_token Supabase) сбрасывается → один повторный вход.
+- Активная сессия (refresh_token legacy) сбрасывается → один повторный вход.
 - При входе через Google пользователь видит обычный consent-screen (новый OAuth client).
 
 ## Дальше — Фаза 4 (Policies = замена RLS)

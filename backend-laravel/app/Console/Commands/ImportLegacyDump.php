@@ -7,10 +7,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Импорт JSON-дампов из Supabase в MySQL.
+ * Импорт JSON-дампов из legacy в MySQL.
  *
  * Использование:
- *   php artisan supabase:import /var/www/supabase-migration/data
+ *   php artisan legacy:import /var/www/legacy-migration/data
  *
  * Файлы:
  *   <dir>/<table>.json    — массив объектов (по одному на таблицу)
@@ -18,10 +18,10 @@ use Illuminate\Support\Facades\Schema;
  *
  * Идемпотентно (upsert по `id` или `email`). FK-порядок зафиксирован в TABLE_ORDER.
  */
-class ImportSupabaseDump extends Command
+class ImportLegacyDump extends Command
 {
-    protected $signature = 'supabase:import {dir : Каталог с JSON-дампами} {--truncate : Очистить таблицы перед импортом}';
-    protected $description = 'Импорт данных из Supabase JSON-дампа в MySQL';
+    protected $signature = 'legacy:import {dir : Каталог с JSON-дампами} {--truncate : Очистить таблицы перед импортом}';
+    protected $description = 'Импорт данных из legacy JSON-дампа в MySQL';
 
     /** Порядок импорта (учитывает FK) */
     protected const TABLE_ORDER = [

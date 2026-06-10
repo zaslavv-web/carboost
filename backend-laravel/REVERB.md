@@ -1,7 +1,7 @@
 # Reverb (WebSockets) — план включения
 
 Фронт уже умеет общаться с Reverb через `src/integrations/laravel/realtime.ts`
-(API совместим с `supabase.channel().on('postgres_changes', ...)`).
+(API совместим с `legacy.channel().on('postgres_changes', ...)`).
 
 На бэке Reverb пока не активирован. Шаги, когда понадобится realtime:
 

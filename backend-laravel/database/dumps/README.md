@@ -10,9 +10,9 @@ INSERT-дампом.
 - `0001_01_01_000001…000005` — служебные таблицы Laravel
   (Sanctum personal_access_tokens, sessions/cache/jobs, Spatie permissions, impersonation_audit).
 - `0002_00_00_000000_create_users_table.php` — `public.users`
-  (перенос `auth.users` из Supabase: email, password (bcrypt), email_verified_at, meta, remember_token).
+  (перенос `auth.users` из legacy: email, password (bcrypt), email_verified_at, meta, remember_token).
 - `0002_00_01…0002_00_45_*` — по одной миграции на каждую из 45 таблиц `public.*`,
-  сгенерированы автоматически из схемы Supabase Postgres.
+  сгенерированы автоматически из схемы legacy Postgres.
 
 Запуск:
 ```bash

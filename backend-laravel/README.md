@@ -10,10 +10,10 @@
 - `app/` — Models, Controllers, Policies, Services
 - `bootstrap/app.php` — bootstrap Laravel 11
 - `config/` — переопределения `sanctum.php`, `services.php`, `filesystems.php`
-- `database/migrations/` — миграции поверх Supabase-дампа
+- `database/migrations/` — миграции поверх legacy-дампа
 - `database/seeders/` — сидеры ролей Spatie
 - `routes/api.php` — все API-эндпоинты
-- `scripts/import-supabase-dump.sh` — импорт дампа Supabase в Postgres
+- `scripts/import-legacy-dump.sh` — импорт дампа legacy в Postgres
 
 ## Запуск без Docker
 
@@ -35,7 +35,7 @@ php artisan migrate
 php artisan db:seed --class=RoleSeeder
 
 # 2. (опционально) импорт боевых данных
-bash ../scripts/import-supabase-dump.sh /path/to/careertrack.dump
+bash ../scripts/import-legacy-dump.sh /path/to/careertrack.dump
 
 # 3. Запуск
 php artisan serve --host=0.0.0.0 --port=8000

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Импорт Supabase-дампа в продовый Laravel.
+# Импорт legacy-дампа в продовый Laravel.
 #
 # Использование (на growth-peak.pro):
-#   bash deploy/import-supabase-dump.sh /var/data/supabase-dump
+#   bash deploy/import-legacy-dump.sh /var/data/legacy-dump
 #
-# Каталог должен содержать JSON-файлы, выгруженные `supabase:dump` (см.
-# /mnt/documents/supabase-migration/) + обязательный `_auth_users.json`
+# Каталог должен содержать JSON-файлы, выгруженные `legacy:dump` (см.
+# /mnt/documents/legacy-migration/) + обязательный `_auth_users.json`
 # (вручную выгруженный SQL, см. MIGRATION.md).
 
 set -euo pipefail
@@ -21,10 +21,10 @@ PHP_BIN="${PHP_BIN:-php}"
 }
 
 cd "$APP_DIR"
-$PHP_BIN artisan down --message="Импорт данных Supabase" --retry=60 || true
+$PHP_BIN artisan down --message="Импорт данных legacy" --retry=60 || true
 trap '$PHP_BIN artisan up' EXIT
 
-echo "==> supabase:import $DUMP_DIR"
-$PHP_BIN artisan supabase:import "$DUMP_DIR"
+echo "==> legacy:import $DUMP_DIR"
+$PHP_BIN artisan legacy:import "$DUMP_DIR"
 
 echo "==> done. Проверь: SELECT count(*) FROM profiles;"

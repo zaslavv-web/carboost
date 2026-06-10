@@ -13,4 +13,4 @@
 
 См. также `docker-compose.yml` для контейнерного запуска и `deploy/` для конфигов nginx / php-fpm.
 
-Архив устаревших артефактов (Supabase, Lovable Cloud) — `old/lovable-supabase/`.
+Архив устаревших артефактов (legacy, Lovable Cloud) — `old/lovable-legacy/`.

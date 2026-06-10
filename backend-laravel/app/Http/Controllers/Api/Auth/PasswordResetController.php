@@ -13,7 +13,7 @@ use Illuminate\Auth\Events\PasswordReset;
 
 /**
  * Phase 13: Forgot/Reset password endpoints. Заменяет
- * supabase.auth.resetPasswordForEmail + supabase.auth.updateUser({password}).
+ * legacy.auth.resetPasswordForEmail + legacy.auth.updateUser({password}).
  *
  * Использует встроенный Laravel password broker — никаких внешних зависимостей.
  * Шаблон письма: resources/views/emails/reset.blade.php (см. ниже).

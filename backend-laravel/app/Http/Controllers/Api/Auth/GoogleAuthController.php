@@ -20,7 +20,7 @@ use Laravel\Socialite\Facades\Socialite;
  *   4. Backend редиректит на `${return_to}#access_token=...`
  *   5. Frontend парсит hash, кладёт токен в localStorage, вызывает /api/auth/me
  *
- * Пользователи с Google SSO Supabase продолжают входить — линковка по email.
+ * Пользователи с Google SSO legacy продолжают входить — линковка по email.
  */
 class GoogleAuthController extends Controller
 {
