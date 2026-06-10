@@ -621,5 +621,59 @@
   "notFound": {
     "message": "Страница не найдена",
     "returnHome": "Вернуться на главную"
+  },
+  "productAnalytics": {
+    "title": "Продуктовая аналитика",
+    "subtitle": "Пути пользователей, используемый функционал и проблемы продукта",
+    "period_one": "За {{count}} день",
+    "period_few": "За {{count}} дня",
+    "period_many": "За {{count}} дней",
+    "period_other": "За {{count}} дней",
+    "minShort": "мин",
+    "empty": "Пока нет данных за выбранный период",
+    "tabs": {
+      "overview": "Обзор",
+      "paths": "Пути",
+      "features": "Функционал",
+      "problems": "Проблемы"
+    },
+    "m": {
+      "sessions": "Сессии",
+      "events": "События",
+      "users": "Пользователи",
+      "erroredSessions": "Сессии с ошибками",
+      "avgSession": "Средняя сессия"
+    },
+    "charts": {
+      "dau": "Активность по дням",
+      "topRoutes": "Топ экранов",
+      "topActions": "Топ действий"
+    },
+    "cols": {
+      "route": "Экран",
+      "action": "Действие",
+      "event": "Событие",
+      "type": "Тип",
+      "count": "Кол-во",
+      "component": "Компонент",
+      "status": "Статус"
+    },
+    "paths": {
+      "title": "Переходы между экранами",
+      "byGroup": "По группе (роль)",
+      "byUser": "По конкретному пользователю",
+      "userIdPlaceholder": "UUID пользователя",
+      "from": "Откуда",
+      "to": "Куда"
+    },
+    "features": {
+      "title": "Использование функционала"
+    },
+    "problems": {
+      "dropRoutes": "Дропы сессий — экраны выхода",
+      "exitedSessions": "Сессий завершилось",
+      "jsErrors": "JavaScript-ошибки",
+      "apiErrors": "API-ошибки"
+    }
   }
 }

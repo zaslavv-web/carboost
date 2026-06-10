@@ -621,5 +621,57 @@
   "notFound": {
     "message": "Page not found",
     "returnHome": "Return to Home"
+  },
+  "productAnalytics": {
+    "title": "Product analytics",
+    "subtitle": "User journeys, feature usage and product problems",
+    "period_one": "Last {{count}} day",
+    "period_other": "Last {{count}} days",
+    "minShort": "min",
+    "empty": "No data for the selected period yet",
+    "tabs": {
+      "overview": "Overview",
+      "paths": "Journeys",
+      "features": "Features",
+      "problems": "Problems"
+    },
+    "m": {
+      "sessions": "Sessions",
+      "events": "Events",
+      "users": "Users",
+      "erroredSessions": "Sessions with errors",
+      "avgSession": "Avg. session"
+    },
+    "charts": {
+      "dau": "Daily activity",
+      "topRoutes": "Top screens",
+      "topActions": "Top actions"
+    },
+    "cols": {
+      "route": "Screen",
+      "action": "Action",
+      "event": "Event",
+      "type": "Type",
+      "count": "Count",
+      "component": "Component",
+      "status": "Status"
+    },
+    "paths": {
+      "title": "Transitions between screens",
+      "byGroup": "By group (role)",
+      "byUser": "By specific user",
+      "userIdPlaceholder": "User UUID",
+      "from": "From",
+      "to": "To"
+    },
+    "features": {
+      "title": "Feature usage"
+    },
+    "problems": {
+      "dropRoutes": "Session drops — exit screens",
+      "exitedSessions": "Sessions exited",
+      "jsErrors": "JavaScript errors",
+      "apiErrors": "API errors"
+    }
   }
 }
