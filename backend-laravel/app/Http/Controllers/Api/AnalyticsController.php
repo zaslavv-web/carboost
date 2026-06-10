@@ -178,41 +178,69 @@ class AnalyticsController extends Controller
 
     public function overview(Request $request)
     {
-        $scope = $this->scope($request);
-        [$from, $to] = $this->range($request);
+        try {
+            $scope = $this->scope($request);
+            [$from, $to] = $this->range($request);
 
-        $events = DB::table('analytics_events')->whereBetween('occurred_at', [$from, $to]);
-        $sessions = DB::table('analytics_sessions')->whereBetween('started_at', [$from, $to]);
-        $this->applyScope($events, $scope, $request->get('company_id'));
-        $this->applyScope($sessions, $scope, $request->get('company_id'));
+            if (!\Schema::hasTable('analytics_events') || !\Schema::hasTable('analytics_sessions')) {
+                return response()->json([
+                    'total_events' => 0,
+                    'total_sessions' => 0,
+                    'errored_sessions' => 0,
+                    'avg_session_seconds' => 0,
+                    'dau' => [],
+                    'top_routes' => [],
+                    'top_actions' => [],
+                ]);
+            }
 
-        $totalEvents = (clone $events)->count();
-        $dau = (clone $events)
-            ->selectRaw('DATE(occurred_at) as d, COUNT(DISTINCT user_id) as users, COUNT(*) as events')
-            ->groupBy('d')->orderBy('d')->get();
-        $totalSessions = (clone $sessions)->count();
-        $erroredSessions = (clone $sessions)->where('errors_count', '>', 0)->count();
-        $avgDuration = (clone $sessions)
-            ->whereNotNull('ended_at')
-            ->selectRaw('AVG(EXTRACT(EPOCH FROM (ended_at - started_at))) as s')->value('s');
+            $events = DB::table('analytics_events')->whereBetween('occurred_at', [$from, $to]);
+            $sessions = DB::table('analytics_sessions')->whereBetween('started_at', [$from, $to]);
+            $this->applyScope($events, $scope, $request->get('company_id'));
+            $this->applyScope($sessions, $scope, $request->get('company_id'));
 
-        $topRoutes = (clone $events)->where('event_type', 'page_view')
-            ->select('route', DB::raw('COUNT(*) as count'))
-            ->groupBy('route')->orderByDesc('count')->limit(8)->get();
-        $topActions = (clone $events)->where('event_type', 'action')
-            ->select('event_name', DB::raw('COUNT(*) as count'))
-            ->groupBy('event_name')->orderByDesc('count')->limit(8)->get();
+            $totalEvents = (clone $events)->count();
+            $dau = (clone $events)
+                ->selectRaw("TO_CHAR(DATE(occurred_at), 'YYYY-MM-DD') as d,
+                             COUNT(DISTINCT user_id)::bigint as users,
+                             COUNT(*)::bigint as events")
+                ->groupByRaw('DATE(occurred_at)')
+                ->orderByRaw('DATE(occurred_at)')
+                ->get();
+            $totalSessions = (clone $sessions)->count();
+            $erroredSessions = (clone $sessions)->where('errors_count', '>', 0)->count();
+            $avgDuration = (clone $sessions)
+                ->whereNotNull('ended_at')
+                ->selectRaw('AVG(EXTRACT(EPOCH FROM (ended_at - started_at))) as s')->value('s');
 
-        return response()->json([
-            'total_events' => $totalEvents,
-            'total_sessions' => $totalSessions,
-            'errored_sessions' => $erroredSessions,
-            'avg_session_seconds' => $avgDuration ? (int)$avgDuration : 0,
-            'dau' => $dau,
-            'top_routes' => $topRoutes,
-            'top_actions' => $topActions,
-        ]);
+            $topRoutes = (clone $events)->where('event_type', 'page_view')
+                ->select('route', DB::raw('COUNT(*)::bigint as count'))
+                ->groupBy('route')->orderByDesc('count')->limit(8)->get();
+            $topActions = (clone $events)->where('event_type', 'action')
+                ->select('event_name', DB::raw('COUNT(*)::bigint as count'))
+                ->groupBy('event_name')->orderByDesc('count')->limit(8)->get();
+
+            return response()->json([
+                'total_events' => $totalEvents,
+                'total_sessions' => $totalSessions,
+                'errored_sessions' => $erroredSessions,
+                'avg_session_seconds' => $avgDuration ? (int)$avgDuration : 0,
+                'dau' => $dau,
+                'top_routes' => $topRoutes,
+                'top_actions' => $topActions,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('analytics.overview failed', [
+                'err' => $e->getMessage(),
+                'file' => $e->getFile() . ':' . $e->getLine(),
+            ]);
+            return response()->json([
+                'error' => 'analytics_failed',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
+
 
     public function events(Request $request)
     {
