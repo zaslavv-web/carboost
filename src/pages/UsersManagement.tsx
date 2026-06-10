@@ -57,9 +57,10 @@ const UsersManagement = () => {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users_list"],
     queryFn: async () => {
-      const [profilesRes, rolesRes] = await Promise.all([
+      const [profilesRes, rolesRes, usersRes] = await Promise.all([
         laravelDb.from("profiles").select("*"),
         laravelDb.from("user_roles").select("user_id, role"),
+        laravelDb.from("users").select("id, email"),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (rolesRes.error) throw rolesRes.error;
@@ -73,9 +74,15 @@ const UsersManagement = () => {
         }
       }
 
+      const emailMap = new Map<string, string>();
+      for (const u of (usersRes.data || [])) {
+        if (u?.id && u?.email) emailMap.set(u.id, u.email);
+      }
+
       return (profilesRes.data || []).map((p: any) => ({
         ...p,
         role: roleMap.get(p.user_id) || "employee",
+        email: emailMap.get(p.user_id) || null,
       }));
     },
   });
@@ -185,6 +192,7 @@ const UsersManagement = () => {
     const matchesSearch =
       !q ||
       u.full_name.toLowerCase().includes(q) ||
+      (u.email || "").toLowerCase().includes(q) ||
       (u.department || "").toLowerCase().includes(q) ||
       (u.position || "").toLowerCase().includes(q) ||
       roleLabelMap[u.role]?.toLowerCase().includes(q);
