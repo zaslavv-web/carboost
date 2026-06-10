@@ -3,8 +3,8 @@ import { laravelDb } from "@/integrations/laravel/db";
 import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
-import { useNavigate } from "react-router-dom";
-import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2, UserPlus, X, KeyRound } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2, UserPlus, X, KeyRound, IdCard } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -383,6 +383,11 @@ const UsersManagement = () => {
                   <td className="px-4 py-3">
                     <p className="font-medium text-foreground">{u.full_name}</p>
                     <p className="text-xs text-muted-foreground">{u.position || "—"}</p>
+                    {u.email && (
+                      <a href={`mailto:${u.email}`} className="text-xs text-primary hover:underline">
+                        {u.email}
+                      </a>
+                    )}
                   </td>
                   {isSuperadmin && (
                     <td className="px-4 py-3">
