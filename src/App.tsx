@@ -51,6 +51,7 @@ import ScrollToTop from "@/components/ScrollToTop";
 import AnalyticsBootstrap from "@/components/AnalyticsBootstrap";
 import ProductAnalytics from "@/pages/ProductAnalytics";
 import SuperadminOnly from "@/components/SuperadminOnly";
+import UserProfileFull from "@/pages/UserProfileFull";
 
 const queryClient = new QueryClient();
 
@@ -86,6 +87,7 @@ const App = () => (
                 <Route path="/superadmin" element={<SuperadminDashboard />} />
                 <Route path="/companies" element={<Companies />} />
                 <Route path="/users" element={<UsersManagement />} />
+                <Route path="/users/:userId" element={<UserProfileFull />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/scenarios" element={<Scenarios />} />
                 <Route path="/hr-policies" element={<HRPolicies />} />

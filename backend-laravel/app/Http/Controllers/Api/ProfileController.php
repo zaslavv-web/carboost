@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Profile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Профили сотрудников. View/update делегируется ProfilePolicy.
@@ -24,7 +25,26 @@ class ProfileController extends Controller
         if ($companyId = $request->get('company_id')) {
             $query->where('company_id', $companyId);
         }
-        return response()->json($query->paginate(min((int) $request->get('per_page', 50), 200)));
+        if ($search = trim((string) $request->get('search', ''))) {
+            $like = '%' . $search . '%';
+            $query->where(function ($q) use ($like) {
+                $q->where('full_name', 'like', $like)
+                  ->orWhereIn('user_id', function ($sub) use ($like) {
+                      $sub->select('id')->from('users')->where('email', 'like', $like);
+                  });
+            });
+        }
+        $paginated = $query->paginate(min((int) $request->get('per_page', 50), 200));
+        // подмешиваем email
+        $items = collect($paginated->items());
+        $userIds = $items->pluck('user_id')->filter()->unique()->all();
+        $emails = DB::table('users')->whereIn('id', $userIds)->pluck('email', 'id');
+        $paginated->getCollection()->transform(function ($p) use ($emails) {
+            $arr = $p->toArray();
+            $arr['email'] = $emails[$p->user_id] ?? null;
+            return $arr;
+        });
+        return response()->json($paginated);
     }
 
     public function show(string $id): JsonResponse
@@ -35,7 +55,7 @@ class ProfileController extends Controller
         // иначе считаем это user_id (новый фронт-контракт useLaravelProfile).
         $isUuid = (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id);
         $profile = $isUuid
-            ? $query->findOrFail($id)
+            ? $query->where('id', $id)->orWhere('user_id', $id)->firstOrFail()
             : $query->where('user_id', $id)->firstOrFail();
 
         $this->authorize('view', $profile);
@@ -53,11 +73,12 @@ class ProfileController extends Controller
     private function withRoles(Profile $profile): array
     {
         $payload = $profile->toArray();
-        $payload['roles'] = \DB::table('user_roles')
+        $payload['roles'] = DB::table('user_roles')
             ->where('user_id', $profile->user_id)
             ->pluck('role')
             ->values()
             ->all();
+        $payload['email'] = DB::table('users')->where('id', $profile->user_id)->value('email');
         return $payload;
     }
 

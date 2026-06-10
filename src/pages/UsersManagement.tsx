@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
+import { laravel } from "@/integrations/laravel/client";
 import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
-import { useNavigate } from "react-router-dom";
-import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2, UserPlus, X, KeyRound } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2, UserPlus, X, KeyRound, IdCard } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -57,9 +58,10 @@ const UsersManagement = () => {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users_list"],
     queryFn: async () => {
-      const [profilesRes, rolesRes] = await Promise.all([
+      const [profilesRes, rolesRes, emailsRes] = await Promise.all([
         laravelDb.from("profiles").select("*"),
         laravelDb.from("user_roles").select("user_id, role"),
+        laravel.get<{ data: any[] } | any[]>("/profiles?per_page=500"),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (rolesRes.error) throw rolesRes.error;
@@ -73,9 +75,18 @@ const UsersManagement = () => {
         }
       }
 
+      const emailMap = new Map<string, string>();
+      const emailItems: any[] = Array.isArray(emailsRes.data)
+        ? (emailsRes.data as any[])
+        : ((emailsRes.data as any)?.data || []);
+      for (const p of emailItems) {
+        if (p?.user_id && p?.email) emailMap.set(p.user_id, p.email);
+      }
+
       return (profilesRes.data || []).map((p: any) => ({
         ...p,
         role: roleMap.get(p.user_id) || "employee",
+        email: emailMap.get(p.user_id) || null,
       }));
     },
   });
@@ -185,6 +196,7 @@ const UsersManagement = () => {
     const matchesSearch =
       !q ||
       u.full_name.toLowerCase().includes(q) ||
+      (u.email || "").toLowerCase().includes(q) ||
       (u.department || "").toLowerCase().includes(q) ||
       (u.position || "").toLowerCase().includes(q) ||
       roleLabelMap[u.role]?.toLowerCase().includes(q);
@@ -375,6 +387,11 @@ const UsersManagement = () => {
                   <td className="px-4 py-3">
                     <p className="font-medium text-foreground">{u.full_name}</p>
                     <p className="text-xs text-muted-foreground">{u.position || "—"}</p>
+                    {u.email && (
+                      <a href={`mailto:${u.email}`} className="text-xs text-primary hover:underline">
+                        {u.email}
+                      </a>
+                    )}
                   </td>
                   {isSuperadmin && (
                     <td className="px-4 py-3">
@@ -434,6 +451,12 @@ const UsersManagement = () => {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-1.5">
+                      <Link
+                        to={`/users/${u.user_id}`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-medium hover:bg-accent/80 transition-colors"
+                      >
+                        <IdCard className="w-3.5 h-3.5" /> Карточка
+                      </Link>
                       <button
                         onClick={() => handleImpersonate(u)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"

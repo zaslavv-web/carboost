@@ -107,6 +107,11 @@ const Passport = () => {
                 {profile?.position || t("passport.noPosition")} · {profile?.department || t("passport.noDepartment")}
                 {profile?.hire_date && ` · ${t("passport.since")} ${format(new Date(profile.hire_date), "yyyy")}`}
               </p>
+              {(profile as any)?.email && (
+                <a href={`mailto:${(profile as any).email}`} className="text-xs text-primary hover:underline truncate block mt-0.5">
+                  {(profile as any).email}
+                </a>
+              )}
             </div>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2">
