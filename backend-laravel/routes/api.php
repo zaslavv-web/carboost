@@ -181,6 +181,8 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     Route::middleware(['verified.user', 'has.company'])->group(function () {
         // Профили
         Route::get('/profiles',                  [ProfileController::class, 'index']);
+        Route::get('/profiles/{id}/similar',     [\App\Http\Controllers\Api\UserInsightsController::class, 'similar']);
+        Route::get('/profiles/{id}/environment', [\App\Http\Controllers\Api\UserInsightsController::class, 'environment']);
         Route::get('/profiles/{id}',             [ProfileController::class, 'show']);
         Route::patch('/profiles/{id}',           [ProfileController::class, 'update']);
         Route::post('/profiles/{id}/verify',     [ProfileController::class, 'verify']);
