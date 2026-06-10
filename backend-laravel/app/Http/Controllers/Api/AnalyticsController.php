@@ -204,8 +204,8 @@ class AnalyticsController extends Controller
                 ->selectRaw("DATE_FORMAT(occurred_at, '%Y-%m-%d') as d,
                              COUNT(DISTINCT user_id) as users,
                              COUNT(*) as events")
-                ->groupByRaw('DATE(occurred_at)')
-                ->orderByRaw('DATE(occurred_at)')
+                ->groupByRaw("DATE_FORMAT(occurred_at, '%Y-%m-%d')")
+                ->orderByRaw("DATE_FORMAT(occurred_at, '%Y-%m-%d')")
                 ->get();
             $totalSessions = (clone $sessions)->count();
             $erroredSessions = (clone $sessions)->where('errors_count', '>', 0)->count();
