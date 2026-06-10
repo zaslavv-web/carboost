@@ -97,7 +97,6 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { icon: UserCog, label: t("nav.users"), path: "/users" },
         { icon: Users, label: t("nav.employees"), path: "/employees" },
         { icon: BarChart3, label: t("nav.analytics"), path: "/analytics" },
-        { icon: Activity, label: t("nav.productAnalytics"), path: "/product-analytics" },
         { icon: Briefcase, label: t("nav.positions"), path: "/positions" },
         { icon: LifeBuoy, label: t("nav.support"), path: "/support" },
         { icon: Settings, label: t("nav.settings"), path: "/settings" },
@@ -122,7 +121,6 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           children: [
             { icon: BarChart3, label: t("nav.analyticsOverview"), path: "/analytics" },
             { icon: Activity, label: t("nav.riskAnalytics"), path: "/risk-analytics" },
-            { icon: Activity, label: t("nav.productAnalytics"), path: "/product-analytics" },
           ],
         },
         {
