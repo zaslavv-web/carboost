@@ -662,7 +662,9 @@
       "byUser": "By specific user",
       "userIdPlaceholder": "User UUID",
       "from": "From",
-      "to": "To"
+      "to": "To",
+      "sankey": "Flow diagram",
+      "table": "Transitions table"
     },
     "features": {
       "title": "Feature usage"
