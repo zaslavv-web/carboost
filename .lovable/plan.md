@@ -1,77 +1,46 @@
-# План: отвязка Supabase + подготовка on-premise (вариант А)
+# Fix: «The user id field must be a valid UUID» в продуктовой аналитике пользователя
 
-Цель — оставить только Laravel + MySQL/Postgres как единственный бэкенд и убрать все артефакты Lovable/Supabase в архивную папку `old/`, чтобы проект разворачивался на любом российском контуре без внешних зависимостей.
+## Причина
 
-## 1. Архивация (перенос в `old/`, без удаления — на случай отката)
+Эндпоинт `GET /api/analytics/user-timeline` валидирует параметр жёстко как UUID:
 
-Создаётся папка `old/lovable-supabase/` со структурой:
-
-```text
-old/lovable-supabase/
-├── README.md                      ← описание, что и зачем перенесено
-├── src-integrations-supabase/     ← из src/integrations/supabase/
-├── supabase/                      ← из ./supabase/ (миграции, functions, config.toml)
-└── docs/
-    ├── AUTH_DOMAIN_SETUP.md       ← если содержит lovable-специфику
-    └── notes.md
+```php
+// backend-laravel/app/Http/Controllers/Api/AnalyticsController.php:344
+$userId = $request->validate(['user_id' => 'required|uuid'])['user_id'];
 ```
 
-Файлы, которые **переносятся целиком**:
-- `src/integrations/supabase/` (client.ts, types.ts) — фронтенд их не импортирует (0 ссылок).
-- `supabase/` — миграции и edge-functions Lovable Cloud.
+Но в проде идентификатор пользователя — не всегда UUID. В этом же проекте уже есть миграции, релаксирующие тип под смешанный формат (UUID + integer):
 
-## 2. Чистка кода от упоминаний Lovable
+- `0005_..._relax_impersonation_audit_user_ids.php` — `VARCHAR(64)`
+- `0006_..._relax_sanctum_tokenable_id.php` — `VARCHAR(64)`
 
-Файлы, которые **редактируются** (lovable-специфику убираем, файл остаётся):
+Фронт берёт `profile.user_id` из `/profiles/{id}` (см. `src/pages/UserProfileFull.tsx` и `UserProductAnalytics.tsx`) и передаёт его как есть. Для `alexandra.rassudkova@gmail.com` это значение не имеет формата UUID → Laravel-валидатор `uuid` падает с 422 «The user id field must be a valid UUID».
 
-| Файл | Что меняем |
-|---|---|
-| `package.json` | Удалить зависимость `lovable-tagger` |
-| `vite.config.ts` | Удалить блок динамического `import("lovable-tagger")` |
-| `src/main.tsx` | Убрать ссылку/коммент на lovable |
-| `index.html` | Заменить `og:image`/`twitter:image` с `*.lovable.app` на локальный `/og-cover.png` (положить заглушку в `public/`); проверить `<title>` и meta |
-| `.env` / `.env.example` | Удалить `VITE_SUPABASE_URL`, `VITE_SUPABASE_PROJECT_ID`, `VITE_SUPABASE_PUBLISHABLE_KEY` |
-| `playwright.config.ts`, `playwright-fixture.ts` | Убрать baseURL/упоминания `*.lovable.app`, заменить на `http://localhost:8080` |
-| `DEPLOYMENT.md` | Переписать под чистый Docker/nginx + Laravel, без упоминаний Lovable |
-| `test-sync.md` | Удалить (служебный файл Lovable) или перенести в `old/` |
-| `backend-laravel/config/service-infra.php` | Убрать lovable-комментарии/дефолты |
-| `backend-laravel/app/Services/AI/AiGatewayService.php` | Заменить термин "Lovable AI Gateway" на нейтральное "AI Gateway"; логика через `AI_API_URL` / `AI_API_KEY` уже портабельная |
-| `backend-laravel/app/README-ai.md` | Аналогично — переписать без бренда |
-| `tsconfig.node.tsbuildinfo` | Удалить (артефакт сборки, регенерируется) |
+## Что меняем (1 файл)
 
-## 3. Очистка `.env` и документация on-premise
+**`backend-laravel/app/Http/Controllers/Api/AnalyticsController.php`** — метод `userTimeline()`:
 
-- Обновить `.env.example` так, чтобы он содержал только нужное:
-  ```text
-  VITE_LARAVEL_API_URL=/api
-  AI_API_URL=...        # любой совместимый Gateway (можно self-hosted)
-  AI_API_KEY=...
-  ```
-- Создать `docs/ON-PREMISE.md` с инструкцией развёртывания:
-  1. `docker-compose up -d` (frontend + nginx).
-  2. Laravel-бэкенд из `backend-laravel/` (composer install, миграции, php-fpm).
-  3. MySQL/Postgres локально.
-  4. AI Gateway — указать любой внутренний эндпоинт через `AI_API_URL`.
-  Никаких внешних SaaS, никаких иностранных зависимостей в рантайме.
+Заменить
+```php
+$userId = $request->validate(['user_id' => 'required|uuid'])['user_id'];
+```
+на мягкую валидацию, допускающую любой непустой ID до 64 символов (UUID, integer-id, supabase sub):
+```php
+$userId = $request->validate([
+    'user_id' => ['required','string','max:64','regex:/^[A-Za-z0-9_\-]+$/'],
+])['user_id'];
+```
 
-## 4. Удаление мёртвого Lovable Cloud
+Это согласует контракт эндпоинта с фактическим типом колонок `analytics_events.user_id` / `profiles.user_id` в проде (см. relax-миграции выше) и не ослабляет безопасность — поле всё ещё ограничено по длине и алфавиту, а выборка идёт через параметризованный `where('user_id', $userId)`.
 
-- В настройках проекта Lovable Cloud будет отключён (это делается вне репозитория — сообщу инструкцию после применения плана).
-- В коде после шагов 1–3 не останется ни одного импорта `@/integrations/supabase`.
+## Что НЕ трогаем
 
-## 5. Проверка после изменений
+- Схему БД (`analytics_events` остаётся как есть)
+- Фронт (`UserProductAnalytics.tsx`, `UserProfileFull.tsx`) — он уже передаёт правильный `profile.user_id`
+- Остальные методы `AnalyticsController` (overview, sessions и т.д.)
 
-- `bun install` (lovable-tagger уйдёт из lock).
-- `bun run build` — сборка должна пройти.
-- `rg -i lovable src backend-laravel public index.html vite.config.ts` — должно быть пусто (кроме `old/`).
-- `rg "integrations/supabase" src` — пусто.
-- Smoke: открыть preview, проверить что страницы грузятся, `growth-peak.pro/api` отвечает.
+## Проверка
 
-## Что **не** трогаем
-- Папку `node_modules` и lock-файлы — переустановятся при `bun install`.
-- Логику бизнес-фич и Laravel-контроллеры.
-- Дизайн-систему и компоненты UI.
-
-## Открытый вопрос
-
-`docs/AUTH_DOMAIN_SETUP.md` — это инструкция по настройке домена для писем (упоминает Lovable Email). Перенести в `old/` целиком или переписать под отправку через локальный SMTP/Yandex 360? По умолчанию — переношу в `old/`, добавляю короткий `docs/EMAIL_SETUP.md` со ссылкой на стандартную Laravel Mail-конфигурацию (SMTP).
+1. `curl -H 'Authorization: Bearer <superadmin>' 'https://growth-peak.pro/api/analytics/user-timeline?user_id=<id-Александры>'` → 200, JSON с `events[]` и `sessions[]`.
+2. UI «Продуктовая аналитика» в карточке пользователя загружается без ошибки.
+3. `curl ...?user_id=' OR 1=1' ` → 422 (regex отсекает).
