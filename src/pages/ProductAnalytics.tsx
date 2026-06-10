@@ -7,6 +7,7 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Legend,
 } from "recharts";
 import MetricCard from "@/components/MetricCard";
+import PathsSankey from "@/components/PathsSankey";
 
 type Tab = "overview" | "paths" | "features" | "problems";
 
@@ -183,16 +184,21 @@ const ProductAnalytics = () => {
             )}
           </div>
           {pL || !paths ? <Loader /> : paths.transitions.length === 0 ? <Empty /> : (
-            <Card title={t("productAnalytics.paths.title")}>
-              <SimpleTable
-                rows={paths.transitions}
-                cols={[
-                  { k: "from", label: t("productAnalytics.paths.from") },
-                  { k: "to", label: t("productAnalytics.paths.to") },
-                  { k: "count", label: t("productAnalytics.cols.count"), align: "right" },
-                ]}
-              />
-            </Card>
+            <>
+              <Card title={t("productAnalytics.paths.sankey")}>
+                <PathsSankey transitions={paths.transitions} />
+              </Card>
+              <Card title={t("productAnalytics.paths.table")}>
+                <SimpleTable
+                  rows={paths.transitions}
+                  cols={[
+                    { k: "from", label: t("productAnalytics.paths.from") },
+                    { k: "to", label: t("productAnalytics.paths.to") },
+                    { k: "count", label: t("productAnalytics.cols.count"), align: "right" },
+                  ]}
+                />
+              </Card>
+            </>
           )}
         </div>
       )}
