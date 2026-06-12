@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Search } from "lucide-react";
+import { Search, LifeBuoy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { chatApi, ChatContact } from "@/integrations/laravel/chat";
 import { useChat } from "@/contexts/ChatContext";
 import { toast } from "sonner";
@@ -19,7 +20,20 @@ const ContactSearch = ({
   const { t } = useTranslation("chat");
   const { openOrCreateDirect } = useChat();
   const [results, setResults] = useState<ChatContact[]>([]);
+  const [defaults, setDefaults] = useState<ChatContact[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Preload "default" list (включает техподдержку наверху для не-суперадмина)
+  useEffect(() => {
+    let alive = true;
+    chatApi.contacts("").then((res) => {
+      if (!alive || res.error) return;
+      setDefaults(res.data?.data ?? []);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -47,6 +61,10 @@ const ContactSearch = ({
     onPicked(id);
   };
 
+  const supportPinned = defaults.filter((c) => c.is_support);
+  const shown = query.trim() ? results : supportPinned;
+  const showEmpty = query.trim() && !loading && results.length === 0;
+
   return (
     <div className="border-b border-border">
       <div className="relative p-2">
@@ -58,28 +76,47 @@ const ContactSearch = ({
           className="pl-9 h-9"
         />
       </div>
-      {query.trim() && (
-        <ul className="max-h-48 overflow-y-auto border-t border-border">
+      {(shown.length > 0 || showEmpty || loading) && (
+        <ul className="max-h-56 overflow-y-auto border-t border-border">
           {loading && <li className="p-3 text-xs text-muted-foreground">…</li>}
-          {!loading && results.length === 0 && (
-            <li className="p-3 text-xs text-muted-foreground">—</li>
-          )}
-          {results.map((c) => (
+          {showEmpty && <li className="p-3 text-xs text-muted-foreground">—</li>}
+          {shown.map((c) => (
             <li key={c.user_id}>
               <button
                 type="button"
                 onClick={() => pick(c)}
-                className="w-full flex items-center gap-3 px-3 py-2 hover:bg-secondary text-left"
+                className={`w-full flex items-center gap-3 px-3 py-2 hover:bg-secondary text-left ${
+                  c.is_support ? "bg-primary/5" : ""
+                }`}
               >
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={c.avatar_url ?? undefined} />
                   <AvatarFallback>
-                    {(c.full_name ?? "?").split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase()}
+                    {c.is_support ? (
+                      <LifeBuoy className="w-4 h-4 text-primary" />
+                    ) : (
+                      (c.full_name ?? "?").split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase()
+                    )}
                   </AvatarFallback>
                 </Avatar>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{c.full_name ?? "—"}</div>
-                  {c.department && <div className="text-[11px] text-muted-foreground truncate">{c.department}</div>}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium truncate">
+                      {c.is_support ? t("support.title") : (c.full_name ?? "—")}
+                    </span>
+                    {c.is_support && (
+                      <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+                        {t("support.badge")}
+                      </Badge>
+                    )}
+                  </div>
+                  {c.is_support ? (
+                    <div className="text-[11px] text-muted-foreground truncate">{t("support.subtitle")}</div>
+                  ) : (
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {[c.department, c.company_name].filter(Boolean).join(" • ") || ""}
+                    </div>
+                  )}
                 </div>
               </button>
             </li>

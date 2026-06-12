@@ -22,5 +22,10 @@
     "sendFailed": "Не удалось отправить сообщение",
     "createFailed": "Не удалось создать диалог"
   },
-  "impersonationDisabled": "Чат недоступен в режиме impersonation"
+  "impersonationDisabled": "Чат недоступен в режиме impersonation",
+  "support": {
+    "title": "Техподдержка",
+    "subtitle": "Команда платформы — ответим в ближайшее время",
+    "badge": "24/7"
+  }
 }

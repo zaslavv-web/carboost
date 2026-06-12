@@ -13,21 +13,7 @@ use App\Services\ChatPermissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
-/**
- * Внутренние чаты компании (MVP).
- *
- * Эндпоинты:
- *   GET    /chats                              — список диалогов пользователя + unread
- *   POST   /chats                              — создать/получить direct-чат
- *   GET    /chats/contacts?q=                  — поиск сотрудников своей компании
- *   GET    /chats/{id}/messages?before=&limit= — пагинация сообщений
- *   POST   /chats/{id}/messages                — отправить
- *   PATCH  /chats/{id}/read                    — отметить прочитанным
- *   POST   /chats/{id}/messages/{mid}/reactions — toggle emoji
- *   GET    /chats/unread-count                 — суммарный счётчик
- */
 class ChatController extends Controller
 {
     public function __construct(private ChatPermissionService $permissions)
@@ -40,21 +26,33 @@ class ChatController extends Controller
         return method_exists($user, 'companyId') ? $user->companyId() : null;
     }
 
+    private function isSuperadmin(): bool
+    {
+        $user = auth()->user();
+        return $user && method_exists($user, 'hasRole') && $user->hasRole('superadmin');
+    }
+
+    private function isSupportUser(string $userId): bool
+    {
+        return (bool) DB::table('profiles')->where('user_id', $userId)->value('is_support');
+    }
+
     public function index(Request $request): JsonResponse
     {
         $userId = auth()->id();
         $companyId = $this->userCompanyId();
+        $isSuper = $this->isSuperadmin();
 
         $convoIds = ChatParticipant::where('user_id', $userId)->pluck('conversation_id');
 
         $conversations = ChatConversation::query()
             ->whereIn('id', $convoIds)
-            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            // Суперадмин видит все свои диалоги независимо от company_id (он пишет в любую компанию).
+            ->when(!$isSuper && $companyId, fn ($q) => $q->where('company_id', $companyId))
             ->orderByDesc('last_message_at')
             ->orderByDesc('updated_at')
             ->get();
 
-        // Прелоадим участников + last message + unread
         $participants = ChatParticipant::whereIn('conversation_id', $conversations->pluck('id'))
             ->get()
             ->groupBy('conversation_id');
@@ -71,10 +69,9 @@ class ChatController extends Controller
             fn ($g) => $g->firstWhere('user_id', $userId)
         );
 
-        // Соберём профили всех собеседников
         $peerUserIds = $participants->flatten()->pluck('user_id')->unique()->all();
         $profiles = Profile::whereIn('user_id', $peerUserIds)
-            ->get(['user_id', 'full_name', 'avatar_url', 'position_id'])
+            ->get(['user_id', 'full_name', 'avatar_url', 'position_id', 'company_id', 'is_support'])
             ->keyBy('user_id');
 
         $data = $conversations->map(function (ChatConversation $c) use ($participants, $lastMessages, $myParticipants, $userId, $profiles) {
@@ -93,12 +90,13 @@ class ChatController extends Controller
                 $unread = $unreadQuery->count();
             }
 
-            // Для direct: peer = тот, кто не я
             $peerProfile = null;
+            $peerIsSupport = false;
             if ($c->type === 'direct') {
                 $peer = $convParticipants->firstWhere('user_id', '!=', $userId);
                 if ($peer) {
                     $peerProfile = $profiles[$peer->user_id] ?? null;
+                    $peerIsSupport = (bool) optional($peerProfile)->is_support;
                 }
             }
 
@@ -113,12 +111,15 @@ class ChatController extends Controller
                     'role'       => $p->role,
                     'full_name'  => optional($profiles[$p->user_id] ?? null)->full_name,
                     'avatar_url' => optional($profiles[$p->user_id] ?? null)->avatar_url,
+                    'is_support' => (bool) optional($profiles[$p->user_id] ?? null)->is_support,
                 ])->values(),
                 'peer'            => $peerProfile ? [
                     'user_id'    => $peerProfile->user_id,
                     'full_name'  => $peerProfile->full_name,
                     'avatar_url' => $peerProfile->avatar_url,
+                    'is_support' => (bool) $peerProfile->is_support,
                 ] : null,
+                'is_support'      => $peerIsSupport,
                 'last_message'    => $lastMsg ? [
                     'id'         => $lastMsg->id,
                     'sender_id'  => $lastMsg->sender_id,
@@ -162,24 +163,40 @@ class ChatController extends Controller
         $type = $data['type'] ?? 'direct';
         $userId = auth()->id();
         $companyId = $this->userCompanyId();
-        if (!$companyId) {
-            return response()->json(['error' => 'Не указана компания'], 422);
-        }
+        $isSuper = $this->isSuperadmin();
 
         if ($type === 'direct') {
             $peerId = $data['peer_user_id'];
             if ($peerId === $userId) {
                 return response()->json(['error' => 'Нельзя создать диалог с самим собой'], 422);
             }
-            // Peer должен быть в той же компании
-            $peerProfile = Profile::where('user_id', $peerId)->where('company_id', $companyId)->first();
+
+            $peerProfile = Profile::where('user_id', $peerId)->first();
             if (!$peerProfile) {
-                return response()->json(['error' => 'Пользователь не найден в вашей компании'], 404);
+                return response()->json(['error' => 'Пользователь не найден'], 404);
             }
+
+            $peerIsSupport    = (bool) $peerProfile->is_support;
+            $peerIsSuperadmin = DB::table('user_roles')->where('user_id', $peerId)->where('role', 'superadmin')->exists();
+
+            // Разрешено вне компании только если одна из сторон — суперадмин или техподдержка.
+            $crossCompanyAllowed = $isSuper || $peerIsSuperadmin || $peerIsSupport;
+
+            if (!$crossCompanyAllowed) {
+                if (!$companyId) {
+                    return response()->json(['error' => 'Не указана компания'], 422);
+                }
+                if ((string) $peerProfile->company_id !== (string) $companyId) {
+                    return response()->json(['error' => 'Пользователь не найден в вашей компании'], 404);
+                }
+            }
+
+            // company_id диалога: компания обычного пользователя из пары; если оба суперадмина — null.
+            $convCompanyId = $companyId
+                ?? ($peerProfile->company_id ? (string) $peerProfile->company_id : null);
 
             // Идемпотентно: ищем существующий direct между этими двумя.
             $existing = ChatConversation::query()
-                ->where('company_id', $companyId)
                 ->where('type', 'direct')
                 ->whereIn('id', function ($q) use ($userId) {
                     $q->select('conversation_id')->from('chat_participants')->where('user_id', $userId);
@@ -193,9 +210,9 @@ class ChatController extends Controller
                 return response()->json(['data' => ['id' => $existing->id]]);
             }
 
-            return DB::transaction(function () use ($companyId, $userId, $peerId) {
+            return DB::transaction(function () use ($convCompanyId, $userId, $peerId) {
                 $c = ChatConversation::create([
-                    'company_id'  => $companyId,
+                    'company_id'  => $convCompanyId,
                     'type'        => 'direct',
                     'created_by'  => $userId,
                 ]);
@@ -211,7 +228,10 @@ class ChatController extends Controller
             });
         }
 
-        // group
+        // group (MVP — внутри одной компании)
+        if (!$companyId) {
+            return response()->json(['error' => 'Не указана компания'], 422);
+        }
         $ids = array_unique(array_merge($data['participant_ids'] ?? [], [$userId]));
         $sameCompany = Profile::whereIn('user_id', $ids)->where('company_id', $companyId)->count();
         if ($sameCompany !== count($ids)) {
@@ -238,21 +258,85 @@ class ChatController extends Controller
 
     public function contacts(Request $request): JsonResponse
     {
-        $companyId = $this->userCompanyId();
-        if (!$companyId) return response()->json(['data' => []]);
-
-        $q = trim((string) $request->get('q', ''));
         $userId = auth()->id();
+        $companyId = $this->userCompanyId();
+        $isSuper = $this->isSuperadmin();
+        $q = trim((string) $request->get('q', ''));
 
-        $query = Profile::query()
-            ->where('company_id', $companyId)
-            ->where('user_id', '!=', $userId);
+        // Базовый запрос
+        $query = Profile::query()->where('user_id', '!=', $userId);
+
+        if ($isSuper) {
+            // Суперадмин ищет по всей платформе.
+            $query->where(function ($w) {
+                $w->where('is_support', false)->orWhereNull('is_support');
+            });
+        } else {
+            // Обычный пользователь — только своя компания (+ техподдержку добавим отдельно ниже).
+            if (!$companyId) {
+                // без компании — только техподдержка
+                $support = $this->buildSupportContacts($q);
+                return response()->json(['data' => $support]);
+            }
+            $query->where('company_id', $companyId)
+                  ->where(function ($w) {
+                      $w->where('is_support', false)->orWhereNull('is_support');
+                  });
+        }
+
         if ($q !== '') {
             $query->where('full_name', 'ilike', '%' . $q . '%');
         }
 
-        $rows = $query->orderBy('full_name')->limit(30)->get(['user_id', 'full_name', 'avatar_url', 'department']);
-        return response()->json(['data' => $rows]);
+        $rows = $query->orderBy('full_name')->limit(30)
+            ->get(['user_id', 'full_name', 'avatar_url', 'department', 'company_id']);
+
+        // Подмешиваем название компании для суперадмина.
+        $companyNames = [];
+        if ($isSuper) {
+            $companyIds = $rows->pluck('company_id')->filter()->unique()->all();
+            if ($companyIds) {
+                $companyNames = DB::table('companies')->whereIn('id', $companyIds)->pluck('name', 'id')->all();
+            }
+        }
+
+        $contacts = $rows->map(fn ($r) => [
+            'user_id'      => $r->user_id,
+            'full_name'    => $r->full_name,
+            'avatar_url'   => $r->avatar_url,
+            'department'   => $r->department ?? null,
+            'company_name' => $isSuper ? ($companyNames[$r->company_id] ?? null) : null,
+            'is_support'   => false,
+        ])->values()->all();
+
+        // Для обычного пользователя — техподдержка всегда сверху.
+        if (!$isSuper) {
+            $support = $this->buildSupportContacts($q);
+            $contacts = array_merge($support, $contacts);
+        }
+
+        return response()->json(['data' => $contacts]);
+    }
+
+    private function buildSupportContacts(string $q): array
+    {
+        $query = Profile::query()->where('is_support', true);
+        if ($q !== '') {
+            // Если ищут — поддержку показываем только если запрос подходит к названию.
+            $needle = mb_strtolower($q);
+            $matchesLiteral = str_contains('техподдержка support помощь help', $needle);
+            if (!$matchesLiteral) {
+                return [];
+            }
+        }
+        return $query->limit(3)->get(['user_id', 'full_name', 'avatar_url'])->map(fn ($r) => [
+            'user_id'      => $r->user_id,
+            'full_name'    => $r->full_name ?: 'Техподдержка',
+            'avatar_url'   => $r->avatar_url,
+            'department'   => null,
+            'company_name' => null,
+            'is_support'   => true,
+        ])->values()->all();
     }
 
     private function ensureMember(string $conversationId): ChatConversation
@@ -328,7 +412,6 @@ class ChatController extends Controller
         try {
             broadcast(new ChatMessageSent($msg))->toOthers();
         } catch (\Throwable $e) {
-            // Broadcast не критичен — polling всё равно подхватит.
             \Log::warning('ChatMessageSent broadcast failed: ' . $e->getMessage());
         }
 
