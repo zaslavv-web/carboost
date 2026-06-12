@@ -36,6 +36,9 @@ import {
   ClipboardCheck,
   Banknote,
   CalendarDays,
+  Star,
+  AlertOctagon,
+  TimerReset,
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 
@@ -152,6 +155,16 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           ],
         },
         { icon: Shield, label: t("nav.hrPolicies"), path: "/hr-policies" },
+        {
+          icon: Star,
+          label: t("performance:title", { defaultValue: "Performance" }),
+          children: [
+            { icon: Star, label: t("performance:title", { defaultValue: "Performance Reviews" }), path: "/performance" },
+            { icon: TimerReset, label: t("performance:probation.title", { defaultValue: "Испытательный срок" }), path: "/probation" },
+            { icon: AlertOctagon, label: t("performance:disciplinary.title", { defaultValue: "Дисциплинарные" }), path: "/disciplinary" },
+          ],
+        },
+        { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
         { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
@@ -161,7 +174,13 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       ...common,
       { icon: Users, label: t("nav.myTeam"), path: "/team" },
       { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
+      { icon: Star, label: t("performance:title", { defaultValue: "Performance" }), path: "/performance" },
+      { icon: TimerReset, label: t("performance:probation.title", { defaultValue: "Испытательный" }), path: "/probation" },
+      { icon: AlertOctagon, label: t("performance:disciplinary.title", { defaultValue: "PIP / Взыскания" }), path: "/disciplinary" },
       { icon: ClipboardList, label: t("nav.careerReviews"), path: "/career-reviews" },
+      { icon: Settings, label: t("nav.settings"), path: "/settings" },
+    ];
+  }
       { icon: Settings, label: t("nav.settings"), path: "/settings" },
     ];
   }
@@ -174,6 +193,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     { icon: User, label: t("nav.passport"), path: "/passport" },
     { icon: Target, label: t("nav.careerTrack"), path: "/career-track" },
     { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
+    { icon: Star, label: t("performance:title", { defaultValue: "Performance" }), path: "/performance" },
+    { icon: TimerReset, label: t("performance:probation.title", { defaultValue: "Испытательный" }), path: "/probation" },
     { icon: Heart, label: t("nav.recognition"), path: "/recognition" },
     { icon: ShoppingBag, label: t("nav.shop"), path: "/shop" },
     { icon: Bell, label: t("nav.notifications"), path: "/notifications" },

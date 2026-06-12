@@ -238,6 +238,42 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::post  ('/leave-compensations/calculate', [\App\Http\Controllers\Api\LeaveCompensationController::class, 'calculate']);
         Route::post  ('/leave-compensations/{id}/paid', [\App\Http\Controllers\Api\LeaveCompensationController::class, 'markPaid']);
 
+        // ---- Performance reviews module (Iteration 2) ----
+        Route::get   ('/performance-cycles',                [\App\Http\Controllers\Api\PerformanceController::class, 'indexCycles']);
+        Route::post  ('/performance-cycles',                [\App\Http\Controllers\Api\PerformanceController::class, 'storeCycle']);
+        Route::patch ('/performance-cycles/{id}',           [\App\Http\Controllers\Api\PerformanceController::class, 'updateCycle']);
+        Route::post  ('/performance-cycles/{id}/open',      [\App\Http\Controllers\Api\PerformanceController::class, 'openCycle']);
+        Route::post  ('/performance-cycles/{id}/close',     [\App\Http\Controllers\Api\PerformanceController::class, 'closeCycle']);
+        Route::get   ('/performance-reviews',               [\App\Http\Controllers\Api\PerformanceController::class, 'indexReviews']);
+        Route::get   ('/performance-reviews/{id}',          [\App\Http\Controllers\Api\PerformanceController::class, 'showReview']);
+        Route::post  ('/performance-reviews/{id}/feedback', [\App\Http\Controllers\Api\PerformanceController::class, 'submitFeedback']);
+        Route::post  ('/performance-reviews/{id}/finalize', [\App\Http\Controllers\Api\PerformanceController::class, 'finalize']);
+
+        // ---- Probation periods ----
+        Route::get   ('/probations',                                       [\App\Http\Controllers\Api\ProbationController::class, 'index']);
+        Route::post  ('/probations',                                       [\App\Http\Controllers\Api\ProbationController::class, 'store']);
+        Route::get   ('/probations/{id}',                                  [\App\Http\Controllers\Api\ProbationController::class, 'show']);
+        Route::patch ('/probations/{id}',                                  [\App\Http\Controllers\Api\ProbationController::class, 'update']);
+        Route::post  ('/probations/{id}/decide',                           [\App\Http\Controllers\Api\ProbationController::class, 'decide']);
+        Route::post  ('/probations/{id}/criteria',                         [\App\Http\Controllers\Api\ProbationController::class, 'addCriterion']);
+        Route::post  ('/probations/{id}/criteria/{criterionId}/toggle',    [\App\Http\Controllers\Api\ProbationController::class, 'toggleCriterion']);
+        Route::delete('/probations/{id}/criteria/{criterionId}',           [\App\Http\Controllers\Api\ProbationController::class, 'deleteCriterion']);
+
+        // ---- Disciplinary records (warning/PIP/observation) ----
+        Route::get   ('/disciplinary-records',                                       [\App\Http\Controllers\Api\DisciplinaryController::class, 'index']);
+        Route::post  ('/disciplinary-records',                                       [\App\Http\Controllers\Api\DisciplinaryController::class, 'store']);
+        Route::get   ('/disciplinary-records/{id}',                                  [\App\Http\Controllers\Api\DisciplinaryController::class, 'show']);
+        Route::post  ('/disciplinary-records/{id}/close',                            [\App\Http\Controllers\Api\DisciplinaryController::class, 'close']);
+        Route::post  ('/disciplinary-records/{id}/criteria',                         [\App\Http\Controllers\Api\DisciplinaryController::class, 'addCriterion']);
+        Route::post  ('/disciplinary-records/{id}/criteria/{criterionId}/toggle',    [\App\Http\Controllers\Api\DisciplinaryController::class, 'toggleCriterion']);
+        Route::delete('/disciplinary-records/{id}/criteria/{criterionId}',           [\App\Http\Controllers\Api\DisciplinaryController::class, 'deleteCriterion']);
+
+        // ---- 1:1 meetings ----
+        Route::get   ('/one-on-ones',      [\App\Http\Controllers\Api\OneOnOneController::class, 'index']);
+        Route::post  ('/one-on-ones',      [\App\Http\Controllers\Api\OneOnOneController::class, 'store']);
+        Route::patch ('/one-on-ones/{id}', [\App\Http\Controllers\Api\OneOnOneController::class, 'update']);
+        Route::delete('/one-on-ones/{id}', [\App\Http\Controllers\Api\OneOnOneController::class, 'destroy']);
+
         // ---- AI services (Phase 7, replaces legacy Edge Functions) ----
         Route::prefix('ai')->group(function () {
             Route::post('assessment-chat',              [AiController::class, 'assessmentChat']);
