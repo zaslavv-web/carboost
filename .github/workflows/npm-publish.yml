@@ -135,6 +135,14 @@ jobs:
           fi
           GOOGLE_REDIRECT_URI_VALUE="${GOOGLE_REDIRECT_URI_VALUE%/}"
 
+          YANDEX_REDIRECT_URI_VALUE="$YANDEX_REDIRECT_URI_SECRET"
+          if [[ -z "$YANDEX_REDIRECT_URI_VALUE" ]]; then
+            YANDEX_REDIRECT_URI_VALUE="$APP_URL_VALUE/api/auth/yandex/callback"
+          elif [[ "$YANDEX_REDIRECT_URI_VALUE" != http://* && "$YANDEX_REDIRECT_URI_VALUE" != https://* ]]; then
+            YANDEX_REDIRECT_URI_VALUE="https://$YANDEX_REDIRECT_URI_VALUE"
+          fi
+          YANDEX_REDIRECT_URI_VALUE="${YANDEX_REDIRECT_URI_VALUE%/}"
+
           DB_CONNECTION_VALUE="${DB_CONNECTION_SECRET:-mysql}"
           if [[ "$DB_CONNECTION_VALUE" != "mysql" && "$DB_CONNECTION_VALUE" != "pgsql" ]]; then
             DB_CONNECTION_VALUE="mysql"
