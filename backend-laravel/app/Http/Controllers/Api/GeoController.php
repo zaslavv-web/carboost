@@ -25,6 +25,8 @@ class GeoController extends Controller
         $yandexConfigured = (bool) (RuntimeEnv::get('YANDEX_CLIENT_ID') && RuntimeEnv::get('YANDEX_CLIENT_SECRET'));
         $googleConfigured = (bool) (RuntimeEnv::get('GOOGLE_CLIENT_ID') && RuntimeEnv::get('GOOGLE_CLIENT_SECRET'));
 
+        $ip = \App\Support\ClientIp::resolve($request);
+
         return response()->json([
             'country'   => $country,
             'is_ru'     => $isRu,
@@ -34,6 +36,13 @@ class GeoController extends Controller
                 'yandex' => $yandexConfigured,
             ],
             'reason'    => $isRu ? 'google_blocked_ru' : null,
+            'debug'     => [
+                'ip'              => $ip,
+                'ip_public'       => $ip ? \App\Support\ClientIp::isPublic($ip) : false,
+                'cf_country'      => $request->headers->get('CF-IPCountry'),
+                'geoip_provider'  => RuntimeEnv::get('GEOIP_PROVIDER', 'ip-api'),
+                'geoip_disabled'  => $geo->disabled(),
+            ],
         ]);
     }
 }
