@@ -110,13 +110,12 @@ class LeaveRequestController extends Controller
                 ->where('employee_id', $user->getAuthIdentifier())
                 ->pluck('manager_id');
             foreach ($managerIds as $mid) {
-                Notification::create([
-                    'user_id'           => $mid,
-                    'company_id'        => $req->company_id,
-                    'title'             => 'Новая заявка на отсутствие',
-                    'description'       => 'Сотрудник подал заявку на ' . $type->title . ' (' . $days . ' дн.)',
-                    'notification_type' => 'leave_request',
-                ]);
+                $this->insertNotification(
+                    $mid, $req->company_id,
+                    'Новая заявка на отсутствие',
+                    'Сотрудник подал заявку на ' . $type->title . ' (' . $days . ' дн.)',
+                    'leave_request',
+                );
             }
 
             return $req;
