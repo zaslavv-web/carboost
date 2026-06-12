@@ -173,6 +173,12 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // Профиль текущего пользователя — без has.company (нужен на CompleteRegistration)
     Route::get('/profiles/me', [ProfileController::class, 'me']);
 
+    // Брендинг компании: чтение/запись доступны без has.company-гейта,
+    // т.к. данные нужны на любых страницах после логина.
+    Route::get   ('/companies/{companyId}/branding', [\App\Http\Controllers\Api\CompanyBrandingController::class, 'show']);
+    Route::put   ('/companies/{companyId}/branding', [\App\Http\Controllers\Api\CompanyBrandingController::class, 'update']);
+    Route::delete('/companies/{companyId}/branding', [\App\Http\Controllers\Api\CompanyBrandingController::class, 'destroy']);
+
     // Публичный список компаний для CompleteRegistration: доступен любому
     // авторизованному пользователю, даже без company_id / verified.
     Route::get('/companies/public', function () {
