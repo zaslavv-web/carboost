@@ -61,6 +61,12 @@ class AuthServiceProvider extends ServiceProvider
         Models\CareerStepSubmission::class     => OwnedRecordPolicy::class,
         Models\CurrencyBalance::class          => OwnedRecordPolicy::class,
         Models\CurrencyTransaction::class      => OwnedRecordPolicy::class,
+        Models\LeaveRequest::class             => OwnedRecordPolicy::class,
+        Models\LeaveBalance::class             => OwnedRecordPolicy::class,
+        Models\LeaveCompensation::class        => OwnedRecordPolicy::class,
+
+        // Leave types — справочник компании
+        Models\LeaveType::class                => CompanyScopedPolicy::class,
 
         // Child/admin bridge models used by /api/db/*
         Models\CareerLevelAction::class        => CareerLevelActionPolicy::class,
