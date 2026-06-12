@@ -39,8 +39,10 @@ import {
   Star,
   AlertOctagon,
   TimerReset,
+  Palette,
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
+import { useBranding } from "@/contexts/BrandingContext";
 
 interface NavItem {
   icon: any;
@@ -73,6 +75,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
   const role = usePrimaryRole();
   const { data: profile } = useUserProfile();
   const { t } = useTranslation();
+  const { activeLogoUrl } = useBranding();
 
   const getNavItems = (): NavEntry[] => {
     const common: NavItem[] = [
