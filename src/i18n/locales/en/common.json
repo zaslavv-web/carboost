@@ -34,6 +34,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "chats": "Messages",
     "companies": "Companies",
     "users": "Users",
     "support": "Support tickets",
