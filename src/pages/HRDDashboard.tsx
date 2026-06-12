@@ -25,6 +25,7 @@ interface EmployeeWithRole {
   overall_score: number | null;
   role_readiness: number | null;
   role: AppRole;
+  email?: string | null;
 }
 
 interface Position {
