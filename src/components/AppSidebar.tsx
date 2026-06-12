@@ -171,6 +171,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           ],
         },
         { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
+        { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" },
         { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
@@ -235,7 +236,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 h-16 border-b border-sidebar-border">
         <img
-          src={brandLogo}
+          src={activeLogoUrl || brandLogo}
           alt={t("brand.logoAlt")}
           width={32}
           height={32}
