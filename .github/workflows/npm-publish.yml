@@ -17,14 +17,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Create frontend .env
         run: |
           echo 'VITE_LARAVEL_API_URL=/api' > .env
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
 
       - name: Build frontend
         run: npm run build
@@ -112,6 +111,9 @@ jobs:
           MAIL_ENCRYPTION_SECRET: ${{ secrets.MAIL_ENCRYPTION }}
           MAIL_FROM_ADDRESS_SECRET: ${{ secrets.MAIL_FROM_ADDRESS }}
           MAIL_FROM_NAME_SECRET: ${{ secrets.MAIL_FROM_NAME }}
+          YANDEX_CLIENT_ID_SECRET: ${{ secrets.YANDEX_CLIENT_ID }}
+          YANDEX_CLIENT_SECRET_SECRET: ${{ secrets.YANDEX_CLIENT_SECRET }}
+          YANDEX_REDIRECT_URI_SECRET: ${{ secrets.YANDEX_REDIRECT_URI }}
         run: |
           APP_KEY_VALUE="${APP_KEY_SECRET:-__PRESERVE_SERVER_APP_KEY__}"
           APP_CIPHER_VALUE="aes-256-cbc"
@@ -132,6 +134,14 @@ jobs:
             GOOGLE_REDIRECT_URI_VALUE="https://$GOOGLE_REDIRECT_URI_VALUE"
           fi
           GOOGLE_REDIRECT_URI_VALUE="${GOOGLE_REDIRECT_URI_VALUE%/}"
+
+          YANDEX_REDIRECT_URI_VALUE="$YANDEX_REDIRECT_URI_SECRET"
+          if [[ -z "$YANDEX_REDIRECT_URI_VALUE" ]]; then
+            YANDEX_REDIRECT_URI_VALUE="$APP_URL_VALUE/api/auth/yandex/callback"
+          elif [[ "$YANDEX_REDIRECT_URI_VALUE" != http://* && "$YANDEX_REDIRECT_URI_VALUE" != https://* ]]; then
+            YANDEX_REDIRECT_URI_VALUE="https://$YANDEX_REDIRECT_URI_VALUE"
+          fi
+          YANDEX_REDIRECT_URI_VALUE="${YANDEX_REDIRECT_URI_VALUE%/}"
 
           DB_CONNECTION_VALUE="${DB_CONNECTION_SECRET:-mysql}"
           if [[ "$DB_CONNECTION_VALUE" != "mysql" && "$DB_CONNECTION_VALUE" != "pgsql" ]]; then
@@ -165,6 +175,7 @@ jobs:
           MAIL_FROM_ADDRESS_VALUE="${MAIL_FROM_ADDRESS_SECRET:-noreply@${APP_HOST_VALUE}}"
           MAIL_FROM_NAME_VALUE="${MAIL_FROM_NAME_SECRET:-Пик Роста}"
           export APP_KEY_VALUE APP_CIPHER_VALUE APP_URL_VALUE APP_HOST_VALUE GOOGLE_REDIRECT_URI_VALUE \
+            YANDEX_REDIRECT_URI_VALUE \
             DB_CONNECTION_VALUE DB_PORT_VALUE MAIL_HOST_VALUE MAIL_PORT_VALUE \
             MAIL_ENCRYPTION_VALUE MAIL_FROM_ADDRESS_VALUE MAIL_FROM_NAME_VALUE
 
@@ -205,6 +216,9 @@ jobs:
               'GOOGLE_CLIENT_ID': os.environ.get('GOOGLE_CLIENT_ID_SECRET', ''),
               'GOOGLE_CLIENT_SECRET': os.environ.get('GOOGLE_CLIENT_SECRET_SECRET', ''),
               'GOOGLE_REDIRECT_URI': os.environ['GOOGLE_REDIRECT_URI_VALUE'],
+              'YANDEX_CLIENT_ID': os.environ.get('YANDEX_CLIENT_ID_SECRET', ''),
+              'YANDEX_CLIENT_SECRET': os.environ.get('YANDEX_CLIENT_SECRET_SECRET', ''),
+              'YANDEX_REDIRECT_URI': os.environ['YANDEX_REDIRECT_URI_VALUE'],
               'FRONTEND_URL': os.environ['APP_URL_VALUE'],
               'APP_FRONTEND_URL': os.environ['APP_URL_VALUE'],
               'MAIL_MAILER': 'smtp',

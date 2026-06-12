@@ -1,77 +1,97 @@
-## GeoIP-блокировка Google для RU + Yandex ID
+## Что не так — две независимые причины
 
-### 1. GeoIP-сервис на бэке (Laravel)
+**1) Нет кнопки «Войти через Яндекс»**
+В коде репозитория `src/pages/Login.tsx` кнопка Yandex есть и показывается, когда `/api/geo` отвечает `providers.yandex: true`. Сейчас `/api/geo` уже возвращает `"yandex": true`, но в браузере кнопки нет — значит на сервере в `/var/www/.../public` (или куда у вас раскатан фронт) лежит **старый билд React**, собранный ещё до добавления Yandex-кнопки. Поэтому никакая правка `.env` или бэка проблему №1 не решит — нужно пересобрать и выложить фронт.
 
-- Используем **MaxMind GeoLite2-Country** (бесплатная локальная БД, без внешних запросов на каждый логин). Пакет `geoip2/geoip2`. БД `GeoLite2-Country.mmdb` кладём в `backend-laravel/storage/app/geoip/`, путь конфигурируется через `GEOIP_DB_PATH`.
-- Сервис `App\Services\GeoIpService`:
-  - `countryFor(string $ip): ?string` — ISO-2 (`RU`, `US`, …). Возвращает `null` при ошибке/неизвестном IP.
-  - Внутри: приоритет заголовка `CF-IPCountry` (если за Cloudflare) → затем MaxMind → fallback null.
-  - Для локалхоста/private IP возвращает null (не считать «не-RU»).
-- Helper `App\Support\ClientIp::resolve($request)` — берёт первый публичный IP из `X-Forwarded-For` (доверенные прокси настроены в `TrustProxies`).
+**2) Google всё ещё виден с российского IP**
+`/api/geo` отвечает `"country": null, "is_ru": false` → бэк не смог определить страну, поэтому Google не блокируется. Причина: в `backend-laravel/bootstrap/app.php` **не зарегистрирован middleware `TrustProxies**`, и в проекте нет файла `app/Http/Middleware/TrustProxies.php` (в `app/Http/Middleware/` лежат только `EffectiveUser`, `EnsureHasCompany`, `EnsureVerified`). Без него Laravel считает доверенным только сам себя, игнорирует `X-Forwarded-For` от nginx и в `request->ip()` отдаёт IP nginx-контейнера (`172.x.x.x` — приватный). В `GeoIpService` есть проверка `ClientIp::isPublic($ip)` → приватный IP отсекается → `countryFor` возвращает `null` → блокировка Google не срабатывает.
 
-### 2. Endpoint `/api/geo`
+Дополнительно: вы напрямую без Cloudflare, поэтому `CF-IPCountry` тоже не приходит. Единственный источник страны — `ipapi.co` по реальному клиентскому IP, который сейчас до Laravel не доходит.
 
-- `GET /api/geo` → `{ country: "RU" | "..." | null, providers: { google: bool, yandex: bool, email: bool } }`.
-- Логика провайдеров: `google = country !== 'RU'`, `yandex = true`, `email = true`.
-- Кэшируется на клиенте в `useQuery` (staleTime 10 мин).
+## План правок
 
-### 3. Бэк-блокировка Google
+### A. Доверять прокси (фикс GeoIP, проблема №2)
 
-- `GoogleAuthController@redirect`: если `GeoIpService::countryFor($ip) === 'RU'` → `abort(451, 'Google sign-in недоступен в вашем регионе. Используйте Yandex ID или email.')`.
-- Тот же чек в `callback` на случай, если кто-то открыл прямую ссылку (защита от смены IP во время потока).
+1. Создать `backend-laravel/app/Http/Middleware/TrustProxies.php`:
+  - наследник `Illuminate\Http\Middleware\TrustProxies`,
+  - `$proxies = '*'` (трастим всё — приемлемо, т.к. nginx и Laravel-контейнер в одной docker-сети),
+  - `$headers = Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO`.
+2. Подключить его в `backend-laravel/bootstrap/app.php` внутри `withMiddleware(...)`:
+  ```php
+   $middleware->trustProxies(at: '*', headers:
+       \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR
+     | \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST
+     | \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT
+     | \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO,
+   );
+  ```
+   (этого достаточно в Laravel 11 — отдельный класс middleware можно даже не создавать; оставим один из двух способов, чтобы было гарантированно).
+3. В `deploy/nginx.conf` убедиться, что в `location /api` есть `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;` и `proxy_set_header X-Real-IP $remote_addr;` (если уже есть — не трогаем).
 
-### 4. Yandex ID OAuth
+### B. Привести `.env` на сервере в порядок (вы правите вручную в putty)
 
-- Бэк:
-  - Контроллер `App\Http\Controllers\Auth\YandexAuthController` с `redirect` / `callback`. Используем нативный HTTP-клиент Laravel (без Socialite — он не имеет провайдера Yandex, ставим лёгкий вручную; либо `socialiteproviders/yandex`).
-  - Endpoints: `GET /api/auth/yandex/redirect`, `GET /api/auth/yandex/callback`.
-  - Конфиг `config/services.php` → `yandex.client_id / client_secret / redirect`.
-  - Секреты: `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET` (запросим через secrets-tool отдельным шагом после одобрения плана) - сразу предоставим инструкцию как его получить
-  - Возвращает токен Sanctum + создаёт/обновляет пользователя и `profile.full_name`, `avatar_url` (по полям Yandex API `default_email`, `real_name`, `display_name`, `default_avatar_id`).
-  - В `/api/auth/config` добавляем статус Yandex (как уже сделано для Google) — для отладки.
-- Фронт:
-  - `laravelAuthApi.signInWithYandex(redirectTo?)` — по аналогии с `signInWithGoogle`.
-  - `AuthContext.signInWithYandex`.
-  - В `Login.tsx` кнопка «Войти через Yandex ID» (иконка через `/yandex.svg` в `public/`, либо inline SVG). Кнопка всегда видна; кнопка Google — только если `providers.google === true`.
-  - i18n ключи: `auth.buttons.yandexSignIn / yandexSignUp`, `auth.errors.yandexFailed`, `auth.notices.googleBlockedRu` (тёплое объяснение под кнопками, когда Google скрыт).
+- Заполнить `YANDEX_CLIENT_ID` и `YANDEX_CLIENT_SECRET` реальными значениями из кабинета Яндекс ID — **без пробелов и кавычек**.
+- Перепроверить, что у `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `YANDEX_CLIENT_SECRET` нет хвостовых пробелов после `=` (в выводе `tail` они есть — это валидно для dotenv, но безопаснее убрать).
+- После правок:
+  ```
+  php artisan config:clear
+  php artisan cache:clear
+  php artisan config:cache
+  ```
 
-### 5. Sync с локальным состоянием
+### C. Пересобрать и выложить фронт (фикс проблемы №1)
 
-- В коллбеке Yandex используем тот же механизм, что Google: редирект на фронт с `?token=...` и `localStorage` синк (соответствует памяти `Social Sync`).
+На вашей машине (или там, где собираете фронт):
 
-### 6. Деплой и операционные шаги
+```
+git pull
+npm ci          # или bun install
+npm run build   # соберёт dist/
+```
 
-- В README `backend-laravel/REVERB.md` / `DEPLOYMENT.md` добавить раздел «GeoIP»: скачать `GeoLite2-Country.mmdb` (cron auto-update через `geoipupdate` от MaxMind, требуется бесплатная учётка) и положить по пути `GEOIP_DB_PATH`.
-- Указать в `.env.example`: `GEOIP_DB_PATH`, `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`, `YANDEX_REDIRECT_URI`.
-- В nginx/Trusted proxies — убедиться, что `X-Forwarded-For` прокидывается.
+И залить содержимое `dist/` на сервер в каталог, который раздаёт nginx как корень фронта (тот же, где сейчас лежат старые `index.html` + `assets/*`). После заливки — `Ctrl+F5` в браузере, чтобы сбросить кэш.
 
-### 7. UI/UX детали
+### D. Проверка
 
-- Порядок кнопок: Yandex ID (брендовая красная), Google (если показан), затем разделитель и форма email/пароль.
-- Когда Google скрыт по GeoIP — под блоком соцкнопок показываем небольшую заметку: «Вход через Google недоступен в вашем регионе».
-- Загрузка `/api/geo` — пока идёт, обе соцкнопки в скелетоне (200мс), чтобы не было мигания.
+После A+B+C на сервере выполнить:
 
-### 8. Тесты/проверка
+```
+curl -s https://growth-peak.pro/api/geo
+curl -s https://growth-peak.pro/api/geo -H "X-Forwarded-For: 95.165.0.1"
+```
 
-- Юнит-тест `GeoIpServiceTest` (моки на MaxMind reader): RU → 'RU', US → 'US', private IP → null.
-- Ручная проверка:
-  - VPN RU → нет Google, бэк отдаёт 451 на прямую ссылку.
-  - VPN US → есть Google и Yandex.
-  - Yandex flow: новый и существующий пользователь, корректная привязка `profiles`.
+Ожидаем:
 
-### Файлы
+- первый вызов с вашего реального IP → `"country":"RU","is_ru":true,"providers":{"email":true,"google":false,"yandex":true},"reason":"google_blocked_ru"`,
+- второй (подделанный российский IP) → то же самое.
 
-- new: `backend-laravel/app/Services/GeoIpService.php`, `backend-laravel/app/Support/ClientIp.php`,
-`backend-laravel/app/Http/Controllers/Auth/YandexAuthController.php`,
-`backend-laravel/app/Http/Controllers/Api/GeoController.php`.
-- edit: `backend-laravel/config/services.php`, `backend-laravel/routes/api.php`,
-`backend-laravel/app/Http/Controllers/Auth/GoogleAuthController.php`,
-`backend-laravel/composer.json` (geoip2/geoip2).
-- new: `src/integrations/laravel/geo.ts`, `src/hooks/useAuthProviders.ts`.
-- edit: `src/integrations/laravel/auth.ts`, `src/contexts/AuthContext.tsx`, `src/pages/Login.tsx`,
-`src/i18n/locales/{ru,en}/auth.json`, `public/yandex.svg`.
+И на странице логина:
 
-### Что потребуется от вас отдельно
+- с РФ-IP — видим только Email/пароль + красную кнопку «Войти через Яндекс», Google скрыт + появляется подпись `errors.googleBlockedRu`,
+- с не-РФ IP / VPN — видим Email + Google + Яндекс.
 
-1. После одобрения плана — добавлю секреты `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`, и подскажу redirect URI, который нужно вписать в кабинет Yandex OAuth (`https://<домен>/api/auth/yandex/callback`).
-2. На сервере положить `GeoLite2-Country.mmdb` в `storage/app/geoip/` (одноразовая операция; команду в инструкции).
+## Технические детали (для разработчика)
+
+- Файлы фронта менять **не нужно** — `Login.tsx`, `useAuthProviders`, `geo.ts` уже корректны. Достаточно пересобрать.
+- В бэке трогаем только `bootstrap/app.php` (+ опционально новый `TrustProxies.php`). Логика `GeoIpService` и `ClientIp` корректна — она правильно отбрасывает приватные IP; именно поэтому видна проблема. После доверия прокси `request->ip()` сразу начнёт возвращать публичный IP клиента.
+- Кэш Laravel: после изменения `bootstrap/app.php` обязательно `php artisan optimize:clear` (или связка `config:clear`+`route:clear`+`cache:clear`), иначе middleware не подхватится.
+- Если после всех правок `country` всё ещё `null` — значит `ipapi.co` режется исходящим firewall сервера. Тогда переключаемся на `GEOIP_PROVIDER=ip-api` в `.env` (этот провайдер уже поддержан в `GeoIpService::lookupExternal`).  
+  
+Учти еще что на гите последнее обновление прошло 13 часов назад и прошло оно с ошибкой:  
+Attempting to download 20...  
+
+  Acquiring 20.20.2 - x64 from [https://github.com/actions/node-versions/releases/download/20.20.2-23521894959/node-20.20.2-linux-x64.tar.gz](https://github.com/actions/node-versions/releases/download/20.20.2-23521894959/node-20.20.2-linux-x64.tar.gz)  
+
+  Extracting ...  
+
+  /usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/e04b1594-bbc2-4e96-8693-1b7ca5c7dafe -f /home/runner/work/_temp/db8bf77d-f878-465c-bd9f-73a72efa0d9a  
+
+  Adding to the cache ...  
+
+  Environment details  
+
+  /opt/hostedtoolcache/node/20.20.2/x64/bin/npm config get cache  
+
+  /home/runner/.npm  
+
+  **Error:** Dependencies lock file is not found in /home/runner/work/carboost/carboost. Supported file patterns: package-lock.json,npm-shrinkwrap.json,yarn.lock
