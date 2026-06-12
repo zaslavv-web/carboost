@@ -181,9 +181,6 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       { icon: Settings, label: t("nav.settings"), path: "/settings" },
     ];
   }
-      { icon: Settings, label: t("nav.settings"), path: "/settings" },
-    ];
-  }
 
   // Employee
   return [
