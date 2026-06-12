@@ -35,6 +35,7 @@ import {
   Activity,
   ClipboardCheck,
   Banknote,
+  CalendarDays,
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 
@@ -159,6 +160,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     return [
       ...common,
       { icon: Users, label: t("nav.myTeam"), path: "/team" },
+      { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
       { icon: ClipboardList, label: t("nav.careerReviews"), path: "/career-reviews" },
       { icon: Settings, label: t("nav.settings"), path: "/settings" },
     ];
@@ -171,6 +173,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     { icon: ClipboardCheck, label: t("nav.questionnaire"), path: "/employee-questionnaire" },
     { icon: User, label: t("nav.passport"), path: "/passport" },
     { icon: Target, label: t("nav.careerTrack"), path: "/career-track" },
+    { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
     { icon: Heart, label: t("nav.recognition"), path: "/recognition" },
     { icon: ShoppingBag, label: t("nav.shop"), path: "/shop" },
     { icon: Bell, label: t("nav.notifications"), path: "/notifications" },
