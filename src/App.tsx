@@ -54,6 +54,9 @@ import SuperadminOnly from "@/components/SuperadminOnly";
 import UserProfileFull from "@/pages/UserProfileFull";
 import Chats from "@/pages/Chats";
 import Leaves from "@/pages/Leaves";
+import Performance from "@/pages/Performance";
+import Probation from "@/pages/Probation";
+import Disciplinary from "@/pages/Disciplinary";
 import { ChatProvider } from "@/contexts/ChatContext";
 
 const queryClient = new QueryClient();
@@ -115,6 +118,9 @@ const App = () => (
                 <Route path="/chats" element={<Chats />} />
                 <Route path="/chats/:conversationId" element={<Chats />} />
                 <Route path="/leaves" element={<Leaves />} />
+                <Route path="/performance" element={<Performance />} />
+                <Route path="/probation" element={<Probation />} />
+                <Route path="/disciplinary" element={<Disciplinary />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
