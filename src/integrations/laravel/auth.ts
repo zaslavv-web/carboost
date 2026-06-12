@@ -79,6 +79,15 @@ export const laravelAuthApi = {
     window.location.href = url.toString();
   },
 
+  /** Redirects the browser to the Laravel-hosted Yandex ID OAuth endpoint. */
+  signInWithYandex(redirectTo?: string) {
+    const base =
+      (import.meta.env.VITE_LARAVEL_API_URL as string | undefined)?.replace(/\/+$/, "") || "/api";
+    const url = new URL(`${base}/auth/yandex/redirect`, window.location.origin);
+    if (redirectTo) url.searchParams.set("return_to", redirectTo);
+    window.location.href = url.toString();
+  },
+
   /**
    * Consume the `#access_token=...` returned by GoogleAuthController::callback.
    * Call this from your OAuth landing route once on mount.
