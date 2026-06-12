@@ -6,6 +6,7 @@ import brandLogo from "@/assets/logo-growth-peak.png";
 import LandingHeader from "@/components/landing/LandingHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { laravelAuthApi } from "@/integrations/laravel/auth";
+import { useAuthProviders } from "@/hooks/useAuthProviders";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import {
   clearPendingSocialSignup,
@@ -44,7 +45,8 @@ const Login = () => {
   const [companyName, setCompanyName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
-  const { signInWithPassword, signUp, signInWithGoogle } = useAuth();
+  const { signInWithPassword, signUp, signInWithGoogle, signInWithYandex } = useAuth();
+  const { geo, loading: geoLoading } = useAuthProviders();
 
   const isHRD = selectedRole === "hrd";
 
@@ -128,7 +130,7 @@ const Login = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleSocialLogin = async (provider: "google" | "yandex") => {
     setErrorMessage("");
 
     if (isSignUp) {
@@ -149,13 +151,17 @@ const Login = () => {
       : `${window.location.origin}/`;
 
     try {
-      oauthLog("info", "start", { provider: "google", flow: isSignUp ? "signup" : "signin", redirectTo });
-      signInWithGoogle(redirectTo);
-      oauthLog("info", "redirected_to_provider", { provider: "google", via: "laravel" });
+      oauthLog("info", "start", { provider, flow: isSignUp ? "signup" : "signin", redirectTo });
+      if (provider === "google") {
+        signInWithGoogle(redirectTo);
+      } else {
+        signInWithYandex(redirectTo);
+      }
+      oauthLog("info", "redirected_to_provider", { provider, via: "laravel" });
     } catch (e: any) {
-      oauthLog("error", "unexpected_exception", { provider: "google", errorMessage: e?.message ?? String(e), errorName: e?.name ?? null });
+      oauthLog("error", "unexpected_exception", { provider, errorMessage: e?.message ?? String(e), errorName: e?.name ?? null });
       if (isSignUp) clearPendingSocialSignup();
-      setErrorMessage(t("auth:errors.googleFailed"));
+      setErrorMessage(t(provider === "google" ? "auth:errors.googleFailed" : "auth:errors.yandexFailed"));
     }
   };
 
@@ -310,13 +316,38 @@ const Login = () => {
               <div className="relative flex justify-center"><span className="bg-background px-3 text-xs text-muted-foreground">{t("auth:buttons.or")}</span></div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              className="w-full py-2.5 rounded-lg border border-border bg-card text-foreground font-medium text-sm hover:bg-secondary transition-colors"
-            >
-              {isSignUp ? t("auth:buttons.googleSignUp") : t("auth:buttons.googleSignIn")}
-            </button>
+            <div className="space-y-2">
+              {geo.providers.yandex && (
+                <button
+                  type="button"
+                  onClick={() => handleSocialLogin("yandex")}
+                  disabled={geoLoading}
+                  className="w-full py-2.5 rounded-lg bg-[#FC3F1D] text-white font-medium text-sm hover:bg-[#e0381a] transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M13.13 4.27h-1.6c-2.93 0-4.47 1.49-4.47 3.69 0 2.49 1.07 3.65 3.27 5.14l1.82 1.23-5.23 7.81H3.5l4.7-7c-2.7-1.92-4.21-3.79-4.21-6.95C3.99 4.18 6.69 1.5 11.5 1.5h4v20h-2.37V4.27z"/>
+                  </svg>
+                  {isSignUp ? t("auth:buttons.yandexSignUp") : t("auth:buttons.yandexSignIn")}
+                </button>
+              )}
+
+              {geo.providers.google && (
+                <button
+                  type="button"
+                  onClick={() => handleSocialLogin("google")}
+                  disabled={geoLoading}
+                  className="w-full py-2.5 rounded-lg border border-border bg-card text-foreground font-medium text-sm hover:bg-secondary transition-colors disabled:opacity-60"
+                >
+                  {isSignUp ? t("auth:buttons.googleSignUp") : t("auth:buttons.googleSignIn")}
+                </button>
+              )}
+
+              {!geoLoading && !geo.providers.google && geo.is_ru && (
+                <p className="text-[11px] text-muted-foreground text-center px-2">
+                  {t("auth:errors.googleBlockedRu")}
+                </p>
+              )}
+            </div>
 
             <p className="text-center text-sm text-muted-foreground">
               {isSignUp ? t("auth:buttons.haveAccount") : t("auth:buttons.noAccount")}{" "}

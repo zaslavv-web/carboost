@@ -31,6 +31,7 @@ interface LaravelAuthContextType {
   signInWithPassword: (email: string, password: string) => Promise<LaravelUser>;
   signUp: (payload: Parameters<typeof laravelAuthApi.register>[0]) => Promise<LaravelUser>;
   signInWithGoogle: (redirectTo?: string) => void;
+  signInWithYandex: (redirectTo?: string) => void;
   refresh: () => Promise<void>;
 }
 
@@ -47,6 +48,7 @@ const LaravelAuthContext = createContext<LaravelAuthContextType>({
   signInWithPassword: stub as never,
   signUp: stub as never,
   signInWithGoogle: noop,
+  signInWithYandex: noop,
   refresh: async () => {},
 });
 
@@ -124,6 +126,7 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
       signInWithPassword,
       signUp,
       signInWithGoogle: laravelAuthApi.signInWithGoogle,
+      signInWithYandex: laravelAuthApi.signInWithYandex,
       refresh,
     };
   }, [user, loading, signOut, signInWithPassword, signUp, refresh]);
