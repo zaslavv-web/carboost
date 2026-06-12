@@ -66,6 +66,11 @@ Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login',    [AuthController::class, 'login']);
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
+Route::get('/auth/yandex/redirect', [\App\Http\Controllers\Api\Auth\YandexAuthController::class, 'redirect']);
+Route::get('/auth/yandex/callback', [\App\Http\Controllers\Api\Auth\YandexAuthController::class, 'callback']);
+
+// GeoIP + список доступных способов входа для текущего IP (используется на /login).
+Route::get('/geo', \App\Http\Controllers\Api\GeoController::class);
 
 // Phase 13: password reset (заменяет legacy.auth.resetPasswordForEmail/updateUser)
 Route::post('/auth/forgot-password', [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'forgot']);
