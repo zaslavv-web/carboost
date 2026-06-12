@@ -114,7 +114,7 @@ const ContactSearch = ({
                     <div className="text-[11px] text-muted-foreground truncate">{t("support.subtitle")}</div>
                   ) : (
                     <div className="text-[11px] text-muted-foreground truncate">
-                      {[c.department, c.company_name].filter(Boolean).join(" • ") || ""}
+                      {[c.department, c.email, c.company_name].filter(Boolean).join(" • ") || ""}
                     </div>
                   )}
                 </div>
