@@ -191,6 +191,16 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::apiResource('notifications', NotificationController::class)->except(['update']);
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
 
+        // ---- Internal chat (Phase 14) ----
+        Route::get   ('/chats',                                  [\App\Http\Controllers\Api\ChatController::class, 'index']);
+        Route::post  ('/chats',                                  [\App\Http\Controllers\Api\ChatController::class, 'store']);
+        Route::get   ('/chats/unread-count',                     [\App\Http\Controllers\Api\ChatController::class, 'unreadCount']);
+        Route::get   ('/chats/contacts',                         [\App\Http\Controllers\Api\ChatController::class, 'contacts']);
+        Route::get   ('/chats/{id}/messages',                    [\App\Http\Controllers\Api\ChatController::class, 'messages']);
+        Route::post  ('/chats/{id}/messages',                    [\App\Http\Controllers\Api\ChatController::class, 'sendMessage']);
+        Route::patch ('/chats/{id}/read',                        [\App\Http\Controllers\Api\ChatController::class, 'markRead']);
+        Route::post  ('/chats/{id}/messages/{messageId}/reactions', [\App\Http\Controllers\Api\ChatController::class, 'toggleReaction']);
+
         // Справочники компании
         Route::apiResource('departments',           DepartmentController::class);
         Route::apiResource('positions',             PositionController::class);
