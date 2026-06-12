@@ -1,84 +1,88 @@
-## Полный аудит — 74 файла с упоминанием `supabase`
 
-Сделал свежий рекурсивный скан. Прошлый план оставлял backend-laravel нетронутым по вашему явному решению — сейчас вы просите обратное. Прежде чем сносить, надо подтвердить, что мы понимаем последствия одинаково.
+# План: внутренние чаты внутри компании
 
----
+## Цель MVP
+Сотрудники одной компании могут писать друг другу 1-на-1 в реальном времени. Архитектура заранее готова к групповым чатам, каналам по отделам и тонким правам доступа (расписание, белые/чёрные списки).
 
-## Категории находок
+## Что увидит пользователь
 
-### A. Inert — НЕ ТРОГАЕМ по вашему условию (2)
+**Плавающая кнопка-пузырь** в правом нижнем углу (на всех страницах после логина, кроме лендинга/логина):
+- Бейдж с количеством непрочитанных
+- По клику открывается панель ~380×560px поверх контента
 
-- `src/integrations/supabase/client.ts` — inert Proxy
-- `src/integrations/supabase/types.ts` — autogen, read-only
+**Внутри панели — два экрана:**
+1. **Список диалогов** — аватар, имя, должность, превью последнего сообщения, время, счётчик непрочитанных. Сверху поиск сотрудника по ФИО (только своя компания) → создание/открытие 1:1 диалога.
+2. **Переписка** — шапка с собеседником (онлайн-статус), лента сообщений (свои справа, чужие слева), индикатор «печатает…», галочки «доставлено/прочитано», ответ на сообщение (reply), эмодзи-реакции, composer с textarea + emoji picker.
 
-### B. Файлы, существующие **ради** Supabase-миграции (можно удалить целиком)
+Дополнительно — отдельная страница `/chats` (та же логика, во весь экран) для удобной работы с клавиатуры. Пункт в сайдбаре «Сообщения».
 
-1. `supabase/config.toml` (+ папка) — autogen Lovable Cloud, перегенерируется при сохранении
-2. `deploy/import-supabase-dump.sh` — bash-импортёр дампа
-3. `backend-laravel/app/Console/Commands/ImportSupabaseDump.php` — artisan-команда `supabase:import`
-4. `backend-laravel/database/dumps/careertrack_data_20260517_083114.sql` (287 строк) — исторический дамп данных
-5. `backend-laravel/database/dumps/README.md` — описывает дамп
-6. `.lovable/plan.md` — старый план (можно перезаписать новым)
+## Бэкенд (Laravel)
 
-### C. Артефакты сборки (перегенерируются)
+**Новые таблицы (миграции):**
+- `chat_conversations` — `id, company_id, type ('direct'|'group'|'department'), title, created_by, created_at, updated_at, last_message_at`
+- `chat_participants` — `id, conversation_id, user_id, role ('member'|'admin'), joined_at, last_read_at, muted_until`
+- `chat_messages` — `id, conversation_id, sender_id, body, reply_to_id (nullable), edited_at, deleted_at, created_at`
+- `chat_message_reactions` — `id, message_id, user_id, emoji, created_at`
+- `chat_message_reads` — опционально, для group-чатов; в MVP `last_read_at` в participants хватит
+- `chat_permissions` *(заготовка под будущее)* — `id, company_id, scope ('company'|'department'|'role'|'user'), allow_send (bool), time_window_start, time_window_end, weekdays (jsonb), whitelist (jsonb), blacklist (jsonb)`
 
-- `tsconfig.app.tsbuildinfo` — кэш TS
+Все таблицы с `company_id`, BelongsToCompany trait, CompanyScope. Индексы на `(conversation_id, created_at)`, `(user_id, conversation_id)`.
 
-### D. Документация миграции — backend-laravel (5 README, ~250 упоминаний)
+**Контроллеры/маршруты (под `/api`, auth+verified+has.company):**
+- `GET  /chats` — список диалогов пользователя с превью и unread count
+- `POST /chats` — создать direct-чат (body: `peer_user_id`) или group (`type, title, participant_ids[]`); проверка, что все из той же компании; для direct — идемпотентно (вернёт существующий)
+- `GET  /chats/{id}/messages?before=&limit=` — пагинация назад
+- `POST /chats/{id}/messages` — отправка (`body, reply_to_id?`); проверка прав (на MVP — просто same company); broadcast event
+- `PATCH /chats/{id}/read` — обновить `last_read_at`
+- `POST /chats/{id}/messages/{mid}/reactions` / `DELETE` — toggle emoji
+- `POST /chats/{id}/typing` — broadcast «печатает»
+- `GET  /chats/contacts?q=` — поиск сотрудников своей компании
 
-- `backend-laravel/README.md`
-- `backend-laravel/REVERB.md`
-- `backend-laravel/.env.example`
-- `backend-laravel/app/README-auth.md`
-- `backend-laravel/app/README-api.md`
-- `backend-laravel/app/README-policies.md`
-- `backend-laravel/app/README-frontend-auth.md`
-- `backend-laravel/app/README-db-rpc-storage.md`
-- `backend-laravel/database/migrations/README.md`
-- `backend-laravel/database/DATABASE_STRUCTURE.md`
-- `DEPLOYMENT.md`
+**Политика прав (ChatPolicy):** на MVP единый метод `canSend($user, $conversation)` — проверяет membership и `same company`. Внутри — TODO-hook под будущий `ChatPermissionService` (расписание/whitelist/blacklist) — чтобы потом расширить без переписывания контроллеров.
 
-### E. Активный PHP-код и миграции (~60 файлов)
+**Realtime через Reverb** (уже описан в `backend-laravel/REVERB.md`):
+- События: `MessageSent`, `MessageRead`, `UserTyping`, `ReactionToggled`
+- Приватные каналы: `chat.conversation.{id}` (авторизация через `routes/channels.php` — только участники)
+- Канал `chat.user.{userId}` для глобального бейджа непрочитанных
 
-- 47 миграций `backend-laravel/database/migrations/0002_*.php` — в шапках: «перенос из Supabase», «bcrypt из Supabase», ссылки на `auth.users` (схема, созданная Supabase)
-- Сервисы: `ImpersonationService.php`, `AuthUserService.php`
-- Контроллеры: `RpcController.php`, `DbController.php`, `StorageController.php`, `GoogleAuthController.php`, `PasswordResetController.php`, `Admin/UsersController.php`
-- `Policies/BasePolicy.php`, `Providers/AuthServiceProvider.php`
-- `routes/api.php` (5 строк-комментариев)
-- `config/filesystems.php`
+## Фронтенд (React)
 
----
+**Новые файлы:**
+- `src/contexts/ChatContext.tsx` — глобальный store: список диалогов, активный, unread totals, подписки Reverb
+- `src/components/chat/ChatLauncher.tsx` — плавающая кнопка с бейджем (рендерится в `AppLayout`)
+- `src/components/chat/ChatPanel.tsx` — выезжающая панель
+- `src/components/chat/ConversationList.tsx`
+- `src/components/chat/ConversationView.tsx` — лента + composer
+- `src/components/chat/MessageBubble.tsx` — текст, reply, реакции, статусы
+- `src/components/chat/MessageComposer.tsx` — textarea, emoji picker (`emoji-mart` или встроенный набор), submit
+- `src/components/chat/ContactSearch.tsx`
+- `src/pages/Chats.tsx` — полноэкранный вариант, маршрут `/chats` и `/chats/:conversationId`
+- `src/hooks/useChatRealtime.ts` — подписка на Reverb-каналы, инвалидация TanStack Query
+- `src/integrations/laravel/chat.ts` — типизированные обёртки над API
+- `src/i18n/locales/{ru,en}/chat.json`
 
-## ⚠️ Реальные проблемы массового удаления
+**Сайдбар:** пункт «Сообщения» с бейджем для ролей employee/manager/hrd/company_admin (superadmin — глобально видит свой own user).
 
-1. **Backend сейчас фактически работает на Supabase-дампе.** Pароли в `users.password` — bcrypt из Supabase; схема `auth` создана Supabase-импортом; триггер `handle_new_user` — из supabase. Это не «упоминание», это **факт развёртывания**. Удаление комментариев скроет факт, но не изменит его.
-2. `**ImportSupabaseDump.php` + `import-supabase-dump.sh` + дамп `.sql**` — это инфраструктура on-prem старта. Без них новый on-prem инстанс не подымется с историческими данными. Если on-prem не нужен — можно удалить, но это **архитектурное решение**, не косметика.
-3. **47 миграций** — переписывать комментарии без потери смысла можно (заменить «Supabase» → «исходная схема» / «legacy»). Это ~150 точечных правок.
+**Импер­сонизация:** при активной impersonation чат отключён (или явная плашка «Невозможно отправлять сообщения от лица другого пользователя») — для безопасности.
 
----
+## Заготовки под будущие права (не реализуем сейчас, только структура)
+- Таблица `chat_permissions` создаётся пустой
+- `ChatPolicy::canSend` всегда вызывает `ChatPermissionService::check()`, который на MVP возвращает `true`
+- В админке оставляем TODO-страницу `/admin/chat-permissions` (не в этом плане)
 
-## Два варианта — выберите один
+Это позволит позже добавить: окна рабочего времени, whitelist/blacklist, запрет писать руководителям, тихие часы — без миграций структуры данных и без изменений API.
 
-### Вариант 1 — «Хирургический» (рекомендую)
+## Что НЕ входит в MVP
+- Групповые чаты, каналы по отделам (есть схема, нет UI и роутов)
+- Вложения и голосовые
+- Push-уведомления (только in-app бейдж + браузерное Notification API опционально)
+- Поиск по истории сообщений
+- Редактирование/удаление сообщений (оставим soft-delete колонки в схеме, UI — позже)
+- Админка прав чатов
 
-- Удалить группы **B** + **C** целиком (если on-prem с историческим импортом больше не нужен)
-- В группах **D** и **E** — **переписать** упоминания на нейтральные («legacy schema», «исходный дамп», «PostgREST-style») без потери технического смысла
-- Inert-файлы (A) не трогаем
-- Сохранить функциональность бэкенда
-
-### Вариант 2 — «Выжечь напалмом»
-
-- Удалить группу **B**, **C**, **D** (все README) целиком
-- В группе **E** удалить все комментарии-упоминания (миграции/сервисы/контроллеры остаются работать, теряем только пояснения)
-- Inert-файлы (A) не трогаем
-- Документация миграции пропадает безвозвратно
-
----
-
-## Вопросы — нужны ответы перед запуском
-
-1. **On-prem импорт исторического дампа Supabase** ещё нужен? (определяет, удаляем ли `ImportSupabaseDump.php`, `import-supabase-dump.sh`, `.sql`-дамп и README про дампы)
-2. **Вариант 1 или 2** по группам D и E? Рекомендую 1 — теряем только бренд, не знания.
-3. `**.lovable/plan.md**` — оставить старый план или перезаписать новым (этим)?
-
-вариант с хирургией
+## Технические детали
+- TanStack Query для кэширования диалогов и сообщений; Reverb-события инвалидируют кэш
+- Виртуализация ленты при >100 сообщений — `@tanstack/react-virtual`
+- Локализация всех строк (ru/en), бэкенд-ошибки через `translateBackendError`
+- Тосты sonner по центру (согласно дизайн-системе)
+- Палитра teal/slate, шрифт Inter
