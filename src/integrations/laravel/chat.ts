@@ -54,6 +54,7 @@ export interface ChatContact {
   full_name: string | null;
   avatar_url: string | null;
   department: string | null;
+  email?: string | null;
   company_name?: string | null;
   is_support?: boolean;
 }
