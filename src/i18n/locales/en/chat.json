@@ -1,0 +1,25 @@
+{
+  "launcher": "Messages",
+  "title": "Company chats",
+  "search": "Search employee…",
+  "noConversations": "Your conversations will appear here. Find an employee above to start chatting.",
+  "noMessages": "No messages yet. Send the first one!",
+  "you": "You",
+  "typeMessage": "Write a message…",
+  "send": "Send",
+  "reply": "Reply",
+  "cancelReply": "Cancel reply",
+  "replyingTo": "Replying to",
+  "react": "React",
+  "loadOlder": "Load older",
+  "openFullscreen": "Open fullscreen",
+  "back": "Back",
+  "unread_one": "{{count}} unread",
+  "unread_other": "{{count}} unread",
+  "errors": {
+    "loadFailed": "Failed to load chats",
+    "sendFailed": "Failed to send message",
+    "createFailed": "Failed to create chat"
+  },
+  "impersonationDisabled": "Chat is disabled while impersonating"
+}
