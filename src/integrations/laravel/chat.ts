@@ -4,6 +4,7 @@ export interface ChatPeer {
   user_id: string;
   full_name: string | null;
   avatar_url: string | null;
+  is_support?: boolean;
 }
 
 export interface ChatLastMessage {
@@ -24,8 +25,10 @@ export interface ChatConversation {
     role: string;
     full_name: string | null;
     avatar_url: string | null;
+    is_support?: boolean;
   }>;
   peer: ChatPeer | null;
+  is_support?: boolean;
   last_message: ChatLastMessage | null;
   unread_count: number;
 }
@@ -51,7 +54,10 @@ export interface ChatContact {
   full_name: string | null;
   avatar_url: string | null;
   department: string | null;
+  company_name?: string | null;
+  is_support?: boolean;
 }
+
 
 export const chatApi = {
   list: () => laravel.get<{ data: ChatConversation[] }>("/chats"),
