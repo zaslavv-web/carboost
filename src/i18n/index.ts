@@ -16,6 +16,8 @@ import ruAdmin from "./locales/ru/admin.json";
 import enAdmin from "./locales/en/admin.json";
 import ruErrors from "./locales/ru/errors.json";
 import enErrors from "./locales/en/errors.json";
+import ruChat from "./locales/ru/chat.json";
+import enChat from "./locales/en/chat.json";
 
 export const SUPPORTED_LANGUAGES = ["ru", "en"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
@@ -23,8 +25,8 @@ export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 export const LANGUAGE_STORAGE_KEY = "ct-lang";
 
 const resources = {
-  ru: { common: ruCommon, auth: ruAuth, landing: ruLanding, employee: ruEmployee, manager: ruManager, admin: ruAdmin, errors: ruErrors },
-  en: { common: enCommon, auth: enAuth, landing: enLanding, employee: enEmployee, manager: enManager, admin: enAdmin, errors: enErrors },
+  ru: { common: ruCommon, auth: ruAuth, landing: ruLanding, employee: ruEmployee, manager: ruManager, admin: ruAdmin, errors: ruErrors, chat: ruChat },
+  en: { common: enCommon, auth: enAuth, landing: enLanding, employee: enEmployee, manager: enManager, admin: enAdmin, errors: enErrors, chat: enChat },
 } as const;
 
 i18n
@@ -34,7 +36,7 @@ i18n
     resources,
     fallbackLng: "ru",
     supportedLngs: SUPPORTED_LANGUAGES as unknown as string[],
-    ns: ["common", "auth", "landing", "employee", "manager", "admin", "errors"],
+    ns: ["common", "auth", "landing", "employee", "manager", "admin", "errors", "chat"],
     defaultNS: "common",
     interpolation: { escapeValue: false },
     detection: {
