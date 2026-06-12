@@ -790,8 +790,13 @@ const HRDDashboard = () => {
                           {initials}
                         </div>
                         <div>
-                          <p className="font-medium text-foreground">{emp.full_name}</p>
+                          <Link to={`/users/${emp.user_id}`} className="font-medium text-foreground hover:text-primary hover:underline">
+                            {emp.full_name}
+                          </Link>
                           <p className="text-xs text-muted-foreground">{emp.position || "—"}</p>
+                          {emp.email && (
+                            <a href={`mailto:${emp.email}`} className="text-xs text-primary hover:underline block truncate max-w-[220px]">{emp.email}</a>
+                          )}
                         </div>
                       </div>
                     </td>
