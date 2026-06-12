@@ -263,35 +263,55 @@ class ChatController extends Controller
         $isSuper = $this->isSuperadmin();
         $q = trim((string) $request->get('q', ''));
 
+        $hasSupportColumn = \Illuminate\Support\Facades\Schema::hasColumn('profiles', 'is_support');
+
         // Базовый запрос
         $query = Profile::query()->where('user_id', '!=', $userId);
 
         if ($isSuper) {
-            // Суперадмин ищет по всей платформе.
-            $query->where(function ($w) {
-                $w->where('is_support', false)->orWhereNull('is_support');
-            });
+            // Суперадмин ищет по всей платформе — исключая саму техподдержку из общего списка
+            if ($hasSupportColumn) {
+                $query->where(function ($w) {
+                    $w->where('is_support', false)->orWhereNull('is_support');
+                });
+            }
         } else {
             // Обычный пользователь — только своя компания (+ техподдержку добавим отдельно ниже).
             if (!$companyId) {
                 // без компании — только техподдержка
-                $support = $this->buildSupportContacts($q);
+                $support = $hasSupportColumn ? $this->buildSupportContacts($q) : [];
                 return response()->json(['data' => $support]);
             }
-            $query->where('company_id', $companyId)
-                  ->where(function ($w) {
-                      $w->where('is_support', false)->orWhereNull('is_support');
-                  });
+            $query->where('company_id', $companyId);
+            if ($hasSupportColumn) {
+                $query->where(function ($w) {
+                    $w->where('is_support', false)->orWhereNull('is_support');
+                });
+            }
         }
 
+        // Поиск по ФИО (profiles.full_name) и по email (users.email).
+        // Используем LIKE + LOWER() — кросс-БД совместимо и регистронезависимо.
         if ($q !== '') {
-            $query->where('full_name', 'ilike', '%' . $q . '%');
+            $needle = '%' . mb_strtolower($q) . '%';
+            $query->where(function ($w) use ($needle) {
+                $w->whereRaw("LOWER(COALESCE(full_name, '')) LIKE ?", [$needle])
+                  ->orWhereIn('user_id', function ($sub) use ($needle) {
+                      $sub->select('id')->from('users')
+                          ->whereRaw('LOWER(email) LIKE ?', [$needle]);
+                  });
+            });
         }
 
         $rows = $query->orderBy('full_name')->limit(30)
             ->get(['user_id', 'full_name', 'avatar_url', 'department', 'company_id']);
 
-        // Подмешиваем название компании для суперадмина.
+        // Подмешиваем email и название компании.
+        $userIds = $rows->pluck('user_id')->filter()->unique()->all();
+        $emails = $userIds
+            ? DB::table('users')->whereIn('id', $userIds)->pluck('email', 'id')->all()
+            : [];
+
         $companyNames = [];
         if ($isSuper) {
             $companyIds = $rows->pluck('company_id')->filter()->unique()->all();
@@ -305,12 +325,13 @@ class ChatController extends Controller
             'full_name'    => $r->full_name,
             'avatar_url'   => $r->avatar_url,
             'department'   => $r->department ?? null,
+            'email'        => $emails[$r->user_id] ?? null,
             'company_name' => $isSuper ? ($companyNames[$r->company_id] ?? null) : null,
             'is_support'   => false,
         ])->values()->all();
 
         // Для обычного пользователя — техподдержка всегда сверху.
-        if (!$isSuper) {
+        if (!$isSuper && $hasSupportColumn) {
             $support = $this->buildSupportContacts($q);
             $contacts = array_merge($support, $contacts);
         }
@@ -320,6 +341,9 @@ class ChatController extends Controller
 
     private function buildSupportContacts(string $q): array
     {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('profiles', 'is_support')) {
+            return [];
+        }
         $query = Profile::query()->where('is_support', true);
         if ($q !== '') {
             // Если ищут — поддержку показываем только если запрос подходит к названию.
@@ -334,6 +358,7 @@ class ChatController extends Controller
             'full_name'    => $r->full_name ?: 'Техподдержка',
             'avatar_url'   => $r->avatar_url,
             'department'   => null,
+            'email'        => null,
             'company_name' => null,
             'is_support'   => true,
         ])->values()->all();
