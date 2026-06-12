@@ -93,6 +93,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { icon: Banknote, label: t("nav.pricingInquiries"), path: "/pricing-inquiries" },
         { icon: Mail, label: t("nav.emailService"), path: "/email-settings" },
         { icon: Activity, label: t("nav.productAnalytics"), path: "/product-analytics" },
+        { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" },
         { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
@@ -107,6 +108,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { icon: BarChart3, label: t("nav.analytics"), path: "/analytics" },
         { icon: Briefcase, label: t("nav.positions"), path: "/positions" },
         { icon: LifeBuoy, label: t("nav.support"), path: "/support" },
+        { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" },
         { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
