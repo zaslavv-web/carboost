@@ -21,5 +21,10 @@
     "sendFailed": "Failed to send message",
     "createFailed": "Failed to create chat"
   },
-  "impersonationDisabled": "Chat is disabled while impersonating"
+  "impersonationDisabled": "Chat is disabled while impersonating",
+  "support": {
+    "title": "Support",
+    "subtitle": "Platform team — we'll get back to you shortly",
+    "badge": "24/7"
+  }
 }
