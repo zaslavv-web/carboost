@@ -173,6 +173,7 @@ class ChatController extends Controller
 
             $peerProfile = Profile::where('user_id', $peerId)->first();
             if (!$peerProfile) {
+                \Log::warning('chat.store: peer not found', ['peer_user_id' => $peerId, 'by' => $userId]);
                 return response()->json(['error' => 'Пользователь не найден'], 404);
             }
 
