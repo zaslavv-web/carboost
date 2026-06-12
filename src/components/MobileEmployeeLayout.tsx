@@ -1,4 +1,5 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import ChatLauncher from "./chat/ChatLauncher";
 import { useTranslation } from "react-i18next";
 import { LayoutDashboard, MessageSquare, User, Target, Menu, Bell, LogOut, Settings, Globe } from "lucide-react";
 import { useState } from "react";
@@ -100,6 +101,7 @@ const MobileEmployeeLayout = () => {
           );
         })}
       </nav>
+      <ChatLauncher />
     </div>
   );
 };
