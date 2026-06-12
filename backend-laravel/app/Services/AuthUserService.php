@@ -128,6 +128,77 @@ class AuthUserService
     }
 
     /**
+     * Создаёт пользователя через Yandex ID (без пароля).
+     * Если пользователь с таким email уже есть — линкует yandex_id и возвращает его.
+     */
+    public function findOrCreateFromYandex(array $yandexUser): User
+    {
+        $email = strtolower((string) ($yandexUser['email'] ?? ''));
+        if ($email === '') {
+            throw new \InvalidArgumentException('Yandex profile has no email');
+        }
+
+        $existing = User::where('email', $email)->first();
+        if ($existing) {
+            $meta = array_merge($existing->meta ?? [], [
+                'yandex_id'  => $yandexUser['id'] ?? null,
+                'avatar_url' => $yandexUser['avatar'] ?? ($existing->meta['avatar_url'] ?? null),
+                'provider'   => 'yandex',
+            ]);
+            $existing->forceFill([
+                'email_verified_at' => $existing->email_verified_at ?? now(),
+                'meta'              => $meta,
+            ])->save();
+
+            $existingRole      = $this->normalizeRole($existing->domainRole() ?? ($existing->meta['requested_role'] ?? null));
+            $existingCompanyId = $this->stringOrNull($existing->companyId() ?? ($existing->meta['company_id'] ?? null));
+            $this->ensureDomainRows(
+                $existing,
+                [
+                    'name'   => $yandexUser['name'] ?? $email,
+                    'email'  => $email,
+                    'avatar' => $yandexUser['avatar'] ?? null,
+                ],
+                false,
+                $existingRole,
+                $existingCompanyId,
+                $existing->isVerified() || (bool) $existing->email_verified_at,
+            );
+            return $existing->refresh();
+        }
+
+        $row = [
+            'email'             => $email,
+            'password'          => Hash::make(Str::random(64)),
+            'email_verified_at' => now(),
+            'meta'              => json_encode([
+                'full_name'      => $yandexUser['name']   ?? $email,
+                'avatar_url'     => $yandexUser['avatar'] ?? null,
+                'yandex_id'      => $yandexUser['id']     ?? null,
+                'yandex_login'   => $yandexUser['login']  ?? null,
+                'requested_role' => 'employee',
+                'provider'       => 'yandex',
+            ], JSON_UNESCAPED_UNICODE),
+            'created_at'        => now(),
+            'updated_at'        => now(),
+        ];
+
+        if (!$this->tableIdIsInteger('users')) {
+            $row['id'] = (string) Str::uuid();
+        }
+        $this->fillMissingDefaults('users', $row);
+        DB::table('users')->insert($row);
+
+        $user = User::where('email', $email)->firstOrFail();
+        $this->ensureDomainRows($user, [
+            'name'   => $yandexUser['name'] ?? $email,
+            'email'  => $email,
+            'avatar' => $yandexUser['avatar'] ?? null,
+        ], true);
+        return $user->refresh();
+    }
+
+    /**
      * Лечит доменные строки старых аккаунтов при обычном логине.
      */
     public function repairDomainRowsForLogin(User $user): void
