@@ -8,6 +8,7 @@ import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ThemeToggle from "./ThemeToggle";
 import LanguageSwitcher from "./LanguageSwitcher";
+import ChatLauncher from "./chat/ChatLauncher";
 
 const SIDEBAR_FULL = 260;
 const SIDEBAR_COLLAPSED = 72;
@@ -149,6 +150,7 @@ const AppLayout = () => {
           <Outlet />
         </main>
       </div>
+      <ChatLauncher />
     </div>
   );
 };

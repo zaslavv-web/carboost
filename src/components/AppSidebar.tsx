@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard,
   MessageSquare,
+  MessageCircle,
   User,
   Target,
   Bell,
@@ -73,6 +74,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const common: NavItem[] = [
       { icon: LayoutDashboard, label: t("nav.dashboard"), path: "/dashboard" },
     ];
+    const chatItem: NavItem = { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" };
+    if (role !== "superadmin") common.push(chatItem);
 
     if (role === "superadmin") {
       return [
