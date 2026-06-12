@@ -1,0 +1,73 @@
+{
+  "title": "Absences",
+  "subtitle": "Vacation, sick leave, maternity, study and time off",
+  "tabs": {
+    "mine": "My requests",
+    "inbox": "Approvals",
+    "balances": "Balance",
+    "types": "Leave types",
+    "compensations": "Compensations"
+  },
+  "actions": {
+    "request": "Request leave",
+    "approve": "Approve",
+    "reject": "Reject",
+    "cancel": "Cancel",
+    "calculate": "Calculate compensation",
+    "markPaid": "Mark as paid",
+    "save": "Save",
+    "close": "Close"
+  },
+  "fields": {
+    "type": "Leave type",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "days": "Days",
+    "reason": "Reason",
+    "substitute": "Substitute employee",
+    "substituteHint": "This employee will cover for you during the absence",
+    "medicalCert": "Medical certificate",
+    "comment": "Comment",
+    "rejectionReason": "Rejection reason",
+    "dailyRate": "Daily rate",
+    "currency": "Currency",
+    "unusedDays": "Unused days",
+    "total": "Total payout"
+  },
+  "status": {
+    "pending_manager": "Pending manager approval",
+    "pending_hr": "Pending HR approval",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled"
+  },
+  "types": {
+    "annual": "Annual leave",
+    "sick_paid": "Paid sick leave",
+    "sick_unpaid": "Unpaid sick leave",
+    "maternity": "Maternity leave",
+    "study": "Study leave",
+    "day_off": "Day off",
+    "unpaid": "Unpaid leave"
+  },
+  "empty": {
+    "mine": "No requests yet. Click \"Request leave\".",
+    "inbox": "No requests to approve.",
+    "balances": "No balance yet. HR needs to set up accruals.",
+    "types": "No leave types configured."
+  },
+  "balance": {
+    "title": "Leave balance",
+    "accrued": "Accrued",
+    "used": "Used",
+    "available": "Available",
+    "carryover": "Carryover"
+  },
+  "messages": {
+    "requestCreated": "Request sent to manager",
+    "approved": "Request approved",
+    "rejected": "Request rejected",
+    "cancelled": "Request cancelled",
+    "compensationCalculated": "Compensation calculated"
+  }
+}
