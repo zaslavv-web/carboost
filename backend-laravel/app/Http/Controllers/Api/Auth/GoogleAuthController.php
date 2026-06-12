@@ -59,6 +59,11 @@ class GoogleAuthController extends Controller
     {
         $returnTo = $this->returnToFromState($request->query('state'));
 
+        // GeoIP gate (повторно, на случай смены IP / прямой ссылки).
+        if ($this->geo->countryForRequest($request) === 'RU') {
+            return redirect($returnTo . '#error=' . urlencode('Вход через Google недоступен в вашем регионе. Используйте Yandex ID или email/пароль.'));
+        }
+
         if (!$this->ensureGoogleConfig()) {
             return redirect($returnTo . '#error=' . urlencode('Google OAuth не настроен на сервере: отсутствуют GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET'));
         }
