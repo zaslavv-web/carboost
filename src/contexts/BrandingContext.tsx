@@ -11,7 +11,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -148,9 +147,6 @@ export const BrandingProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!companyId) clearBrandingVars();
   }, [companyId]);
-
-  const [now] = useState(() => Date.now());
-  void now;
 
   const refetch = useCallback(async () => {
     await qc.invalidateQueries({ queryKey: ["company-branding", companyId] });
