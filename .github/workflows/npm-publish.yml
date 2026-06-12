@@ -111,6 +111,9 @@ jobs:
           MAIL_ENCRYPTION_SECRET: ${{ secrets.MAIL_ENCRYPTION }}
           MAIL_FROM_ADDRESS_SECRET: ${{ secrets.MAIL_FROM_ADDRESS }}
           MAIL_FROM_NAME_SECRET: ${{ secrets.MAIL_FROM_NAME }}
+          YANDEX_CLIENT_ID_SECRET: ${{ secrets.YANDEX_CLIENT_ID }}
+          YANDEX_CLIENT_SECRET_SECRET: ${{ secrets.YANDEX_CLIENT_SECRET }}
+          YANDEX_REDIRECT_URI_SECRET: ${{ secrets.YANDEX_REDIRECT_URI }}
         run: |
           APP_KEY_VALUE="${APP_KEY_SECRET:-__PRESERVE_SERVER_APP_KEY__}"
           APP_CIPHER_VALUE="aes-256-cbc"
