@@ -59,9 +59,10 @@ const useEmployeesWithRoles = () =>
   useQuery({
     queryKey: ["hrd_employees"],
     queryFn: async () => {
-      const [profilesRes, rolesRes] = await Promise.all([
+      const [profilesRes, rolesRes, emailsRes] = await Promise.all([
         laravelDb.from("profiles").select("user_id, full_name, position, position_id, pending_position_id, department, overall_score, role_readiness"),
         laravelDb.from("user_roles").select("user_id, role"),
+        laravel.get<{ data: any[] } | any[]>("/profiles?per_page=500"),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (rolesRes.error) throw rolesRes.error;
@@ -75,9 +76,18 @@ const useEmployeesWithRoles = () =>
         }
       }
 
+      const emailMap = new Map<string, string>();
+      const emailItems: any[] = Array.isArray(emailsRes.data)
+        ? (emailsRes.data as any[])
+        : (((emailsRes.data as any)?.data) || []);
+      for (const p of emailItems) {
+        if (p?.user_id && p?.email) emailMap.set(p.user_id, p.email);
+      }
+
       return (profilesRes.data || []).map((p: any) => ({
         ...p,
         role: roleMap.get(p.user_id) || ("employee" as AppRole),
+        email: emailMap.get(p.user_id) || null,
       })) as EmployeeWithRole[];
     },
   });
