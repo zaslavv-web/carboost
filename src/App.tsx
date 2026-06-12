@@ -53,6 +53,7 @@ import ProductAnalytics from "@/pages/ProductAnalytics";
 import SuperadminOnly from "@/components/SuperadminOnly";
 import UserProfileFull from "@/pages/UserProfileFull";
 import Chats from "@/pages/Chats";
+import Leaves from "@/pages/Leaves";
 import { ChatProvider } from "@/contexts/ChatContext";
 
 const queryClient = new QueryClient();
@@ -113,6 +114,7 @@ const App = () => (
                 <Route path="/email-settings" element={<EmailSettingsManagement />} />
                 <Route path="/chats" element={<Chats />} />
                 <Route path="/chats/:conversationId" element={<Chats />} />
+                <Route path="/leaves" element={<Leaves />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

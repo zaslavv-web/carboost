@@ -225,6 +225,19 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         // Teams
         Route::apiResource('team-members', TeamMemberController::class);
 
+        // ---- Leaves module (Iteration 1) ----
+        Route::apiResource('leave-types', \App\Http\Controllers\Api\LeaveTypeController::class);
+        Route::apiResource('leave-balances', \App\Http\Controllers\Api\LeaveBalanceController::class);
+        Route::get   ('/leave-requests',                [\App\Http\Controllers\Api\LeaveRequestController::class, 'index']);
+        Route::post  ('/leave-requests',                [\App\Http\Controllers\Api\LeaveRequestController::class, 'store']);
+        Route::get   ('/leave-requests/{id}',           [\App\Http\Controllers\Api\LeaveRequestController::class, 'show']);
+        Route::post  ('/leave-requests/{id}/approve',   [\App\Http\Controllers\Api\LeaveRequestController::class, 'approve']);
+        Route::post  ('/leave-requests/{id}/reject',    [\App\Http\Controllers\Api\LeaveRequestController::class, 'reject']);
+        Route::post  ('/leave-requests/{id}/cancel',    [\App\Http\Controllers\Api\LeaveRequestController::class, 'cancel']);
+        Route::get   ('/leave-compensations',           [\App\Http\Controllers\Api\LeaveCompensationController::class, 'index']);
+        Route::post  ('/leave-compensations/calculate', [\App\Http\Controllers\Api\LeaveCompensationController::class, 'calculate']);
+        Route::post  ('/leave-compensations/{id}/paid', [\App\Http\Controllers\Api\LeaveCompensationController::class, 'markPaid']);
+
         // ---- AI services (Phase 7, replaces legacy Edge Functions) ----
         Route::prefix('ai')->group(function () {
             Route::post('assessment-chat',              [AiController::class, 'assessmentChat']);
