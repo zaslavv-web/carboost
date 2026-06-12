@@ -254,13 +254,12 @@ class LeaveRequestController extends Controller
                 'end_date'           => $req->end_date,
                 'leave_request_id'   => $req->id,
             ]);
-            Notification::create([
-                'user_id'           => $req->substitute_user_id,
-                'company_id'        => $req->company_id,
-                'title'             => 'Вы назначены замещающим',
-                'description'       => 'Период: ' . $req->start_date->format('d.m.Y') . ' — ' . $req->end_date->format('d.m.Y'),
-                'notification_type' => 'substitution',
-            ]);
+            $this->insertNotification(
+                $req->substitute_user_id, $req->company_id,
+                'Вы назначены замещающим',
+                'Период: ' . $req->start_date->format('d.m.Y') . ' — ' . $req->end_date->format('d.m.Y'),
+                'substitution',
+            );
         }
     }
 
@@ -273,24 +272,38 @@ class LeaveRequestController extends Controller
             ->pluck('user_roles.user_id')
             ->unique();
         foreach ($hrIds as $uid) {
-            Notification::create([
-                'user_id'           => $uid,
-                'company_id'        => $req->company_id,
-                'title'             => 'Заявка ожидает подтверждения HR',
-                'description'       => 'Руководитель согласовал заявку на отсутствие, требуется ваше решение.',
-                'notification_type' => 'leave_request',
-            ]);
+            $this->insertNotification(
+                $uid, $req->company_id,
+                'Заявка ожидает подтверждения HR',
+                'Руководитель согласовал заявку на отсутствие, требуется ваше решение.',
+                'leave_request',
+            );
         }
     }
 
     private function notifyEmployee(LeaveRequest $req, string $text): void
     {
-        Notification::create([
-            'user_id'           => $req->user_id,
-            'company_id'        => $req->company_id,
-            'title'             => 'Статус заявки изменён',
-            'description'       => $text,
-            'notification_type' => 'leave_request',
+        $this->insertNotification(
+            $req->user_id, $req->company_id,
+            'Статус заявки изменён',
+            $text,
+            'leave_request',
+        );
+    }
+
+    /** Прямая вставка в notifications: модель использует устаревшие имена fillable. */
+    private function insertNotification(string $userId, ?string $companyId, string $title, string $description, string $type): void
+    {
+        DB::table('notifications')->insert([
+            'id'                => (string) Str::uuid(),
+            'user_id'           => $userId,
+            'company_id'        => $companyId,
+            'title'             => $title,
+            'description'       => $description,
+            'notification_type' => $type,
+            'is_read'           => false,
+            'created_at'        => now(),
+            'updated_at'        => now(),
         ]);
     }
 }
