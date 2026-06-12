@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import ImpersonationBanner from "./ImpersonationBanner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import i18n, { SUPPORTED_LANGUAGES, LANGUAGE_STORAGE_KEY } from "@/i18n";
+import ThemeToggle from "./ThemeToggle";
 
 const MobileEmployeeLayout = () => {
   const { t } = useTranslation("employee");
@@ -48,6 +49,7 @@ const MobileEmployeeLayout = () => {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <ThemeToggle />
           <button
             onClick={() => navigate("/notifications")}
             className="relative p-2 rounded-lg hover:bg-secondary transition-colors"

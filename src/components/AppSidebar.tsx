@@ -39,8 +39,10 @@ import {
   Star,
   AlertOctagon,
   TimerReset,
+  Palette,
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
+import { useBranding } from "@/contexts/BrandingContext";
 
 interface NavItem {
   icon: any;
@@ -73,6 +75,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
   const role = usePrimaryRole();
   const { data: profile } = useUserProfile();
   const { t } = useTranslation();
+  const { activeLogoUrl } = useBranding();
 
   const getNavItems = (): NavEntry[] => {
     const common: NavItem[] = [
@@ -90,6 +93,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { icon: Banknote, label: t("nav.pricingInquiries"), path: "/pricing-inquiries" },
         { icon: Mail, label: t("nav.emailService"), path: "/email-settings" },
         { icon: Activity, label: t("nav.productAnalytics"), path: "/product-analytics" },
+        { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" },
         { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
@@ -104,6 +108,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { icon: BarChart3, label: t("nav.analytics"), path: "/analytics" },
         { icon: Briefcase, label: t("nav.positions"), path: "/positions" },
         { icon: LifeBuoy, label: t("nav.support"), path: "/support" },
+        { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" },
         { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
@@ -166,6 +171,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           ],
         },
         { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
+        { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" },
         { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
@@ -230,7 +236,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 h-16 border-b border-sidebar-border">
         <img
-          src={brandLogo}
+          src={activeLogoUrl || brandLogo}
           alt={t("brand.logoAlt")}
           width={32}
           height={32}

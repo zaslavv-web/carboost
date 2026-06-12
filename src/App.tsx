@@ -58,6 +58,8 @@ import Performance from "@/pages/Performance";
 import Probation from "@/pages/Probation";
 import Disciplinary from "@/pages/Disciplinary";
 import { ChatProvider } from "@/contexts/ChatContext";
+import { BrandingProvider } from "@/contexts/BrandingContext";
+import CompanyBranding from "@/pages/CompanyBranding";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +72,7 @@ const App = () => (
       <AuthProvider>
         <ImpersonationProvider>
           <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
+            <BrandingProvider>
             <ChatProvider>
             <ScrollToTop />
             <AnalyticsBootstrap />
@@ -121,10 +124,12 @@ const App = () => (
                 <Route path="/performance" element={<Performance />} />
                 <Route path="/probation" element={<Probation />} />
                 <Route path="/disciplinary" element={<Disciplinary />} />
+                <Route path="/company-branding" element={<CompanyBranding />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
             </ChatProvider>
+            </BrandingProvider>
           </BrowserRouter>
         </ImpersonationProvider>
       </AuthProvider>
