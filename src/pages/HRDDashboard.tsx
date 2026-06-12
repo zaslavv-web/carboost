@@ -613,7 +613,12 @@ const HRDDashboard = () => {
                         {initials}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-foreground truncate">{emp.full_name}</p>
+                        <Link to={`/users/${emp.user_id}`} className="font-medium text-foreground hover:text-primary hover:underline truncate block">
+                          {emp.full_name}
+                        </Link>
+                        {emp.email && (
+                          <a href={`mailto:${emp.email}`} className="text-xs text-primary hover:underline block truncate">{emp.email}</a>
+                        )}
                         <p className="text-xs text-muted-foreground truncate">
                           {t("hrdDashboard.requests.claimedPosition")} <span className="text-foreground font-medium">{requestedPos?.title || t("hrdDashboard.requests.positionDeleted")}</span>
                           {requestedPos?.department && <span className="ml-1">· {requestedPos.department}</span>}
