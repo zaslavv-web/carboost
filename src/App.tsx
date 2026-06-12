@@ -52,6 +52,8 @@ import AnalyticsBootstrap from "@/components/AnalyticsBootstrap";
 import ProductAnalytics from "@/pages/ProductAnalytics";
 import SuperadminOnly from "@/components/SuperadminOnly";
 import UserProfileFull from "@/pages/UserProfileFull";
+import Chats from "@/pages/Chats";
+import { ChatProvider } from "@/contexts/ChatContext";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +66,7 @@ const App = () => (
       <AuthProvider>
         <ImpersonationProvider>
           <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
+            <ChatProvider>
             <ScrollToTop />
             <AnalyticsBootstrap />
             <Routes>
@@ -108,9 +111,12 @@ const App = () => (
                 <Route path="/risk-analytics" element={<RiskAnalytics />} />
                 <Route path="/pricing-inquiries" element={<PricingInquiries />} />
                 <Route path="/email-settings" element={<EmailSettingsManagement />} />
+                <Route path="/chats" element={<Chats />} />
+                <Route path="/chats/:conversationId" element={<Chats />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </ChatProvider>
           </BrowserRouter>
         </ImpersonationProvider>
       </AuthProvider>
