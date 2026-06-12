@@ -1,125 +1,78 @@
+## Что не так сейчас
 
-# План реализации HR-модулей
+**1) Чаты — поиск ничего не находит**
+В `ChatController::contacts` (`backend-laravel/app/Http/Controllers/Api/ChatController.php`, ~ строка 287) поиск идёт ТОЛЬКО по `profiles.full_name` через `ILIKE %запрос%`. Если у сотрудника фамилия не записана в `full_name` (например, в `full_name` имя транслитом или пусто, а пользователь ищет по фамилии/почте) — список пустой. Поиска по email вообще нет.
 
-Объём большой, делим на **3 итерации**. Каждая = отдельный merge + миграции + UI. Универсальные поля + пресет Кипра для персональных данных. Payslip — загрузка PDF (в эту фазу не входит, идёт во второй итерации профиля).
+**2) HRD не видит почту и не может открыть профиль сотрудника**
 
----
+- В `AppSidebar.tsx` у роли `hrd` нет пункта «Пользователи» (`/users`) — только `/employees` (HRDDashboard).
+- В `HRDDashboard.tsx` (вкладка «Сотрудники», ~ строка 752–800) список сотрудников показывает только `full_name`, email не запрашивается и нигде не выводится. ФИО не является ссылкой — нет перехода на `/users/:userId` (страница `UserProfileFull`, которая email уже умеет показывать).
+- Сам бэкенд (`/profiles` и `/profiles/{id}`) email уже отдаёт (`ProfileController::index` / `withRoles`), и HRD имеет `viewAny` / `view` через `ProfilePolicy` — нужны только UI-правки.
 
-## Итерация 1 — Отсутствия (Отпуска / Больничные / Декрет / Учёба / Отгулы) + Замещения
+## Что сделаю
 
-### Новые таблицы (Laravel-миграции + RLS)
+### Backend — расширить поиск контактов
 
-- `leave_types` — справочник типов: `annual`, `sick_paid`, `sick_unpaid`, `maternity`, `study`, `day_off`, `unpaid`. Поля: `company_id`, `code`, `title`, `paid` (bool), `accrual_days_per_year` (numeric), `requires_medical_cert` (bool), `is_active`.
-- `leave_balances` — баланс по типу на сотрудника: `user_id`, `company_id`, `leave_type_id`, `accrued_days`, `used_days`, `carryover_days`, `as_of`. Уникальный (user_id, leave_type_id).
-- `leave_requests` — заявка: `user_id`, `company_id`, `leave_type_id`, `start_date`, `end_date`, `days_count` (вычисляется без выходных), `reason`, `status` (`pending_manager`, `pending_hr`, `approved`, `rejected`, `cancelled`), `manager_id`, `manager_decision_at`, `manager_comment`, `hr_id`, `hr_decision_at`, `hr_comment`, `substitute_user_id` (nullable), `created_at`.
-- `leave_request_files` — медсправки / документы: `request_id`, `file_url`, `file_name`, `uploaded_by`.
-- `leave_compensations` — расчёт компенсации при увольнении: `user_id`, `company_id`, `unused_days`, `daily_rate`, `total_amount`, `currency`, `calculated_at`, `paid_at` (nullable).
+Файл: `backend-laravel/app/Http/Controllers/Api/ChatController.php`, метод `contacts()`.
 
-RLS: сотрудник видит свои заявки/баланс; менеджер — своих подчинённых через `team_members`; HRD/admin — в рамках `company_id`; superadmin — всё.
+При непустом `$q` заменить
 
-### Backend (Laravel)
+```
+$query->where('full_name', 'ilike', '%'.$q.'%');
+```
 
-- `LeaveTypeController`, `LeaveBalanceController`, `LeaveRequestController` (CRUD + `approve/reject` actions).
-- Сервис `LeaveCalculatorService`:
-  - `calculateBusinessDays(start, end)` — рабочие дни без сб/вс.
-  - `calculateSickPaidUnpaid(user, days)` — оплачиваемые/неоплачиваемые согласно настройкам компании.
-  - `calculateCompensation(user)` — компенсация при увольнении (`unused_days * daily_rate`).
-- Двухступенчатое согласование: после `pending_manager → approved by manager → pending_hr → approved by HR → approved`. Каждое решение — уведомление через `notifications`.
-- Автоматическое назначение замещающего: если `substitute_user_id` задан и заявка `approved` — создаётся запись в `team_member_substitutions` (доп. таблица: `original_user_id`, `substitute_user_id`, `start_date`, `end_date`, `leave_request_id`) → используется в политиках доступа (заместитель временно видит данные оригинала).
+на группу OR:
 
-### Frontend
+```
+$like = '%'.$q.'%';
+$query->where(function ($w) use ($like) {
+    $w->where('full_name', 'ilike', $like)
+      ->orWhereIn('user_id', function ($sub) use ($like) {
+          $sub->select('id')->from('users')->where('email', 'ilike', $like);
+      });
+});
+```
 
-- Страница `/leaves` (новая): таб для сотрудника (мои заявки + баланс + кнопка «Запросить»), таб для менеджера/HRD (входящие на согласование).
-- Диалог `LeaveRequestDialog`: выбор типа, дат, причины, выбор замещающего (поиск по сотрудникам команды), загрузка медсправки (для больничных).
-- Виджет `LeaveBalanceCard` в `Passport.tsx`: накопленные дни по типам.
-- История согласований в карточке заявки (таймлайн).
-- Уведомления через существующую систему `notifications`.
+Это даст поиск и по ФИО, и по полной/частичной почте, в той же логике, что уже используется в `ProfileController::index`. Мульти-tenant ограничение (`company_id` для не-суперадмина) сохраняется.
 
-### Локализация: ru/leaves.json, en/leaves.json.
+### Frontend — HRD видит почту сотрудника и открывает его профиль
 
----
+Файл: `src/pages/HRDDashboard.tsx`.
 
-## Итерация 2 — Performance Management + Испытательный срок + PIP
+1. В `useEmployeesWithRoles` дотягивать email тем же способом, что в `UsersManagement.tsx`:
+  - добавить третий запрос `laravel.get('/profiles?per_page=500')`, собрать `Map<user_id, email>` и подмешать поле `email` в каждого сотрудника (тип `EmployeeWithRole` расширить полем `email?: string | null`).
+2. В таблице вкладки «Сотрудники» (≈ строки 752–800):
+  - обернуть ФИО в `<Link to={`/users/${emp.user_id}`}>` (роуты уже есть в `App.tsx:97`, страница `UserProfileFull` корректно работает для HRD).
+  - под ФИО показать `emp.email` как `mailto:` ссылку мелким шрифтом (как в `UsersManagement.tsx:390–392`).
+3. То же самое в карточке «Запросы на смену должности» (≈ строки 595–610) — кликабельное ФИО + email.
 
-### Новые таблицы
+### Sidebar для HRD
 
-- `performance_reviews` — оценки: `user_id`, `company_id`, `reviewer_id`, `review_type` (`self`, `manager_30`, `quarterly_90`, `annual_180`, `360`), `period_start`, `period_end`, `status` (`draft`/`submitted`/`acknowledged`), `scores` (jsonb: критерии), `strengths`, `improvements`, `overall_rating` (1-5).
-- `performance_review_feedback` — для 360°: `review_id`, `from_user_id`, `feedback`, `is_anonymous`.
-- `probation_periods` — испытательный срок: `user_id`, `company_id`, `start_date`, `end_date`, `status` (`active`, `passed`, `extended`, `failed`), `decision_at`, `decision_by`, `decision_notes`, `criteria` (jsonb).
-- `disciplinary_records` — взыскания: `user_id`, `company_id`, `kind` (`warning`, `pip`, `observation`), `issued_at`, `issued_by`, `reason`, `status` (`active`, `closed_success`, `closed_failure`), `closes_at`.
-- `disciplinary_criteria` — чек-лист выхода из PIP: `record_id`, `criterion`, `is_met`, `met_at`, `met_by`.
-- `one_on_one_meetings` — 1:1 календарь: `manager_id`, `employee_id`, `company_id`, `scheduled_at`, `agenda`, `notes`, `status`.
+Файл: `src/components/AppSidebar.tsx`, ветка `role === "hrd"` (~ строка 111).
+Добавить пункт «Пользователи» (`/users`, иконка `UserCog`, ключ `t("nav.users")`) рядом с `employeesGroup`, чтобы HRD мог открыть полный список с поиском по почте/ФИО (страница `UsersManagement` уже отдаёт email и роли, политика `viewAny` это разрешает).
 
-RLS: сотрудник — только свои (и видит только не-анонимный фидбек), менеджер — подчинённых, HRD/admin — компанию.
+## Что НЕ трогаю
 
-### Backend
+- Структуру БД и миграции — изменений в схеме не требуется.
+- Логику policies и middleware — текущих прав HRD достаточно.
+- Поиск по контактам у суперадмина — он уже видит всю платформу; правка просто добавит ему ещё и поиск по email.
 
-- CRUD-контроллеры на каждую таблицу.
-- Cron-команда `RemindProbationDecisions` (артизан-команда + scheduler): за 2–4 недели до `probation.end_date` шлёт уведомление менеджеру и HR.
-- Сервис `Performance360Service`: рассылка запросов на фидбек выбранным коллегам, сбор ответов.
+## Проверка после правок
 
-### Frontend
-
-- Страница `/performance`: для сотрудника — мои оценки, форма самооценки; для менеджера — список подчинённых с кнопкой «Создать оценку».
-- Страница `/probation` (HRD/Manager): таблица сотрудников на исп. сроке с прогресс-баром, форма решения (passed/extended/failed).
-- Страница `/disciplinary` (HRD): реестр взысканий, карточка PIP с чек-листом, кнопка закрытия.
-- Виджет «Календарь 1:1» — список ближайших встреч.
-
----
-
-## Итерация 3 — Расширенный профиль + Документы + Полиси + Авто-уведомления + Иммиграция + Внутренние вакансии
-
-### Новые таблицы
-
-- `employee_documents` — все документы: `user_id`, `company_id`, `doc_type` (`passport`, `visa`, `driver_license`, `diploma`, `medical`, `payslip`, `contract`, `other`), `title`, `file_url`, `file_name`, `issued_at`, `expires_at` (nullable), `uploaded_by`, `is_private` (только сотрудник + HR).
-- `employee_personal_data` — универсальные идентификаторы: `user_id`, `country_code` (ISO), `data` (jsonb — например `{social_insurance, tic, gesy}` для CY, `{inn, snils}` для RU). Пресет полей по стране в коде frontend.
-- `payroll_schedule` — календарь выплат: `company_id`, `period_label`, `pay_date`, `notes`.
-- `payslips` — `user_id`, `company_id`, `period_start`, `period_end`, `file_url`, `uploaded_by`, `released_at`. Видны только сотруднику + HR.
-- `company_policies` — `company_id`, `title`, `body`, `file_url`, `version`, `published_at`, `requires_ack`.
-- `policy_acknowledgements` — `policy_id`, `user_id`, `acknowledged_at`.
-- `immigration_records` — `user_id`, `company_id`, `record_type` (`relocation`, `pink_slip`, `yellow_slip`, `work_permit`, `diploma_recognition`), `status`, `started_at`, `expires_at`, `notes`, `documents` (jsonb refs).
-- `internal_job_postings` — внутренние вакансии: `company_id`, `position_id` (FK → `positions`), `title`, `description`, `requirements`, `posted_by`, `status` (`open`/`closed`), `closes_at`, `linked_career_track_id` (FK → `career_track_templates`, nullable — связка с треком).
-- `internal_job_applications` — `posting_id`, `user_id`, `cover_letter`, `status` (`submitted`, `screening`, `interview`, `accepted`, `rejected`), `created_at`. При связке с треком — автоматически открывает сотруднику соответствующий career track.
-
-### Backend
-
-- CRUD + cron `SendExpiryReminders` (ежедневно): просматривает `employee_documents.expires_at`, `immigration_records.expires_at` — за 30/14/7 дней до истечения шлёт `notifications` сотруднику + HR.
-- Cron `SendBirthdayAnniversaryReminders` — за 3 дня и в день: ДР (из `profiles.birth_date`, новое поле) и годовщины (из `profiles.hire_date`).
-- Cron `RemindUnusedLeave` (раз в квартал): если `leave_balance.accrued_days - used_days > threshold` — напомнить.
-
-### Frontend
-
-- Страница `/profile/:userId` дополнения: вкладки «Документы», «Персональные данные», «Полиси», «Иммиграция», «Payslips», «Внутренние вакансии».
-- Загрузка PDF payslip — HR-only форма; сотрудник видит карточки «Расчётный лист за <период>» со ссылкой на PDF.
-- Страница `/policies`: список с кнопкой «Ознакомлен» (создаёт `policy_acknowledgements`).
-- Страница `/internal-jobs`: лента вакансий с фильтрами; кнопка «Подать заявку»; HR-вкладка для управления и просмотра кандидатов; связка вакансии с career_track при создании.
-- Виджет «Скоро истекает» в дашборде сотрудника и HRD.
-- Пресет полей CY (Social Insurance, TIC, GeSy) и RU (ИНН, СНИЛС) — JSON-схема в frontend, поле `data` хранит значения.
-
----
-
-## Технические детали
-
-- Все таблицы через Laravel-миграции (`backend-laravel/database/migrations/0003_*`), не редактируем существующие.
-- Backend следует существующим паттернам: `CrudController`, `BasePolicy`, `EnsureHasCompany`, `EnsureVerified`.
-- Frontend через `laravel.get/post/patch/delete` (`@/integrations/laravel/client`), TanStack Query, shadcn UI, i18n.
-- Cron — Laravel scheduler в `app/Console/Kernel.php` + системный cron на сервере.
-- Уведомления через `notifications` (использует существующую таблицу).
-- Файлы (медсправки, документы, payslips) — через текущую инфраструктуру `storage.ts` (приватные ссылки).
-- Локализация: новые namespace `leaves`, `performance`, `probation`, `policies`, `immigration`, `internal-jobs`.
-
----
-
-## Что вне плана (можно добавить позже)
-
-- Генерация payslip в системе (только загрузка PDF, как договорились).
-- Интеграция с банками/налоговой.
-- Электронная подпись документов.
-
----
-
-## Подтверждение
-
-Начнём с **Итерации 1 (Отсутствия + Замещения)** — это наиболее запрошенный блок и фундамент для уведомлений и календаря. После её мерджа сразу пойдём в Итерацию 2, потом 3.
-
-Если согласны — нажмите «Implement plan» и я начну с миграций и backend для отпусков/больничных.
+1. Под HRD/Company Admin в чате ввести фамилию или часть email коллеги — пользователь находится.
+2. Под HRD на странице `/employees` во вкладке «Сотрудники» — видна почта рядом с ФИО, клик по ФИО открывает `/users/:userId`.
+3. Под HRD в сайдбаре появляется пункт «Пользователи», `/users` открывается, в таблице видны email сотрудников компании.  
+  
+также надо понять и исправить ошибки, которые видно через f12:  
+Failed to load resource: the server responded with a status of 401 ()
+  api/chats/contacts?q=hfcc:1  Failed to load resource: the server responded with a status of 500 ()
+  api/chats/contacts?q=%D1%80%D0%B0:1  Failed to load resource: the server responded with a status of 500 ()
+  api/chats/contacts?q=%D1%80%D0%B0%D1%81:1  Failed to load resource: the server responded with a status of 500 ()
+  api/chats/contacts?q=r:1  Failed to load resource: the server responded with a status of 500 ()
+  api/chats/contacts?q=ra:1  Failed to load resource: the server responded with a status of 500 ()
+  api/chats/contacts?q=ras:1  Failed to load resource: the server responded with a status of 500 ()
+  api/chats/contacts?q=cjn:1  Failed to load resource: the server responded with a status of 500 ()
+  api/chats/contacts?q=%D0%A0%D0%B0%D1%81%D1%81:1  Failed to load resource: the server responded with a status of 500 ()
+  api/chats/contacts?q=%D0%A0%D0%B0%D1%81%D1%81%D1%83:1  Failed to load resource: the server responded with a status of 500 ()
+  api/chats/contacts?q=%D0%A0%D0%B0%D1%81%D1%81%D1%83%D0%B4%D0%B6:1  Failed to load resource: the server responded with a status of 500 ()
+  api/chats/contacts?q=%D0%A0%D0%B0%D1%81%D1%81%D1%83%D0%B4%D0%BA%D0%BE%D0%B2%D0%B0:1  Failed to load resource: the server responded with a status of 500 ()
