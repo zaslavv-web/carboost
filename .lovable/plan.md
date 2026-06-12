@@ -1,39 +1,77 @@
-## Дополнение к чатам: Суперадмин и Техподдержка
+## GeoIP-блокировка Google для RU + Yandex ID
 
-### 1. Суперадмин — глобальный отправитель
-- В `ChatController@searchContacts`: если `auth()->user()->role === 'superadmin'`, снимаем фильтр по `company_id` — суперадмин видит и может начать чат с любым пользователем платформы.
-- В `ChatPolicy@canSend` (и `ChatPermissionService`): суперадмин всегда `true`, минуя любые будущие ограничения (time windows / whitelist / blacklist / quiet hours).
-- В `ChatController@startDirect`: разрешаем создание `direct` диалога, где участники из разных `company_id`, только если инициатор или получатель — суперадмин. Для обычных пользователей сохраняется строгая проверка одной компании.
-- Запись `chat_conversations.company_id`: для смешанных диалогов (с суперадмином) пишем `company_id` обычного пользователя; если оба суперадмины — `null`.
-- RLS/scope в `ChatConversation::visibleTo($user)`: суперадмин видит все диалоги; остальные — только те, где они в `chat_participants`.
+### 1. GeoIP-сервис на бэке (Laravel)
 
-### 2. Контакт «Техподдержка» в каждой компании
-- В БД создаём одного системного пользователя `support@career-track.app` с ролью `superadmin` и флагом `is_support = true` (новая boolean-колонка на `users`, default false). Это единый аккаунт на всю платформу, а не дубль на компанию.
-- Миграция `0009_..._add_is_support_to_users.php` + сидер `SupportUserSeeder`, создающий/обновляющий запись.
-- В `ChatController@listContacts` (и `searchContacts`) для любого не-суперадмина: к результатам подмешиваем пользователя с `is_support = true`, всегда первым, с лейблом `chat.support.title` («Техподдержка») и аватаром-иконкой.
-- В `startDirect`: если получатель `is_support`, разрешаем кросс-компанийный диалог (как с суперадмином), `company_id` диалога = company инициатора.
-- Связь с тикетами: при первом сообщении в чат техподдержки опционально создаём `support_ticket` через существующий `SupportService` (источник = `chat`), чтобы HRD/админы видели обращение в существующей системе тикетов. Включается флагом, по умолчанию — только чат, без тикета (можно решить отдельно).
+- Используем **MaxMind GeoLite2-Country** (бесплатная локальная БД, без внешних запросов на каждый логин). Пакет `geoip2/geoip2`. БД `GeoLite2-Country.mmdb` кладём в `backend-laravel/storage/app/geoip/`, путь конфигурируется через `GEOIP_DB_PATH`.
+- Сервис `App\Services\GeoIpService`:
+  - `countryFor(string $ip): ?string` — ISO-2 (`RU`, `US`, …). Возвращает `null` при ошибке/неизвестном IP.
+  - Внутри: приоритет заголовка `CF-IPCountry` (если за Cloudflare) → затем MaxMind → fallback null.
+  - Для локалхоста/private IP возвращает null (не считать «не-RU»).
+- Helper `App\Support\ClientIp::resolve($request)` — берёт первый публичный IP из `X-Forwarded-For` (доверенные прокси настроены в `TrustProxies`).
 
-### 3. Frontend
-- `ContactSearch.tsx`: 
-  - для superadmin — глобальный поиск по всем компаниям, в строке результата показываем название компании; 
-  - для остальных — закреплённая сверху карточка «Техподдержка» (иконка `LifeBuoy`, бейдж «24/7»), затем коллеги.
-- `ConversationList.tsx`: диалог с техподдержкой пиннится наверх и помечается иконкой.
-- `MessageBubble.tsx`: сообщения от `is_support`/superadmin получают значок «Поддержка»/«Администратор платформы».
-- i18n (`ru/chat.json`, `en/chat.json`): ключи `support.title`, `support.subtitle`, `support.badge`, `roles.superadmin_badge`.
+### 2. Endpoint `/api/geo`
 
-### 4. Безопасность
-- `canSend` для обычного пользователя: получатель должен быть либо из той же `company_id`, либо `is_support = true`, либо `role = superadmin`. Иначе 403.
-- Суперадмин и техподдержка не отображаются в обычных списках сотрудников компании вне модуля чатов (исключение в существующих запросах `users where company_id = ...`, добавляем `where is_support = false and role != 'superadmin'` где нужно, чтобы не сломать аналитику/оргструктуру).
+- `GET /api/geo` → `{ country: "RU" | "..." | null, providers: { google: bool, yandex: bool, email: bool } }`.
+- Логика провайдеров: `google = country !== 'RU'`, `yandex = true`, `email = true`.
+- Кэшируется на клиенте в `useQuery` (staleTime 10 мин).
 
-### Технические детали
-- Файлы:
-  - `backend-laravel/database/migrations/0009_00_00_000000_add_is_support_to_users.php`
-  - `backend-laravel/database/seeders/SupportUserSeeder.php` (+ регистрация в `DatabaseSeeder`)
-  - правки: `ChatController.php`, `ChatPermissionService.php`, `ChatConversation.php`
-  - правки: `src/components/chat/ContactSearch.tsx`, `ConversationList.tsx`, `MessageBubble.tsx`, `ChatContext.tsx`
-  - i18n: `src/i18n/locales/{ru,en}/chat.json`
-- После деплоя: `php artisan migrate && php artisan db:seed --class=SupportUserSeeder`.
+### 3. Бэк-блокировка Google
 
-### Открытый вопрос
-Создавать ли автоматически `support_ticket` при первом сообщении в чат техподдержки, или техподдержка работает только как чат (тикеты — отдельная форма)?
+- `GoogleAuthController@redirect`: если `GeoIpService::countryFor($ip) === 'RU'` → `abort(451, 'Google sign-in недоступен в вашем регионе. Используйте Yandex ID или email.')`.
+- Тот же чек в `callback` на случай, если кто-то открыл прямую ссылку (защита от смены IP во время потока).
+
+### 4. Yandex ID OAuth
+
+- Бэк:
+  - Контроллер `App\Http\Controllers\Auth\YandexAuthController` с `redirect` / `callback`. Используем нативный HTTP-клиент Laravel (без Socialite — он не имеет провайдера Yandex, ставим лёгкий вручную; либо `socialiteproviders/yandex`).
+  - Endpoints: `GET /api/auth/yandex/redirect`, `GET /api/auth/yandex/callback`.
+  - Конфиг `config/services.php` → `yandex.client_id / client_secret / redirect`.
+  - Секреты: `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET` (запросим через secrets-tool отдельным шагом после одобрения плана) - сразу предоставим инструкцию как его получить
+  - Возвращает токен Sanctum + создаёт/обновляет пользователя и `profile.full_name`, `avatar_url` (по полям Yandex API `default_email`, `real_name`, `display_name`, `default_avatar_id`).
+  - В `/api/auth/config` добавляем статус Yandex (как уже сделано для Google) — для отладки.
+- Фронт:
+  - `laravelAuthApi.signInWithYandex(redirectTo?)` — по аналогии с `signInWithGoogle`.
+  - `AuthContext.signInWithYandex`.
+  - В `Login.tsx` кнопка «Войти через Yandex ID» (иконка через `/yandex.svg` в `public/`, либо inline SVG). Кнопка всегда видна; кнопка Google — только если `providers.google === true`.
+  - i18n ключи: `auth.buttons.yandexSignIn / yandexSignUp`, `auth.errors.yandexFailed`, `auth.notices.googleBlockedRu` (тёплое объяснение под кнопками, когда Google скрыт).
+
+### 5. Sync с локальным состоянием
+
+- В коллбеке Yandex используем тот же механизм, что Google: редирект на фронт с `?token=...` и `localStorage` синк (соответствует памяти `Social Sync`).
+
+### 6. Деплой и операционные шаги
+
+- В README `backend-laravel/REVERB.md` / `DEPLOYMENT.md` добавить раздел «GeoIP»: скачать `GeoLite2-Country.mmdb` (cron auto-update через `geoipupdate` от MaxMind, требуется бесплатная учётка) и положить по пути `GEOIP_DB_PATH`.
+- Указать в `.env.example`: `GEOIP_DB_PATH`, `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`, `YANDEX_REDIRECT_URI`.
+- В nginx/Trusted proxies — убедиться, что `X-Forwarded-For` прокидывается.
+
+### 7. UI/UX детали
+
+- Порядок кнопок: Yandex ID (брендовая красная), Google (если показан), затем разделитель и форма email/пароль.
+- Когда Google скрыт по GeoIP — под блоком соцкнопок показываем небольшую заметку: «Вход через Google недоступен в вашем регионе».
+- Загрузка `/api/geo` — пока идёт, обе соцкнопки в скелетоне (200мс), чтобы не было мигания.
+
+### 8. Тесты/проверка
+
+- Юнит-тест `GeoIpServiceTest` (моки на MaxMind reader): RU → 'RU', US → 'US', private IP → null.
+- Ручная проверка:
+  - VPN RU → нет Google, бэк отдаёт 451 на прямую ссылку.
+  - VPN US → есть Google и Yandex.
+  - Yandex flow: новый и существующий пользователь, корректная привязка `profiles`.
+
+### Файлы
+
+- new: `backend-laravel/app/Services/GeoIpService.php`, `backend-laravel/app/Support/ClientIp.php`,
+`backend-laravel/app/Http/Controllers/Auth/YandexAuthController.php`,
+`backend-laravel/app/Http/Controllers/Api/GeoController.php`.
+- edit: `backend-laravel/config/services.php`, `backend-laravel/routes/api.php`,
+`backend-laravel/app/Http/Controllers/Auth/GoogleAuthController.php`,
+`backend-laravel/composer.json` (geoip2/geoip2).
+- new: `src/integrations/laravel/geo.ts`, `src/hooks/useAuthProviders.ts`.
+- edit: `src/integrations/laravel/auth.ts`, `src/contexts/AuthContext.tsx`, `src/pages/Login.tsx`,
+`src/i18n/locales/{ru,en}/auth.json`, `public/yandex.svg`.
+
+### Что потребуется от вас отдельно
+
+1. После одобрения плана — добавлю секреты `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`, и подскажу redirect URI, который нужно вписать в кабинет Yandex OAuth (`https://<домен>/api/auth/yandex/callback`).
+2. На сервере положить `GeoLite2-Country.mmdb` в `storage/app/geoip/` (одноразовая операция; команду в инструкции).
