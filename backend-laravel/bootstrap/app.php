@@ -25,6 +25,16 @@ return Application::configure(basePath: dirname(__DIR__))
         // API stateless — никаких CSRF/session кук в API-группе
         $middleware->validateCsrfTokens(except: ['api/*']);
 
+        // Доверяем заголовкам X-Forwarded-* от nginx/CDN, иначе request->ip()
+        // возвращает IP внутреннего прокси (приватный) и GeoIP не работает.
+        $middleware->trustProxies(
+            at: '*',
+            headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR
+                | \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST
+                | \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT
+                | \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO,
+        );
+
         // API-only backend: route('login') не существует. Запрещаем Authenticate
         // middleware пытаться построить redirect URL — для API всегда отдаём JSON 401.
         $middleware->redirectGuestsTo(fn ($request) => null);
