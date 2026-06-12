@@ -1,0 +1,110 @@
+{
+  "performance": {
+    "title": "Performance Reviews",
+    "subtitle": "Review cycles, self-assessment, manager rating and final scores",
+    "tabs": { "mine": "My reviews", "team": "My team", "cycles": "Cycles" },
+    "status": {
+      "draft": "Draft",
+      "self_done": "Self done",
+      "manager_done": "Manager done",
+      "finalized": "Finalized",
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "actions": {
+      "open": "Open cycle",
+      "close": "Close cycle",
+      "createCycle": "New cycle",
+      "submitSelf": "Submit self-assessment",
+      "submitManager": "Submit rating",
+      "finalize": "Finalize",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "fields": {
+      "cycleTitle": "Cycle title",
+      "periodStart": "Period start",
+      "periodEnd": "Period end",
+      "deadline": "Deadline",
+      "weightSelf": "Self weight",
+      "weightManager": "Manager weight",
+      "weightPeer": "Peer weight",
+      "overallScore": "Overall score (0-5)",
+      "strengths": "Strengths",
+      "improvements": "Areas to improve",
+      "comments": "Comments",
+      "summary": "Summary"
+    },
+    "empty": { "cycles": "No cycles yet", "reviews": "No reviews yet" },
+    "messages": {
+      "feedbackSaved": "Feedback saved",
+      "cycleOpened": "Cycle opened — reviews created for employees",
+      "cycleClosed": "Cycle closed",
+      "finalized": "Review finalized"
+    }
+  },
+  "probation": {
+    "title": "Probation period",
+    "subtitle": "Period tracking, criteria checklist and decision",
+    "tabs": { "mine": "Mine", "team": "Team", "all": "All" },
+    "status": { "active": "Active", "passed": "Passed", "extended": "Extended", "failed": "Failed" },
+    "actions": {
+      "create": "Start probation",
+      "addCriterion": "Add criterion",
+      "decide": "Make decision",
+      "save": "Save",
+      "cancel": "Cancel",
+      "decisionPassed": "Passed",
+      "decisionExtended": "Extend",
+      "decisionFailed": "Failed"
+    },
+    "fields": {
+      "employee": "Employee (user_id)",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "extendedTo": "Extend until",
+      "goals": "Probation goals",
+      "criteriaTitle": "Criterion title",
+      "criteriaDescription": "Description",
+      "decisionNotes": "Comment"
+    },
+    "empty": { "list": "No active probations" },
+    "criteria": { "completed": "Met", "pending": "In progress" }
+  },
+  "disciplinary": {
+    "title": "Disciplinary & PIP",
+    "subtitle": "Warnings, PIP, observation and exit checklists",
+    "tabs": { "mine": "Mine", "team": "Team", "all": "All" },
+    "types": { "warning": "Warning", "pip": "PIP", "observation": "Observation" },
+    "severity": { "low": "Low", "medium": "Medium", "high": "High" },
+    "status": { "active": "Active", "closed": "Closed", "escalated": "Escalated" },
+    "actions": {
+      "create": "Issue",
+      "addCriterion": "Add criterion",
+      "close": "Close",
+      "escalate": "Escalate",
+      "save": "Save"
+    },
+    "fields": {
+      "employee": "Employee (user_id)",
+      "type": "Type",
+      "severity": "Severity",
+      "reason": "Reason",
+      "validUntil": "Valid until",
+      "criteriaTitle": "Criterion",
+      "criteriaDescription": "Description",
+      "closureReason": "Closure reason",
+      "evidenceUrl": "Evidence URL"
+    },
+    "empty": { "list": "No records" },
+    "meetings": {
+      "title": "1:1 meetings",
+      "schedule": "Schedule meeting",
+      "when": "When",
+      "duration": "Duration (min)",
+      "agenda": "Agenda",
+      "notes": "Notes",
+      "empty": "No meetings scheduled"
+    }
+  }
+}

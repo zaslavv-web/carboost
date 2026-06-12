@@ -1,0 +1,115 @@
+{
+  "performance": {
+    "title": "Performance Reviews",
+    "subtitle": "Циклы оценки, самооценка, оценка руководителя и итоги",
+    "tabs": { "mine": "Мои оценки", "team": "Моя команда", "cycles": "Циклы" },
+    "status": {
+      "draft": "Черновик",
+      "self_done": "Самооценка готова",
+      "manager_done": "Оценка руководителя",
+      "finalized": "Закрыта",
+      "open": "Открыт",
+      "closed": "Закрыт"
+    },
+    "actions": {
+      "open": "Открыть цикл",
+      "close": "Закрыть цикл",
+      "createCycle": "Новый цикл",
+      "submitSelf": "Отправить самооценку",
+      "submitManager": "Отправить оценку",
+      "finalize": "Финализировать",
+      "save": "Сохранить",
+      "cancel": "Отмена"
+    },
+    "fields": {
+      "cycleTitle": "Название цикла",
+      "periodStart": "Начало периода",
+      "periodEnd": "Конец периода",
+      "deadline": "Дедлайн",
+      "weightSelf": "Вес: самооценка",
+      "weightManager": "Вес: руководитель",
+      "weightPeer": "Вес: коллеги",
+      "overallScore": "Общая оценка (0-5)",
+      "strengths": "Сильные стороны",
+      "improvements": "Зоны развития",
+      "comments": "Комментарии",
+      "summary": "Резюме"
+    },
+    "empty": { "cycles": "Циклы оценки ещё не созданы", "reviews": "Оценок пока нет" },
+    "messages": {
+      "feedbackSaved": "Фидбек сохранён",
+      "cycleOpened": "Цикл открыт — оценки созданы для сотрудников",
+      "cycleClosed": "Цикл закрыт",
+      "finalized": "Performance review закрыт"
+    }
+  },
+  "probation": {
+    "title": "Испытательный срок",
+    "subtitle": "Учёт срока, чек-лист критериев и решение по итогам",
+    "tabs": { "mine": "Мой", "team": "Команда", "all": "Все" },
+    "status": {
+      "active": "Активный",
+      "passed": "Пройден",
+      "extended": "Продлён",
+      "failed": "Не пройден"
+    },
+    "actions": {
+      "create": "Назначить испытательный",
+      "addCriterion": "Добавить критерий",
+      "decide": "Принять решение",
+      "save": "Сохранить",
+      "cancel": "Отмена",
+      "decisionPassed": "Пройден",
+      "decisionExtended": "Продлить",
+      "decisionFailed": "Не пройден"
+    },
+    "fields": {
+      "employee": "Сотрудник (user_id)",
+      "startDate": "Дата начала",
+      "endDate": "Дата окончания",
+      "extendedTo": "Продлить до",
+      "goals": "Цели на испытательный",
+      "criteriaTitle": "Название критерия",
+      "criteriaDescription": "Описание",
+      "decisionNotes": "Комментарий"
+    },
+    "empty": { "list": "Активных испытательных нет" },
+    "criteria": { "completed": "Выполнено", "pending": "В работе" }
+  },
+  "disciplinary": {
+    "title": "Дисциплинарные взыскания и PIP",
+    "subtitle": "Реестр предупреждений, PIP, наблюдение и чек-листы выхода",
+    "tabs": { "mine": "Мои", "team": "Команда", "all": "Все" },
+    "types": { "warning": "Предупреждение", "pip": "PIP", "observation": "Наблюдение" },
+    "severity": { "low": "Низкая", "medium": "Средняя", "high": "Высокая" },
+    "status": { "active": "Активна", "closed": "Закрыта", "escalated": "Эскалирована" },
+    "actions": {
+      "create": "Выписать",
+      "addCriterion": "Добавить критерий",
+      "close": "Закрыть",
+      "escalate": "Эскалировать",
+      "save": "Сохранить"
+    },
+    "fields": {
+      "employee": "Сотрудник (user_id)",
+      "type": "Тип",
+      "severity": "Серьёзность",
+      "reason": "Причина",
+      "validUntil": "Действует до",
+      "criteriaTitle": "Критерий",
+      "criteriaDescription": "Описание",
+      "closureReason": "Причина закрытия",
+      "evidenceUrl": "Ссылка на подтверждение"
+    },
+    "empty": { "list": "Записей нет" },
+    "meetings": {
+      "title": "Встречи 1:1",
+      "schedule": "Запланировать встречу",
+      "when": "Когда",
+      "duration": "Длительность (мин)",
+      "agenda": "Повестка",
+      "notes": "Заметки",
+      "empty": "Встреч ещё не назначено"
+    }
+  }
+}
