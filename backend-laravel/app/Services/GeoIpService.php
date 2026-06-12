@@ -59,11 +59,24 @@ class GeoIpService
 
     private function lookupExternal(string $ip): ?string
     {
-        $provider = strtolower((string) RuntimeEnv::get('GEOIP_PROVIDER', 'ipapi'));
+        $provider = strtolower((string) RuntimeEnv::get('GEOIP_PROVIDER', 'ip-api'));
 
+        // Порядок попыток: предпочтительный провайдер, затем fallback.
+        $order = $provider === 'ipapi' || $provider === 'ipapi_co'
+            ? ['ipapi', 'ip-api']
+            : ['ip-api', 'ipapi'];
+
+        foreach ($order as $p) {
+            $country = $this->tryProvider($p, $ip);
+            if ($country !== null) return $country;
+        }
+        return null;
+    }
+
+    private function tryProvider(string $provider, string $ip): ?string
+    {
         try {
             if ($provider === 'ip-api' || $provider === 'ipapi_com') {
-                // http only and rate-limited; useful as fallback.
                 $resp = Http::timeout(3)->get("http://ip-api.com/json/{$ip}", ['fields' => 'countryCode,status']);
                 if ($resp->ok()) {
                     $data = $resp->json();
@@ -74,16 +87,16 @@ class GeoIpService
                 return null;
             }
 
-            // default: ipapi.co (HTTPS, без ключа, ~30k запросов/мес бесплатно)
+            // ipapi.co (HTTPS, без ключа)
             $resp = Http::timeout(3)->acceptJson()->get("https://ipapi.co/{$ip}/country/");
             if ($resp->ok()) {
                 $body = trim($resp->body());
                 if (preg_match('/^[A-Z]{2}$/', $body)) return $body;
             }
         } catch (ConnectionException $e) {
-            Log::warning('GeoIP lookup failed (connection)', ['ip' => $ip, 'err' => $e->getMessage()]);
+            Log::warning('GeoIP lookup failed (connection)', ['provider' => $provider, 'ip' => $ip, 'err' => $e->getMessage()]);
         } catch (\Throwable $e) {
-            Log::warning('GeoIP lookup failed', ['ip' => $ip, 'err' => $e->getMessage()]);
+            Log::warning('GeoIP lookup failed', ['provider' => $provider, 'ip' => $ip, 'err' => $e->getMessage()]);
         }
         return null;
     }

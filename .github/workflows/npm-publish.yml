@@ -114,6 +114,7 @@ jobs:
           YANDEX_CLIENT_ID_SECRET: ${{ secrets.YANDEX_CLIENT_ID }}
           YANDEX_CLIENT_SECRET_SECRET: ${{ secrets.YANDEX_CLIENT_SECRET }}
           YANDEX_REDIRECT_URI_SECRET: ${{ secrets.YANDEX_REDIRECT_URI }}
+          GEOIP_PROVIDER_SECRET: ${{ secrets.GEOIP_PROVIDER }}
         run: |
           APP_KEY_VALUE="${APP_KEY_SECRET:-__PRESERVE_SERVER_APP_KEY__}"
           APP_CIPHER_VALUE="aes-256-cbc"
@@ -174,8 +175,9 @@ jobs:
           fi
           MAIL_FROM_ADDRESS_VALUE="${MAIL_FROM_ADDRESS_SECRET:-noreply@${APP_HOST_VALUE}}"
           MAIL_FROM_NAME_VALUE="${MAIL_FROM_NAME_SECRET:-Пик Роста}"
+          GEOIP_PROVIDER_VALUE="${GEOIP_PROVIDER_SECRET:-ip-api}"
           export APP_KEY_VALUE APP_CIPHER_VALUE APP_URL_VALUE APP_HOST_VALUE GOOGLE_REDIRECT_URI_VALUE \
-            YANDEX_REDIRECT_URI_VALUE \
+            YANDEX_REDIRECT_URI_VALUE GEOIP_PROVIDER_VALUE \
             DB_CONNECTION_VALUE DB_PORT_VALUE MAIL_HOST_VALUE MAIL_PORT_VALUE \
             MAIL_ENCRYPTION_VALUE MAIL_FROM_ADDRESS_VALUE MAIL_FROM_NAME_VALUE
 
@@ -229,6 +231,8 @@ jobs:
               'MAIL_ENCRYPTION': os.environ['MAIL_ENCRYPTION_VALUE'],
               'MAIL_FROM_ADDRESS': os.environ['MAIL_FROM_ADDRESS_VALUE'],
               'MAIL_FROM_NAME': os.environ['MAIL_FROM_NAME_VALUE'],
+              'GEOIP_PROVIDER': os.environ['GEOIP_PROVIDER_VALUE'],
+              'GEOIP_DISABLED': '0',
           }
 
           Path('app-src/.env').write_text('\n'.join(f'{k}={env_quote(v)}' for k, v in keys.items()) + '\n')
