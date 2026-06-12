@@ -154,10 +154,10 @@ class ChatController extends Controller
     {
         $data = $request->validate([
             'type'         => 'nullable|in:direct,group',
-            'peer_user_id' => 'required_if:type,direct|uuid',
+            'peer_user_id' => 'required_if:type,direct|string|min:1',
             'title'        => 'nullable|string|max:255',
             'participant_ids' => 'array',
-            'participant_ids.*' => 'uuid',
+            'participant_ids.*' => 'string|min:1',
         ]);
 
         $type = $data['type'] ?? 'direct';
@@ -166,7 +166,7 @@ class ChatController extends Controller
         $isSuper = $this->isSuperadmin();
 
         if ($type === 'direct') {
-            $peerId = $data['peer_user_id'];
+            $peerId = trim((string) $data['peer_user_id']);
             if ($peerId === $userId) {
                 return response()->json(['error' => 'Нельзя создать диалог с самим собой'], 422);
             }
