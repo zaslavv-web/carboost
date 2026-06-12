@@ -7,12 +7,12 @@ use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\LeaveRequestFile;
 use App\Models\LeaveType;
-use App\Models\Notification;
 use App\Models\TeamMember;
 use App\Models\TeamMemberSubstitution;
 use App\Services\LeaveCalculatorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
 /**
