@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\AuthUserService;
+use App\Services\GeoIpService;
 use App\Support\RuntimeEnv;
 use App\Support\ServiceInfra;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Laravel\Socialite\Facades\Socialite;
+
 
 /**
  * Google SSO через Laravel Socialite + редирект во фронт с токеном.
@@ -24,12 +26,21 @@ use Laravel\Socialite\Facades\Socialite;
  */
 class GoogleAuthController extends Controller
 {
-    public function __construct(private AuthUserService $users) {}
+    public function __construct(
+        private AuthUserService $users,
+        private GeoIpService $geo,
+    ) {}
 
     /** GET /api/auth/google/redirect?return_to=https://app.example.ru/auth/callback */
     public function redirect(Request $request): RedirectResponse
     {
         $returnTo = $request->query('return_to', rtrim($this->frontendUrl(), '/') . '/auth/callback');
+
+        // GeoIP gate: для пользователей из РФ Google SSO отключён.
+        if ($this->geo->countryForRequest($request) === 'RU') {
+            return redirect($returnTo . '#error=' . urlencode('Вход через Google недоступен в вашем регионе. Используйте Yandex ID или email/пароль.'));
+        }
+
         if (!$this->ensureGoogleConfig()) {
             return redirect($returnTo . '#error=' . urlencode('Google OAuth не настроен на сервере: отсутствуют GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET'));
         }
