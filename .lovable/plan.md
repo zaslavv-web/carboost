@@ -1,38 +1,66 @@
-## Тесты для CareerTrack.tsx (вкладка «Награды»)
+## Что меняем
 
-Новый файл: `src/pages/__tests__/CareerTrack.rewards.test.tsx`.
+Лендинг (`src/pages/Landing.tsx` + `src/data/features.ts` + `src/i18n/locales/{ru,en}/landing.json`) перепозиционируем с «AI-оценка и треки» на **«Единая HR-tech ОС полного цикла сотрудника»** и подтягиваем все модули, появившиеся за последние итерации.
 
-Стек: `vitest` + `@testing-library/react` + `QueryClientProvider` + `MemoryRouter` (как в существующем `product-buttons.smoke.test.tsx`).
+## Новое позиционирование
 
-### Что мокаем
+- **H1:** «Операционная система карьеры и людей»
+- **Подзаголовок:** от найма и адаптации — до карьеры, обучения, перформанса, признания и отпусков. Один продукт вместо 5+ инструментов.
+- **Опорные тезисы:** AI-ассистент в каждом шаге · мульти-тенант с ролями · работает on-premise (Docker/nginx) · 5 ролей из коробки.
 
-- `@/integrations/laravel/db` — функция `laravelDb.from(table)` возвращает chainable-объект (`select/eq/in/order` → thenable). Возвращаем фикстуры по имени таблицы:
-  - `gamification_rewards_public` → 2 типа: `{ id: "rt-1", title: "Звезда", icon: "star", points: 10 }`, `{ id: "rt-2", title: "Ракета", icon: "rocket", points: 25 }`. **НЕ содержат** `gift_content`/`monetary_amount`.
-  - `employee_rewards` → 2 награды текущего пользователя, ссылающиеся на `rt-1` и `rt-2`.
-  - `career_goals`, `goal_checklist_items`, `employee_career_assignments`, `career_track_templates`, `career_level_actions`, `positions` → пустые массивы (нерелевантно).
-- `@/hooks/useEffectiveUser` → `useEffectiveUserId` возвращает `"user-1"`.
-- `react-i18next` → `useTranslation` возвращает `t: (k, opts) => opts?.count != null ? \`${k}:${opts.count}\` : k`.
-- `sonner` → no-op toast.
-- `@/components/CareerTrackStepCard` → заглушка, рендерит `null`.
+## Новые фичи в каталоге
 
-### Сценарии (it-блоки)
+Расширяем `FEATURES` с 6 до 12 слагов. Добавляем:
 
-Хелпер `renderForRole(role)` устанавливает значение `useEffectiveUserId` (одинаковое для всех ролей — выборка наград идёт по `user_id`), рендерит `<CareerTrack />`, кликает на таб «Награды» (`getByText` по ключу `careerTrack.tabs.rewards` или соответствующему).
+| slug | Икона | Назначение |
+|---|---|---|
+| `performance` | LineChart | Цели, OKR, ревью, дисциплина |
+| `leaves` | Calendar | Отпуска, переработки, баланс |
+| `recognition` | Award | Признание коллег + лента |
+| `university` | GraduationCap | Курсы, тесты, сертификаты |
+| `shop` | ShoppingBag | Магазин на лояльные баллы |
+| `hr-policies` | BookOpen | Политики, дисциплинарные процедуры |
+| `internal-chat` | MessagesSquare | Внутренние чаты компании |
+| `rag-ai` | Brain | RAG-документы и AI-ассистент HRD |
+| `scenarios` | GitBranch | Сценарии оценки (React Flow) |
+| `org-structure` | Network | Оргструктура с AI-парсингом |
 
-Параметризованный `it.each(["employee","manager","hrd","company_admin","superadmin"])`:
+Сохраняем существующие: `ai-assessment`, `career-tracks`, `gamification`, `analytics`, `digital-passport`, `onboarding`.
 
-1. **Запрос идёт в публичный view** — после mount проверяем, что `laravelDb.from` был вызван с `"gamification_rewards_public"` и **не** с `"gamification_reward_types"`.
-2. **Награды и баллы отображаются** — переключаемся на таб «Награды», ждём появления `Звезда` и `Ракета`, `+10`, `+25`, а также суммарных очков `careerTrack.totalPoints:35`.
-3. **Чувствительные поля отсутствуют** — в DOM нет текста `gift_content`/`monetary_amount` (sanity-check, что компонент не пытается их рендерить).
+## Новый блок Pains
 
-Дополнительный тест (не параметризованный):
+Расширяем `PAIN_KEYS` (было 6, станет 9): добавляем `vacation` (хаос с отпусками), `performance` (не понятно, кто буксует), `knowledge` (документы по HR разбросаны), `recognition` (никто не благодарит), `learning` (обучение не привязано к карьере). Убираем дубли.
 
-4. **Пустое состояние** — если `employee_rewards` пуст, отображается `careerTrack.noRewards`, а total = 0.
+## Новые роли в Stories
 
-### Запуск
+К `hrd / manager / lead` добавляем:
+- `employee` — «увидел свой путь и баллы» → features: `digital-passport`, `career-tracks`, `shop`
+- `admin` — Company Admin: «настроил компанию за день» → features: `org-structure`, `hr-policies`, `internal-chat`
 
-`bunx vitest run src/pages/__tests__/CareerTrack.rewards.test.tsx` — добавлю в финальный шаг проверки.
+## Визуальный редизайн (locked taste)
 
-### Зачем все 5 ролей
+Палитра, типографика и layout зафиксированы из ответов пользователя:
+- Palette: **Ocean Deep** — `#0c2340 / #1a4a6e / #2d8a9e / #5cbdb9`
+- Type: **Urbanist (heading) + Epilogue (body)**
+- Layout: **magazine** — featured story + сетка карточек
 
-RLS у view одинаков (`GRANT SELECT` для `authenticated`) — компонент не различает роли в запросе, поэтому параметризация — это smoke-проверка, что рендер не падает ни для одной роли (на случай, если в будущем добавятся role-зависимые ветки).
+Я сгенерирую **3 design directions** для нового hero+features+stories блока с этими токенами как hard constraint (различаются плотностью, ритмом и motion-регистром), затем покажу превью и попрошу выбрать одно. После выбора:
+
+1. Подключаю Urbanist/Epilogue через Google Fonts в `index.html` + `tailwind.config.ts`.
+2. Обновляю `index.css`: токены `--primary / --info / --background / --foreground` и градиенты под Ocean Deep (HSL).
+3. Переписываю `src/pages/Landing.tsx` под выбранную композицию (magazine: hero → featured pain story → bento фич → role-switcher → comparison «вместо 5 инструментов» → FAQ → CTA).
+4. Расширяю `src/data/features.ts` (10 новых иконок и слагов, новые роли/боли).
+5. Дописываю `src/i18n/locales/ru/landing.json` и `src/i18n/locales/en/landing.json` для всех новых ключей + новый hero/positioning copy.
+6. SEO: обновляю `index.html` `<title>` и `meta description` под новое позиционирование.
+
+## Что НЕ трогаем
+
+- Логику аутентификации, роутинг, защищённые роуты.
+- Дашборды и внутренние страницы (`/dashboard` и далее).
+- Backend, миграции, RLS.
+
+## После плана
+
+1. `design--create_directions` с описанием и locked-токенами.
+2. `ask_questions` (type `prototype`) — пользователь выбирает 1 из 3.
+3. Реализация по выбранному направлению.
