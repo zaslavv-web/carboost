@@ -23,7 +23,8 @@ class AiController extends Controller
         ])['messages'];
 
         try {
-            return $svc->stream($messages);
+            $companyId = (string) ($request->input('company_id') ?: $request->user()?->company_id ?: '') ?: null;
+            return $svc->stream($messages, $companyId);
         } catch (\App\Services\AI\AiDisabledException $e) {
             return response()->json(['error' => $e->getMessage(), 'disabled' => true], 423);
         } catch (AiGatewayException $e) {
