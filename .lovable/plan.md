@@ -1,149 +1,137 @@
-# План: AI в закрытом контуре клиента
+## Контекст и что уже есть в продукте
 
-## Цель
+В Career Track уже реализованы смежные модули, на которые опирается корпоративный университет:
 
-Дать возможность развёртывать "Career Track" в изолированном контуре компании, где доступ к Lovable/Gemini закрыт. AI должен работать через один из локальных/российских провайдеров **либо** показывать заглушку, если AI отключён администратором. Конфигурация — через UI Superadmin без передеплоя.  
-  
-ВАЖНО! Если отсутствует подключение к  АИ, но пользователи обращаются к функционалу, то нужно отправить админу продукта (сотрудник на стороне компании) уведомление о необходимости интеграции. При этом в момент первичной развертки админ сам настраивает количество обращений, после которых ему должен прийти пуш.  
-Настраивает он это в настройках компании (отдельный функционал админа)
+- **Career Tracks** (`CareerTrack.tsx`, `CareerTracksManagement.tsx`) — шаги развития до целевой позиции, цели, чек-листы.
+- **Scenarios** (`Scenarios.tsx`) — сценарии шагов трека, генерация AI.
+- **HRD Tests** (`HRDTests.tsx`, `closed_question_tests`) — закрытые тесты по компетенциям.
+- **Assessment** (`Assessment.tsx` + AI-чат) — оценка компетенций интервью+тестом, обновляет цифровой паспорт.
+- **RAG Documents** (`RagDocuments.tsx`) — корпоративная база знаний (pgvector).
+- **Gamification** (`GamificationManagement.tsx`) — баллы лояльности, награды.
+- **Digital Passport** (`Passport.tsx`) — история навыков и активностей.
+- **Positions / Competency Profile** — модель компетенций.
 
-## Архитектура
+Отдельного LMS/«университета» нет: нет курсов, уроков, плейлистов обучения, прогресса прохождения учебных материалов, сертификатов, библиотеки контента, дедлайнов на обучение, отчётов HRD по обучению.
+
+## Что такое «Корпоративный университет» — целевой функционал
+
+Ниже — каркас, который покрывает 80% реальных LMS-кейсов и нативно ложится на наш стек.
+
+### 1. Каталог обучения
+
+- **Курсы** (`courses`): название, обложка, описание, автор, сложность (beginner/intermediate/advanced), длительность, теги/категории, связанные компетенции (`skill_name → skill_value_target`), целевые позиции, видимость (company-wide / по ролям / по позициям / по тегам сотрудников).
+- **Уроки / модули** (`course_modules`, `lessons`): порядок, тип контента — **видео** (URL/upload), **текст/markdown**, **PDF**, **встроенный тест** (ссылка на `closed_question_tests`), **практическое задание** (submission с файлом/текстом, проверяет ментор), **SCORM/xAPI** (на будущее).
+- **Программы обучения** (`learning_paths`): набор курсов в нужном порядке, привязка к карьерному треку/позиции/онбордингу. Программа = «факультет университета».
+- **Каталог-витрина** для сотрудника: фильтры (компетенция, длительность, формат, обязательное/добровольное), поиск, рекомендации (на базе паспорта и позиции).
+
+### 2. Прохождение и прогресс
+
+- **Записи** (`enrollments`): self-enroll, назначение HRD/руководителем, авто-назначение по позиции/онбордингу.
+- **Прогресс** (`lesson_progress`): completed-флаги, % курса, время на уроке, последняя позиция в видео, попытки тестов.
+- **Дедлайны и обязательность**: due_date, mandatory, напоминания через notifications.
+- **Сертификаты** (`certificates`): автогенерация PDF при завершении курса/программы + проходной балл по тесту, уникальный номер, QR для верификации, попадает в Digital Passport.
+
+### 3. Контент и авторинг
+
+- Редактор курсов для HRD/Company Admin: drag-and-drop модулей и уроков, превью.
+- Загрузка медиа в storage (видео/PDF/изображения), генерация thumbnail.
+- **AI-помощник автора** (используем уже существующий AI-gateway + RAG):
+  - сгенерировать структуру курса по теме/компетенции,
+  - сгенерировать конспект урока из загруженного PDF (через DocumentParser),
+  - сгенерировать тест по тексту урока (переиспользуем `GenerateClosedTestService`),
+  - предложить уроки на основе документов из RAG-базы знаний.
+- Версионирование курсов (черновик → опубликован → архив), чтобы редактирование не ломало активные записи.
+
+### 4. Оценка знаний
+
+- Встроенные тесты (переиспользуем `closed_question_tests` + `ClosedQuestionTestRunner`), проходной балл, ограничение попыток, рандомизация.
+- Практические задания со сдачей (текст/файл), ревью ментором, балл и комментарий.
+- Финальная экспертная оценка через **AssessmentChat**, итог → паспорт.
+
+### 5. Социальное обучение
+
+- Комментарии и Q&A под уроками.
+- Внутренний чат с автором/ментором (используем существующий `internal-chat`, создаём контекстный тред «по курсу X»).
+- Отметки «полезно», рейтинги курсов, отзывы.
+
+### 6. Геймификация и мотивация
+
+- Баллы за прохождение уроков/курсов/программ → текущая система (`gamification`).
+- Бейджи/ачивки «Лучший ученик месяца», «5 курсов подряд».
+- Лидерборд по обучению (опционально, отключаемо).
+
+### 7. Аналитика и отчётность
+
+- **Сотрудник**: личный прогресс, что осталось, ближайшие дедлайны.
+- **Руководитель**: прогресс команды, кто отстаёт.
+- **HRD/Company Admin**: completion rate, NPS курсов, разрыв компетенций (gap по позициям), ROI обучения, отчёты на экспорт (xlsx — уже подключён).
+- **Superadmin**: глобальная статистика по компаниям.
+
+### 8. Интеграции в продукт
+
+- **Career Track**: шаг трека может «требовать пройти курс X» — блокирует переход без сертификата.
+- **Onboarding**: программа обучения = онбординг-план новичка.
+- **Performance**: цели на цикле могут ссылаться на курсы.
+- **Probation**: завершение испытательного срока зависит от прохождения обязательной программы.
+- **Passport**: сертификаты и пройденные курсы автоматически попадают в раздел «Сертификаты и обучение» (уже есть строка локали).
+- **RAG**: материалы курсов индексируются в `rag_documents` и доступны AI-ассистенту сотрудника.
+
+### 9. Доступы по ролям
+
+- **Employee**: каталог, прохождение, мои сертификаты.
+- **Manager**: всё выше + прогресс команды, назначение курсов своим людям.
+- **HRD**: авторинг, программы, аналитика по компании, обязательные курсы.
+- **Company Admin**: то же + настройки университета (бренд, политика сертификатов, сроки).
+- **Superadmin**: глобальный обзор, шаблоны курсов для тиражирования между компаниями.
+
+## Технический эскиз
 
 ```text
-┌─────────────────────┐
-│  Бизнес-сервисы     │  AssessmentChat, GenerateTest,
-│  (Laravel)          │  ParseDocument, HrAnalytics ...
-└──────────┬──────────┘
-           │ единый интерфейс LlmDriverInterface
-           ▼
-┌─────────────────────┐
-│  AiGatewayService   │  читает ai_settings (БД) → выбирает драйвер
-└──────────┬──────────┘
-           │
-   ┌───────┼────────┬────────────┬──────────────┐
-   ▼       ▼        ▼            ▼              ▼
- Gemini  Yandex  GigaChat  OpenAI-compat   Internal-RAG
- (cloud) GPT     (Сбер)    (vLLM/Ollama)   (Ollama + Qdrant)
+public.courses(id, company_id, title, slug, cover_url, description,
+               level, duration_min, tags[], competencies jsonb,
+               status enum(draft|published|archived), author_id, version, ...)
+public.course_modules(id, course_id, order_index, title)
+public.lessons(id, module_id, order_index, type, title, content jsonb,
+               video_url, attachment_url, test_id, duration_min)
+public.learning_paths(id, company_id, title, course_ids uuid[], target_position_id, ...)
+public.enrollments(id, user_id, course_id|path_id, assigned_by, due_at,
+                   mandatory, status enum(not_started|in_progress|completed|failed))
+public.lesson_progress(id, enrollment_id, lesson_id, completed, score, attempts, last_position)
+public.certificates(id, user_id, course_id|path_id, issued_at, serial, pdf_url)
+public.course_reviews(id, course_id, user_id, rating, text)
 ```
 
-## Backend (Laravel)
+RLS по `company_id` (как везде), GRANT'ы в той же миграции. Файлы — Laravel storage. PDF сертификатов — серверный рендер. Аналитика — обычные SQL-агрегации, графики Recharts.
 
-### 1. Таблица `ai_settings` (single-row, multi-tenant)
+Фронтенд: новые страницы `University.tsx` (каталог), `CourseView.tsx` (прохождение), `CourseAuthoring.tsx` (редактор для HRD), `LearningPaths.tsx`, `MyLearning.tsx`, плюс расширение `Passport.tsx` и `Dashboard.tsx`.
 
-- `id`, `company_id` (nullable — глобальный fallback для Superadmin)
-- `provider` enum: `gemini` | `yandexgpt` | `gigachat` | `openai_compatible` | `internal_rag` | `disabled`
-- `model` (например, `yandexgpt/latest`, `GigaChat-Pro`, `qwen2.5:14b`)
-- `api_url`, `api_key` (зашифрованы через `Crypt::encryptString`)
-- `extra_json` (folder_id для Yandex, scope для GigaChat, temperature, max_tokens)
-- `rag_enabled` bool, `rag_index_status` enum: `idle|indexing|ready|error`
-- `disabled_message` (текст заглушки для пользователей)
+## Что вынести за рамки MVP
 
-### 2. Рефакторинг `AiGatewayService`
+Чтобы не утонуть — на потом: SCORM/xAPI, маркетплейс внешних курсов, прокторинг, мобильное офлайн-приложение, вебинары/живые трансляции, оплата платных внешних курсов через Shop.
 
-- Извлечь интерфейс `LlmDriverInterface { chat(messages, opts), stream(messages, opts) }`.
-- Драйверы в `app/Services/AI/Drivers/`:
-  - `GeminiDriver` (текущая логика)
-  - `YandexGptDriver` — `https://llm.api.cloud.yandex.net/foundationModels/v1/completion`, IAM-токен или API-ключ + `folder_id`
-  - `GigaChatDriver` — OAuth2 client_credentials, `https://gigachat.devices.sberbank.ru/api/v1/chat/completions`, mTLS-сертификат (опционально)
-  - `OpenAICompatibleDriver` — для vLLM/Ollama/LM Studio/Azure OpenAI (один универсальный)
-  - `DisabledDriver` — кидает `AiDisabledException` с `disabled_message`
-- Все существующие сервисы (`AssessmentChatService`, `GenerateClosedTestService`, `GenerateStepScenarioService`, `GenerateDefaultTrackStepsService`, `HrAnalyticsAiService`, `DocumentParserService`) переписать на интерфейс — без привязки к Gemini-специфичному `contents/parts`.
-- SSE-стриминг (`AssessmentChat`) — нормализовать к OpenAI-style chunk'ам внутри драйвера.
+## Предлагаемые границы MVP (фаза 1)
 
-### 3. RAG для "внутренней" LLM
+Минимально жизнеспособный университет, который сразу даёт ценность:
 
-Это RAG, **не** fine-tuning (fine-tune под каждого клиента нереалистичен по стоимости/времени; ответ модели должен опираться на актуальные документы компании).
+1. Курсы со структурой модули→уроки (видео/markdown/PDF/тест).
+2. Каталог + self-enroll + назначение HRD/руководителем.
+3. Прогресс по урокам, прохождение встроенных тестов, статус курса.
+4. Сертификат (PDF) и его отображение в Passport.
+5. Базовая аналитика HRD: completion rate по компании и по курсам.
+6. Интеграция с Career Track: шаг может требовать курс.
+7. Авторинг курсов для HRD (без AI-помощника на первой итерации).
 
-- Векторная БД: **Qdrant** (open-source, ставится рядом в docker-compose) или `pgvector` в существующем Postgres.
-- Embeddings: локальная модель `bge-m3` / `multilingual-e5-large` через тот же Ollama.
-- Новая таблица `rag_documents`: `company_id`, `source_type` (hr_policy, position, career_track, ticket, employee_profile, custom_upload), `source_id`, `chunk_text`, `embedding`, `metadata`, `indexed_at`.
-- `RagIndexerService`:
-  - Команда `php artisan rag:reindex --company=X` — индексирует HR-политики, позиции, треки, профили, тикеты.
-  - Чанкинг 1–2KB с overlap, метаданные (роль, дата, тип).
-  - Очередь Laravel (queue:work) для фоновой индексации.
-  - Триггеры на сохранение документов → авто-инкрементальное обновление.
-- `InternalRagDriver`:
-  1. Embedding запроса → top-K чанков из Qdrant (фильтр по `company_id`).
-  2. Промпт: системка + контекст из чанков + история сообщений.
-  3. Вызов локальной LLM через OpenAI-совместимый адаптер.
-  4. В ответе возвращает источники (для UI "источник: HR-политика §3.2").
+Фаза 2: AI-авторинг, learning paths, практические задания с ревью, рейтинги, расширенная аналитика, геймификация.
 
-### 4. API
+## Открытые вопросы (нужно ваше решение перед переходом в build)
 
-- `GET /api/admin/ai-settings` (Superadmin/Company Admin)
-- `PUT /api/admin/ai-settings`
-- `POST /api/admin/ai-settings/test` — пробный вызов, возвращает latency/ошибку
-- `POST /api/admin/ai-settings/rag/reindex` — запуск переиндексации
-- `GET /api/admin/ai-settings/rag/status` — прогресс
+1. **Скоуп MVP**: согласовываем предложенный список из 7 пунктов выше или хотите что-то добавить/убрать (например, сразу learning paths / сразу AI-авторинг)?  
+пока оставляем как есть
+2. **Видеохостинг**: храним видео в нашем storage (тяжело, дорого по трафику) или поддерживаем только внешние ссылки (YouTube/Vimeo/Kinescope) на первой итерации?  
+просим пользователя загрузить в облако - у себя храним только ссылки
+3. **Сертификаты**: нужен ли уже в MVP PDF с QR-верификацией, или достаточно записи в паспорте + простой страницы-сертификата по ссылке?  
+пока второе
+4. **Обязательность курсов**: должна ли HRD иметь право блокировать сотрудника на других модулях (например, при невыполнении обязательного курса в срок), или это только напоминания и пометка в дашборде?  
+да, нужно
 
-### 5. Middleware
-
-`EnsureAiEnabled` — если провайдер `disabled`, возвращает `423 Locked` с `disabled_message`.
-
-## Frontend (React)
-
-### 1. Страница `/ai-settings` (Superadmin + Company Admin)
-
-- Селектор провайдера (карточки с описанием).
-- Поля в зависимости от провайдера:
-  - **YandexGPT**: API-ключ, `folder_id`, модель (`yandexgpt`, `yandexgpt-lite`, `yandexgpt-32k`).
-  - **GigaChat**: client_id, client_secret, scope (`GIGACHAT_API_PERS` / `_B2B` / `_CORP`), модель.
-  - **OpenAI-compatible**: base_url, api_key, model.
-  - **Internal RAG**: base_url Ollama, embedding model, chat model, кнопка "Переиндексировать БЗ".
-  - **Disabled**: только текст заглушки.
-- Кнопка "Проверить соединение" → вызывает `/test`, показывает результат.
-- Блок RAG: статус индекса, количество чанков по типам, кнопка реиндекса.
-
-### 2. Хук `useAiAvailability`
-
-- Загружает `ai_settings.provider !== 'disabled'`.
-- Если выключен — оборачивает AI-кнопки в `<AiDisabledTooltip>`: кнопка видна, но кликабельна → toast "AI отключён администратором: {disabled_message}".
-
-### 3. Затронутые экраны (показ заглушки)
-
-`Assessment`, `CareerTracksManagement`, `EmployeeQuestionnaire`, `HRDTests`, `HRPolicies`, `Scenarios`, `Positions`, `Support` — обернуть AI-триггеры через `useAiAvailability`.
-
-### 4. Локализация
-
-`ai.disabled.title`, `ai.disabled.defaultMessage`, `ai.settings.*`, `ai.rag.*` в `ru/en common.json`.
-
-## Деплой в закрытом контуре
-
-`docker-compose.client.yml` (поставляется заказчику):
-
-- `app` (Laravel + React build)
-- `postgres` (с `pgvector` extension)
-- `qdrant` (опционально, если не используем pgvector)
-- `ollama` с предзагруженными моделями: `qwen2.5:14b-instruct`, `bge-m3` (рекомендация для RU+EN, среднее железо: 1×A10 24GB)
-- Альтернатива — клиент указывает endpoint своего YandexGPT/GigaChat, тогда Ollama не нужен.
-
-Документация `DEPLOYMENT_OFFLINE.md`:
-
-- Минимальные требования железа для каждого провайдера.
-- Инструкция настройки YandexGPT (получение API-ключа + folder_id).
-- Инструкция настройки GigaChat (регистрация в Studio, mTLS-сертификат для CORP).
-- Объём документов для RAG (рекомендация: 50–500 МБ текста на компанию).
-
-## Что НЕ входит в этот план
-
-- Fine-tuning моделей под клиента (нереалистично для on-prem поставки; RAG покрывает 95% случаев).
-- Federated learning / обучение на пользовательских данных в реальном времени.
-- Поддержка Anthropic/Mistral/Cohere облачных API (легко добавить позже через `OpenAICompatibleDriver`).
-
-## Этапы реализации
-
-1. **Миграция + рефакторинг `AiGatewayService` → драйверы** (Gemini + Disabled — для обратной совместимости).
-2. `**YandexGptDriver` + `GigaChatDriver` + `OpenAICompatibleDriver**` + тесты.
-3. **UI `/ai-settings**` + `useAiAvailability` + обёртки на 8 экранах.
-4. **RAG-слой**: миграция `rag_documents`, `RagIndexerService`, `InternalRagDriver`, UI индексации.
-5. **docker-compose.client.yml + DEPLOYMENT_OFFLINE.md**.
-
-Реализация большая — рекомендую делать по одному этапу за итерацию. Подтвердите, начинать ли с этапа 1, или сразу нужны все 5.  
-сразу все 5  
-после реализации запусти тесты:  
-1) тест на стрессоустойчивость системы  
-2) стресс-тест на то как новый функционал аффектит старый  
-3) тест на оптимизацию  
-4) автотесты на весь функционал
-
-&nbsp;
+После ответов на эти 4 вопроса я подготовлю детальный план реализации MVP с миграциями, маршрутами API и списком фронтенд-страниц.
