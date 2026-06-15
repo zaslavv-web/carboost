@@ -76,13 +76,34 @@ class HrAnalyticsAiService
     }
 
     /** suggest-ticket-fix */
-    public function suggestTicketFix(string $subject, ?string $description = null): array
+    public function suggestTicketFix(string $subject, ?string $description = null, ?string $companyId = null): array
     {
         $sys = 'Ты опытный специалист техподдержки HR-платформы. Дай: причину, пошаговую инструкцию, готовый ответ если применимо. На русском.';
+
+        $sources = [];
+        if ($companyId) {
+            try {
+                $query = trim($subject . "\n" . ($description ?? ''));
+                $hits = $this->rag->search($companyId, $query, 5);
+                if ($hits) {
+                    $ctxParts = [];
+                    foreach ($hits as $i => $h) {
+                        $title = $h['title'] ? " — {$h['title']}" : '';
+                        $ctxParts[] = '[' . ($i + 1) . $title . "]\n" . trim($h['chunk_text']);
+                        $sources[] = ['title' => $h['title'], 'source_id' => $h['source_id'], 'score' => $h['score']];
+                    }
+                    $sys .= "\n\nИспользуй приоритетно сведения из базы знаний компании ниже. Если их нет — отвечай по общим знаниям.\n\n"
+                        . implode("\n\n", $ctxParts);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Support RAG failed', ['error' => $e->getMessage()]);
+            }
+        }
+
         $suggestion = $this->ai->chatText([
             ['role' => 'system', 'content' => $sys],
             ['role' => 'user', 'content' => "Тема: {$subject}\n\nОписание: " . ($description ?: 'Не указано')],
         ]);
-        return ['suggestion' => $suggestion];
+        return ['suggestion' => $suggestion, 'sources' => $sources];
     }
 }
