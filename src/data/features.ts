@@ -1,4 +1,22 @@
-import { Sparkles, Target, Trophy, BarChart3, Users, ShoppingBag, FileSearch, type LucideIcon } from "lucide-react";
+import {
+  Sparkles,
+  Target,
+  Trophy,
+  BarChart3,
+  Users,
+  ShoppingBag,
+  FileSearch,
+  LineChart,
+  CalendarDays,
+  Award,
+  GraduationCap,
+  BookOpen,
+  MessagesSquare,
+  Brain,
+  GitBranch,
+  Network,
+  type LucideIcon,
+} from "lucide-react";
 
 /**
  * Feature metadata — all displayable text lives in i18n landing.json under
@@ -12,7 +30,17 @@ export type FeatureSlug =
   | "gamification"
   | "analytics"
   | "digital-passport"
-  | "onboarding";
+  | "onboarding"
+  | "performance"
+  | "leaves"
+  | "recognition"
+  | "university"
+  | "shop"
+  | "hr-policies"
+  | "internal-chat"
+  | "rag-ai"
+  | "scenarios"
+  | "org-structure";
 
 export interface FeatureMeta {
   slug: FeatureSlug;
@@ -22,21 +50,56 @@ export interface FeatureMeta {
 export const FEATURES: FeatureMeta[] = [
   { slug: "ai-assessment", icon: Sparkles },
   { slug: "career-tracks", icon: Target },
-  { slug: "gamification", icon: Trophy },
+  { slug: "performance", icon: LineChart },
+  { slug: "university", icon: GraduationCap },
   { slug: "analytics", icon: BarChart3 },
   { slug: "digital-passport", icon: Users },
+  { slug: "leaves", icon: CalendarDays },
+  { slug: "recognition", icon: Award },
+  { slug: "gamification", icon: Trophy },
+  { slug: "shop", icon: ShoppingBag },
   { slug: "onboarding", icon: FileSearch },
+  { slug: "hr-policies", icon: BookOpen },
+  { slug: "internal-chat", icon: MessagesSquare },
+  { slug: "rag-ai", icon: Brain },
+  { slug: "scenarios", icon: GitBranch },
+  { slug: "org-structure", icon: Network },
 ];
 
 // Re-export icon for shop-related callers if any.
 export { ShoppingBag };
 
-export type RoleStoryKey = "hrd" | "manager" | "lead";
+export type RoleStoryKey = "hrd" | "manager" | "lead" | "employee" | "admin";
 export const ROLE_STORY_KEYS: { key: RoleStoryKey; features: FeatureSlug[] }[] = [
   { key: "hrd", features: ["analytics", "career-tracks", "digital-passport"] },
-  { key: "manager", features: ["onboarding", "ai-assessment", "gamification"] },
-  { key: "lead", features: ["career-tracks", "digital-passport", "analytics"] },
+  { key: "manager", features: ["onboarding", "ai-assessment", "performance"] },
+  { key: "lead", features: ["career-tracks", "digital-passport", "performance"] },
+  { key: "employee", features: ["digital-passport", "career-tracks", "shop"] },
+  { key: "admin", features: ["org-structure", "hr-policies", "internal-chat"] },
 ];
 
-export type PainKey = "retain" | "assess" | "grow" | "motivate" | "onboard" | "decide";
-export const PAIN_KEYS: PainKey[] = ["retain", "assess", "grow", "motivate", "onboard", "decide"];
+export type PainKey =
+  | "retain"
+  | "assess"
+  | "grow"
+  | "motivate"
+  | "onboard"
+  | "decide"
+  | "vacation"
+  | "performance"
+  | "knowledge"
+  | "recognition"
+  | "learning";
+export const PAIN_KEYS: PainKey[] = [
+  "retain",
+  "assess",
+  "grow",
+  "performance",
+  "vacation",
+  "learning",
+  "knowledge",
+  "recognition",
+  "motivate",
+  "onboard",
+  "decide",
+];
