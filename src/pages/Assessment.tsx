@@ -98,6 +98,10 @@ const Assessment = () => {
     return <ClosedQuestionTestRunner test={activeTest} onRetake={() => { setActiveTest(null); setMode("choose"); }} />;
   }
 
+  if (mode === "ai_chat") {
+    return <AssessmentAiChat companyId={profile?.company_id} onExit={() => setMode("choose")} />;
+  }
+
   return (
     <div className="max-w-3xl mx-auto animate-fade-in">
       <div className="mb-6">
