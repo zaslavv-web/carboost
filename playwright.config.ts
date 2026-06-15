@@ -6,7 +6,7 @@ import { defineConfig, devices } from "@playwright/test";
  * sticky header at 375px (mobile) and 768px (tablet) widths.
  */
 export default defineConfig({
-  testDir: "./src",
+  testDir: "./src/e2e",
   timeout: 30_000,
   expect: {
     // Allow tiny anti-aliasing/font-shaping differences between machines.
