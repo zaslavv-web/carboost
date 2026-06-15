@@ -57,7 +57,7 @@ const Landing = () => {
       <LandingHeader onOpenDemo={() => setDemoOpen(true)} />
 
       {/* ===== HERO ===== */}
-      <section className="border-b" style={{ borderColor: `${NAVY}1a` }}>
+      <section data-testid="landing-hero" className="border-b" style={{ borderColor: `${NAVY}1a` }}>
         <div className="max-w-7xl mx-auto px-5 sm:px-6 md:px-10 py-16 sm:py-20 md:py-28">
           <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-end">
             <div className="lg:col-span-8">
