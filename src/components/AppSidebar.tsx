@@ -192,6 +192,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     return [
       ...common,
       { icon: Users, label: t("nav.myTeam"), path: "/team" },
+      { icon: GraduationCap, label: t("nav.university", { defaultValue: "Университет" }), path: "/university" },
       { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
       { icon: Star, label: t("performance:title", { defaultValue: "Performance" }), path: "/performance" },
       { icon: TimerReset, label: t("performance:probation.title", { defaultValue: "Испытательный" }), path: "/probation" },
@@ -208,6 +209,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     { icon: ClipboardCheck, label: t("nav.questionnaire"), path: "/employee-questionnaire" },
     { icon: User, label: t("nav.passport"), path: "/passport" },
     { icon: Target, label: t("nav.careerTrack"), path: "/career-track" },
+    { icon: GraduationCap, label: t("nav.university", { defaultValue: "Университет" }), path: "/university" },
     { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
     { icon: Star, label: t("performance:title", { defaultValue: "Performance" }), path: "/performance" },
     { icon: TimerReset, label: t("performance:probation.title", { defaultValue: "Испытательный" }), path: "/probation" },
