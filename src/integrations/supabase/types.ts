@@ -1065,6 +1065,13 @@ export type Database = {
             referencedRelation: "gamification_reward_types"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "employee_rewards_reward_type_id_fkey"
+            columns: ["reward_type_id"]
+            isOneToOne: false
+            referencedRelation: "gamification_rewards_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       employee_risk_scores: {
@@ -2050,6 +2057,13 @@ export type Database = {
             referencedRelation: "closed_question_tests"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "test_attempts_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "closed_question_tests_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -2072,7 +2086,125 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      closed_question_tests_safe: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string | null
+          is_active: boolean | null
+          position_id: string | null
+          question_count: number | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          position_id?: string | null
+          question_count?: never
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          position_id?: string | null
+          question_count?: never
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "closed_question_tests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "closed_question_tests_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gamification_rewards_public: {
+        Row: {
+          category: string | null
+          company_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          icon: string | null
+          id: string | null
+          image_url: string | null
+          is_active: boolean | null
+          non_monetary_description: string | null
+          non_monetary_title: string | null
+          points: number | null
+          reward_kind: string | null
+          title: string | null
+          trigger_events: Json | null
+          trigger_mode: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string | null
+          image_url?: string | null
+          is_active?: boolean | null
+          non_monetary_description?: string | null
+          non_monetary_title?: string | null
+          points?: number | null
+          reward_kind?: string | null
+          title?: string | null
+          trigger_events?: Json | null
+          trigger_mode?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string | null
+          image_url?: string | null
+          is_active?: boolean | null
+          non_monetary_description?: string | null
+          non_monetary_title?: string | null
+          points?: number | null
+          reward_kind?: string | null
+          title?: string | null
+          trigger_events?: Json | null
+          trigger_mode?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gamification_reward_types_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       assign_role: {
@@ -2102,6 +2234,7 @@ export type Database = {
         Args: { _approve: boolean; _order_id: string; _reason?: string }
         Returns: undefined
       }
+      get_safe_test_questions: { Args: { _test_id: string }; Returns: Json }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       grant_rewards_for_event: {
         Args: {
@@ -2177,6 +2310,10 @@ export type Database = {
           _source?: string
         }
         Returns: string
+      }
+      submit_test_attempt: {
+        Args: { _answers: Json; _source: string; _test_id: string }
+        Returns: Json
       }
       sync_step_goals_to_personal: {
         Args: { _assignment_id: string }
