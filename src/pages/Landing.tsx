@@ -53,12 +53,12 @@ const Landing = () => {
   const gridFeatures = FEATURES.slice(1);
 
   return (
-    <div style={{ background: BG, color: NAVY, ...bodyFont }} className="min-h-screen selection:bg-[#5cbdb9] selection:text-white">
+    <div style={{ background: BG, color: NAVY, ...bodyFont }} className="min-h-screen overflow-x-hidden selection:bg-[#5cbdb9] selection:text-white">
       <LandingHeader onOpenDemo={() => setDemoOpen(true)} />
 
       {/* ===== HERO ===== */}
       <section className="border-b" style={{ borderColor: `${NAVY}1a` }}>
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-20 md:py-28">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 md:px-10 py-16 sm:py-20 md:py-28">
           <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-end">
             <div className="lg:col-span-8">
               <span
