@@ -42,6 +42,7 @@ import {
   Palette,
   Brain,
   BookText,
+  GraduationCap,
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { useBranding } from "@/contexts/BrandingContext";
