@@ -4,7 +4,7 @@
  * чтобы либо блокировать действие, либо показать сообщение администратора.
  */
 import { useQuery } from "@tanstack/react-query";
-import { laravelInvoke } from "@/integrations/laravel/client";
+import { laravel } from "@/integrations/laravel/client";
 
 export interface AiSettings {
   provider: string;
@@ -23,7 +23,7 @@ export function useAiSettings() {
   return useQuery<AiSettings | null>({
     queryKey: ["ai-settings"],
     queryFn: async () => {
-      const { data } = await laravelInvoke<AiSettings>("ai-settings", { method: "GET" });
+      const { data } = await laravel.get<AiSettings>("/ai-settings");
       return data ?? null;
     },
     staleTime: 60_000,
