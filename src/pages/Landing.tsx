@@ -57,7 +57,7 @@ const Landing = () => {
       <LandingHeader onOpenDemo={() => setDemoOpen(true)} />
 
       {/* ===== HERO ===== */}
-      <section className="border-b" style={{ borderColor: `${NAVY}1a` }}>
+      <section data-testid="landing-hero" className="border-b" style={{ borderColor: `${NAVY}1a` }}>
         <div className="max-w-7xl mx-auto px-5 sm:px-6 md:px-10 py-16 sm:py-20 md:py-28">
           <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-end">
             <div className="lg:col-span-8">
@@ -101,7 +101,7 @@ const Landing = () => {
           </div>
 
           {/* Inline metrics strip */}
-          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 border-t" style={{ borderColor: `${NAVY}1a` }}>
+          <div data-testid="landing-metrics" className="mt-16 grid grid-cols-2 md:grid-cols-4 border-t" style={{ borderColor: `${NAVY}1a` }}>
             {(["modules", "roles", "deploy", "ai"] as const).map((k) => (
               <div key={k} className="py-6 md:py-8 px-2 border-r last:border-r-0" style={{ borderColor: `${NAVY}1a` }}>
                 <div style={headingFont} className="text-3xl md:text-4xl font-extrabold tracking-tight">
@@ -161,7 +161,7 @@ const Landing = () => {
       </section>
 
       {/* ===== FEATURES (Magazine grid) ===== */}
-      <section id="features" className="border-b" style={{ borderColor: `${NAVY}1a` }}>
+      <section data-testid="landing-features-grid" id="features" className="border-b" style={{ borderColor: `${NAVY}1a` }}>
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-20">
           <div className="grid lg:grid-cols-12 gap-10 mb-12">
             <div className="lg:col-span-5">
