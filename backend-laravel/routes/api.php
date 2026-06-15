@@ -307,6 +307,28 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::post  ('/rag/search',                 [\App\Http\Controllers\Api\RagController::class, 'search']);
         Route::delete('/rag/documents/{sourceId}',   [\App\Http\Controllers\Api\RagController::class, 'destroy']);
 
+        // ---- Corporate University (Phase 17) ----
+        Route::get   ('/university/courses',                 [\App\Http\Controllers\Api\CourseController::class, 'index']);
+        Route::post  ('/university/courses',                 [\App\Http\Controllers\Api\CourseController::class, 'store']);
+        Route::get   ('/university/courses/{id}',            [\App\Http\Controllers\Api\CourseController::class, 'show']);
+        Route::patch ('/university/courses/{id}',            [\App\Http\Controllers\Api\CourseController::class, 'update']);
+        Route::delete('/university/courses/{id}',            [\App\Http\Controllers\Api\CourseController::class, 'destroy']);
+        Route::post  ('/university/courses/{id}/modules',    [\App\Http\Controllers\Api\CourseController::class, 'storeModule']);
+        Route::patch ('/university/modules/{id}',            [\App\Http\Controllers\Api\CourseController::class, 'updateModule']);
+        Route::delete('/university/modules/{id}',            [\App\Http\Controllers\Api\CourseController::class, 'destroyModule']);
+        Route::post  ('/university/modules/{id}/lessons',    [\App\Http\Controllers\Api\CourseController::class, 'storeLesson']);
+        Route::patch ('/university/lessons/{id}',            [\App\Http\Controllers\Api\CourseController::class, 'updateLesson']);
+        Route::delete('/university/lessons/{id}',            [\App\Http\Controllers\Api\CourseController::class, 'destroyLesson']);
+
+        Route::get   ('/university/my-enrollments',          [\App\Http\Controllers\Api\EnrollmentController::class, 'mine']);
+        Route::get   ('/university/courses/{id}/enrollments',[\App\Http\Controllers\Api\EnrollmentController::class, 'byCourse']);
+        Route::get   ('/university/courses/{id}/analytics',  [\App\Http\Controllers\Api\EnrollmentController::class, 'courseAnalytics']);
+        Route::post  ('/university/enrollments',             [\App\Http\Controllers\Api\EnrollmentController::class, 'enroll']);
+        Route::post  ('/university/enrollments/{id}/progress',[\App\Http\Controllers\Api\EnrollmentController::class, 'progress']);
+        Route::get   ('/university/blockers',                [\App\Http\Controllers\Api\EnrollmentController::class, 'blockers']);
+        Route::get   ('/university/certificate/{serial}',    [\App\Http\Controllers\Api\EnrollmentController::class, 'certificate']);
+
+
         // ---- Generic CRUD bridge (Phase 10, replaces legacy.from(...)) ----
         Route::get   ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'index']);
         Route::post  ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'store']);
