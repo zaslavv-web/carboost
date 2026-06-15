@@ -301,6 +301,12 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::put ('/ai-settings',      [\App\Http\Controllers\Api\AiSettingsController::class, 'update']);
         Route::post('/ai-settings/test', [\App\Http\Controllers\Api\AiSettingsController::class, 'test']);
 
+        // ---- RAG (Phase 16: local semantic search over company docs) ----
+        Route::get   ('/rag/documents',              [\App\Http\Controllers\Api\RagController::class, 'index']);
+        Route::post  ('/rag/documents',              [\App\Http\Controllers\Api\RagController::class, 'store']);
+        Route::post  ('/rag/search',                 [\App\Http\Controllers\Api\RagController::class, 'search']);
+        Route::delete('/rag/documents/{sourceId}',   [\App\Http\Controllers\Api\RagController::class, 'destroy']);
+
         // ---- Generic CRUD bridge (Phase 10, replaces legacy.from(...)) ----
         Route::get   ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'index']);
         Route::post  ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'store']);

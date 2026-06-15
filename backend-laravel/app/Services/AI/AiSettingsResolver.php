@@ -89,6 +89,13 @@ class AiSettingsResolver
         try { return Crypt::decryptString($value); } catch (\Throwable) { return ''; }
     }
 
+    /** Расшифровать api-ключ из строки настроек (для внешних потребителей, напр. RagService). */
+    public function buildDriverKey(?object $row): string
+    {
+        if (! $row || empty($row->api_key_enc)) return '';
+        return $this->decrypt((string) $row->api_key_enc);
+    }
+
     /** @return array<string,mixed> */
     public function extra(?object $row): array
     {
