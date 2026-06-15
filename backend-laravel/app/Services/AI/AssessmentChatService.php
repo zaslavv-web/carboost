@@ -28,11 +28,11 @@ class AssessmentChatService
 Тон профессиональный, нейтральный, на русском.
 TXT;
 
-    public function __construct(protected AiGatewayService $ai)
+    public function __construct(protected AiGatewayService $ai, protected RagService $rag)
     {
     }
 
-    public function stream(array $messages): StreamedResponse
+    public function stream(array $messages, ?string $companyId = null): StreamedResponse
     {
         $tools = [[
             'type' => 'function',
@@ -64,13 +64,40 @@ TXT;
             ],
         ]];
 
+        $systemPrompt = self::SYSTEM_PROMPT;
+        if ($companyId) {
+            $query = $this->extractQuery($messages);
+            if ($query !== '') {
+                try {
+                    $ctx = $this->rag->buildContext($companyId, $query, 5);
+                    if ($ctx !== '') {
+                        $systemPrompt .= "\n\n=== КОНТЕКСТ КОМПАНИИ (RAG) ===\n" . $ctx;
+                    }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Assessment RAG failed', ['error' => $e->getMessage()]);
+                }
+            }
+        }
+
         return $this->ai->streamChat([
             'model' => env('AI_MODEL_PRO', 'google/gemini-2.5-pro'),
             'messages' => array_merge(
-                [['role' => 'system', 'content' => self::SYSTEM_PROMPT]],
+                [['role' => 'system', 'content' => $systemPrompt]],
                 $messages,
             ),
             'tools' => $tools,
         ]);
+    }
+
+    protected function extractQuery(array $messages): string
+    {
+        $userMsgs = array_values(array_filter($messages, fn ($m) => ($m['role'] ?? '') === 'user'));
+        $last = end($userMsgs);
+        if (! $last) return '';
+        $content = $last['content'] ?? '';
+        if (is_array($content)) {
+            $content = collect($content)->pluck('text')->filter()->implode(' ');
+        }
+        return trim((string) $content);
     }
 }
