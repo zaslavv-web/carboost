@@ -24,6 +24,8 @@ class AiController extends Controller
 
         try {
             return $svc->stream($messages);
+        } catch (\App\Services\AI\AiDisabledException $e) {
+            return response()->json(['error' => $e->getMessage(), 'disabled' => true], 423);
         } catch (AiGatewayException $e) {
             return response()->json(['error' => $e->getMessage()], $e->getCode() ?: 500);
         }
@@ -132,6 +134,8 @@ class AiController extends Controller
     {
         try {
             return response()->json($fn());
+        } catch (\App\Services\AI\AiDisabledException $e) {
+            return response()->json(['error' => $e->getMessage(), 'disabled' => true], 423);
         } catch (AiGatewayException $e) {
             return response()->json(['error' => $e->getMessage()], $e->getCode() ?: 500);
         } catch (\Throwable $e) {

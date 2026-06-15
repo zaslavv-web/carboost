@@ -60,6 +60,7 @@ import Disciplinary from "@/pages/Disciplinary";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { BrandingProvider } from "@/contexts/BrandingContext";
 import CompanyBranding from "@/pages/CompanyBranding";
+import AiSettings from "@/pages/AiSettings";
 
 const queryClient = new QueryClient();
 
@@ -125,6 +126,7 @@ const App = () => (
                 <Route path="/probation" element={<Probation />} />
                 <Route path="/disciplinary" element={<Disciplinary />} />
                 <Route path="/company-branding" element={<CompanyBranding />} />
+                <Route path="/ai-settings" element={<AiSettings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

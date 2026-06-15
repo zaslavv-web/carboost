@@ -296,6 +296,11 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
             Route::post('parse-test-document',          [AiController::class, 'parseTestDocument']);
         });
 
+        // ---- AI settings (Phase 15: closed-loop deployment) ----
+        Route::get ('/ai-settings',      [\App\Http\Controllers\Api\AiSettingsController::class, 'show']);
+        Route::put ('/ai-settings',      [\App\Http\Controllers\Api\AiSettingsController::class, 'update']);
+        Route::post('/ai-settings/test', [\App\Http\Controllers\Api\AiSettingsController::class, 'test']);
+
         // ---- Generic CRUD bridge (Phase 10, replaces legacy.from(...)) ----
         Route::get   ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'index']);
         Route::post  ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'store']);
