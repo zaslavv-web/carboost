@@ -23,7 +23,8 @@ class AiController extends Controller
         ])['messages'];
 
         try {
-            return $svc->stream($messages);
+            $companyId = (string) ($request->input('company_id') ?: $request->user()?->company_id ?: '') ?: null;
+            return $svc->stream($messages, $companyId);
         } catch (\App\Services\AI\AiDisabledException $e) {
             return response()->json(['error' => $e->getMessage(), 'disabled' => true], 423);
         } catch (AiGatewayException $e) {
@@ -100,7 +101,8 @@ class AiController extends Controller
             'subject' => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);
-        return $this->handle(fn () => $svc->suggestTicketFix($data['subject'], $data['description'] ?? null));
+        $companyId = (string) ($request->input('company_id') ?: $request->user()?->company_id ?: '') ?: null;
+        return $this->handle(fn () => $svc->suggestTicketFix($data['subject'], $data['description'] ?? null, $companyId));
     }
 
     public function parsePositionStandards(Request $request, DocumentParserService $svc)
