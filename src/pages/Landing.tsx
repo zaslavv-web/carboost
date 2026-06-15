@@ -101,7 +101,7 @@ const Landing = () => {
           </div>
 
           {/* Inline metrics strip */}
-          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 border-t" style={{ borderColor: `${NAVY}1a` }}>
+          <div data-testid="landing-metrics" className="mt-16 grid grid-cols-2 md:grid-cols-4 border-t" style={{ borderColor: `${NAVY}1a` }}>
             {(["modules", "roles", "deploy", "ai"] as const).map((k) => (
               <div key={k} className="py-6 md:py-8 px-2 border-r last:border-r-0" style={{ borderColor: `${NAVY}1a` }}>
                 <div style={headingFont} className="text-3xl md:text-4xl font-extrabold tracking-tight">
