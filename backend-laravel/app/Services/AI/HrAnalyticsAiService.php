@@ -5,7 +5,7 @@ namespace App\Services\AI;
 /** Replaces edge functions: generate-career-paths, generate-positions-from-org, generate-questionnaire-profile, suggest-ticket-fix */
 class HrAnalyticsAiService
 {
-    public function __construct(protected AiGatewayService $ai)
+    public function __construct(protected AiGatewayService $ai, protected RagService $rag)
     {
     }
 
