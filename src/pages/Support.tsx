@@ -11,6 +11,7 @@ import { getDateLocale } from "@/lib/dateLocale";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import { useTranslation } from "react-i18next";
+import RagSources, { type RagSource } from "@/components/ai/RagSources";
 
 const TicketCard = ({ ticket, profiles, isAdmin, userId }: {
   ticket: any; profiles: any[]; isAdmin: boolean; userId: string;
@@ -20,6 +21,7 @@ const TicketCard = ({ ticket, profiles, isAdmin, userId }: {
   const [expanded, setExpanded] = useState(false);
   const [response, setResponse] = useState(ticket.admin_response || "");
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiSources, setAiSources] = useState<RagSource[]>([]);
   const [status, setStatus] = useState(ticket.status);
 
   const priorityLabels: Record<string, { label: string; cls: string }> = {
@@ -63,6 +65,7 @@ const TicketCard = ({ ticket, profiles, isAdmin, userId }: {
       if (error) throw error;
       if (data?.suggestion) {
         setResponse(data.suggestion);
+        setAiSources(Array.isArray(data.sources) ? data.sources : []);
         await laravelDb.from("support_tickets").update({
           ai_suggestion: data.suggestion,
         } as any).eq("id", ticket.id);
@@ -171,6 +174,7 @@ const TicketCard = ({ ticket, profiles, isAdmin, userId }: {
                   </Button>
                 </div>
               )}
+              {aiSources.length > 0 && <RagSources sources={aiSources} defaultOpen />}
               <Button size="sm" onClick={() => respondMutation.mutate()} disabled={!response.trim() || respondMutation.isPending}>
                 {respondMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                 {t("support.sendResponseBtn")}
