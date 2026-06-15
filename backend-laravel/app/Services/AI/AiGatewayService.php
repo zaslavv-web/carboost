@@ -2,59 +2,57 @@
 
 namespace App\Services\AI;
 
-use Illuminate\Http\Client\Response;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Crypt;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Central AI gateway client. Compatible with any OpenAI-style Chat Completions
- * endpoint (OpenAI, OpenRouter, vLLM, Ollama, self-hosted gateway).
+ * Центральный фасад работы с AI. Делегирует вызовы в активный драйвер,
+ * определяемый AiSettingsResolver для company_id текущего пользователя.
  *
- * Configured via env:
- *   AI_API_URL   — full Chat Completions endpoint
- *   AI_API_KEY   — bearer token
- *   AI_MODEL     — default model id
+ * Сохраняет публичный API (chat / chatText / chatJson / chatToolCall / streamChat),
+ * чтобы существующие сервисы (AssessmentChat, GenerateClosedTest, ...) работали без изменений.
+ *
+ * Дополнительно:
+ *  - при провайдере 'disabled' ведёт счётчик обращений и отправляет уведомление
+ *    Company Admin / HRD когда достигнут disabled_alert_threshold;
+ *  - логирует каждое обращение в ai_usage_log.
  */
 class AiGatewayService
 {
     public function __construct(
-        protected ?string $apiUrl = null,
-        protected ?string $apiKey = null,
-        protected ?string $defaultModel = null,
+        protected ?AiSettingsResolver $resolver = null,
+        protected ?string $feature = null,
     ) {
-        $infra = \App\Support\ServiceInfra::ai();
-        $this->apiUrl ??= ($infra['url'] ?? null) ?: env('AI_API_URL', 'https://api.openai.com/v1/chat/completions');
-        $this->apiKey ??= ($infra['api_key'] ?? null) ?: env('AI_API_KEY');
-        $this->defaultModel ??= ($infra['model'] ?? null) ?: env('AI_MODEL', 'gpt-4o-mini');
-
-        if (! $this->apiKey) {
-            throw new RuntimeException('AI gateway is not configured: set AI_API_KEY');
-        }
+        $this->resolver ??= app(AiSettingsResolver::class);
     }
 
-    /** Raw chat completion. Returns the parsed JSON body. */
+    public function forFeature(string $feature): self
+    {
+        $clone = clone $this;
+        $clone->feature = $feature;
+        return $clone;
+    }
+
     public function chat(array $body): array
     {
-        $payload = array_merge(['model' => $this->defaultModel], $body);
-        $response = $this->post($payload);
-        $this->throwOnError($response);
+        [$row, $driver] = $this->load();
+        $messages = $body['messages'] ?? [];
+        $options = array_diff_key($body, ['messages' => true]);
 
-        return $response->json() ?? [];
+        return $this->run($row, $driver, fn () => $driver->chat($messages, $options));
     }
 
-    /** Convenience: extract first message content as string. */
     public function chatText(array $messages, array $extra = []): string
     {
         $data = $this->chat(array_merge(['messages' => $messages], $extra));
-
         return (string) data_get($data, 'choices.0.message.content', '');
     }
 
-    /**
-     * JSON-mode chat. Parses {...} from the response. Falls back to $default on failure.
-     */
     public function chatJson(array $messages, array $default = [], array $extra = []): array
     {
         $body = array_merge([
@@ -62,22 +60,15 @@ class AiGatewayService
             'response_format' => ['type' => 'json_object'],
         ], $extra);
 
-        $content = $this->chatText($messages, $body);
-
+        $content = (string) data_get($this->chat($body), 'choices.0.message.content', '');
         return $this->extractJson($content) ?? $default;
     }
 
-    /**
-     * Forced tool-call. Returns parsed arguments of the first tool call, or [].
-     */
     public function chatToolCall(array $messages, string $toolName, array $parameters, array $extra = []): array
     {
         $tools = [[
             'type' => 'function',
-            'function' => [
-                'name' => $toolName,
-                'parameters' => $parameters,
-            ],
+            'function' => ['name' => $toolName, 'parameters' => $parameters],
         ]];
 
         $body = array_merge([
@@ -90,7 +81,9 @@ class AiGatewayService
         $args = data_get($data, 'choices.0.message.tool_calls.0.function.arguments');
 
         if (! $args) {
-            return [];
+            // Не все провайдеры поддерживают tool_calls (YandexGPT). Падаем в JSON-режим.
+            $content = (string) data_get($data, 'choices.0.message.content', '');
+            return $this->extractJson($content) ?? [];
         }
 
         try {
@@ -102,58 +95,119 @@ class AiGatewayService
         }
     }
 
-    /**
-     * Streaming chat completion (SSE). Returns a Symfony StreamedResponse that
-     * proxies the upstream event-stream byte-for-byte to the client.
-     */
     public function streamChat(array $body): StreamedResponse
     {
-        $payload = array_merge(['model' => $this->defaultModel, 'stream' => true], $body);
+        [$row, $driver] = $this->load();
+        $messages = $body['messages'] ?? [];
+        $options = array_diff_key($body, ['messages' => true]);
 
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Accept' => 'text/event-stream',
-        ])->withOptions(['stream' => true])->post($this->apiUrl, $payload);
+        return $this->run($row, $driver, fn () => $driver->stream($messages, $options));
+    }
 
-        $this->throwOnError($response);
+    /** @return array{0:?object,1:\App\Services\AI\Drivers\LlmDriverInterface} */
+    protected function load(): array
+    {
+        $r = $this->resolver->resolve();
+        return [$r['settings'], $r['driver']];
+    }
 
-        $stream = $response->toPsrResponse()->getBody();
+    protected function run(?object $row, $driver, \Closure $action)
+    {
+        $started = microtime(true);
+        $companyId = $row->company_id ?? $this->resolver->currentCompanyId();
+        $userId = Auth::id();
+        $isDisabled = ($row->provider ?? null) === 'disabled';
 
-        return new StreamedResponse(function () use ($stream) {
-            while (! $stream->eof()) {
-                echo $stream->read(4096);
-                @ob_flush();
-                @flush();
+        try {
+            $result = $action();
+
+            $this->log($companyId, $userId, $row?->provider, $isDisabled, $started, 'ok');
+            return $result;
+        } catch (AiDisabledException $e) {
+            $this->log($companyId, $userId, $row?->provider, true, $started, 'disabled', $e->getMessage());
+            $this->bumpDisabledCounter($row);
+            throw $e;
+        } catch (\Throwable $e) {
+            $this->log($companyId, $userId, $row?->provider, $isDisabled, $started, 'error', $e->getMessage());
+            throw $e;
+        }
+    }
+
+    protected function log(?string $companyId, $userId, ?string $provider, bool $wasDisabled, float $started, string $status, ?string $error = null): void
+    {
+        try {
+            DB::table('ai_usage_log')->insert([
+                'company_id' => $companyId,
+                'user_id' => $userId,
+                'feature' => $this->feature ?? 'unknown',
+                'provider' => $provider,
+                'was_disabled' => $wasDisabled,
+                'latency_ms' => (int) ((microtime(true) - $started) * 1000),
+                'status' => $status,
+                'error' => $error ? mb_substr($error, 0, 2000) : null,
+                'created_at' => now(),
+            ]);
+        } catch (\Throwable $e) { /* не блокируем бизнес-операцию */ }
+    }
+
+    /**
+     * Увеличивает счётчик обращений к выключенному AI. При достижении порога
+     * шлёт push-уведомление Company Admin/HRD и сбрасывает счётчик.
+     */
+    protected function bumpDisabledCounter(?object $row): void
+    {
+        if (! $row || (int) ($row->disabled_alert_threshold ?? 0) <= 0) return;
+
+        try {
+            $newCount = ((int) ($row->disabled_request_count ?? 0)) + 1;
+            DB::table('ai_settings')->where('id', $row->id)->update([
+                'disabled_request_count' => $newCount,
+                'updated_at' => now(),
+            ]);
+
+            if ($newCount >= (int) $row->disabled_alert_threshold) {
+                $this->notifyAdmins($row);
+                DB::table('ai_settings')->where('id', $row->id)->update([
+                    'disabled_request_count' => 0,
+                    'disabled_last_alert_at' => now(),
+                ]);
             }
-        }, 200, [
-            'Content-Type' => 'text/event-stream',
-            'Cache-Control' => 'no-cache, no-transform',
-            'X-Accel-Buffering' => 'no',
-        ]);
+        } catch (\Throwable $e) {
+            Log::warning('AI disabled counter failed', ['error' => $e->getMessage()]);
+        }
     }
 
-    protected function post(array $payload): Response
+    protected function notifyAdmins(object $row): void
     {
-        return Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Content-Type' => 'application/json',
-        ])->timeout(120)->post($this->apiUrl, $payload);
-    }
+        if (! $row->company_id) return;
 
-    protected function throwOnError(Response $response): void
-    {
-        if ($response->successful()) {
-            return;
+        try {
+            $adminIds = DB::table('user_roles')
+                ->where('role', 'company_admin')
+                ->orWhere('role', 'hrd')
+                ->pluck('user_id');
+
+            $message = sprintf(
+                'За последнее время пользователи %d раз обратились к AI-функциям, но AI отключён. Настройте интеграцию: /ai-settings',
+                (int) $row->disabled_alert_threshold,
+            );
+
+            foreach ($adminIds as $uid) {
+                DB::table('notifications')->insert([
+                    'id' => (string) \Illuminate\Support\Str::uuid(),
+                    'user_id' => $uid,
+                    'type' => 'ai_disabled_threshold',
+                    'title' => 'AI требует настройки',
+                    'message' => $message,
+                    'data' => json_encode(['threshold' => $row->disabled_alert_threshold]),
+                    'read' => false,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('AI notify admins failed', ['error' => $e->getMessage()]);
         }
-        $status = $response->status();
-        if ($status === 429) {
-            throw new AiGatewayException('Превышен лимит запросов AI', 429);
-        }
-        if ($status === 402) {
-            throw new AiGatewayException('Закончились кредиты AI gateway', 402);
-        }
-        Log::error('AI gateway error', ['status' => $status, 'body' => $response->body()]);
-        throw new AiGatewayException('Ошибка AI gateway', $status ?: 500);
     }
 
     protected function extractJson(string $content): ?array
@@ -162,9 +216,7 @@ class AiGatewayService
         if (preg_match('/\{[\s\S]*\}/', $cleaned, $m)) {
             try {
                 return json_decode($m[0], true, 512, JSON_THROW_ON_ERROR);
-            } catch (\JsonException) {
-                return null;
-            }
+            } catch (\JsonException) { return null; }
         }
         return null;
     }
