@@ -21,7 +21,7 @@ const LandingHeader = ({ onOpenDemo, showAnchors = true }: Props) => {
           </div>
         </Link>
         {showAnchors && (
-          <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
+          <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm text-muted-foreground">
             <a href="#pains" className="hover:text-foreground transition-colors">{t("landing:header.solutions")}</a>
             <a href="#features" className="hover:text-foreground transition-colors">{t("landing:header.tools")}</a>
             <a href="#roles" className="hover:text-foreground transition-colors">{t("landing:header.stories")}</a>

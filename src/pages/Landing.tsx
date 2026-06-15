@@ -53,12 +53,12 @@ const Landing = () => {
   const gridFeatures = FEATURES.slice(1);
 
   return (
-    <div style={{ background: BG, color: NAVY, ...bodyFont }} className="min-h-screen selection:bg-[#5cbdb9] selection:text-white">
+    <div style={{ background: BG, color: NAVY, ...bodyFont }} className="min-h-screen overflow-x-hidden selection:bg-[#5cbdb9] selection:text-white">
       <LandingHeader onOpenDemo={() => setDemoOpen(true)} />
 
       {/* ===== HERO ===== */}
       <section className="border-b" style={{ borderColor: `${NAVY}1a` }}>
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-20 md:py-28">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 md:px-10 py-16 sm:py-20 md:py-28">
           <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-end">
             <div className="lg:col-span-8">
               <span
@@ -67,7 +67,7 @@ const Landing = () => {
               >
                 {t("hero.eyebrow")}
               </span>
-              <h1 style={headingFont} className="text-5xl sm:text-6xl lg:text-8xl xl:text-9xl font-extrabold leading-[0.92] tracking-tight uppercase">
+              <h1 style={headingFont} className="text-[2.4rem] xs:text-5xl sm:text-6xl lg:text-8xl xl:text-9xl font-extrabold leading-[0.95] lg:leading-[0.92] tracking-tight uppercase break-words hyphens-auto">
                 {t("hero.titleLine1")}
                 <br />
                 <span style={{ color: TEAL }}>{t("hero.titleAccent")}</span>
@@ -75,7 +75,7 @@ const Landing = () => {
                 {t("hero.titleLine2")}
               </h1>
             </div>
-            <div className="lg:col-span-4 pb-2 border-l-4 pl-6" style={{ borderColor: MINT }}>
+            <div className="lg:col-span-4 pb-2 border-l-4 pl-4 sm:pl-6" style={{ borderColor: MINT }}>
               <p className="text-lg md:text-xl leading-relaxed mb-8" style={{ color: `${NAVY}cc` }}>
                 {t("hero.subtitle")}
               </p>
