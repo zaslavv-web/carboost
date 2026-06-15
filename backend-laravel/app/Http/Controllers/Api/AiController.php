@@ -101,7 +101,8 @@ class AiController extends Controller
             'subject' => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);
-        return $this->handle(fn () => $svc->suggestTicketFix($data['subject'], $data['description'] ?? null));
+        $companyId = (string) ($request->input('company_id') ?: $request->user()?->company_id ?: '') ?: null;
+        return $this->handle(fn () => $svc->suggestTicketFix($data['subject'], $data['description'] ?? null, $companyId));
     }
 
     public function parsePositionStandards(Request $request, DocumentParserService $svc)
