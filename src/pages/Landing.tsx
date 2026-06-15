@@ -75,7 +75,7 @@ const Landing = () => {
                 {t("hero.titleLine2")}
               </h1>
             </div>
-            <div className="lg:col-span-4 pb-2 border-l-4 pl-6" style={{ borderColor: MINT }}>
+            <div className="lg:col-span-4 pb-2 border-l-4 pl-4 sm:pl-6" style={{ borderColor: MINT }}>
               <p className="text-lg md:text-xl leading-relaxed mb-8" style={{ color: `${NAVY}cc` }}>
                 {t("hero.subtitle")}
               </p>
