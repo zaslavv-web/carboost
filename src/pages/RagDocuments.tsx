@@ -30,6 +30,14 @@ interface Hit {
   source_id: string;
 }
 
+const readAsText = (f: File) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ""));
+    r.onerror = () => reject(r.error);
+    r.readAsText(f);
+  });
+
 export default function RagDocuments() {
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
@@ -40,36 +48,43 @@ export default function RagDocuments() {
 
   const list = useQuery({
     queryKey: ["rag-docs"],
-    queryFn: async () =>
-      laravel.get<{ pgvector: boolean; documents: DocRow[] }>("/rag/documents"),
+    queryFn: async () => {
+      const r = await laravel.get<{ pgvector: boolean; documents: DocRow[] }>("/rag/documents");
+      if (r.error) throw new Error(r.error.message);
+      return r.data!;
+    },
   });
 
   const upload = useMutation({
     mutationFn: async () => {
+      let payload = text;
+      let useTitle = title;
       if (file) {
-        const fd = new FormData();
-        fd.append("file", file);
-        if (title) fd.append("title", title);
-        fd.append("source_type", "file");
-        return laravel.post("/rag/documents", fd);
+        const fileText = await readAsText(file);
+        payload = (payload ? payload + "\n" : "") + fileText;
+        if (!useTitle) useTitle = file.name;
       }
-      return laravel.post("/rag/documents", {
-        text,
-        title: title || null,
-        source_type: "manual",
+      const r = await laravel.post<{ indexed: number; source_id: string }>("/rag/documents", {
+        text: payload,
+        title: useTitle || null,
+        source_type: file ? "file" : "manual",
       });
+      if (r.error) throw new Error(r.error.message);
+      return r.data!;
     },
-    onSuccess: (r: any) => {
-      toast.success(`Документ проиндексирован: ${r?.indexed ?? 0} фрагментов`);
+    onSuccess: (r) => {
+      toast.success(`Документ проиндексирован: ${r.indexed} фрагментов`);
       setText(""); setTitle(""); setFile(null);
       qc.invalidateQueries({ queryKey: ["rag-docs"] });
     },
-    onError: (e: any) =>
-      toast.error(e?.response?.data?.error || e?.message || "Не удалось проиндексировать"),
+    onError: (e: any) => toast.error(e?.message || "Не удалось проиндексировать"),
   });
 
   const del = useMutation({
-    mutationFn: async (id: string) => laravel.delete(`/rag/documents/${id}`),
+    mutationFn: async (id: string) => {
+      const r = await laravel.delete(`/rag/documents/${id}`);
+      if (r.error) throw new Error(r.error.message);
+    },
     onSuccess: () => {
       toast.success("Удалено");
       qc.invalidateQueries({ queryKey: ["rag-docs"] });
@@ -77,11 +92,13 @@ export default function RagDocuments() {
   });
 
   const search = useMutation({
-    mutationFn: async () =>
-      laravel.post<{ hits: Hit[] }>("/rag/search", { query, k: 5 }),
+    mutationFn: async () => {
+      const r = await laravel.post<{ hits: Hit[] }>("/rag/search", { query, k: 5 });
+      if (r.error) throw new Error(r.error.message);
+      return r.data!;
+    },
     onSuccess: (r) => setHits(r.hits || []),
-    onError: (e: any) =>
-      toast.error(e?.response?.data?.error || e?.message || "Поиск не удался"),
+    onError: (e: any) => toast.error(e?.message || "Поиск не удался"),
   });
 
   return (
@@ -123,7 +140,7 @@ export default function RagDocuments() {
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Например: Регламент отпусков 2026" />
           </div>
           <div>
-            <Label>Файл (опционально)</Label>
+            <Label>Файл (опционально, .txt/.md/.csv/.json)</Label>
             <Input type="file" accept=".txt,.md,.csv,.json" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </div>
           <div>
@@ -201,8 +218,9 @@ export default function RagDocuments() {
 
       <Separator />
       <p className="text-xs text-muted-foreground">
-        Подсказка: после индексирования вызывайте поиск из AI-функций (RagService::buildContext) и
-        подставляйте как system message — модель получит только информацию из вашей базы.
+        После индексирования AI-сервисы могут вызывать <code>RagService::buildContext()</code>
+        и подмешивать релевантные фрагменты в system-message — модель отвечает только на основе
+        ваших документов.
       </p>
     </div>
   );

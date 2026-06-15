@@ -61,6 +61,7 @@ import { ChatProvider } from "@/contexts/ChatContext";
 import { BrandingProvider } from "@/contexts/BrandingContext";
 import CompanyBranding from "@/pages/CompanyBranding";
 import AiSettings from "@/pages/AiSettings";
+import RagDocuments from "@/pages/RagDocuments";
 
 const queryClient = new QueryClient();
 
@@ -127,6 +128,7 @@ const App = () => (
                 <Route path="/disciplinary" element={<Disciplinary />} />
                 <Route path="/company-branding" element={<CompanyBranding />} />
                 <Route path="/ai-settings" element={<AiSettings />} />
+                <Route path="/rag-documents" element={<RagDocuments />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
