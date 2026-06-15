@@ -116,7 +116,7 @@ const CareerTrack = () => {
   const { data: rewardTypes = [] } = useQuery({
     queryKey: ["reward_types_for_employee"],
     queryFn: async () => {
-      const { data, error } = await laravelDb.from("gamification_reward_types").select("*");
+      const { data, error } = await laravelDb.from("gamification_rewards_public").select("*");
       if (error) throw error;
       return data || [];
     },
