@@ -196,11 +196,11 @@ class AiGatewayService
                 DB::table('notifications')->insert([
                     'id' => (string) \Illuminate\Support\Str::uuid(),
                     'user_id' => $uid,
-                    'type' => 'ai_disabled_threshold',
                     'title' => 'AI требует настройки',
-                    'message' => $message,
-                    'data' => json_encode(['threshold' => $row->disabled_alert_threshold]),
-                    'read' => false,
+                    'description' => $message,
+                    'notification_type' => 'ai_disabled_threshold',
+                    'is_read' => false,
+                    'company_id' => $row->company_id,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
