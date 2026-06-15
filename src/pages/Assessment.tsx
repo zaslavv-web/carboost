@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { aiInvoke } from "@/integrations/laravel/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import ClosedQuestionTestRunner, { TestPayload } from "@/components/ClosedQuestionTestRunner";
+import AssessmentAiChat from "@/components/AssessmentAiChat";
 
 const Assessment = () => {
   const { t } = useTranslation("employee");
