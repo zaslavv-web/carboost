@@ -121,7 +121,7 @@ describe("CareerTrack rewards tab", () => {
       expect(screen.getAllByText("35").length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "careerTrack.tabs.rewards" }));
+    fireEvent.click(await screen.findByRole("button", { name: "careerTrack.tabs.rewards" }));
 
     await waitFor(() => {
       expect(screen.getByText("Звезда")).toBeInTheDocument();
@@ -141,7 +141,7 @@ describe("CareerTrack rewards tab", () => {
       monetary_amount: 9999,
     }));
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "careerTrack.tabs.rewards" }));
+    fireEvent.click(await screen.findByRole("button", { name: "careerTrack.tabs.rewards" }));
     await waitFor(() => expect(screen.getByText("Звезда")).toBeInTheDocument());
     expect(screen.queryByText(/SECRET-GIFT-CODE/)).toBeNull();
     expect(screen.queryByText(/9999/)).toBeNull();
@@ -151,7 +151,7 @@ describe("CareerTrack rewards tab", () => {
     mocks.role = "employee";
     state.employeeRewards = [];
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "careerTrack.tabs.rewards" }));
+    fireEvent.click(await screen.findByRole("button", { name: "careerTrack.tabs.rewards" }));
     await waitFor(() => {
       expect(screen.getByText("careerTrack.noRewards")).toBeInTheDocument();
     });
