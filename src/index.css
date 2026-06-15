@@ -1,12 +1,16 @@
 /* Self-hosted шрифты — не используем Google Fonts CDN, т.к. он
-   нестабильно работает в РФ без VPN. Подключаем только Inter, чтобы не
-   плодить десятки font-request ошибок в продакшене. */
+   нестабильно работает в РФ без VPN. Inter для интерфейса,
+   Urbanist + Epilogue — для лендинга (editorial magazine direction). */
 @import '@fontsource/inter/300.css';
 @import '@fontsource/inter/400.css';
 @import '@fontsource/inter/500.css';
 @import '@fontsource/inter/600.css';
 @import '@fontsource/inter/700.css';
 @import '@fontsource/inter/800.css';
+@import '@fontsource/urbanist/700.css';
+@import '@fontsource/urbanist/800.css';
+@import '@fontsource/epilogue/400.css';
+@import '@fontsource/epilogue/500.css';
 
 @tailwind base;
 @tailwind components;

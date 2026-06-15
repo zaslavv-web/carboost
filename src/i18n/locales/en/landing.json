@@ -1,7 +1,7 @@
 {
   "header": {
     "solutions": "Solutions",
-    "tools": "Tools",
+    "tools": "Modules",
     "stories": "Stories",
     "faq": "FAQ",
     "pricing": "Pricing",
@@ -9,59 +9,89 @@
     "signIn": "Sign in"
   },
   "hero": {
-    "titleLine1": "Grow your people,",
-    "titleLine2": "not your hiring budget",
-    "titleAccent": "build the talent bench from within",
-    "subtitle": "We boost performance and loyalty of every employee. Close key positions with your own talent instead of expensive external hires.",
-    "cta": "Request a demo",
-    "ctaLogin": "Sign in",
-    "imageAlt": "Growth Peak — AI-powered HR platform"
+    "eyebrow": "Career Track OS · v2.0",
+    "titleLine1": "An operating",
+    "titleAccent": "system",
+    "titleLine2": "for careers & people",
+    "subtitle": "A single HR-tech OS covering the full employee lifecycle: hiring, onboarding, career tracks, AI assessment, performance, learning, leaves and recognition. One product instead of 5+ tools.",
+    "cta": "Deploy the system",
+    "ctaLogin": "Open the demo",
+    "imageAlt": "Career Track OS — unified HR-tech platform",
+    "metrics": {
+      "modules": { "value": "16", "label": "integrated modules" },
+      "roles": { "value": "5", "label": "roles out of the box" },
+      "deploy": { "value": "On-prem", "label": "Docker / nginx / cloud" },
+      "ai": { "value": "AI", "label": "at every step" }
+    }
   },
   "pains": {
-    "title": "What the platform delivers for your HR function",
-    "subtitle": "Six areas where the platform absorbs routine work and gives HRD numbers they can actually steer with.",
+    "section": "HRD jobs to be done",
+    "title": "What the system absorbs every day",
+    "subtitle": "Eleven workstreams that used to take Excel, chats, point tools and weeks of work — now one product.",
     "learnMore": "Learn more",
     "discuss": "Discuss my situation",
     "items": {
       "retain": {
         "pain": "Retain key employees",
-        "solution": "Digital passport + analytics surface attrition risks before resignation letters land"
+        "solution": "Digital passport + analytics surface attrition risks before resignation letters land."
       },
       "assess": {
         "pain": "Assess competencies objectively",
-        "solution": "An AI assistant runs interviews on your scenarios and produces a comparable profile in 25 minutes"
+        "solution": "An AI assistant runs interviews on your scenarios and produces a comparable profile in 25 minutes."
       },
       "grow": {
         "pain": "Give employees a clear growth path",
-        "solution": "Career tracks with stages, tests and reviews — from junior to manager"
+        "solution": "Career tracks with stages, tests and reviews — from intern to manager."
       },
       "motivate": {
         "pain": "Motivate without bumping payroll",
-        "solution": "Internal currency, rewards and a corporate shop instead of one-off bonuses"
+        "solution": "Internal currency, rewards and a corporate shop instead of one-off bonuses."
       },
       "onboard": {
         "pain": "Onboard new hires fast",
-        "solution": "Bulk XLSX import, auto-assign positions by email domain and tracks by role"
+        "solution": "Bulk XLSX import, auto-assign positions by email domain and tracks by role."
       },
       "decide": {
         "pain": "Make data-driven decisions",
-        "solution": "Live dashboards for competencies, role readiness and hiring dynamics — one-click export"
+        "solution": "Live dashboards for competencies, role readiness and hiring dynamics — one-click export."
+      },
+      "vacation": {
+        "pain": "End the leave chaos",
+        "solution": "Requests, balances, overtime and approvals — one calendar without chat emails."
+      },
+      "performance": {
+        "pain": "See who is stuck and who is leading",
+        "solution": "Performance reviews, OKRs, check-ins and disciplinary cases in one timeline."
+      },
+      "knowledge": {
+        "pain": "Bring HR knowledge into one place",
+        "solution": "Policies, regulations and RAG-indexed documents — AI answers employees from your sources."
+      },
+      "recognition": {
+        "pain": "Make recognition a daily norm",
+        "solution": "Kudos feed and recognition points from peers and managers — built into the product."
+      },
+      "learning": {
+        "pain": "Tie learning to career growth",
+        "solution": "Courses, tests and certificates are linked to track stages and competencies."
       }
     }
   },
   "features": {
-    "title": "Six tools that work as one product",
-    "subtitle": "Click any capability to see how it works.",
-    "tryAll": "Try it all in-app",
-    "reveal": "Open"
+    "section": "Platform modules",
+    "title": "Sixteen modules. One product.",
+    "subtitle": "Click any module to see how it works and which jobs it covers.",
+    "tryAll": "Sign in and explore",
+    "reveal": "Open module"
   },
   "stories": {
-    "title": "Stories you'll recognize yourself in",
-    "subtitle": "Pick a role and see the before-and-after path.",
+    "section": "Stories by role",
+    "title": "Who gets the most out of Career Track OS",
+    "subtitle": "Pick a role — see the before-and-after path and which modules kick in.",
     "before": "Before",
     "after": "After",
-    "usedFeatures": "Capabilities used:",
-    "wantSame": "I want the same — request a demo",
+    "usedFeatures": "Modules in use",
+    "wantSame": "I want the same",
     "tryLogin": "Sign in and try",
     "items": {
       "hrd": {
@@ -79,32 +109,72 @@
       "lead": {
         "role": "Team lead",
         "persona": "Igor, engineering team lead",
-        "before": "Has no idea who on the team is ready for promotion. Coaches by intuition.",
-        "after": "Sees progress for everyone, reviews stages in one click, builds team development plans."
+        "before": "No idea who on the team is ready for promotion. Coaches by intuition.",
+        "after": "Sees progress for everyone, reviews stages in one click, builds team plans."
+      },
+      "employee": {
+        "role": "Employee",
+        "persona": "Maria, product analyst",
+        "before": "Unclear how to grow. Bonuses twice a year — and not obvious for what.",
+        "after": "Sees her career track, earns points, spends them in the shop, reads feedback."
+      },
+      "admin": {
+        "role": "Company admin",
+        "persona": "Dmitry, IT director",
+        "before": "A dozen services, different access policies, separate SSO for each.",
+        "after": "Rolled out on-prem in a day: org structure, policies, chats, AI — all in one system."
       }
     }
   },
+  "compare": {
+    "section": "Comparison",
+    "title": "Instead of a zoo",
+    "titleAccent": "of 5+ tools",
+    "subtitle": "Career Track OS replaces the LMS + performance tool + HR chat + survey app + task tracker bundle with one context and a shared UI for every role.",
+    "beforeBadge": "What you have now",
+    "afterBadge": "With Career Track OS",
+    "afterTitle": "One product — every process",
+    "before": [
+      "Excel + Google Sheets for reviews and tracks",
+      "External LMS for learning",
+      "Separate tool for surveys and 1:1s",
+      "Corporate chat for kudos and recognition",
+      "Task tracker for HR workflows",
+      "Standalone leave-tracking system"
+    ],
+    "after": [
+      "Single employee profile with full history",
+      "End-to-end lifecycle analytics",
+      "AI assistant with RAG over your policies",
+      "One UI and SSO for all 5 roles",
+      "Multi-tenant with database-level RLS",
+      "On-premise install via Docker"
+    ]
+  },
   "finalCta": {
-    "title": "Every employee grows — the company grows with them",
-    "subtitle": "A 30-minute call: we'll show how to close key positions internally and keep your top performers.",
+    "eyebrow": "Ready to launch",
+    "title": "Stand up your HR-OS in a day",
+    "subtitle": "A 30-minute call: we'll show how Career Track OS replaces your five tools and where it saves tens of hours per week.",
     "demo": "Request a demo",
-    "login": "Sign in"
+    "login": "Sign in",
+    "status": "SYSTEM STATUS · ALL MODULES OPERATIONAL"
   },
   "faq": {
-    "title": "HRD frequently asked questions",
-    "ask": "Still have questions — ask on the demo call",
+    "title": "Frequently asked",
+    "ask": "Ask on the demo call",
     "items": [
-      { "q": "How long does setup take?", "a": "From 30 minutes to 1 day. The onboarding wizard walks through positions, tests, tracks and invitations. Bulk employee import via XLSX/CSV." },
-      { "q": "Do we need integration with our HRIS?", "a": "We support org-structure import from XLSX/CSV/JSON and AI parsing of DOCX/PDF. Deep HRIS integration is available on request." },
-      { "q": "How is employee data protected?", "a": "Multi-tenant architecture with database-level RLS: company data is fully isolated. Region-specific hosting can be discussed separately." },
-      { "q": "Can we upload our own assessment scenarios?", "a": "Yes. Upload a DOCX/PDF — the AI parses it into a scenario you can then edit visually." },
-      { "q": "Is it suitable for small business?", "a": "Yes, from 10 employees. Pricing scales with headcount. Get in touch and we'll quote for you." }
+      { "q": "How long does setup take?", "a": "From 30 minutes to 1 day. The onboarding wizard walks through org structure, positions, tests, tracks and invitations. Bulk employee import via XLSX/CSV." },
+      { "q": "Can we install on-premise?", "a": "Yes. Docker, nginx and install.sh are supported. Bring your own AI provider (Gemini / GigaChat / YandexGPT / OpenAI-compatible) — data stays within your perimeter." },
+      { "q": "How is employee data protected?", "a": "Multi-tenant architecture with database-level RLS: company data is fully isolated. Roles live in a separate table with security-definer functions and audit." },
+      { "q": "Which modules ship by default?", "a": "AI assessment, career tracks, performance, digital passport, org structure, learning, leaves, recognition, points shop, HR policies, internal chats, RAG documents, assessment scenarios and HRD analytics." },
+      { "q": "Can we use just a subset of modules?", "a": "Yes. Enable what you need at launch — the rest can be turned on later without migrations. Pricing scales with active headcount." },
+      { "q": "Is it suitable for small business?", "a": "Yes, from 10 employees. Cloud SaaS from $12/employee/month. Get in touch and we'll quote for you." }
     ]
   },
   "footer": {
-    "brand": "Growth Peak",
-    "tasks": "Product tasks",
-    "capabilities": "Capabilities",
+    "brand": "Career Track OS",
+    "tasks": "Jobs",
+    "capabilities": "Modules",
     "stories": "Stories",
     "faq": "FAQ",
     "signIn": "Sign in"
@@ -172,9 +242,9 @@
     }
   },
   "feature": {
-    "notFound": "Feature not found",
+    "notFound": "Module not found",
     "backHome": "← Back to home",
-    "backAll": "All capabilities",
+    "backAll": "All modules",
     "tryLogin": "Sign in and try",
     "demo": "Request a demo",
     "storyTitle": "Customer story",
@@ -183,7 +253,7 @@
     "storyResult": "Result",
     "hrdValue": "What this gives HRD",
     "loginCta": "Sign in",
-    "others": "Other capabilities",
+    "others": "Other modules",
     "more": "Learn more"
   },
   "featureData": {
@@ -193,70 +263,91 @@
       "story": {
         "persona": "Natalia, HRD at a manufacturing company",
         "pain": "Semi-annual reviews eat a full week, and results are subjective.",
-        "solution": "An AI assistant runs a structured dialogue with every employee and produces a competency profile.",
+        "solution": "An AI assistant runs a structured dialogue and produces a competency profile.",
         "result": "Objective scoring on 12 competencies in 25 minutes instead of 4 hours."
       },
-      "hero": "Replace subjective interviews with structured AI dialogue based on your assessment scenarios.",
+      "hero": "Replace subjective interviews with structured AI dialogue based on your scenarios.",
       "sections": [
-        {
-          "heading": "How it works",
-          "body": "Upload your assessment scenario (DOCX/PDF) or use a template. The AI runs the dialogue, captures answers and scores competencies with rationale.",
-          "bullets": ["Scenarios for your methodology", "Gemini-based edge function", "Transparent rationale for every score"]
-        },
-        {
-          "heading": "What HRD gets",
-          "body": "A ready report per employee and roll-up analytics for the whole company.",
-          "bullets": ["Competency radar map", "Comparison to the reference role profile", "Readiness for next-level roles"]
-        }
+        { "heading": "How it works", "body": "Upload your scenario (DOCX/PDF) or use a template. The AI runs the dialogue and scores with rationale.", "bullets": ["Scenarios for your methodology", "Gemini-based edge function", "Transparent rationale for every score"] },
+        { "heading": "What HRD gets", "body": "Per-employee report and roll-up analytics.", "bullets": ["Competency radar", "Reference role comparison", "Readiness for next level"] }
       ],
-      "hrdValue": ["30+ hours saved per quarter on assessment interviews", "Standardized scoring across business units", "Removes manager bias from reviews"]
+      "hrdValue": ["30+ hours saved per quarter", "Standardized scoring", "Removes manager bias"]
     },
     "career-tracks": {
       "title": "Career tracks",
-      "tagline": "From junior to manager — step by step.",
+      "tagline": "From intern to manager — step by step.",
       "story": {
         "persona": "Elena, HR partner at an IT company",
         "pain": "Employees don't know what it takes to get promoted and leave for competitors.",
-        "solution": "Track templates with stages, tests and HRD reviews auto-assigned by role.",
+        "solution": "Track templates with stages, tests and reviews auto-assigned by role.",
         "result": "Attrition down 24% in six months, a clear path for everyone."
       },
       "hero": "Design reference growth paths and auto-assign them to employees by role.",
       "sections": [
-        {
-          "heading": "Track builder",
-          "body": "Build track templates from stages: task, test, file uploads, manager review.",
-          "bullets": ["Drag-and-drop stage editor", "AI-generated steps", "Template version control"]
-        },
-        {
-          "heading": "Assignment and control",
-          "body": "Tracks are auto-assigned when an employee is created. HRD sees real-time progress for every stage.",
-          "bullets": ["Stage review queue", "Notifications for overdue stages", "Linked to the digital passport"]
-        }
+        { "heading": "Track builder", "body": "Build templates from stages: task, test, files, manager review.", "bullets": ["Drag-and-drop editor", "AI-generated steps", "Template versioning"] },
+        { "heading": "Assignment and control", "body": "Auto-assigned on employee creation. Real-time progress per stage.", "bullets": ["Review queue", "Overdue alerts", "Linked to passport"] }
       ],
-      "hrdValue": ["Employees see a clear growth path", "Attrition down by 20–30%", "Managed succession for key roles"]
+      "hrdValue": ["Clear growth path", "Attrition −20–30%", "Managed succession"]
     },
-    "gamification": {
-      "title": "Gamification & currency",
-      "tagline": "Motivation without quarterly bonuses.",
+    "performance": {
+      "title": "Performance & reviews",
+      "tagline": "OKRs, 1:1s, reviews and discipline — in one timeline.",
       "story": {
-        "persona": "Igor, head of people",
-        "pain": "Bonus budget is limited and engagement is dropping.",
-        "solution": "Employees earn internal currency for progress and spend it in the corporate shop.",
-        "result": "Engagement +37%, material motivation budget −18%."
+        "persona": "Artem, COO",
+        "pain": "Reviews in Google Docs, OKRs in Notion, discipline on hearsay. Nobody remembers anything.",
+        "solution": "One performance cycle: goals → check-ins → reviews → decisions. Disciplinary cases with signatures.",
+        "result": "Mid-year review for a 60-person team — in one day instead of two weeks."
       },
-      "hero": "A flexible system of points, achievements and internal currency for non-cash motivation.",
+      "hero": "A managed performance cycle: OKRs, regular 1:1s, reviews and disciplinary cases.",
       "sections": [
-        {
-          "heading": "Rewards under your rules",
-          "body": "Configure triggers and reward amounts: completed stage, passed test, work anniversary.",
-          "bullets": ["Welcome bonus on onboarding", "Tenure-based rewards", "Custom triggers"]
-        },
-        {
-          "heading": "Corporate shop",
-          "body": "Employees spend currency on merch, days off, learning and perks. HRD approves orders."
-        }
+        { "heading": "Cycle in one place", "body": "From goal setting to review decisions — no tool switching.", "bullets": ["OKRs with cascading", "1:1 and check-in calendar", "Review templates per role"] }
       ],
-      "hrdValue": ["Alternative to cash bonuses", "Engagement grows by 30–40%", "Transparent motivation rules"]
+      "hrdValue": ["Low performers visible in a week", "Standardized reviews", "Audit trail for decisions"]
+    },
+    "leaves": {
+      "title": "Leaves & overtime",
+      "tagline": "A team calendar without chat emails.",
+      "story": {
+        "persona": "Olga, HR admin",
+        "pain": "Leave requests in email, balances in Excel. Every Friday — errors.",
+        "solution": "Requests, balances, overtime and approvals in one calendar with automatic accounting.",
+        "result": "0 accounting errors per quarter, 5× fewer HR-chat questions."
+      },
+      "hero": "Requests, balances, overtime, time-off and approvals in one calendar.",
+      "sections": [
+        { "heading": "What's inside", "body": "Automated accounting per company policy.", "bullets": ["Tenure-based balance", "Manager approval", "Overtime and comp days", "Team calendar"] }
+      ],
+      "hrdValue": ["0 accounting errors", "Transparency for the team", "Less load on HR admins"]
+    },
+    "recognition": {
+      "title": "Peer recognition",
+      "tagline": "Kudos and points — a daily norm.",
+      "story": {
+        "persona": "Anton, PM",
+        "pain": "Good work gets noticed once every six months at review time.",
+        "solution": "A kudos feed with recognition points from peers and managers.",
+        "result": "eNPS +18 in six months, a daily culture of gratitude."
+      },
+      "hero": "Turn recognition from a rare event into daily practice.",
+      "sections": [
+        { "heading": "How it works", "body": "Anyone can recognize a colleague — points convert in the shop.", "bullets": ["Kudos feed", "Points tied to company values", "Shop integration"] }
+      ],
+      "hrdValue": ["eNPS growth", "Visible gratitude culture", "Objective review data"]
+    },
+    "university": {
+      "title": "Corporate university",
+      "tagline": "Courses and tests, tied to careers.",
+      "story": {
+        "persona": "Yulia, L&D lead",
+        "pain": "Bought an LMS — people pass courses for show, no link to growth.",
+        "solution": "Courses, tests and certificates linked to track stages and competencies.",
+        "result": "Course completion +47%, learning actually drives promotions."
+      },
+      "hero": "Courses, tests and certificates linked to tracks and competencies.",
+      "sections": [
+        { "heading": "What's inside", "body": "Course authoring, closed tests, certificates, progress.", "bullets": ["Authoring with steps", "Auto-graded tests", "Certificates", "Competency mapping"] }
+      ],
+      "hrdValue": ["Learning that drives business", "Transparent certificates", "Linked to tracks"]
     },
     "analytics": {
       "title": "HRD analytics",
@@ -264,18 +355,14 @@
       "story": {
         "persona": "Anna, HRD at an 800-people holding",
         "pain": "Every board report takes a week in Excel.",
-        "solution": "Live dashboards for competencies, role readiness and hiring dynamics.",
+        "solution": "Live dashboards for competencies, role readiness and hiring.",
         "result": "Board report in 5 minutes instead of 5 days."
       },
       "hero": "Live Recharts dashboards: scoring trends, role readiness, track progress.",
       "sections": [
-        {
-          "heading": "What's inside",
-          "body": "All key metrics in one place, export to XLSX/PDF.",
-          "bullets": ["Scoring dynamics by business unit", "Readiness for key roles", "Career track funnel", "Learning activity"]
-        }
+        { "heading": "What's inside", "body": "All key metrics in one place, export to XLSX/PDF.", "bullets": ["Scoring dynamics", "Role readiness", "Track funnel", "Learning activity"] }
       ],
-      "hrdValue": ["Numbers to defend the HR budget", "Early attrition signals", "Evidence-based HR strategy"]
+      "hrdValue": ["Numbers to defend HR budget", "Early attrition signals", "Evidence-based strategy"]
     },
     "digital-passport": {
       "title": "Digital passport",
@@ -283,41 +370,135 @@
       "story": {
         "persona": "Maria, HR manager",
         "pain": "Resumes, assessments, tests — scattered across files and systems.",
-        "solution": "A single employee passport: skills, role history, assessments, achievements.",
+        "solution": "A single employee passport: skills, history, assessments, achievements.",
         "result": "Internal hires closed in 2 days instead of 2 weeks."
       },
       "hero": "360° employee profile: skills, experience, assessments, tracks and achievements in one place.",
       "sections": [
-        {
-          "heading": "Collected automatically",
-          "body": "The passport updates automatically with no manual entry.",
-          "bullets": ["AI assessment results", "Tests passed broken down by competency", "Career track stages", "Achievements and rewards"]
-        }
+        { "heading": "Collected automatically", "body": "The passport updates with no manual entry.", "bullets": ["AI assessment results", "Tests passed", "Track stages", "Achievements and rewards"] }
       ],
-      "hrdValue": ["Internal recruiting 5× faster", "Transparent development history", "Performance-review prep in a minute"]
+      "hrdValue": ["Internal recruiting 5× faster", "Transparent history", "Review prep in a minute"]
     },
     "onboarding": {
       "title": "Onboarding & invitations",
-      "tagline": "Add 200 employees to the system in an hour.",
+      "tagline": "200 employees added in an hour.",
       "story": {
         "persona": "Svetlana, HRD at a clinic chain",
-        "pain": "Every new hire takes an hour of manual access and track setup.",
-        "solution": "Bulk XLSX import with auto-assignment of positions by email domain and tracks by role.",
+        "pain": "Every new hire takes an hour of manual setup.",
+        "solution": "Bulk XLSX import with auto-assignment of positions and tracks.",
         "result": "Onboarding 200 employees in an hour instead of two weeks."
       },
       "hero": "Bulk employee import, auto-assignment of positions and tracks, company launch wizard.",
       "sections": [
-        {
-          "heading": "Company onboarding wizard",
-          "body": "A step-by-step checklist: positions → tests → tracks → shop → invitations. With a progress bar."
-        },
-        {
-          "heading": "Bulk import",
-          "body": "Employees just sign in with their email — the profile is already configured.",
-          "bullets": ["Upload XLSX/CSV of employees", "Auto-assign positions by email domain", "Welcome bonus on first sign-in"]
-        }
+        { "heading": "Onboarding wizard", "body": "Step-by-step: positions → tests → tracks → shop → invites." },
+        { "heading": "Bulk import", "body": "Employees just sign in with email — profile is already configured.", "bullets": ["XLSX/CSV upload", "Auto-assign by email domain", "Welcome bonus on first sign-in"] }
       ],
-      "hrdValue": ["10× faster onboarding", "Fewer manual-entry errors", "Consistent standards for every new hire"]
+      "hrdValue": ["10× faster onboarding", "Fewer manual errors", "Consistent standards"]
+    },
+    "gamification": {
+      "title": "Gamification & currency",
+      "tagline": "Motivation without quarterly bonuses.",
+      "story": {
+        "persona": "Igor, head of people",
+        "pain": "Bonus budget is limited and engagement is dropping.",
+        "solution": "Employees earn internal currency for progress and spend it in the shop.",
+        "result": "Engagement +37%, material motivation budget −18%."
+      },
+      "hero": "Flexible points, achievements and currency for non-cash motivation.",
+      "sections": [
+        { "heading": "Rewards under your rules", "body": "Configure triggers: completed stage, passed test, anniversary.", "bullets": ["Welcome bonus", "Tenure rewards", "Custom triggers"] }
+      ],
+      "hrdValue": ["Alternative to cash bonuses", "Engagement +30–40%", "Transparent rules"]
+    },
+    "shop": {
+      "title": "Points shop",
+      "tagline": "Convert recognition into real motivation.",
+      "story": {
+        "persona": "HR projects team",
+        "pain": "Points exist but nowhere to spend them — motivation drops.",
+        "solution": "Corporate shop: merch, days off, learning, perks. HRD approves orders.",
+        "result": "92% of employees spent points at least once per quarter."
+      },
+      "hero": "Corporate shop with order approval and purchase history.",
+      "sections": [
+        { "heading": "What's inside", "body": "Catalog, cart, orders, history, demand analytics.", "bullets": ["Categorized catalog", "Orders and HRD approval", "Demand analytics"] }
+      ],
+      "hrdValue": ["Closed loop recognition → shop", "Fewer cash bonuses", "Data for benefit strategy"]
+    },
+    "hr-policies": {
+      "title": "HR policies & discipline",
+      "tagline": "Regulations people actually reference.",
+      "story": {
+        "persona": "Victoria, labor lawyer",
+        "pain": "Policies in a PDF nobody reads — disputes resolved from memory.",
+        "solution": "Versioned policies with acknowledgement and link to disciplinary cases.",
+        "result": "Disputes resolved in a day, not a week."
+      },
+      "hero": "Versioned HR policies with acknowledgement and audit.",
+      "sections": [
+        { "heading": "What's inside", "body": "Policy editor, versions, acknowledgement, disciplinary cases.", "bullets": ["Version history", "Read acknowledgement", "Linked to discipline"] }
+      ],
+      "hrdValue": ["Legal clarity", "Transparency for employees", "Acknowledgement audit"]
+    },
+    "internal-chat": {
+      "title": "Internal chats",
+      "tagline": "No detour to external messengers.",
+      "story": {
+        "persona": "Kirill, security manager",
+        "pain": "HR conversations in Telegram — security policy violation.",
+        "solution": "In-platform corporate chat: 1:1 and groups, scoped to roles and company.",
+        "result": "100% of HR communication inside the company perimeter."
+      },
+      "hero": "Chats inside the company, scoped to roles and access — no external messengers.",
+      "sections": [
+        { "heading": "Capabilities", "body": "Launched via floating icon from any page.", "bullets": ["1:1 and group chats", "Contact search", "Scoped to roles and company"] }
+      ],
+      "hrdValue": ["Secure HR comms", "Context inside the platform", "Audit trail"]
+    },
+    "rag-ai": {
+      "title": "AI assistant with RAG",
+      "tagline": "AI answers from your documents.",
+      "story": {
+        "persona": "Alina, HR partner",
+        "pain": "Employees keep asking the same questions about policies.",
+        "solution": "RAG index over your documents — AI replies with source citations.",
+        "result": "Typical HR question volume down 70%."
+      },
+      "hero": "Upload documents — AI answers employees with source citations.",
+      "sections": [
+        { "heading": "What's inside", "body": "Document indexing, chat with citations, popular-question analytics.", "bullets": ["DOCX/PDF upload", "Citations from sources", "Bring your own AI provider"] }
+      ],
+      "hrdValue": ["−70% typical questions", "Knowledge always available", "Source control"]
+    },
+    "scenarios": {
+      "title": "Assessment scenarios",
+      "tagline": "No-code interview builder.",
+      "story": {
+        "persona": "Ivan, methodologist",
+        "pain": "Scenarios in Word — impossible to version or apply consistently.",
+        "solution": "Visual scenario builder in React Flow with export to the AI assistant.",
+        "result": "Unified assessment methodology across 5 units."
+      },
+      "hero": "Build assessment scenarios visually — AI runs them by your rules.",
+      "sections": [
+        { "heading": "Builder", "body": "React Flow editor with branches and conditions.", "bullets": ["Drag-and-drop nodes", "Versioning", "AI parsing from DOCX/PDF"] }
+      ],
+      "hrdValue": ["Unified methodology", "Audit-ready versions", "Fast launch of new scenarios"]
+    },
+    "org-structure": {
+      "title": "Org structure",
+      "tagline": "Live company tree with AI import.",
+      "story": {
+        "persona": "Dmitry, IT director",
+        "pain": "Org structure in Visio — outdated faster than it updates.",
+        "solution": "Live tree with XLSX/CSV/JSON import and AI parsing of DOCX/PDF.",
+        "result": "Up-to-date org structure for all roles in one click."
+      },
+      "hero": "Live company tree with XLSX/CSV import and AI parsing of documents.",
+      "sections": [
+        { "heading": "What's inside", "body": "Hierarchy of units and positions, linked to employees.", "bullets": ["XLSX/CSV/JSON import", "AI parsing of DOCX/PDF", "Linked to passport"] }
+      ],
+      "hrdValue": ["Up-to-date structure", "Less manual upkeep", "Context for analytics"]
     }
   }
 }
