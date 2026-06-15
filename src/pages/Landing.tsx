@@ -161,7 +161,7 @@ const Landing = () => {
       </section>
 
       {/* ===== FEATURES (Magazine grid) ===== */}
-      <section id="features" className="border-b" style={{ borderColor: `${NAVY}1a` }}>
+      <section data-testid="landing-features-grid" id="features" className="border-b" style={{ borderColor: `${NAVY}1a` }}>
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-20">
           <div className="grid lg:grid-cols-12 gap-10 mb-12">
             <div className="lg:col-span-5">
