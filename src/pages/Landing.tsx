@@ -67,7 +67,7 @@ const Landing = () => {
               >
                 {t("hero.eyebrow")}
               </span>
-              <h1 style={headingFont} className="text-5xl sm:text-6xl lg:text-8xl xl:text-9xl font-extrabold leading-[0.92] tracking-tight uppercase">
+              <h1 style={headingFont} className="text-[2.4rem] xs:text-5xl sm:text-6xl lg:text-8xl xl:text-9xl font-extrabold leading-[0.95] lg:leading-[0.92] tracking-tight uppercase break-words hyphens-auto">
                 {t("hero.titleLine1")}
                 <br />
                 <span style={{ color: TEAL }}>{t("hero.titleAccent")}</span>
