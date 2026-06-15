@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { aiInvoke } from "@/integrations/laravel/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import ClosedQuestionTestRunner, { TestPayload } from "@/components/ClosedQuestionTestRunner";
+import AssessmentAiChat from "@/components/AssessmentAiChat";
 
 const Assessment = () => {
   const { t } = useTranslation("employee");
@@ -97,6 +98,10 @@ const Assessment = () => {
     return <ClosedQuestionTestRunner test={activeTest} onRetake={() => { setActiveTest(null); setMode("choose"); }} />;
   }
 
+  if (mode === "ai_chat") {
+    return <AssessmentAiChat companyId={profile?.company_id} onExit={() => setMode("choose")} />;
+  }
+
   return (
     <div className="max-w-3xl mx-auto animate-fade-in">
       <div className="mb-6">
@@ -159,6 +164,19 @@ const Assessment = () => {
               {generating && <Loader2 className="w-4 h-4 animate-spin" />}
             </button>
           )}
+
+          <button
+            onClick={() => setMode("ai_chat")}
+            className="w-full text-left bg-card rounded-xl border border-border p-5 shadow-card hover:border-primary transition-colors flex items-start gap-3"
+          >
+            <Sparkles className="w-6 h-6 text-primary mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-foreground">AI-интервью</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Живой диалог с AI-экспертом: оценит компетенции по вашим ответам и использует базу знаний компании (RAG).
+              </p>
+            </div>
+          </button>
         </div>
       )}
     </div>
