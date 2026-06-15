@@ -65,13 +65,28 @@ TXT;
         ]];
 
         $systemPrompt = self::SYSTEM_PROMPT;
+        $sources = [];
         if ($companyId) {
             $query = $this->extractQuery($messages);
             if ($query !== '') {
                 try {
-                    $ctx = $this->rag->buildContext($companyId, $query, 5);
-                    if ($ctx !== '') {
-                        $systemPrompt .= "\n\n=== КОНТЕКСТ КОМПАНИИ (RAG) ===\n" . $ctx;
+                    $hits = $this->rag->search($companyId, $query, 5);
+                    if ($hits) {
+                        $ctxParts = [];
+                        foreach ($hits as $i => $h) {
+                            $title = $h['title'] ? " — {$h['title']}" : '';
+                            $chunk = trim((string) ($h['chunk_text'] ?? ''));
+                            $ctxParts[] = '[' . ($i + 1) . $title . "]\n" . $chunk;
+                            $snippet = mb_substr($chunk, 0, 320);
+                            if (mb_strlen($chunk) > 320) $snippet .= '…';
+                            $sources[] = [
+                                'title'     => $h['title'],
+                                'source_id' => $h['source_id'],
+                                'score'     => $h['score'],
+                                'snippet'   => $snippet,
+                            ];
+                        }
+                        $systemPrompt .= "\n\n=== КОНТЕКСТ КОМПАНИИ (RAG) ===\n" . implode("\n\n", $ctxParts);
                     }
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning('Assessment RAG failed', ['error' => $e->getMessage()]);
@@ -79,7 +94,7 @@ TXT;
             }
         }
 
-        return $this->ai->streamChat([
+        $response = $this->ai->streamChat([
             'model' => env('AI_MODEL_PRO', 'google/gemini-2.5-pro'),
             'messages' => array_merge(
                 [['role' => 'system', 'content' => $systemPrompt]],
@@ -87,6 +102,14 @@ TXT;
             ),
             'tools' => $tools,
         ]);
+
+        // Источники RAG доступны фронтенду через заголовок (без вмешательства в SSE-поток).
+        if ($sources) {
+            $response->headers->set('X-Rag-Sources', json_encode($sources, JSON_UNESCAPED_UNICODE));
+            $response->headers->set('Access-Control-Expose-Headers', 'X-Rag-Sources');
+        }
+
+        return $response;
     }
 
     protected function extractQuery(array $messages): string
