@@ -1,99 +1,149 @@
-# План: светлая тема + кастомизация бренда компании
+# План: AI в закрытом контуре клиента
 
-## Часть 1. Переключение на светлую тему
+## Цель
 
-Тоггл темы (`ThemeToggle`) уже есть в десктопном `AppLayout` (header). Он работает через `ThemeContext` + класс `.dark` на `<html>` и токены HSL в `src/index.css` (`:root` — светлая, `.dark` — тёмная). Не хватает только доступности на мобильной раскладке сотрудника и в боковом меню.
+Дать возможность развёртывать "Career Track" в изолированном контуре компании, где доступ к Lovable/Gemini закрыт. AI должен работать через один из локальных/российских провайдеров **либо** показывать заглушку, если AI отключён администратором. Конфигурация — через UI Superadmin без передеплоя.  
+  
+ВАЖНО! Если отсутствует подключение к  АИ, но пользователи обращаются к функционалу, то нужно отправить админу продукта (сотрудник на стороне компании) уведомление о необходимости интеграции. При этом в момент первичной развертки админ сам настраивает количество обращений, после которых ему должен прийти пуш.  
+Настраивает он это в настройках компании (отдельный функционал админа)
 
-Что сделаю:
-- Добавлю `ThemeToggle` в `MobileEmployeeLayout` (в шапку рядом с `Bell` и в выезжающее меню `Sheet`).
-- Добавлю пункт «Тема: светлая/тёмная» в выпадающее меню пользователя в `AppSidebar` (footer профиля), чтобы переключатель был очевиден для HRD/руководителя.
-- Подпишу тексты в `ru/common.json` и `en/common.json` (уже есть `theme.*`, проверю покрытие).
-- Проверю, что во всех страницах используются семантические токены (`bg-background`, `text-foreground`, `bg-card`...). Если найду жёстко прописанные `text-white`/`bg-black`/`bg-[#...]` — заменю на токены (точечно, без переделки дизайна).
-
-## Часть 2. Брендинг компании (логотип + фирменные цвета)
-
-Идея: HRD / Company Admin загружает логотип и задаёт акцентный цвет (или система подбирает палитру из логотипа). Эти значения сохраняются на уровне компании и применяются к интерфейсу для всех её сотрудников — поверх базовой темы (светлой/тёмной).
-
-### 2.1 База данных (Laravel migration)
-Новая таблица `company_branding` (1:1 к `companies`):
-- `company_id` (uuid, PK, FK → companies)
-- `logo_url` (text, nullable) — URL логотипа в storage
-- `logo_dark_url` (text, nullable) — опциональный вариант для тёмной темы
-- `primary_hsl` (text, nullable) — `"H S% L%"`, основной акцент
-- `primary_glow_hsl` (text, nullable) — производный/осветлённый
-- `accent_hsl` (text, nullable)
-- `sidebar_bg_hsl` (text, nullable) — опционально, тёмный/светлый фон сайдбара
-- `auto_extracted` (bool, default false) — палитра подобрана из логотипа автоматически
-- `updated_by` (uuid, nullable)
-- `created_at` / `updated_at`
-
-В `companies` дополнительно ничего не трогаем (`logo_url` там уже есть — мигрируем существующее значение в `company_branding.logo_url` при первом сохранении, поле в `companies` оставим для обратной совместимости).
-
-### 2.2 Backend API (Laravel)
-Новый `CompanyBrandingController`:
-- `GET /api/companies/{id}/branding` — публично доступен внутри тенанта (любой авторизованный пользователь компании читает свой бренд).
-- `PUT /api/companies/{id}/branding` — только `hrd`, `company_admin`, `superadmin` той же компании. Валидация: hex/HSL формата, размеры лого, безопасный URL.
-- `POST /api/companies/{id}/branding/logo` — загрузка файла (PNG/JPG/SVG, ≤ 2 MB) в `storage/app/public/company-logos/{company_id}/...`, возвращает `logo_url`.
-
-В `AuthController::me` (или ProfileController, в зависимости от текущей реализации) добавить `company_branding` в payload, чтобы фронт получал бренд за один запрос при логине.
-
-### 2.3 Frontend — применение бренда
-
-Новый файл `src/contexts/BrandingContext.tsx`:
-- Загружает `company_branding` после авторизации (из `/me` или отдельным запросом, с кэшем TanStack Query, ключ — `company_id`).
-- Записывает CSS-переменные в `document.documentElement.style`:
-  - `--primary`, `--primary-glow`, `--ring`, `--sidebar-primary`, `--sidebar-ring`, `--gradient-primary`, `--shadow-elevated`, `--shadow-glow`, `--accent` — пересчитываются из `primary_hsl`.
-  - При смене темы (`light` ↔ `dark`) переменные применяются заново (контекст подписывается на `ThemeContext`).
-- При отсутствии брендинга — ничего не пишет, остаются дефолты из `index.css`.
-
-Подключение: `<BrandingProvider>` оборачивает приложение внутри `AuthProvider`/`ThemeProvider` в `App.tsx`.
-
-Логотип:
-- В `AppSidebar` и `MobileEmployeeLayout` шапке: если `branding.logo_url` есть — показываем его вместо текстового бренда «Growth Peak» (с фолбэком на текст, alt = название компании).
-- В тёмной теме используем `logo_dark_url`, если задан, иначе `logo_url`.
-
-### 2.4 UI настройки бренда
-
-Новая страница `src/pages/CompanyBranding.tsx` (роут `/company-branding`, доступ — `hrd`/`company_admin`/`superadmin`):
-- Карточка «Логотип»: дроп-зона + предпросмотр в светлой и тёмной шапке. Отдельные поля для светлого/тёмного варианта.
-- Карточка «Фирменный цвет»: color picker (HEX), live-предпросмотр кнопок/чипов/сайдбара. Опционально кнопка «Подобрать из логотипа» — на клиенте через canvas: средний доминирующий цвет (k-means по пикселям, без внешних либ).
-- Кнопка «Сбросить к дефолту» — очищает поля в БД.
-- Сохранение → инвалидирует `branding` query → весь интерфейс мгновенно подхватывает новые токены.
-
-Ссылка на страницу добавляется в `AppSidebar` в группу «Настройки» только для ролей HRD / Company Admin / Superadmin.
-
-### 2.5 Утилиты
-- `src/lib/color.ts`: `hexToHsl`, `hslToCss`, `lighten`, `darken`, `getReadableForeground` (черный/белый по контрасту), `extractDominantColor(imageUrl)` через canvas.
-- Тесты на `hexToHsl` и `getReadableForeground` (vitest).
-
-## Технические детали
+## Архитектура
 
 ```text
-App.tsx
-└── ThemeProvider
-    └── AuthProvider
-        └── BrandingProvider  ← новый
-            └── ImpersonationProvider
-                └── Router / ChatProvider / Routes
+┌─────────────────────┐
+│  Бизнес-сервисы     │  AssessmentChat, GenerateTest,
+│  (Laravel)          │  ParseDocument, HrAnalytics ...
+└──────────┬──────────┘
+           │ единый интерфейс LlmDriverInterface
+           ▼
+┌─────────────────────┐
+│  AiGatewayService   │  читает ai_settings (БД) → выбирает драйвер
+└──────────┬──────────┘
+           │
+   ┌───────┼────────┬────────────┬──────────────┐
+   ▼       ▼        ▼            ▼              ▼
+ Gemini  Yandex  GigaChat  OpenAI-compat   Internal-RAG
+ (cloud) GPT     (Сбер)    (vLLM/Ollama)   (Ollama + Qdrant)
 ```
 
-Поток применения бренда:
-```
-login → /me → company_branding → BrandingProvider
-   → useEffect: write CSS vars to :root
-   → Tailwind токены (hsl(var(--primary))) автоматически окрашивают всё
-```
+## Backend (Laravel)
 
-Безопасность:
-- RLS / Policy: чтение брендинга разрешено всем пользователям той же компании; запись — только ролям выше Employee.
-- Загрузка файла: проверка mime-type на бэке, лимит 2 MB, имя файла рандомизируется.
+### 1. Таблица `ai_settings` (single-row, multi-tenant)
 
-Совместимость:
-- Если у компании нет записи в `company_branding` — UI выглядит как сейчас (дефолт antique gold).
-- Существующий `companies.logo_url` подтягивается в `company_branding.logo_url` при первом открытии страницы настроек (миграция данных не нужна, делаем lazy backfill в контроллере).
+- `id`, `company_id` (nullable — глобальный fallback для Superadmin)
+- `provider` enum: `gemini` | `yandexgpt` | `gigachat` | `openai_compatible` | `internal_rag` | `disabled`
+- `model` (например, `yandexgpt/latest`, `GigaChat-Pro`, `qwen2.5:14b`)
+- `api_url`, `api_key` (зашифрованы через `Crypt::encryptString`)
+- `extra_json` (folder_id для Yandex, scope для GigaChat, temperature, max_tokens)
+- `rag_enabled` bool, `rag_index_status` enum: `idle|indexing|ready|error`
+- `disabled_message` (текст заглушки для пользователей)
+
+### 2. Рефакторинг `AiGatewayService`
+
+- Извлечь интерфейс `LlmDriverInterface { chat(messages, opts), stream(messages, opts) }`.
+- Драйверы в `app/Services/AI/Drivers/`:
+  - `GeminiDriver` (текущая логика)
+  - `YandexGptDriver` — `https://llm.api.cloud.yandex.net/foundationModels/v1/completion`, IAM-токен или API-ключ + `folder_id`
+  - `GigaChatDriver` — OAuth2 client_credentials, `https://gigachat.devices.sberbank.ru/api/v1/chat/completions`, mTLS-сертификат (опционально)
+  - `OpenAICompatibleDriver` — для vLLM/Ollama/LM Studio/Azure OpenAI (один универсальный)
+  - `DisabledDriver` — кидает `AiDisabledException` с `disabled_message`
+- Все существующие сервисы (`AssessmentChatService`, `GenerateClosedTestService`, `GenerateStepScenarioService`, `GenerateDefaultTrackStepsService`, `HrAnalyticsAiService`, `DocumentParserService`) переписать на интерфейс — без привязки к Gemini-специфичному `contents/parts`.
+- SSE-стриминг (`AssessmentChat`) — нормализовать к OpenAI-style chunk'ам внутри драйвера.
+
+### 3. RAG для "внутренней" LLM
+
+Это RAG, **не** fine-tuning (fine-tune под каждого клиента нереалистичен по стоимости/времени; ответ модели должен опираться на актуальные документы компании).
+
+- Векторная БД: **Qdrant** (open-source, ставится рядом в docker-compose) или `pgvector` в существующем Postgres.
+- Embeddings: локальная модель `bge-m3` / `multilingual-e5-large` через тот же Ollama.
+- Новая таблица `rag_documents`: `company_id`, `source_type` (hr_policy, position, career_track, ticket, employee_profile, custom_upload), `source_id`, `chunk_text`, `embedding`, `metadata`, `indexed_at`.
+- `RagIndexerService`:
+  - Команда `php artisan rag:reindex --company=X` — индексирует HR-политики, позиции, треки, профили, тикеты.
+  - Чанкинг 1–2KB с overlap, метаданные (роль, дата, тип).
+  - Очередь Laravel (queue:work) для фоновой индексации.
+  - Триггеры на сохранение документов → авто-инкрементальное обновление.
+- `InternalRagDriver`:
+  1. Embedding запроса → top-K чанков из Qdrant (фильтр по `company_id`).
+  2. Промпт: системка + контекст из чанков + история сообщений.
+  3. Вызов локальной LLM через OpenAI-совместимый адаптер.
+  4. В ответе возвращает источники (для UI "источник: HR-политика §3.2").
+
+### 4. API
+
+- `GET /api/admin/ai-settings` (Superadmin/Company Admin)
+- `PUT /api/admin/ai-settings`
+- `POST /api/admin/ai-settings/test` — пробный вызов, возвращает latency/ошибку
+- `POST /api/admin/ai-settings/rag/reindex` — запуск переиндексации
+- `GET /api/admin/ai-settings/rag/status` — прогресс
+
+### 5. Middleware
+
+`EnsureAiEnabled` — если провайдер `disabled`, возвращает `423 Locked` с `disabled_message`.
+
+## Frontend (React)
+
+### 1. Страница `/ai-settings` (Superadmin + Company Admin)
+
+- Селектор провайдера (карточки с описанием).
+- Поля в зависимости от провайдера:
+  - **YandexGPT**: API-ключ, `folder_id`, модель (`yandexgpt`, `yandexgpt-lite`, `yandexgpt-32k`).
+  - **GigaChat**: client_id, client_secret, scope (`GIGACHAT_API_PERS` / `_B2B` / `_CORP`), модель.
+  - **OpenAI-compatible**: base_url, api_key, model.
+  - **Internal RAG**: base_url Ollama, embedding model, chat model, кнопка "Переиндексировать БЗ".
+  - **Disabled**: только текст заглушки.
+- Кнопка "Проверить соединение" → вызывает `/test`, показывает результат.
+- Блок RAG: статус индекса, количество чанков по типам, кнопка реиндекса.
+
+### 2. Хук `useAiAvailability`
+
+- Загружает `ai_settings.provider !== 'disabled'`.
+- Если выключен — оборачивает AI-кнопки в `<AiDisabledTooltip>`: кнопка видна, но кликабельна → toast "AI отключён администратором: {disabled_message}".
+
+### 3. Затронутые экраны (показ заглушки)
+
+`Assessment`, `CareerTracksManagement`, `EmployeeQuestionnaire`, `HRDTests`, `HRPolicies`, `Scenarios`, `Positions`, `Support` — обернуть AI-триггеры через `useAiAvailability`.
+
+### 4. Локализация
+
+`ai.disabled.title`, `ai.disabled.defaultMessage`, `ai.settings.*`, `ai.rag.*` в `ru/en common.json`.
+
+## Деплой в закрытом контуре
+
+`docker-compose.client.yml` (поставляется заказчику):
+
+- `app` (Laravel + React build)
+- `postgres` (с `pgvector` extension)
+- `qdrant` (опционально, если не используем pgvector)
+- `ollama` с предзагруженными моделями: `qwen2.5:14b-instruct`, `bge-m3` (рекомендация для RU+EN, среднее железо: 1×A10 24GB)
+- Альтернатива — клиент указывает endpoint своего YandexGPT/GigaChat, тогда Ollama не нужен.
+
+Документация `DEPLOYMENT_OFFLINE.md`:
+
+- Минимальные требования железа для каждого провайдера.
+- Инструкция настройки YandexGPT (получение API-ключа + folder_id).
+- Инструкция настройки GigaChat (регистрация в Studio, mTLS-сертификат для CORP).
+- Объём документов для RAG (рекомендация: 50–500 МБ текста на компанию).
 
 ## Что НЕ входит в этот план
 
-- Полноценный «AI brand kit» (несколько цветов из логотипа, шрифты, иконки) — пока только основной акцент + опциональный sidebar bg.
-- Кастомные шрифты компании — оставляем Inter; добавим отдельной задачей при необходимости.
-- Применение бренда на лендинге (`/`, `/pricing`) — там оставляем фирменный стиль Growth Peak.
+- Fine-tuning моделей под клиента (нереалистично для on-prem поставки; RAG покрывает 95% случаев).
+- Federated learning / обучение на пользовательских данных в реальном времени.
+- Поддержка Anthropic/Mistral/Cohere облачных API (легко добавить позже через `OpenAICompatibleDriver`).
+
+## Этапы реализации
+
+1. **Миграция + рефакторинг `AiGatewayService` → драйверы** (Gemini + Disabled — для обратной совместимости).
+2. `**YandexGptDriver` + `GigaChatDriver` + `OpenAICompatibleDriver**` + тесты.
+3. **UI `/ai-settings**` + `useAiAvailability` + обёртки на 8 экранах.
+4. **RAG-слой**: миграция `rag_documents`, `RagIndexerService`, `InternalRagDriver`, UI индексации.
+5. **docker-compose.client.yml + DEPLOYMENT_OFFLINE.md**.
+
+Реализация большая — рекомендую делать по одному этапу за итерацию. Подтвердите, начинать ли с этапа 1, или сразу нужны все 5.  
+сразу все 5  
+после реализации запусти тесты:  
+1) тест на стрессоустойчивость системы  
+2) стресс-тест на то как новый функционал аффектит старый  
+3) тест на оптимизацию  
+4) автотесты на весь функционал
+
+&nbsp;
