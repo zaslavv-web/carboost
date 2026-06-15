@@ -99,6 +99,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" },
         { icon: Brain, label: t("nav.aiSettings", { defaultValue: "AI-провайдер" }), path: "/ai-settings" },
         { icon: BookText, label: t("nav.ragDocuments", { defaultValue: "База знаний (RAG)" }), path: "/rag-documents" },
+        { icon: GraduationCap, label: t("nav.university", { defaultValue: "Университет" }), path: "/university" },
         { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
@@ -116,6 +117,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" },
         { icon: Brain, label: t("nav.aiSettings", { defaultValue: "AI-провайдер" }), path: "/ai-settings" },
         { icon: BookText, label: t("nav.ragDocuments", { defaultValue: "База знаний (RAG)" }), path: "/rag-documents" },
+        { icon: GraduationCap, label: t("nav.university", { defaultValue: "Университет" }), path: "/university" },
         { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
@@ -181,6 +183,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" },
         { icon: Brain, label: t("nav.aiSettings", { defaultValue: "AI-провайдер" }), path: "/ai-settings" },
         { icon: BookText, label: t("nav.ragDocuments", { defaultValue: "База знаний (RAG)" }), path: "/rag-documents" },
+        { icon: GraduationCap, label: t("nav.university", { defaultValue: "Университет" }), path: "/university" },
         { icon: Settings, label: t("nav.settings"), path: "/settings" },
       ];
     }
