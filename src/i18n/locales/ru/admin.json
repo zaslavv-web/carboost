@@ -609,6 +609,8 @@
     "statusResolved": "Решён",
     "aiSuggestion": "Предложение AI:",
     "useAsResponse": "Использовать как ответ",
+    "aiSourcesTitle": "Источники из базы знаний",
+    "aiSourceUntitled": "Без названия",
     "sendResponseBtn": "Отправить ответ",
     "priorityLowLabel": "Низкий",
     "priorityMediumLabel": "Средний",

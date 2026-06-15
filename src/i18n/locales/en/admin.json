@@ -609,6 +609,8 @@
     "statusResolved": "Resolved",
     "aiSuggestion": "AI suggestion:",
     "useAsResponse": "Use as response",
+    "aiSourcesTitle": "Knowledge base sources",
+    "aiSourceUntitled": "Untitled",
     "sendResponseBtn": "Send response",
     "priorityLowLabel": "Low",
     "priorityMediumLabel": "Medium",
