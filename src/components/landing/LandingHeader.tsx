@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface Props {
   onOpenDemo?: () => void;
@@ -10,14 +11,22 @@ interface Props {
 
 const LandingHeader = ({ onOpenDemo, showAnchors = true }: Props) => {
   const { t } = useTranslation(["landing", "common"]);
+  const subtitle = t("common:brand.subtitle", { defaultValue: "" });
   return (
-    <header data-testid="landing-header" className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border">
+    <header
+      data-testid="landing-header"
+      className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border text-foreground"
+    >
       <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
           <img src={brandLogo} alt={t("common:brand.logoAlt")} width={36} height={36} className="w-9 h-9 object-contain" />
           <div className="leading-tight">
-            <span className="block font-bold text-base tracking-tight">{t("common:brand.name")}</span>
-            <span className="block text-[10px] font-medium tracking-[0.18em] text-muted-foreground uppercase">Growth Peak</span>
+            <span className="block font-bold text-base tracking-tight text-foreground">{t("common:brand.name")}</span>
+            {subtitle && (
+              <span className="block text-[10px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+                {subtitle}
+              </span>
+            )}
           </div>
         </Link>
         {showAnchors && (
@@ -30,6 +39,7 @@ const LandingHeader = ({ onOpenDemo, showAnchors = true }: Props) => {
           </nav>
         )}
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <LanguageSwitcher />
           {onOpenDemo && (
             <button
