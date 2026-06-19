@@ -518,7 +518,7 @@ const Landing = () => {
       <footer className="py-10 px-6 md:px-10" style={{ background: p.block, color: p.onBlockMuted, borderTop: `1px solid ${p.blockBorder}` }}>
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
           <div className="flex items-center gap-3">
-            <span style={headingFont} className="font-extrabold uppercase tracking-wider" css-color="white">{t("footer.brand")}</span>
+            <span style={{ ...headingFont, color: p.onBlock }} className="font-extrabold uppercase tracking-wider">{t("footer.brand")}</span>
             <span className="opacity-50">© {new Date().getFullYear()}</span>
           </div>
           <div className="flex items-center gap-6 flex-wrap justify-center">
