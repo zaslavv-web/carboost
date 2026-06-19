@@ -11,7 +11,7 @@ interface Props {
 
 const LandingHeader = ({ onOpenDemo, showAnchors = true }: Props) => {
   const { t } = useTranslation(["landing", "common"]);
-  const subtitle = t("common:brand.subtitle", { defaultValue: "" });
+
   return (
     <header
       data-testid="landing-header"
@@ -20,15 +20,11 @@ const LandingHeader = ({ onOpenDemo, showAnchors = true }: Props) => {
       <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
           <img src={brandLogo} alt={t("common:brand.logoAlt")} width={36} height={36} className="w-9 h-9 object-contain" />
-          <div className="leading-tight">
-            <span className="block font-bold text-base tracking-tight text-foreground">{t("common:brand.name")}</span>
-            {subtitle && (
-              <span className="block text-[10px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-                {subtitle}
-              </span>
-            )}
-          </div>
+          <span className="font-bold text-base tracking-tight text-foreground leading-none">
+            {t("common:brand.name")}
+          </span>
         </Link>
+
         {showAnchors && (
           <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm text-muted-foreground">
             <a href="#pains" className="hover:text-foreground transition-colors">{t("landing:header.solutions")}</a>

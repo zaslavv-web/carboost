@@ -1,18 +1,11 @@
-## Цель
-Убрать предупреждение GitHub Actions о Node.js 20 — обновить экшены до версий, работающих на Node.js 24.
+## Изменения в `src/components/landing/LandingHeader.tsx`
 
-## Контекст
-GitHub с 19 сентября 2025 объявил Node.js 20 deprecated. `actions/checkout@v4` всё ещё построен на Node 20 и форсированно запускается на Node 24, что и вызывает warning. Решение — поднять до `actions/checkout@v5` (Node 24 нативно). Заодно обновить `actions/setup-node` до v5 ради консистентности.
+1. **Убрать дубликат в RU**: сейчас рендерим `brand.name` + `brand.subtitle`. В русской версии оба = «Пик Роста» → две одинаковые строки. Уберу рендер `subtitle` совсем — оставлю только `brand.name`. В EN подпись и так была пустой, так что визуально ничего не теряем.
+2. **Очистить `brand.subtitle` в `src/i18n/locales/ru/common.json`** (или удалить ключ) — больше не нужен.
+3. **Вертикальное центрирование названия с логотипом**: убрать обёртку `<div class="leading-tight">` с двумя `<span>` и заменить на одиночный `<span>` рядом с `<img>`. Контейнер `<Link>` уже `flex items-center gap-3`, так что одна строка автоматически отцентруется по высоте 36px-логотипа.
 
-## Изменения
+## Затронутые файлы
+- `src/components/landing/LandingHeader.tsx`
+- `src/i18n/locales/ru/common.json`
 
-### `.github/workflows/npm-publish.yml`
-- строка 14: `actions/checkout@v4` → `actions/checkout@v5`
-- строка 17: `actions/setup-node@v4` → `actions/setup-node@v5`
-- строка 52: `actions/checkout@v4` → `actions/checkout@v5`
-
-### `.github/workflows/backup.yml`
-- строка 21: `actions/checkout@v4` → `actions/checkout@v5`
-
-## Проверка
-Изменения тривиальны — только теги версий. После мержа следующий запуск workflow не должен показывать предупреждение про Node 20.
+Без изменений в `Landing.tsx`, темах и других компонентах.
