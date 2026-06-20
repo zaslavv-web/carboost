@@ -36,6 +36,13 @@ jobs:
             echo "ENV=sandstorm" >> $GITHUB_OUTPUT
           fi
 
+      - name: Import GPG public key
+        if: ${{ secrets.BACKUP_GPG_PUBLIC_KEY != '' }}
+        env:
+          BACKUP_GPG_PUBLIC_KEY: ${{ secrets.BACKUP_GPG_PUBLIC_KEY }}
+        run: |
+          echo "$BACKUP_GPG_PUBLIC_KEY" | gpg --batch --import
+
       - name: Run backup
         env:
           ENV: ${{ steps.env.outputs.ENV }}
@@ -48,6 +55,7 @@ jobs:
           RCLONE_CONFIG_S3_REGION: ${{ secrets.BACKUP_S3_REGION }}
           RCLONE_CONFIG_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
           BACKUP_GPG_RECIPIENT: ${{ secrets.BACKUP_GPG_RECIPIENT }}
+          BACKUP_GPG_PUBLIC_KEY: ${{ secrets.BACKUP_GPG_PUBLIC_KEY }}
         run: |
           chmod +x scripts/backup-db.sh
           ./scripts/backup-db.sh
