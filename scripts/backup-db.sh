@@ -2,8 +2,10 @@
 # Ежедневный бэкап Postgres-БД (прод или песочница) с загрузкой
 # в S3-совместимое хранилище через rclone.
 #
-# Поддерживаются любые S3-совместимые провайдеры:
-# Yandex Object Storage, Selectel, VK Cloud, Cloud.ru, MinIO on-prem и т.д.
+# Архитектура: БД крутится в Docker на удалённом VPS (nic.ru), поэтому
+# pg_dump запускается через SSH + docker exec, а дамп стримится по pipe
+# обратно в runner. Поддерживаются любые S3-совместимые провайдеры
+# (Yandex Object Storage, Selectel, VK Cloud, MinIO on-prem и т.д.).
 #
 # Использование:
 #   ENV=prod      ./scripts/backup-db.sh
@@ -11,7 +13,12 @@
 #
 # Требуемые переменные окружения:
 #   ENV                                 — prod | sandstorm
-#   PG_DUMP_URL                         — postgres://user:pass@host:port/dbname
+#   SSH_HOST                            — например ssh.gro7659365.nichost.ru
+#   SSH_USER                            — например gro7659365
+#   SSH_PASSWORD                        — пароль SSH (через sshpass)
+#   DOCKER_CONTAINER                    — имя docker-контейнера с postgres
+#   DB_USER                             — пользователь БД (внутри контейнера)
+#   DB_NAME                             — имя БД
 #   S3_BUCKET                           — например ct-backups
 #   S3_PREFIX                           — опционально, иначе $ENV
 #   RCLONE_CONFIG_S3_TYPE=s3            — фиксировано
@@ -21,13 +28,19 @@
 #   RCLONE_CONFIG_S3_REGION             — регион (например ru-central1)
 #   RCLONE_CONFIG_S3_ENDPOINT           — URL S3-эндпоинта
 #   BACKUP_GPG_RECIPIENT                — опционально, fingerprint для gpg --encrypt
+#   BACKUP_GPG_PUBLIC_KEY               — опционально, ASCII-armored public key
 #
 # Retention: 30 ежедневных, 12 ежемесячных (1-е число месяца сохраняется отдельно).
 
 set -euo pipefail
 
 ENV="${ENV:?ENV is required (prod|sandstorm)}"
-PG_DUMP_URL="${PG_DUMP_URL:?PG_DUMP_URL is required}"
+SSH_HOST="${SSH_HOST:?SSH_HOST is required}"
+SSH_USER="${SSH_USER:?SSH_USER is required}"
+SSH_PASSWORD="${SSH_PASSWORD:?SSH_PASSWORD is required}"
+DOCKER_CONTAINER="${DOCKER_CONTAINER:?DOCKER_CONTAINER is required}"
+DB_USER="${DB_USER:?DB_USER is required}"
+DB_NAME="${DB_NAME:?DB_NAME is required}"
 S3_BUCKET="${S3_BUCKET:?S3_BUCKET is required}"
 S3_PREFIX="${S3_PREFIX:-$ENV}"
 
@@ -37,8 +50,19 @@ TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 DUMP_PATH="$TMP_DIR/${ENV}-${DATE}.dump"
-echo "[backup] pg_dump → $DUMP_PATH"
-pg_dump --format=custom --no-owner --no-privileges "$PG_DUMP_URL" > "$DUMP_PATH"
+echo "[backup] ssh + docker exec pg_dump → $DUMP_PATH"
+SSHPASS="$SSH_PASSWORD" sshpass -e ssh \
+    -o StrictHostKeyChecking=accept-new \
+    -o UserKnownHostsFile=/dev/null \
+    -o LogLevel=ERROR \
+    "$SSH_USER@$SSH_HOST" \
+    "docker exec -i $DOCKER_CONTAINER pg_dump --format=custom --no-owner --no-privileges -U $DB_USER $DB_NAME" \
+    > "$DUMP_PATH"
+
+if [[ ! -s "$DUMP_PATH" ]]; then
+  echo "[backup] ERROR: получен пустой дамп" >&2
+  exit 1
+fi
 
 UPLOAD_PATH="$DUMP_PATH"
 if [[ -n "${BACKUP_GPG_RECIPIENT:-}" ]]; then
