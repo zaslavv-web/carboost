@@ -139,31 +139,33 @@ const StepSubmissionDialog = ({ assignmentId, templateId, stepOrder, stepTitle, 
 
   const submitTest = async () => {
     if (!user) return;
-    const correct = questions.reduce((s, q, i) => s + (answers[i] === q.correct ? 1 : 0), 0);
-    const pct = Math.round((correct / Math.max(1, questions.length)) * 100);
+    if (!stepTest?.id) {
+      toast.error(t("stepDialog.lowScore", { got: 0, need: minScore }));
+      return;
+    }
+    // Server-side scoring via SECURITY DEFINER RPC. Direct INSERT into
+    // test_attempts is blocked by RLS so the score cannot be fabricated.
+    const answerMap: Record<string, string> = {};
+    for (const [idx, optIdx] of Object.entries(answers)) {
+      const q = questions[Number(idx)];
+      const qid = (q?.id as string | undefined) ?? String(idx);
+      answerMap[qid] = String(optIdx);
+    }
+    const { data, error } = await laravelRpc<{ attempt_id: string; score: number }>(
+      "submit_test_attempt",
+      { _test_id: stepTest.id, _source: "career_step", _answers: answerMap },
+    );
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    const pct = data?.score ?? 0;
     if (pct < minScore) {
       toast.error(t("stepDialog.lowScore", { got: pct, need: minScore }));
       setAnswers({});
       return;
     }
-    const { data, error } = await laravelDb
-      .from("test_attempts")
-      .insert({
-        user_id: user.id,
-        company_id: profile?.company_id ?? null,
-        test_id: stepTest?.id ?? null,
-        test_source: "career_step",
-        answers: answers as any,
-        score: pct,
-        total: 100,
-      })
-      .select()
-      .single();
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    setTestAttemptId(data.id);
+    setTestAttemptId(data?.attempt_id ?? null);
     setTestScore(pct);
     setShowTest(false);
     toast.success(t("stepDialog.testPassed", { score: pct }));
