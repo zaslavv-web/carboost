@@ -1,56 +1,84 @@
 ## Цель
 
-Привести `.github/workflows/backup.yml` в рабочее состояние с новыми ключами Yandex и схемой «GPG-шифрование, приватный ключ в 1Password». Sandstorm-ветку не трогаем.
+Переделать бэкап под реальную инфраструктуру: Laravel + PostgreSQL в Docker на nic.ru VPS, GitHub Actions ходит на сервер по SSH и забирает дамп.
 
-## Что меняется в коде
+## Архитектура
 
-### 1. `.github/workflows/backup.yml`
+```text
+GitHub Actions runner
+  │  ssh gro7659365@ssh.gro7659365.nichost.ru
+  ▼
+VPS nic.ru
+  └─ Docker
+       ├─ postgres        ← prod БД careertrack
+       └─ ct-sand-postgres ← sandbox БД careertrack_sand
+```
 
-Между шагом `Install deps` и `Run backup` добавляется новый шаг **Import GPG public key**: если `BACKUP_GPG_PUBLIC_KEY` задан, он импортируется в keyring раннера через `gpg --import`, иначе шаг скипается. Без этого шага текущий скрипт падает на `gpg --encrypt`, потому что в чистом раннере нет ключа с нужным recipient.
+Runner запускает `docker exec ... pg_dump` через SSH, дамп стримится по pipe обратно в runner, шифруется GPG публичным ключом, загружается rclone в Yandex Object Storage.
 
-В шаг `Run backup` также прокидывается `BACKUP_GPG_PUBLIC_KEY` как env — на случай fallback-импорта внутри скрипта.
+## Изменения в коде
 
-### 2. `scripts/backup-db.sh`
+### 1. `scripts/backup-db.sh` — переписать
+- Убрать переменную `PG_DUMP_URL`.
+- Добавить переменные: `SSH_HOST`, `SSH_USER`, `SSH_PASSWORD`, `DOCKER_CONTAINER`, `DB_USER`, `DB_NAME`.
+- Команда дампа:
+  ```bash
+  sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=accept-new \
+      "$SSH_USER@$SSH_HOST" \
+      "docker exec -i $DOCKER_CONTAINER pg_dump --format=custom --no-owner --no-privileges -U $DB_USER $DB_NAME" \
+      > "$DUMP_PATH"
+  ```
+- Остальная логика (GPG, rclone, retention 30 daily / 12 monthly) — без изменений.
 
-Минимальная правка: перед вызовом `gpg --encrypt` проверяем, что ключ с данным recipient присутствует в keyring. Если нет — `gpg --import` из переменной `BACKUP_GPG_PUBLIC_KEY` (если она задана), иначе понятная ошибка `BACKUP_GPG_RECIPIENT задан, но публичный ключ не найден`. Это делает скрипт самодостаточным (его можно запускать локально).
+### 2. `.github/workflows/backup.yml`
+- Установить `sshpass` дополнительно к существующим пакетам.
+- В шаг `Run backup` пробросить новые env-переменные вместо `PG_DUMP_URL`:
+  - `SSH_HOST`, `SSH_USER`, `SSH_PASSWORD`
+  - `DOCKER_CONTAINER` (`postgres` для prod, `ct-sand-postgres` для sandstorm)
+  - `DB_USER=careertrack`
+  - `DB_NAME` (`careertrack` или `careertrack_sand`)
 
-### 3. Sandstorm
+### 3. `scripts/restore-backup.sh` (если есть) — обновить
+Аналогично переписать на SSH-схему. Проверю файл и обновлю, если он использует прямое подключение.
 
-Файлы не трогаются по вашему запросу. `SAND_PG_DUMP_URL` остаётся обязательным секретом для ночного крона в 03:15 МСК. Если sandstorm-БД сейчас не существует, ночной запуск будет красным — это ожидаемо до прояснения.
+## Что вам сделать в GitHub Secrets
 
-## Что вам нужно сделать на стороне GitHub
+Зайти **Settings → Secrets and variables → Actions → New repository secret** и создать:
 
-Перейти в **Repo → Settings → Secrets and variables → Actions → New repository secret** и добавить/обновить:
-
-| Секрет | Где взять | Статус |
+| Секрет | Значение | Откуда |
 |---|---|---|
-| `BACKUP_S3_BUCKET` | Yandex Object Storage → имя бакета | ✅ уже есть |
-| `BACKUP_S3_ENDPOINT` | `https://storage.yandexcloud.net` | ✅ уже есть |
-| `BACKUP_S3_REGION` | `ru-central1` | ✅ уже есть |
-| `BACKUP_S3_ACCESS_KEY_ID` | Yandex → Static access keys | ✅ уже есть |
-| `BACKUP_S3_SECRET_ACCESS_KEY` | парный к access key (показывается один раз при создании) | ⚠️ нужно добавить |
-| `PROD_PG_DUMP_URL` | Lovable → Backend → Database → Connection string (Session pooler) | ⚠️ нужно добавить |
-| `SAND_PG_DUMP_URL` | connection string sandbox-БД (если её нет — оставить пустым, ночной 03:15 будет падать) | ⚠️ нужно добавить или принять падение крона |
-| `BACKUP_GPG_RECIPIENT` | email/fingerprint вашего GPG-ключа | ⚠️ нужно добавить |
-| `BACKUP_GPG_PUBLIC_KEY` | вывод `gpg --export --armor <email>` целиком (вместе с `-----BEGIN PGP PUBLIC KEY BLOCK-----`) | ⚠️ нужно добавить |
+| `BACKUP_SSH_HOST` | `ssh.gro7659365.nichost.ru` | уже знаем |
+| `BACKUP_SSH_USER` | `gro7659365` | уже знаем |
+| `BACKUP_SSH_PASSWORD` | пароль от SSH | из письма/кабинета nic.ru |
+| `BACKUP_S3_SECRET_ACCESS_KEY` | secret key Yandex Object Storage | Yandex Cloud → Service Accounts → Static keys |
+| `BACKUP_GPG_RECIPIENT` | `backup@career-track` | вы придумываете при генерации |
+| `BACKUP_GPG_PUBLIC_KEY` | вывод `gpg --export --armor backup@career-track` | сгенерировать локально |
 
-Приватный GPG-ключ в GitHub **не кладём** — он живёт в 1Password и нужен только при восстановлении из бэкапа (вручную, локально).
+Уже добавлены ранее: `BACKUP_S3_BUCKET`, `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, `BACKUP_S3_ACCESS_KEY_ID`.
+
+**Больше не нужны** (удалю упоминания из workflow): `PROD_PG_DUMP_URL`, `SAND_PG_DUMP_URL`.
+
+## Открытые вопросы — проверка после первого запуска
+
+1. **Имена Docker-контейнеров** — взяты из `backend-laravel/.env*`: `postgres` (prod) и `ct-sand-postgres` (sandstorm). Если на сервере они называются иначе — первый запуск покажет, поправлю одной строкой.
+2. **Docker на nic.ru** — проверим первым же запуском. Если nic.ru-тариф не поддерживает Docker (бывает на shared-хостинге), переключим план на «PostgreSQL установлен напрямую на VPS» — `pg_dump` вызовется без `docker exec`.
+3. **sshpass vs SSH-ключ** — пароль работает, но менее безопасно. Через 1-2 недели рекомендую переехать на SSH-ключ (сгенерируете, добавите его публичную часть в `~/.ssh/authorized_keys` на VPS, приватную — в GitHub Secret).
 
 ## Как сгенерировать GPG-ключ
 
+Если GPG ещё не установлен: Mac — `brew install gnupg`, Windows — Gpg4win.
+
 ```bash
 gpg --quick-generate-key "backup@career-track" rsa4096 encrypt 2y
-gpg --export --armor backup@career-track       # → значение BACKUP_GPG_PUBLIC_KEY
+gpg --export --armor backup@career-track            # → BACKUP_GPG_PUBLIC_KEY
 gpg --export-secret-keys --armor backup@career-track  # → в 1Password
-# recipient = backup@career-track → значение BACKUP_GPG_RECIPIENT
 ```
-
-## Перевыпуск ключа в будущем
-
-1. Сгенерировать новую пару, новый приватный сохранить в 1Password рядом со старым.
-2. Обновить `BACKUP_GPG_PUBLIC_KEY` и `BACKUP_GPG_RECIPIENT` в GitHub Secrets.
-3. Старые бэкапы по-прежнему дешифруются старым приватным ключом из 1Password.
 
 ## Проверка после внедрения
 
-Запустить workflow вручную: **Actions → Daily DB Backup → Run workflow → env: prod**. Успешный прогон должен показать в логах `[backup] gpg --encrypt` и `[backup] upload → s3:...`.
+После добавления секретов: **Actions → Daily DB Backup → Run workflow → env: prod**. Ожидаемые строки в логе:
+```
+[backup] ssh + docker exec pg_dump → ...
+[backup] gpg --encrypt
+[backup] upload → s3:.../prod/daily/prod-YYYY-MM-DD.dump.gpg
+```
