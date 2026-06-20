@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { laravelDb } from "@/integrations/laravel/db";
+import { laravelRpc } from "@/integrations/laravel/rpc";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,47 +47,50 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
     if (!user || !allAnswered) return;
     setSubmitting(true);
     try {
-      const detailed = test.questions.map((q) => {
-        const selected = answers[q.id];
-        const isCorrect = selected === q.correct_option_id;
-        return {
-          question_id: q.id,
-          selected_option_id: selected,
-          correct_option_id: q.correct_option_id,
-          is_correct: isCorrect,
+      let scorePct = 0;
+      let breakdown: { competency: string; score: number; total: number }[] = [];
+
+      if (test.source === "hrd" && test.testId) {
+        // Server-side scoring via SECURITY DEFINER RPC. Clients can no longer
+        // write to test_attempts directly and cannot fabricate scores.
+        const answerMap: Record<string, string> = {};
+        for (const q of test.questions) answerMap[q.id] = answers[q.id];
+        const { data, error } = await laravelRpc<{
+          score: number;
+          total: number;
+          breakdown: { competency: string; score: number; total: number }[];
+        }>("submit_test_attempt", {
+          _test_id: test.testId,
+          _source: "hrd",
+          _answers: answerMap,
+        });
+        if (error) throw error;
+        scorePct = data?.score ?? 0;
+        breakdown = data?.breakdown ?? [];
+      } else {
+        // AI-generated tests are not persisted in closed_question_tests, so they
+        // skip test_attempts entirely and only record an assessment row below.
+        const detailed = test.questions.map((q) => ({
           competency: q.competency,
           weight: q.weight || 1,
-        };
-      });
-
-      const totalWeight = detailed.reduce((s, a) => s + (a.weight || 1), 0);
-      const earned = detailed.reduce((s, a) => s + (a.is_correct ? (a.weight || 1) : 0), 0);
-      const scorePct = Math.round((earned / Math.max(1, totalWeight)) * 100);
-
-      const compMap = new Map<string, { earned: number; total: number }>();
-      for (const a of detailed) {
-        const cur = compMap.get(a.competency) || { earned: 0, total: 0 };
-        cur.total += a.weight || 1;
-        if (a.is_correct) cur.earned += a.weight || 1;
-        compMap.set(a.competency, cur);
+          is_correct: answers[q.id] === q.correct_option_id,
+        }));
+        const totalWeight = detailed.reduce((s, a) => s + (a.weight || 1), 0);
+        const earned = detailed.reduce((s, a) => s + (a.is_correct ? (a.weight || 1) : 0), 0);
+        scorePct = Math.round((earned / Math.max(1, totalWeight)) * 100);
+        const compMap = new Map<string, { earned: number; total: number }>();
+        for (const a of detailed) {
+          const cur = compMap.get(a.competency) || { earned: 0, total: 0 };
+          cur.total += a.weight || 1;
+          if (a.is_correct) cur.earned += a.weight || 1;
+          compMap.set(a.competency, cur);
+        }
+        breakdown = Array.from(compMap.entries()).map(([competency, v]) => ({
+          competency,
+          score: Math.round((v.earned / Math.max(1, v.total)) * 100),
+          total: v.total,
+        }));
       }
-      const breakdown = Array.from(compMap.entries()).map(([competency, v]) => ({
-        competency,
-        score: Math.round((v.earned / Math.max(1, v.total)) * 100),
-        total: v.total,
-      }));
-
-      const { error: attemptErr } = await laravelDb.from("test_attempts").insert({
-        user_id: user.id,
-        company_id: profile?.company_id ?? null,
-        test_id: test.testId ?? null,
-        test_source: test.source,
-        answers: detailed as any,
-        competency_breakdown: breakdown as any,
-        score: scorePct,
-        total: 100,
-      });
-      if (attemptErr) throw attemptErr;
 
       await laravelDb.from("assessments").insert({
         user_id: user.id,
