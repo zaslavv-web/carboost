@@ -23,7 +23,7 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client gnupg rclone
+          sudo apt-get install -y postgresql-client gnupg rclone sshpass
 
       - name: Determine env
         id: env
@@ -46,7 +46,12 @@ jobs:
       - name: Run backup
         env:
           ENV: ${{ steps.env.outputs.ENV }}
-          PG_DUMP_URL: ${{ steps.env.outputs.ENV == 'prod' && secrets.PROD_PG_DUMP_URL || secrets.SAND_PG_DUMP_URL }}
+          SSH_HOST: ${{ secrets.BACKUP_SSH_HOST }}
+          SSH_USER: ${{ secrets.BACKUP_SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.BACKUP_SSH_PASSWORD }}
+          DOCKER_CONTAINER: ${{ steps.env.outputs.ENV == 'prod' && 'postgres' || 'ct-sand-postgres' }}
+          DB_USER: careertrack
+          DB_NAME: ${{ steps.env.outputs.ENV == 'prod' && 'careertrack' || 'careertrack_sand' }}
           S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
           RCLONE_CONFIG_S3_TYPE: s3
           RCLONE_CONFIG_S3_PROVIDER: Other
