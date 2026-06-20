@@ -42,6 +42,16 @@ pg_dump --format=custom --no-owner --no-privileges "$PG_DUMP_URL" > "$DUMP_PATH"
 
 UPLOAD_PATH="$DUMP_PATH"
 if [[ -n "${BACKUP_GPG_RECIPIENT:-}" ]]; then
+  # Убедимся, что публичный ключ recipient есть в keyring.
+  if ! gpg --list-keys "$BACKUP_GPG_RECIPIENT" >/dev/null 2>&1; then
+    if [[ -n "${BACKUP_GPG_PUBLIC_KEY:-}" ]]; then
+      echo "[backup] importing BACKUP_GPG_PUBLIC_KEY"
+      echo "$BACKUP_GPG_PUBLIC_KEY" | gpg --batch --import
+    else
+      echo "[backup] ERROR: BACKUP_GPG_RECIPIENT задан ($BACKUP_GPG_RECIPIENT), но публичный ключ не найден в keyring и BACKUP_GPG_PUBLIC_KEY не задан" >&2
+      exit 1
+    fi
+  fi
   echo "[backup] gpg --encrypt"
   gpg --batch --yes --trust-model always \
       --recipient "$BACKUP_GPG_RECIPIENT" \
