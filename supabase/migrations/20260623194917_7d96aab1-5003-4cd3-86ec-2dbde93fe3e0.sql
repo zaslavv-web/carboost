@@ -1,0 +1,20 @@
+
+DROP TABLE IF EXISTS public.tracker_audit_log CASCADE;
+DROP TABLE IF EXISTS public.tracker_one_on_one_agenda CASCADE;
+DROP TABLE IF EXISTS public.tracker_one_on_ones CASCADE;
+DROP TABLE IF EXISTS public.tracker_task_checkins CASCADE;
+DROP TABLE IF EXISTS public.tracker_task_goal_links CASCADE;
+DROP TABLE IF EXISTS public.tracker_tasks CASCADE;
+DROP TABLE IF EXISTS public.tracker_key_results CASCADE;
+DROP TABLE IF EXISTS public.tracker_goals CASCADE;
+DROP TABLE IF EXISTS public.tracker_okr_periods CASCADE;
+DROP FUNCTION IF EXISTS public.tracker_log_status_change() CASCADE;
+DROP FUNCTION IF EXISTS public.tracker_recalc_goal_progress() CASCADE;
+DROP FUNCTION IF EXISTS public.tracker_set_updated_at() CASCADE;
+DROP FUNCTION IF EXISTS public.tracker_current_company() CASCADE;
+DROP FUNCTION IF EXISTS public.tracker_is_manager_of(uuid) CASCADE;
+DROP TYPE IF EXISTS public.tracker_period_kind;
+DROP TYPE IF EXISTS public.tracker_meeting_status;
+DROP TYPE IF EXISTS public.tracker_task_urgency;
+DROP TYPE IF EXISTS public.tracker_task_status;
+DROP TYPE IF EXISTS public.tracker_goal_status;
