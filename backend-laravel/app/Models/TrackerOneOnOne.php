@@ -20,6 +20,23 @@ class TrackerOneOnOne extends Model
         'duration_minutes' => 'integer',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (self $m) {
+            if (empty($m->manager_id) && $u = auth()->user()) {
+                $m->manager_id = $u->id;
+            }
+            if (empty($m->company_id)) {
+                $owner = $m->manager_id ?: $m->employee_id;
+                if ($owner) {
+                    $cid = \App\Models\Profile::query()->withoutGlobalScopes()
+                        ->where('user_id', $owner)->value('company_id');
+                    if ($cid) $m->company_id = $cid;
+                }
+            }
+        });
+    }
+
     public function agenda()
     {
         return $this->hasMany(TrackerOneOnOneAgenda::class, 'meeting_id')->orderBy('position');
