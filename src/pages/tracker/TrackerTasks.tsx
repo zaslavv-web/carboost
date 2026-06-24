@@ -123,7 +123,9 @@ const LinkGoalDialog = ({ taskId }: { taskId: string }) => {
 
 const TaskRow = ({ task }: { task: TrackerTask }) => {
   const update = useUpdateTask();
+  const names = useEmployeeNameMap();
   const overdue = task.due_at && new Date(task.due_at) < new Date() && task.status !== "done" && task.status !== "archived";
+  const assigneeName = task.assignee_id ? (names.get(String(task.assignee_id)) || `ID ${String(task.assignee_id).slice(0, 8)}`) : null;
   return (
     <Card>
       <CardContent className="p-4 flex items-start gap-4 flex-wrap">
@@ -133,13 +135,20 @@ const TaskRow = ({ task }: { task: TrackerTask }) => {
             <p className="font-medium">{task.title}</p>
           </div>
           {task.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{task.description}</p>}
-          {task.due_at && (
-            <p className={`text-xs mt-2 flex items-center gap-1 ${overdue ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}`}>
-              <Calendar className="w-3 h-3" />
-              {format(new Date(task.due_at), "dd.MM.yyyy HH:mm")}
-              {overdue && " · просрочено"}
-            </p>
-          )}
+          <div className="mt-2 flex items-center gap-3 flex-wrap text-xs">
+            {assigneeName && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <User className="w-3 h-3" />{assigneeName}
+              </span>
+            )}
+            {task.due_at && (
+              <span className={`flex items-center gap-1 ${overdue ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}`}>
+                <Calendar className="w-3 h-3" />
+                {format(new Date(task.due_at), "dd.MM.yyyy HH:mm")}
+                {overdue && " · просрочено"}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <TaskStatusBadge status={task.status} />
