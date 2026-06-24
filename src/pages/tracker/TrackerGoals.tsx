@@ -49,6 +49,77 @@ const GoalCreateDialog = () => {
   );
 };
 
+const KrTasksDialog = ({ krId, goalId }: { krId: string; goalId: string }) => {
+  const [open, setOpen] = useState(false);
+  const [taskId, setTaskId] = useState("");
+  const { data: links = [] } = useKrTaskLinks(krId);
+  const { data: tasks = [] } = useTasks();
+  const link = useLinkTaskToGoal();
+  const unlink = useUnlinkTaskFromGoal();
+  const linkedTaskIds = new Set(links.map((l) => l.task_id));
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          title="Привязать поручения"
+        >
+          <Link2 className="w-3.5 h-3.5" />
+          {links.length > 0 && <span>{links.length}</span>}
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Поручения для ключевого результата</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label>Привязанные поручения</Label>
+            {links.length === 0 && <p className="text-sm text-muted-foreground">Пока ничего не привязано.</p>}
+            {links.map((l) => (
+              <div key={l.id} className="flex items-center justify-between gap-2 rounded-md border p-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {l.task?.urgency && <UrgencyBadge urgency={l.task.urgency as any} />}
+                  <span className="text-sm truncate">{l.task?.title ?? l.task_id.slice(0, 8)}</span>
+                  {l.task?.status && <TaskStatusBadge status={l.task.status as any} />}
+                </div>
+                <button
+                  onClick={() => unlink.mutate({ id: l.id, key_result_id: krId, task_id: l.task_id })}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2 pt-2 border-t">
+            <Label>Привязать существующее</Label>
+            <div className="flex gap-2">
+              <Select value={taskId} onValueChange={setTaskId}>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Выберите поручение…" /></SelectTrigger>
+                <SelectContent>
+                  {tasks.filter((t) => !linkedTaskIds.has(t.id)).map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={async () => {
+                  if (!taskId) return;
+                  await link.mutateAsync({ task_id: taskId, goal_id: goalId, key_result_id: krId });
+                  setTaskId("");
+                }}
+                disabled={!taskId || link.isPending}
+              >
+                Привязать
+              </Button>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const KeyResultsBlock = ({ goalId }: { goalId: string }) => {
   const { data: krs = [] } = useKeyResults(goalId);
   const upsert = useUpsertKeyResult();
