@@ -28,6 +28,11 @@ class TrackerGoal extends Model
             if (empty($m->author_id) && $u = auth()->user()) {
                 $m->author_id = $u->id;
             }
+            if (empty($m->company_id) && !empty($m->holder_id)) {
+                $cid = \App\Models\Profile::query()->withoutGlobalScopes()
+                    ->where('user_id', $m->holder_id)->value('company_id');
+                if ($cid) $m->company_id = $cid;
+            }
         });
         static::updated(function (self $m) {
             if ($m->wasChanged('status')) {
