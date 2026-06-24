@@ -66,6 +66,13 @@ import University from "@/pages/University";
 import CourseView from "@/pages/CourseView";
 import CourseAuthoring from "@/pages/CourseAuthoring";
 import CertificateView from "@/pages/CertificateView";
+import TrackerLayout from "@/pages/tracker/TrackerLayout";
+import TrackerDashboard from "@/pages/tracker/TrackerDashboard";
+import TrackerGoals from "@/pages/tracker/TrackerGoals";
+import TrackerTasks from "@/pages/tracker/TrackerTasks";
+import TrackerOneOnOnes from "@/pages/tracker/TrackerOneOnOnes";
+import { Navigate } from "react-router-dom";
+
 
 const queryClient = new QueryClient();
 
@@ -137,6 +144,13 @@ const App = () => (
                 <Route path="/university/cert/:serial" element={<CertificateView />} />
                 <Route path="/university/:courseId" element={<CourseView />} />
                 <Route path="/university/:courseId/edit" element={<CourseAuthoring />} />
+                <Route path="/tracker" element={<TrackerLayout />}>
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route path="dashboard" element={<TrackerDashboard />} />
+                  <Route path="goals" element={<TrackerGoals />} />
+                  <Route path="tasks" element={<TrackerTasks />} />
+                  <Route path="one-on-ones" element={<TrackerOneOnOnes />} />
+                </Route>
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
