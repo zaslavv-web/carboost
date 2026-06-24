@@ -259,6 +259,20 @@ export function useTaskLinks(taskId?: string) {
   });
 }
 
+export function useKrTaskLinks(krId?: string) {
+  return useQuery({
+    queryKey: ["tracker.krLinks", krId],
+    enabled: !!krId,
+    queryFn: async () => {
+      const res = await laravelDb
+        .from("tracker_task_goal_links")
+        .select("*, task:tracker_tasks(id,title,status,urgency,assignee_id)")
+        .eq("key_result_id", krId!);
+      return handle<(TrackerTaskGoalLink & { task?: Partial<TrackerTask> })[]>(res as any) ?? [];
+    },
+  });
+}
+
 export function useLinkTaskToGoal() {
   const qc = useQueryClient();
   return useMutation({
