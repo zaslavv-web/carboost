@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTasks, useCreateTask, useUpdateTask, useGoals, useTaskLinks, useLinkTaskToGoal, useUnlinkTaskFromGoal, type TrackerTask, type TaskStatus, type TaskUrgency } from "@/hooks/tracker";
 import { useEffectiveUserId } from "@/hooks/useUserProfile";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,26 +9,34 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UrgencyBadge, TaskStatusBadge, URGENCY_OPTIONS, TASK_STATUS_OPTIONS } from "@/components/tracker/Badges";
-import { Plus, Link2, X, Calendar } from "lucide-react";
+import { EmployeePicker, useEmployeeNameMap } from "@/components/tracker/EmployeePicker";
+import { Plus, Link2, X, Calendar, User } from "lucide-react";
 import { format } from "date-fns";
 
 const TaskCreateDialog = () => {
+  const uid = useEffectiveUserId();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<{ title: string; description: string; urgency: TaskUrgency; due_at: string }>({
-    title: "", description: "", urgency: "medium", due_at: "",
+  const [form, setForm] = useState<{ title: string; description: string; urgency: TaskUrgency; due_at: string; assignee_id: string }>({
+    title: "", description: "", urgency: "medium", due_at: "", assignee_id: "",
   });
+  // когда диалог открывается — подставляем себя как адресата по умолчанию
+  useEffect(() => {
+    if (open && !form.assignee_id && uid) setForm((f) => ({ ...f, assignee_id: String(uid) }));
+  }, [open, uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const create = useCreateTask();
   const save = async () => {
-    if (!form.title.trim()) return;
+    if (!form.title.trim() || !form.assignee_id) return;
     await create.mutateAsync({
       title: form.title.trim(),
       description: form.description.trim() || null,
       urgency: form.urgency,
       due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
       status: "published",
+      assignee_id: form.assignee_id,
     });
     setOpen(false);
-    setForm({ title: "", description: "", urgency: "medium", due_at: "" });
+    setForm({ title: "", description: "", urgency: "medium", due_at: "", assignee_id: "" });
   };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -38,6 +46,10 @@ const TaskCreateDialog = () => {
         <div className="space-y-3">
           <div><Label>Текст поручения</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
           <div><Label>Описание</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} /></div>
+          <div>
+            <Label>Адресат</Label>
+            <EmployeePicker value={form.assignee_id} onChange={(v) => setForm({ ...form, assignee_id: v })} />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label>Срочность</Label>
               <Select value={form.urgency} onValueChange={(v: TaskUrgency) => setForm({ ...form, urgency: v })}>
@@ -50,7 +62,7 @@ const TaskCreateDialog = () => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Отмена</Button>
-          <Button onClick={save} disabled={create.isPending}>Создать</Button>
+          <Button onClick={save} disabled={create.isPending || !form.title.trim() || !form.assignee_id}>Создать</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
