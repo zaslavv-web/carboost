@@ -11,6 +11,8 @@ use App\Policies\GoalChecklistItemPolicy;
 use App\Policies\OwnedRecordPolicy;
 use App\Policies\ProfilePolicy;
 use App\Policies\TeamMemberPolicy;
+use App\Policies\TrackerChildPolicy;
+use App\Policies\TrackerOwnedPolicy;
 use App\Policies\UserRolePolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
@@ -76,6 +78,17 @@ class AuthServiceProvider extends ServiceProvider
 
         // Teams
         Models\TeamMember::class               => TeamMemberPolicy::class,
+
+        // Tracker module
+        Models\TrackerOkrPeriod::class         => CompanyScopedPolicy::class,
+        Models\TrackerGoal::class              => TrackerOwnedPolicy::class,
+        Models\TrackerTask::class              => TrackerOwnedPolicy::class,
+        Models\TrackerOneOnOne::class          => TrackerOwnedPolicy::class,
+        Models\TrackerKeyResult::class         => TrackerChildPolicy::class,
+        Models\TrackerTaskGoalLink::class      => TrackerChildPolicy::class,
+        Models\TrackerTaskCheckin::class       => TrackerChildPolicy::class,
+        Models\TrackerOneOnOneAgenda::class    => TrackerChildPolicy::class,
+        Models\TrackerAuditLog::class          => CompanyScopedPolicy::class,
     ];
 
     public function boot(): void

@@ -43,6 +43,8 @@ import {
   Brain,
   BookText,
   GraduationCap,
+  Crosshair,
+
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { useBranding } from "@/contexts/BrandingContext";
@@ -86,10 +88,12 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     ];
     const chatItem: NavItem = { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" };
     if (role !== "superadmin") common.push(chatItem);
+    const trackerItem: NavItem = { icon: Crosshair, label: "Трекер", path: "/tracker/dashboard" };
+
 
     if (role === "superadmin") {
       return [
-        ...common,
+        ...common, trackerItem,
         { icon: Shield, label: t("nav.companies"), path: "/companies" },
         { icon: UserCog, label: t("nav.users"), path: "/users" },
         { icon: LifeBuoy, label: t("nav.support"), path: "/support" },
@@ -106,7 +110,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 
     if (role === "company_admin") {
       return [
-        ...common,
+        ...common, trackerItem,
         { icon: Rocket, label: t("nav.onboarding"), path: "/onboarding" },
         { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
         { icon: UserCog, label: t("nav.users"), path: "/users" },
@@ -124,7 +128,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 
     if (role === "hrd") {
       return [
-        ...common,
+        ...common, trackerItem,
         {
           icon: Users,
           label: t("nav.employeesGroup"),
@@ -190,7 +194,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 
   if (role === "manager") {
     return [
-      ...common,
+      ...common, trackerItem,
       { icon: Users, label: t("nav.myTeam"), path: "/team" },
       { icon: GraduationCap, label: t("nav.university", { defaultValue: "Университет" }), path: "/university" },
       { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
@@ -204,7 +208,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 
   // Employee
   return [
-    ...common,
+    ...common, trackerItem,
     { icon: MessageSquare, label: t("nav.aiAssessment"), path: "/assessment" },
     { icon: ClipboardCheck, label: t("nav.questionnaire"), path: "/employee-questionnaire" },
     { icon: User, label: t("nav.passport"), path: "/passport" },
