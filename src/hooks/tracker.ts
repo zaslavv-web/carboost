@@ -259,18 +259,33 @@ export function useTaskLinks(taskId?: string) {
   });
 }
 
+export function useKrTaskLinks(krId?: string) {
+  return useQuery({
+    queryKey: ["tracker.krLinks", krId],
+    enabled: !!krId,
+    queryFn: async () => {
+      const res = await laravelDb
+        .from("tracker_task_goal_links")
+        .select("*, task:tracker_tasks(id,title,status,urgency,assignee_id)")
+        .eq("key_result_id", krId!);
+      return handle<(TrackerTaskGoalLink & { task?: Partial<TrackerTask> })[]>(res as any) ?? [];
+    },
+  });
+}
+
 export function useLinkTaskToGoal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ task_id, goal_id, impact_weight }: { task_id: string; goal_id: string; impact_weight?: number }) => {
+    mutationFn: async ({ task_id, goal_id, key_result_id, impact_weight }: { task_id: string; goal_id: string; key_result_id?: string | null; impact_weight?: number }) => {
       const res = await laravelDb.from("tracker_task_goal_links")
-        .insert({ task_id, goal_id, impact_weight: impact_weight ?? 1 })
+        .insert({ task_id, goal_id, key_result_id: key_result_id ?? null, impact_weight: impact_weight ?? 1 })
         .select("*").single();
       return handle<TrackerTaskGoalLink>(res as any);
     },
     onSuccess: (_d, v) => {
       toast.success("Связь добавлена");
       qc.invalidateQueries({ queryKey: ["tracker.taskLinks", v.task_id] });
+      if (v.key_result_id) qc.invalidateQueries({ queryKey: ["tracker.krLinks", v.key_result_id] });
       qc.invalidateQueries({ queryKey: ["tracker.tasks"] });
     },
   });
@@ -279,11 +294,14 @@ export function useLinkTaskToGoal() {
 export function useUnlinkTaskFromGoal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id }: { id: string; task_id: string }) => {
+    mutationFn: async ({ id }: { id: string; task_id?: string; key_result_id?: string | null }) => {
       const res = await laravelDb.from("tracker_task_goal_links").delete().eq("id", id);
       return handle(res as any);
     },
-    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["tracker.taskLinks", v.task_id] }),
+    onSuccess: (_d, v) => {
+      if (v.task_id) qc.invalidateQueries({ queryKey: ["tracker.taskLinks", v.task_id] });
+      if (v.key_result_id) qc.invalidateQueries({ queryKey: ["tracker.krLinks", v.key_result_id] });
+    },
   });
 }
 
