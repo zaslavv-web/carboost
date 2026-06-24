@@ -43,6 +43,8 @@ import {
   Brain,
   BookText,
   GraduationCap,
+  Crosshair,
+
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { useBranding } from "@/contexts/BrandingContext";
@@ -86,6 +88,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     ];
     const chatItem: NavItem = { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" };
     if (role !== "superadmin") common.push(chatItem);
+    const trackerItem: NavItem = { icon: Crosshair, label: "Трекер", path: "/tracker/dashboard" };
+
 
     if (role === "superadmin") {
       return [
