@@ -134,21 +134,32 @@ class DbController extends Controller
         $onConflict = $request->input('onConflict');
 
         $created = [];
-        foreach ($rows as $row) {
-            $instance = null;
-            if ($upsert && $onConflict && isset($row[$onConflict])) {
-                $instance = $model::query()->where($onConflict, $row[$onConflict])->first();
+        try {
+            foreach ($rows as $row) {
+                $instance = null;
+                if ($upsert && $onConflict && isset($row[$onConflict])) {
+                    $instance = $model::query()->where($onConflict, $row[$onConflict])->first();
+                }
+                if (! $instance) {
+                    $instance = new $model();
+                    $instance->fill($row);
+                    $this->authorizeAny('create', $instance);
+                } else {
+                    $this->authorizeAny('update', $instance);
+                    $instance->fill($row);
+                }
+                $instance->save();
+                $created[] = $instance->fresh();
             }
-            if (! $instance) {
-                $instance = new $model();
-                $instance->fill($row);
-                $this->authorizeAny('create', $instance);
-            } else {
-                $this->authorizeAny('update', $instance);
-                $instance->fill($row);
-            }
-            $instance->save();
-            $created[] = $instance->fresh();
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Illuminate\Support\Facades\Log::warning('DbController insert failed', [
+                'table' => $table, 'sqlstate' => $e->getCode(), 'msg' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'error' => 'Не удалось сохранить запись',
+                'details' => $e->getMessage(),
+                'sqlstate' => $e->getCode(),
+            ], 422);
         }
 
         return response()->json(['data' => count($created) === 1 ? $created[0] : $created]);
