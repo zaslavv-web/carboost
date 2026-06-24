@@ -66,6 +66,17 @@ class DbController extends Controller
         'team_members'             => \App\Models\TeamMember::class,
         'user_roles'               => \App\Models\UserRole::class,
         'email_domain_position_mappings' => \App\Models\EmailDomainPositionMapping::class,
+
+        // Tracker module
+        'tracker_okr_periods'        => \App\Models\TrackerOkrPeriod::class,
+        'tracker_goals'              => \App\Models\TrackerGoal::class,
+        'tracker_key_results'        => \App\Models\TrackerKeyResult::class,
+        'tracker_tasks'              => \App\Models\TrackerTask::class,
+        'tracker_task_goal_links'    => \App\Models\TrackerTaskGoalLink::class,
+        'tracker_task_checkins'      => \App\Models\TrackerTaskCheckin::class,
+        'tracker_one_on_ones'        => \App\Models\TrackerOneOnOne::class,
+        'tracker_one_on_one_agenda'  => \App\Models\TrackerOneOnOneAgenda::class,
+        'tracker_audit_log'          => \App\Models\TrackerAuditLog::class,
     ];
 
     protected const OPS = [
