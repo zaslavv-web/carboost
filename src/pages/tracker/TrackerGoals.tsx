@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { useGoals, useCreateGoal, useUpdateGoal, useKeyResults, useUpsertKeyResult, useDeleteKeyResult, type TrackerGoal, type GoalStatus } from "@/hooks/tracker";
+import {
+  useGoals, useCreateGoal, useUpdateGoal,
+  useKeyResults, useUpsertKeyResult, useDeleteKeyResult,
+  useKrTaskLinks, useTasks, useLinkTaskToGoal, useUnlinkTaskFromGoal,
+  type TrackerGoal, type GoalStatus,
+} from "@/hooks/tracker";
 import { useEffectiveUserId } from "@/hooks/useUserProfile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,8 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { GoalStatusBadge, GOAL_STATUS_OPTIONS } from "@/components/tracker/Badges";
-import { Plus, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { GoalStatusBadge, GOAL_STATUS_OPTIONS, TaskStatusBadge, UrgencyBadge } from "@/components/tracker/Badges";
+import { Plus, ChevronDown, ChevronRight, Trash2, Link2, X } from "lucide-react";
 
 const GoalCreateDialog = () => {
   const [open, setOpen] = useState(false);
