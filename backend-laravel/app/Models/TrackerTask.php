@@ -28,6 +28,11 @@ class TrackerTask extends Model
             if (empty($m->author_id) && $u = auth()->user()) {
                 $m->author_id = $u->id;
             }
+            if (empty($m->company_id) && !empty($m->assignee_id)) {
+                $cid = \App\Models\Profile::query()->withoutGlobalScopes()
+                    ->where('user_id', $m->assignee_id)->value('company_id');
+                if ($cid) $m->company_id = $cid;
+            }
         });
         static::updated(function (self $m) {
             if ($m->wasChanged('status')) {
