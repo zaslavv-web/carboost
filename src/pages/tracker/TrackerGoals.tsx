@@ -66,6 +66,7 @@ const KeyResultsBlock = ({ goalId }: { goalId: string }) => {
             <div key={kr.id} className="rounded-lg border bg-card p-3 space-y-2">
               <div className="flex items-start gap-2">
                 <p className="text-sm font-medium flex-1">{kr.title}</p>
+                <KrTasksDialog krId={kr.id} goalId={goalId} />
                 <button onClick={() => del.mutate({ id: kr.id, goal_id: goalId })} className="text-muted-foreground hover:text-destructive">
                   <Trash2 className="w-4 h-4" />
                 </button>
