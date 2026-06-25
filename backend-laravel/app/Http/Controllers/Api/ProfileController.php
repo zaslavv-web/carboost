@@ -88,11 +88,12 @@ class ProfileController extends Controller
         $this->authorize('update', $profile);
 
         $data = $request->validate([
-            'full_name'      => 'sometimes|string|max:255',
-            'avatar_url'     => 'sometimes|nullable|string',
-            'department'     => 'sometimes|nullable|string|max:255',
-            'position_id'    => 'sometimes|nullable|uuid|exists:positions,id',
-            'requested_role' => 'sometimes|nullable|string|max:32',
+            'full_name'        => 'sometimes|string|max:255',
+            'avatar_url'       => 'sometimes|nullable|string',
+            'chat_sticker_url' => 'sometimes|nullable|string',
+            'department'       => 'sometimes|nullable|string|max:255',
+            'position_id'      => 'sometimes|nullable|uuid|exists:positions,id',
+            'requested_role'   => 'sometimes|nullable|string|max:32',
         ]);
         $profile->update($data);
         return response()->json($profile->fresh());
