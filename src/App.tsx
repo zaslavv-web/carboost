@@ -71,6 +71,8 @@ import TrackerDashboard from "@/pages/tracker/TrackerDashboard";
 import TrackerGoals from "@/pages/tracker/TrackerGoals";
 import TrackerTasks from "@/pages/tracker/TrackerTasks";
 import TrackerOneOnOnes from "@/pages/tracker/TrackerOneOnOnes";
+import TrackerProjects from "@/pages/tracker/TrackerProjects";
+import TrackerBoard from "@/pages/tracker/TrackerBoard";
 import { Navigate } from "react-router-dom";
 
 
@@ -147,6 +149,8 @@ const App = () => (
                 <Route path="/tracker" element={<TrackerLayout />}>
                   <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<TrackerDashboard />} />
+                  <Route path="board" element={<TrackerBoard />} />
+                  <Route path="projects" element={<TrackerProjects />} />
                   <Route path="goals" element={<TrackerGoals />} />
                   <Route path="tasks" element={<TrackerTasks />} />
                   <Route path="one-on-ones" element={<TrackerOneOnOnes />} />

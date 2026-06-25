@@ -68,6 +68,7 @@ class DbController extends Controller
         'email_domain_position_mappings' => \App\Models\EmailDomainPositionMapping::class,
 
         // Tracker module
+        'tracker_projects'           => \App\Models\TrackerProject::class,
         'tracker_okr_periods'        => \App\Models\TrackerOkrPeriod::class,
         'tracker_goals'              => \App\Models\TrackerGoal::class,
         'tracker_key_results'        => \App\Models\TrackerKeyResult::class,
