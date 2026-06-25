@@ -1,47 +1,104 @@
-# План диагностики отправки писем
+# План: найти, где живёт backend, и выполнить диагностику
 
-Каркас Laravel (`backend-laravel/app-src/`) генерируется `bootstrap.sh` при деплое — поэтому ни `storage/`, ни логов в гите нет, всё создаётся на сервере. Диагностируем напрямую на VPS через SSH.
+Сейчас непонятно как развёрнут backend на сервере и где он лежит. Сначала разведка, потом точечные команды диагностики почты.
 
-## Шаг 1. Команды для проверки на сервере
+## Шаг 1. Разведка — выясняем тип установки
 
-Подключись по SSH и из директории, где лежит `docker-compose.yml`, выполни (подставь имя сервиса backend — обычно `app` или `backend`):
+Подключись по SSH (ты уже там как `gro7659365`) и выполни **построчно**, каждую команду отдельно. Пришли мне вывод **всех** команд целиком.
 
 ```bash
-# 1. Убедиться, что свежий код задеплоен (есть строка про notifySales)
-docker compose exec backend grep -n "Sales notification" app/Http/Controllers/Api/RpcController.php
+# Кто я и где
+whoami
+pwd
+hostname
 
-# 2. Проверить, что .env внутри контейнера действительно содержит SMTP/SALES
-docker compose exec backend sh -c 'grep -E "MAIL_|SALES_NOTIFICATION_EMAIL" .env'
+[gro7659365@gro7659365 backend]$ whoami
+gro7659365
+[gro7659365@gro7659365 backend]$ pwd
+/home/gro7659365/growth-peak.pro/docs/backend
+[gro7659365@gro7659365 backend]$ hostname
+gro7659365.nichost.ru
 
-# 3. Сбросить кэш конфига (Laravel часто кэширует .env)
-docker compose exec backend php artisan config:clear
-docker compose exec backend php artisan cache:clear
 
-# 4. Хвост лога с фильтром по нашим меткам
-docker compose exec backend tail -n 500 storage/logs/laravel.log | grep -E "Sales notification|swift|SMTP|mail" -i
+# Есть ли docker под другим именем или через sudo
+which docker
+which docker-compose
+which podman
+sudo -n docker ps 2>&1 | head -5
+ls /var/run/docker.sock 2>&1
 
-# 5. Тестовая отправка напрямую через tinker — самая полезная проверка
-docker compose exec backend php artisan tinker --execute="\
-  Mail::raw('test from growth-peak', function(\$m){ \$m->to('growthpeak@yandex.ru')->subject('SMTP test'); }); \
-  echo 'ok';"
+[gro7659365@gro7659365 backend]$ which docker
+/usr/bin/which: no docker in (/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/home/gro7659365/.composer/vendor/bin)
+[gro7659365@gro7659365 backend]$ which docker-compose
+/usr/bin/which: no docker-compose in (/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/home/gro7659365/.composer/vendor/bin)
+[gro7659365@gro7659365 backend]$ which podman
+/usr/bin/which: no podman in (/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/home/gro7659365/.composer/vendor/bin)
+[gro7659365@gro7659365 backend]$ sudo -n docker ps 2>&1 | head -5
+-bash: sudo: command not found
+[gro7659365@gro7659365 backend]$ ls /var/run/docker.sock 2>&1
+ls: cannot access '/var/run/docker.sock': No such file or directory
+
+
+# Найти все Laravel-проекты на диске (ищем artisan)
+sudo find / -maxdepth 6 -name artisan -not -path "*/vendor/*" 2>/dev/null
+# Если sudo нельзя — без него:
+find / -maxdepth 6 -name artisan -not -path "*/vendor/*" 2>/dev/null
+/home/gro7659365/growth-peak.pro/docs/backend/artisan
+
+
+# Найти docker-compose файлы
+sudo find / -maxdepth 5 -name "docker-compose*.y*ml" 2>/dev/null
+ничего не произошло
+по ощущениям, sudo не отрабатывает
+
+# Что слушает порты 80/443/8000/9000 — это backend
+sudo ss -tlnp 2>/dev/null | grep -E ":(80|443|8000|8080|9000)\b"
+ничего не произошло
+по ощущениям, sudo не отрабатывает
+
+# Какие nginx-сайты настроены (там обычно root указывает на проект)
+ls /etc/nginx/sites-enabled/ 2>/dev/null
+sudo cat /etc/nginx/sites-enabled/* 2>/dev/null | grep -E "root|server_name|fastcgi_pass"
+ничего не произошло
+
+# Активные сервисы php-fpm / supervisor / laravel
+systemctl list-units --type=service --state=running 2>/dev/null | grep -iE "php|nginx|laravel|docker|supervisor"
+[gro7659365@gro7659365 ~]$ systemctl list-units --type=service --state=running 2>/dev/null | grep -iE "php|nginx|laravel|docker|supervisor"
+httpd@php82.service                                  loaded active running The Apache HTTP Server with php82
+nginx.service                                        loaded active running The nginx HTTP and reverse proxy server
+
 ```
 
-Если шаг 5 падает — увидишь точное исключение (auth failed, connection refused, SSL и т.д.). Если шаг 5 проходит, а заявки не уходят — проблема в `notifySales` (например, `EmailConfigService` подсовывает пустые настройки из БД).
+&nbsp;
 
-## Шаг 2. По результатам — узкие фиксы (только после твоего ответа)
+## Шаг 2. По результатам — даю конкретные команды диагностики
 
-В зависимости от того, что покажет лог/tinker, я внесу одно из:
+После твоего ответа я составлю один из трёх вариантов точных команд:
 
-- **SMTP auth fail на Яндексе** → Яндекс с октября 2024 требует пароль приложения именно для SMTP и логин в формате полного email; проверим `MAIL_USERNAME=growthpeak@yandex.ru` и что пароль — application password, а не от аккаунта.
-- **`stream_socket_enable_crypto(): SSL: …`** → переключим `MAIL_ENCRYPTION=ssl` (lowercase) либо порт 587 + `tls`.
-- **`EmailConfigService` затирает env пустыми значениями из таблицы `email_settings`** → правим `RpcController::notifySales`, чтобы при пустой записи в БД использовался `.env` без вызова `apply()`.
-- **Конфиг закэширован** → добавим в `bootstrap.sh`/деплой шаг `php artisan config:clear` после старта контейнера.
-- **Письма уходят, но падают в спам Яндекса** → добавим SPF/DKIM-рекомендации и `Return-Path`.
+- **Если docker есть, но не виден тебе** → команды с `sudo docker compose ...` либо инструкцию переключиться на другого пользователя.
+- **Если установка bare-metal (nginx + php-fpm)** → команды вида:
+  ```
+  cd /<путь>/backend-laravel/app-src
+  php artisan config:clear
+  tail -n 200 storage/logs/laravel.log | grep -i "Sales notification"
+  php artisan tinker --execute="..."
+  ```
+- **Если backend на отдельном сервере** → инструкцию, как туда попасть (часто это другой VPS / контейнер у хостера).
 
-## Шаг 3. Постоянная страховка в админке
+## Шаг 3. Параллельно — что можно сделать прямо в UI без SSH
 
-Чтобы в будущем не лазить по SSH, добавлю в Superadmin → Настройки кнопку **«Тест SMTP»**: отправляет тестовое письмо на адрес из `sales_recipient` и показывает результат / исключение прямо в UI. Это маленькая правка одного контроллера + одной страницы, без изменений бизнес-логики.
+Чтобы не терять время на разведку, открой в браузере под суперадмином:
+
+**Кабинет → Настройки → Email Settings** (Superadmin → Email Settings)
+
+Там уже есть страница со всеми SMTP-настройками и кнопкой **«Тест SMTP»**. Сделай так:
+
+1. Проверь, есть ли активная запись.
+2. Если есть — нажми «Тест SMTP» и пришли мне точный текст ошибки.
+3. Если записи нет или ошибка про пароль — введи: provider `yandex`, host `smtp.yandex.ru`, port `465`, encryption `ssl`, username `growthpeak@yandex.ru`, password `wrtwpknhswvvsxhk`, from `growthpeak@yandex.ru`, сохрани, нажми «Тест SMTP».
+
+Скорее всего, причина именно в этой странице: в БД лежит активная запись `email_settings` с другим/протухшим паролем, и она **перебивает** твой `.env` при отправке заявок (`notifySales` сначала пробует БД, на runtime env откатывается только при auth-ошибке определённого вида).
 
 ---
 
-После аппрува: дай вывод команд 1–5 — я по ним сразу определю причину и сделаю целевой фикс + кнопку «Тест SMTP».
+Дай вывод команд из Шага 1 **и/или** результат «Тест SMTP» из Шага 3 — после этого я смогу точечно починить.
