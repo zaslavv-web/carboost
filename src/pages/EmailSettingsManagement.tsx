@@ -76,7 +76,7 @@ const EmailSettingsManagement = () => {
   const { data, isLoading } = useQuery({
     queryKey: ["email_settings"],
     queryFn: async () => {
-      const { data, error } = await laravel.get<{ setting: EmailSetting | null; presets: Presets }>("/admin/email-settings");
+      const { data, error } = await laravel.get<{ setting: EmailSetting | null; presets: Presets; effective: EffectiveSource }>("/admin/email-settings");
       if (error) throw new Error(error.message);
       return data;
     },
@@ -84,6 +84,7 @@ const EmailSettingsManagement = () => {
 
   const setting = data?.setting;
   const presets = data?.presets ?? {};
+  const effective = data?.effective;
   const selectedPreset = useMemo(() => presets[form.provider], [form.provider, presets]);
 
   useEffect(() => {
