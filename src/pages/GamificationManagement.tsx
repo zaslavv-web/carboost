@@ -742,3 +742,180 @@ const GamificationManagement = () => {
 };
 
 export default GamificationManagement;
+
+/* =================== LEVELS TAB =================== */
+const ICON_OPTIONS = ["sparkles", "rocket", "star", "trophy", "crown", "award", "medal", "flame"];
+
+const LevelsTab = ({
+  companyId,
+  employeeRewards,
+  rewardTypeMap,
+}: {
+  companyId: string | null;
+  employeeRewards: any[];
+  rewardTypeMap: Record<string, any>;
+}) => {
+  const [levels, setLevels] = useState<GamificationLevel[]>(() => readLevels(companyId));
+  const [editing, setEditing] = useState<GamificationLevel | null>(null);
+
+  const persist = (next: GamificationLevel[]) => {
+    const sorted = [...next].sort((a, b) => a.order - b.order);
+    writeLevels(companyId, sorted);
+    setLevels(sorted);
+  };
+
+  const upsert = (l: GamificationLevel) => {
+    const exists = levels.find((x) => x.id === l.id);
+    persist(exists ? levels.map((x) => (x.id === l.id ? l : x)) : [...levels, l]);
+    setEditing(null);
+    toast.success("Уровень сохранён");
+  };
+
+  const remove = (id: string) => {
+    if (!confirm("Удалить уровень?")) return;
+    persist(levels.filter((x) => x.id !== id));
+  };
+
+  const resetDefaults = () => {
+    if (!confirm("Сбросить уровни к значениям по умолчанию?")) return;
+    persist(DEFAULT_GAMIFICATION_LEVELS);
+  };
+
+  const userPoints = new Map<string, number>();
+  employeeRewards.forEach((r) => {
+    const p = rewardTypeMap[r.reward_type_id]?.points || 0;
+    userPoints.set(r.user_id, (userPoints.get(r.user_id) || 0) + p);
+  });
+  const employeesPerLevel = (lvl: GamificationLevel) => {
+    const sorted = [...levels].sort((a, b) => a.order - b.order);
+    const idx = sorted.findIndex((l) => l.id === lvl.id);
+    const next = idx >= 0 && idx < sorted.length - 1 ? sorted[idx + 1] : null;
+    let n = 0;
+    userPoints.forEach((pts) => {
+      if (pts >= lvl.min_points && (!next || pts < next.min_points)) n++;
+    });
+    return n;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-card rounded-xl p-5 shadow-card border border-border">
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+          <div>
+            <h3 className="font-semibold text-foreground flex items-center gap-2">
+              <Crown className="w-4 h-4 text-primary" /> Уровни сотрудников
+            </h3>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Сотрудники получают уровни за очки, выслугу лет и достижения.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={resetDefaults} className="px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm">
+              Сбросить
+            </button>
+            <button
+              onClick={() => setEditing({
+                id: `lvl-${Date.now()}`,
+                order: (levels[levels.length - 1]?.order ?? 0) + 1,
+                title: "Новый уровень", icon: "star", color: "#0ea5e9",
+                min_points: 0, min_tenure_months: 0, min_achievements: 0, description: "",
+              })}
+              className="px-3 py-2 rounded-lg gradient-primary text-primary-foreground text-sm flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> Добавить уровень
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {levels.map((l) => (
+            <div key={l.id} className="flex items-center gap-4 p-3 rounded-lg border border-border bg-secondary/20">
+              <LevelBadge level={l} size="lg" showTitle={false} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <p className="font-medium text-foreground">{l.title}</p>
+                  <span className="text-xs text-muted-foreground">уровень {l.order}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  ≥ {l.min_points} очк. · ≥ {l.min_tenure_months} мес. · ≥ {l.min_achievements} достиж.
+                  {l.description ? ` · ${l.description}` : ""}
+                </p>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                {employeesPerLevel(l)} чел.
+              </span>
+              <button onClick={() => setEditing(l)} className="p-1.5 rounded hover:bg-secondary"><Edit2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
+              <button onClick={() => remove(l.id)} className="p-1.5 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {editing && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditing(null)}>
+          <div className="bg-card rounded-xl p-6 w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-foreground">Уровень</h3>
+              <button onClick={() => setEditing(null)}><X className="w-5 h-5 text-muted-foreground" /></button>
+            </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Название</label>
+                  <input className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                    value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Порядок</label>
+                  <input type="number" className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                    value={editing.order} onChange={(e) => setEditing({ ...editing, order: parseInt(e.target.value) || 1 })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Иконка</label>
+                  <select className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                    value={editing.icon} onChange={(e) => setEditing({ ...editing, icon: e.target.value })}>
+                    {ICON_OPTIONS.map((i) => <option key={i} value={i}>{i}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Цвет</label>
+                  <input type="color" className="w-full h-10 px-1 py-1 rounded-lg border border-input bg-background"
+                    value={editing.color} onChange={(e) => setEditing({ ...editing, color: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Min очков</label>
+                  <input type="number" min={0} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                    value={editing.min_points} onChange={(e) => setEditing({ ...editing, min_points: parseInt(e.target.value) || 0 })} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Выслуга (мес.)</label>
+                  <input type="number" min={0} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                    value={editing.min_tenure_months} onChange={(e) => setEditing({ ...editing, min_tenure_months: parseInt(e.target.value) || 0 })} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Min достижений</label>
+                  <input type="number" min={0} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                    value={editing.min_achievements} onChange={(e) => setEditing({ ...editing, min_achievements: parseInt(e.target.value) || 0 })} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Описание</label>
+                <input className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                  value={editing.description || ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setEditing(null)} className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm">Отмена</button>
+                <button onClick={() => upsert(editing)} className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm">Сохранить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
