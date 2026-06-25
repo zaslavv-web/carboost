@@ -80,6 +80,14 @@ class RpcController extends Controller
             return $this->callLocalUserAdminFunction($request, $name, $payload);
         }
 
+        if ($name === 'submit_demo_request') {
+            return $this->submitDemoRequest($payload);
+        }
+        if ($name === 'submit_pricing_inquiry') {
+            return $this->submitPricingInquiry($payload);
+        }
+
+
         $args = [];
         $placeholders = [];
         foreach ($signature as $param => $type) {
