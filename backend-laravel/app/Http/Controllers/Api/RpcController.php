@@ -321,13 +321,70 @@ class RpcController extends Controller
     /** Send a sales notification email; never let mail failures break the API response. */
     private function notifySales(\Closure $mailableFactory): void
     {
+        $recipient = config('mail.sales_recipient');
+        if (! $recipient) {
+            \Illuminate\Support\Facades\Log::warning('Sales notification skipped: no recipient configured (mail.sales_recipient)');
+            return;
+        }
+
+        $mailable = null;
         try {
-            $recipient = config('mail.sales_recipient');
-            if (! $recipient) {
-                return;
-            }
-            Mail::to($recipient)->send($mailableFactory());
+            $mailable = $mailableFactory();
         } catch (Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Sales notification mailable build failed', [
+                'to' => $recipient,
+                'error' => $e->getMessage(),
+            ]);
+            report($e);
+            return;
+        }
+
+        $subject = method_exists($mailable, 'envelope')
+            ? (string) ($mailable->envelope()->subject ?? '')
+            : '';
+
+        $mailConfig = app(\App\Services\EmailConfigService::class);
+
+        try {
+            $mailConfig->autoRepairActiveSettings();
+            $mailConfig->apply();
+            Mail::to($recipient)->send($mailable);
+            \Illuminate\Support\Facades\Log::info('Sales notification sent', [
+                'to' => $recipient,
+                'subject' => $subject,
+            ]);
+            return;
+        } catch (Throwable $e) {
+            if (\App\Services\EmailConfigService::shouldFallbackToRuntimeEnv($e)) {
+                \Illuminate\Support\Facades\Log::warning('Sales notification stored SMTP failed, retrying with runtime env', [
+                    'to' => $recipient,
+                    'subject' => $subject,
+                    'error' => $e->getMessage(),
+                ]);
+                try {
+                    $mailConfig->applyRuntimeEnv();
+                    Mail::to($recipient)->send($mailable);
+                    \Illuminate\Support\Facades\Log::info('Sales notification sent via runtime env fallback', [
+                        'to' => $recipient,
+                        'subject' => $subject,
+                    ]);
+                    return;
+                } catch (Throwable $retry) {
+                    \Illuminate\Support\Facades\Log::error('Sales notification failed (runtime env retry)', [
+                        'to' => $recipient,
+                        'subject' => $subject,
+                        'error' => $retry->getMessage(),
+                    ]);
+                    report($retry);
+                    return;
+                }
+            }
+
+            \Illuminate\Support\Facades\Log::error('Sales notification failed', [
+                'to' => $recipient,
+                'subject' => $subject,
+                'error' => $e->getMessage(),
+            ]);
             report($e);
         }
     }
