@@ -73,7 +73,18 @@
     "careerTrack": "Career track",
     "recognition": "Peer recognition",
     "shop": "Shop",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "tracker": "Task tracker",
+    "university": "University",
+    "ragDocuments": "Knowledge base",
+    "sections": {
+      "communication": "Communication",
+      "analytics": "Analytics",
+      "hr": "People management",
+      "motivation": "Motivation",
+      "knowledge": "Resources",
+      "system": "System"
+    }
   },
   "layout": {
     "sandboxBanner": "SANDBOX — test environment, data may be wiped",

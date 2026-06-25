@@ -10,8 +10,8 @@ import ThemeToggle from "./ThemeToggle";
 import LanguageSwitcher from "./LanguageSwitcher";
 import ChatLauncher from "./chat/ChatLauncher";
 
-const SIDEBAR_FULL = 260;
-const SIDEBAR_COLLAPSED = 72;
+const SIDEBAR_FULL = 240;
+const SIDEBAR_COLLAPSED = 64;
 const COLLAPSE_BREAKPOINT = 1024;
 
 const AppLayout = () => {
