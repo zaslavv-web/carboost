@@ -194,18 +194,23 @@ const EmailSettingsManagement = () => {
             <div className="flex items-start gap-3 flex-wrap justify-between">
               <div className="flex items-start gap-3">
                 {effective.source === "database" ? (
-                  <Database className="w-5 h-5 text-primary mt-0.5" />
+                  <Database className="w-5 h-5 text-warning mt-0.5" />
                 ) : (
                   <FileCode className="w-5 h-5 text-primary mt-0.5" />
                 )}
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Текущий источник SMTP: {effective.label}</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    Источник SMTP: {effective.source === "database" ? "БД (переопределение)" : ".env (по умолчанию)"}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     host: <code>{effective.host || "—"}</code> · user: <code>{effective.username || "—"}</code> · from: <code>{effective.from_address || "—"}</code> · пароль: {effective.has_usable_password ? "есть" : <span className="text-destructive">нет</span>}
                   </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Учётные данные SMTP читаются из <code>.env</code> (<code>MAIL_HOST</code>, <code>MAIL_USERNAME</code>, <code>MAIL_PASSWORD</code>, <code>MAIL_FROM_ADDRESS</code>). Запись в БД — необязательное переопределение.
+                  </p>
                   {effective.source === "database" && (
                     <p className="text-xs text-warning mt-2">
-                      ⚠️ Пока существует активная запись в БД, изменения <code>MAIL_PASSWORD</code> / <code>SMTP_PASSWORD</code> в <code>.env</code> игнорируются. Чтобы Laravel читал .env — деактивируйте запись.
+                      ⚠️ Сейчас активна запись в БД и она перекрывает .env. Чтобы вернуться на .env — нажмите «Перейти на .env» или выполните на сервере <code>php artisan smtp:db-clear</code>.
                     </p>
                   )}
                 </div>
@@ -215,7 +220,7 @@ const EmailSettingsManagement = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    if (confirm("Деактивировать SMTP-настройки из БД? Laravel перейдёт на конфиг из service-infra.php / .env.")) {
+                    if (confirm("Деактивировать SMTP-настройки из БД? Laravel начнёт читать .env.")) {
                       clearMutation.mutate();
                     }
                   }}
@@ -229,6 +234,7 @@ const EmailSettingsManagement = () => {
           </CardContent>
         </Card>
       )}
+
 
 
 
