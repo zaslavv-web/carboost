@@ -76,10 +76,11 @@ const TaskCard = ({ task, nameMap, onOpen }: { task: TrackerTask; nameMap: Map<s
 
 /* ============ Колонка ============ */
 const Column = ({
-  column, tasks, nameMap, onQuickAdd,
+  column, tasks, nameMap, onQuickAdd, onOpenTask,
 }: {
   column: ColumnDef; tasks: TrackerTask[]; nameMap: Map<string, string>;
   onQuickAdd: (column: ColumnDef, title: string) => void;
+  onOpenTask: (t: TrackerTask) => void;
 }) => {
   const { setNodeRef, isOver } = useDroppable({ id: `col:${column.id}`, data: { type: "column", columnId: column.id } });
   const [adding, setAdding] = useState(false);
@@ -104,7 +105,7 @@ const Column = ({
         className={"flex-1 space-y-2 px-1 pt-1 pb-2 min-h-[80px] rounded-md " + (isOver ? "bg-primary/5 ring-1 ring-primary/30" : "")}
       >
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-          {tasks.map((t) => <TaskCard key={t.id} task={t} nameMap={nameMap} />)}
+          {tasks.map((t) => <TaskCard key={t.id} task={t} nameMap={nameMap} onOpen={onOpenTask} />)}
         </SortableContext>
         {adding && (
           <div className="space-y-1.5 p-1">
