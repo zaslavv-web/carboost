@@ -54,8 +54,42 @@ export interface TrackerProject {
   color: string | null;
   icon: string | null;
   status: "active" | "archived";
+  workflow_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type WorkflowStatusCategory = "todo" | "in_progress" | "done";
+
+export interface TrackerWorkflow {
+  id: string;
+  company_id: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackerWorkflowStatus {
+  id: string;
+  workflow_id: string;
+  company_id: string;
+  key: string;
+  name: string;
+  category: WorkflowStatusCategory;
+  color: string | null;
+  position: number;
+  is_initial: boolean;
+}
+
+export interface TrackerWorkflowTransition {
+  id: string;
+  workflow_id: string;
+  company_id: string;
+  from_status_id: string | null;
+  to_status_id: string;
+  name: string;
 }
 
 export interface TrackerTask {
@@ -69,6 +103,7 @@ export interface TrackerTask {
   title: string;
   description: string | null;
   status: TaskStatus;
+  workflow_status_id: string | null;
   urgency: TaskUrgency;
   priority: TaskUrgency | null;
   story_points: number | null;
@@ -508,8 +543,19 @@ export function useBoardTasks(projectId?: string | null) {
 export function useMoveTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, status, order_index }: { id: string; status: TaskStatus; order_index: number; projectKey: string }) => {
-      const res = await laravelDb.from("tracker_tasks").update({ status, order_index }).eq("id", id).select("*").single();
+    mutationFn: async ({
+      id, status, workflow_status_id, order_index,
+    }: {
+      id: string;
+      status?: TaskStatus;
+      workflow_status_id?: string | null;
+      order_index: number;
+      projectKey: string;
+    }) => {
+      const patch: Record<string, any> = { order_index };
+      if (status !== undefined) patch.status = status;
+      if (workflow_status_id !== undefined) patch.workflow_status_id = workflow_status_id;
+      const res = await laravelDb.from("tracker_tasks").update(patch).eq("id", id).select("*").single();
       return handle<TrackerTask>(res as any);
     },
     onSuccess: (_d, v) => {
@@ -518,4 +564,140 @@ export function useMoveTask() {
     },
   });
 }
+
+/* ============ WORKFLOWS ============ */
+export function useWorkflows() {
+  return useQuery({
+    queryKey: ["tracker.workflows"],
+    queryFn: async () => {
+      const res = await laravelDb.from("tracker_workflows").select("*").order("created_at", { ascending: true });
+      return handle<TrackerWorkflow[]>(res as any) ?? [];
+    },
+  });
+}
+
+export function useWorkflowStatuses(workflowId?: string | null) {
+  return useQuery({
+    queryKey: ["tracker.workflow.statuses", workflowId],
+    enabled: !!workflowId,
+    queryFn: async () => {
+      const res = await laravelDb
+        .from("tracker_workflow_statuses")
+        .select("*")
+        .eq("workflow_id", workflowId!)
+        .order("position", { ascending: true });
+      return handle<TrackerWorkflowStatus[]>(res as any) ?? [];
+    },
+  });
+}
+
+export function useWorkflowTransitions(workflowId?: string | null) {
+  return useQuery({
+    queryKey: ["tracker.workflow.transitions", workflowId],
+    enabled: !!workflowId,
+    queryFn: async () => {
+      const res = await laravelDb
+        .from("tracker_workflow_transitions")
+        .select("*")
+        .eq("workflow_id", workflowId!);
+      return handle<TrackerWorkflowTransition[]>(res as any) ?? [];
+    },
+  });
+}
+
+export function useCreateWorkflow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Partial<TrackerWorkflow>) => {
+      const res = await laravelDb.from("tracker_workflows").insert({ is_default: false, ...input }).select("*").single();
+      return handle<TrackerWorkflow>(res as any);
+    },
+    onSuccess: () => {
+      toast.success("Воркфлоу создан");
+      qc.invalidateQueries({ queryKey: ["tracker.workflows"] });
+    },
+  });
+}
+
+export function useUpdateWorkflow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...patch }: Partial<TrackerWorkflow> & { id: string }) => {
+      const res = await laravelDb.from("tracker_workflows").update(patch).eq("id", id).select("*").single();
+      return handle<TrackerWorkflow>(res as any);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tracker.workflows"] }),
+  });
+}
+
+export function useDeleteWorkflow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      const res = await laravelDb.from("tracker_workflows").delete().eq("id", id);
+      return handle(res as any);
+    },
+    onSuccess: () => {
+      toast.success("Воркфлоу удалён");
+      qc.invalidateQueries({ queryKey: ["tracker.workflows"] });
+    },
+  });
+}
+
+export function useUpsertWorkflowStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Partial<TrackerWorkflowStatus> & { workflow_id: string }) => {
+      const op = input.id
+        ? laravelDb.from("tracker_workflow_statuses").update(input).eq("id", input.id).select("*").single()
+        : laravelDb.from("tracker_workflow_statuses").insert(input).select("*").single();
+      const res = await op;
+      return handle<TrackerWorkflowStatus>(res as any);
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["tracker.workflow.statuses", v.workflow_id] });
+      qc.invalidateQueries({ queryKey: ["tracker.board"] });
+    },
+  });
+}
+
+export function useDeleteWorkflowStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; workflow_id: string }) => {
+      const res = await laravelDb.from("tracker_workflow_statuses").delete().eq("id", id);
+      return handle(res as any);
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["tracker.workflow.statuses", v.workflow_id] });
+      qc.invalidateQueries({ queryKey: ["tracker.board"] });
+    },
+  });
+}
+
+export function useUpsertWorkflowTransition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Partial<TrackerWorkflowTransition> & { workflow_id: string }) => {
+      const op = input.id
+        ? laravelDb.from("tracker_workflow_transitions").update(input).eq("id", input.id).select("*").single()
+        : laravelDb.from("tracker_workflow_transitions").insert(input).select("*").single();
+      const res = await op;
+      return handle<TrackerWorkflowTransition>(res as any);
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["tracker.workflow.transitions", v.workflow_id] }),
+  });
+}
+
+export function useDeleteWorkflowTransition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; workflow_id: string }) => {
+      const res = await laravelDb.from("tracker_workflow_transitions").delete().eq("id", id);
+      return handle(res as any);
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["tracker.workflow.transitions", v.workflow_id] }),
+  });
+}
+
 

@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { useProjects, useCreateProject, useUpdateProject } from "@/hooks/tracker";
+import { useProjects, useCreateProject, useUpdateProject, useWorkflows } from "@/hooks/tracker";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, FolderKanban, Archive } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, FolderKanban, Archive, Workflow } from "lucide-react";
 import { useTrackerProject } from "@/contexts/TrackerProjectContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const ProjectCreateDialog = () => {
   const [open, setOpen] = useState(false);
@@ -57,6 +58,7 @@ const ProjectCreateDialog = () => {
 
 const TrackerProjects = () => {
   const { data: projects = [], isLoading } = useProjects();
+  const { data: workflows = [] } = useWorkflows();
   const { setProjectId } = useTrackerProject();
   const navigate = useNavigate();
   const update = useUpdateProject();
@@ -91,6 +93,24 @@ const TrackerProjects = () => {
                   {p.status === "archived" && <Archive className="w-4 h-4 text-muted-foreground" />}
                 </div>
                 {p.description && <p className="text-sm text-muted-foreground line-clamp-2">{p.description}</p>}
+                <div className="flex items-center gap-2">
+                  <Workflow className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <Select
+                    value={p.workflow_id ?? "__none__"}
+                    onValueChange={(v) => update.mutate({ id: p.id, workflow_id: v === "__none__" ? null : v })}
+                  >
+                    <SelectTrigger className="h-8 text-xs flex-1"><SelectValue placeholder="Без воркфлоу" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Стандартные колонки</SelectItem>
+                      {workflows.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {workflows.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Воркфлоу не настроены. <Link to="/tracker/workflows" className="text-primary underline">Создать</Link>
+                  </p>
+                )}
                 <div className="flex gap-2 pt-1">
                   <Button
                     size="sm"
