@@ -73,7 +73,18 @@
     "careerTrack": "Карьерный трек",
     "recognition": "Признание коллег",
     "shop": "Магазин",
-    "notifications": "Уведомления"
+    "notifications": "Уведомления",
+    "tracker": "Трекер задач",
+    "university": "Университет",
+    "ragDocuments": "База знаний",
+    "sections": {
+      "communication": "Коммуникация",
+      "analytics": "Аналитика",
+      "hr": "Управление персоналом",
+      "motivation": "Мотивация",
+      "knowledge": "Полезные материалы",
+      "system": "Системное"
+    }
   },
   "layout": {
     "sandboxBanner": "SANDBOX — тестовое окружение, данные могут быть удалены",
