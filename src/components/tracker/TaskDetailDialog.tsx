@@ -248,7 +248,7 @@ const AttachmentsPanel = ({ taskId }: { taskId: string }) => {
               <Button size="sm" variant="outline" onClick={() => handleDownload(a.storage_path, a.filename)}>
                 <Download className="w-3.5 h-3.5" />
               </Button>
-              <button onClick={() => del.mutate({ id: a.id, task_id: taskId })} className="text-muted-foreground hover:text-destructive">
+              <button onClick={() => del.mutate({ id: a.id, task_id: taskId, storage_path: a.storage_path })} className="text-muted-foreground hover:text-destructive">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>

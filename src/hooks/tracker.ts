@@ -929,11 +929,14 @@ export function useCreateComment() {
 export function useUpdateComment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, body, task_id }: { id: string; body: string; task_id: string }) => {
+    mutationFn: async ({ id, body }: { id: string; body: string; task_id: string }) => {
       const res = await laravelDb.from("tracker_comments").update({ body }).eq("id", id).select("*").single();
       return handle<TrackerComment>(res as any);
     },
-    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["tracker.comments", v.task_id] }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["tracker.comments", v.task_id] });
+      qc.invalidateQueries({ queryKey: ["tracker.activity", v.task_id] });
+    },
   });
 }
 
@@ -944,7 +947,10 @@ export function useDeleteComment() {
       const res = await laravelDb.from("tracker_comments").delete().eq("id", id);
       return handle(res as any);
     },
-    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["tracker.comments", v.task_id] }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["tracker.comments", v.task_id] });
+      qc.invalidateQueries({ queryKey: ["tracker.activity", v.task_id] });
+    },
   });
 }
 
@@ -1007,11 +1013,23 @@ export function useUploadAttachment() {
 export function useDeleteAttachment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id }: { id: string; task_id: string }) => {
+    mutationFn: async ({ id, storage_path }: { id: string; task_id: string; storage_path?: string | null }) => {
+      // 1) сначала пробуем удалить файл из бакета, чтобы не плодить «осиротевшие» blob'ы
+      if (storage_path) {
+        try {
+          const { laravelStorage } = await import("@/integrations/laravel/storage");
+          await laravelStorage.from("tracker-attachments").remove([storage_path]);
+        } catch {
+          // не блокируем удаление записи, если файл уже отсутствует
+        }
+      }
       const res = await laravelDb.from("tracker_attachments").delete().eq("id", id);
       return handle(res as any);
     },
-    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["tracker.attachments", v.task_id] }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["tracker.attachments", v.task_id] });
+      qc.invalidateQueries({ queryKey: ["tracker.activity", v.task_id] });
+    },
   });
 }
 

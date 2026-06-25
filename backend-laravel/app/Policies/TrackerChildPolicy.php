@@ -20,11 +20,36 @@ class TrackerChildPolicy extends BasePolicy
     public function create(User $user): bool { return (bool) $user->companyId(); }
     public function update(User $user, $model): bool
     {
+        // Комментарии и вложения может править/удалять только автор
+        // (либо HR/админ компании через TrackerOwnedPolicy на родителе).
+        if ($this->isOwnedChild($model)) {
+            return $this->isOwner($user, $model) || $this->isCompanyAdmin($user, $model);
+        }
         return $this->parentAllows($user, $model, 'update');
     }
     public function delete(User $user, $model): bool
     {
+        if ($this->isOwnedChild($model)) {
+            return $this->isOwner($user, $model) || $this->isCompanyAdmin($user, $model);
+        }
         return $this->parentAllows($user, $model, 'update');
+    }
+
+    protected function isOwnedChild($model): bool
+    {
+        return in_array($model->getTable(), ['tracker_comments', 'tracker_attachments'], true);
+    }
+
+    protected function isOwner(User $user, $model): bool
+    {
+        $ownerField = $model->getTable() === 'tracker_comments' ? 'author_id' : 'uploader_id';
+        return (string) $model->{$ownerField} === (string) $user->id;
+    }
+
+    protected function isCompanyAdmin(User $user, $model): bool
+    {
+        if ((string) ($model->company_id ?? '') !== (string) ($user->companyId() ?? '')) return false;
+        return $user->hasRole('hrd') || $user->hasRole('company_admin') || $user->hasRole('superadmin');
     }
 
     protected function parentAllows(User $user, $model, string $ability): bool

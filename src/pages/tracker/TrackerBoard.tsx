@@ -159,7 +159,7 @@ function buildWorkflowColumns(statuses: TrackerWorkflowStatus[]): ColumnDef[] {
 const TrackerBoard = () => {
   const { projectId } = useTrackerProject();
   const { data: project } = useProject(projectId ?? undefined);
-  const { data: workflowStatuses = [] } = useWorkflowStatuses(project?.workflow_id ?? undefined);
+  const { data: workflowStatuses = [] } = useWorkflowStatuses(project?.workflow_id ?? null);
   const { data: tasks = [], isLoading } = useBoardTasks(projectId);
   const move = useMoveTask();
   const createTask = useCreateTask();
