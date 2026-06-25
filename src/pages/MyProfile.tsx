@@ -135,14 +135,28 @@ const MyProfile = () => {
     }
   };
 
-  /* ===== Картинка для чатов ===== */
+  /* ===== Картинка для чатов =====
+     Сначала читаем с профиля (поле chat_sticker_url, миграция 0021),
+     с локальным фолбэком, если бэк ещё не отдаёт поле. */
   const [chatSticker, setChatSticker] = useState<string | null>(null);
   useEffect(() => {
     if (!uid) return;
-    setChatSticker(localStorage.getItem(CHAT_STICKER_KEY(uid)));
-  }, [uid]);
+    const fromProfile = (profile as any)?.chat_sticker_url ?? null;
+    setChatSticker(fromProfile || localStorage.getItem(CHAT_STICKER_KEY(uid)));
+  }, [uid, profile]);
   const stickerInput = useRef<HTMLInputElement>(null);
   const [stickerBusy, setStickerBusy] = useState(false);
+
+  const persistSticker = async (url: string | null) => {
+    if (!uid) return;
+    if (url) localStorage.setItem(CHAT_STICKER_KEY(uid), url);
+    else localStorage.removeItem(CHAT_STICKER_KEY(uid));
+    // best-effort upsert на бэк — игнорируем ошибку, если поля ещё нет
+    try {
+      await laravelDb.from("profiles").update({ chat_sticker_url: url } as any).eq("user_id", uid);
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    } catch { /* fallback к localStorage */ }
+  };
 
   const handleSticker = async (file: File) => {
     if (!user || !uid) return;
@@ -153,7 +167,7 @@ const MyProfile = () => {
       const up = await laravelStorage.from("reward-images").upload(path, file, { upsert: false });
       if (up.error) throw new Error(up.error.message);
       const { data: pub } = laravelStorage.from("reward-images").getPublicUrl(path);
-      localStorage.setItem(CHAT_STICKER_KEY(uid), pub.publicUrl);
+      await persistSticker(pub.publicUrl);
       setChatSticker(pub.publicUrl);
       toast.success("Картинка для чатов сохранена");
     } catch (e: any) {
@@ -163,11 +177,12 @@ const MyProfile = () => {
     }
   };
 
-  const removeSticker = () => {
+  const removeSticker = async () => {
     if (!uid) return;
-    localStorage.removeItem(CHAT_STICKER_KEY(uid));
+    await persistSticker(null);
     setChatSticker(null);
   };
+
 
   const level = levelQ.data;
 
