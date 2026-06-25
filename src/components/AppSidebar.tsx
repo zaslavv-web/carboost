@@ -271,12 +271,12 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     superadmin: t("roles.superadmin"),
   };
 
-  const renderEntry = (entry: NavEntry) => {
+  const renderEntry = (entry: NavEntry, sectionKey: string) => {
     if (isGroup(entry)) {
       const hasActive = entry.children.some((c) => c.path === location.pathname);
-      const isOpen = collapsed ? false : (openGroups[entry.label] ?? hasActive);
+      const isOpen = collapsed ? false : (hasActive || !!openGroups[entry.label]);
       return (
-        <div key={"group:" + entry.label}>
+        <div key={`group:${sectionKey}:${entry.label}`}>
           <button
             onClick={() => {
               if (collapsed) {
@@ -310,7 +310,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
                 const childActive = location.pathname === child.path;
                 return (
                   <button
-                    key={child.path + child.label}
+                    key={`child:${sectionKey}:${child.path}`}
                     onClick={() => {
                       navigate(child.path);
                       if (isMobile) onHide?.();
@@ -336,7 +336,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const isActive = location.pathname === item.path;
     return (
       <button
-        key={item.path + item.label}
+        key={`item:${sectionKey}:${item.path}`}
         onClick={() => {
           navigate(item.path);
           if (isMobile) onHide?.();
@@ -407,7 +407,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
               </div>
             )}
             <div className="space-y-0.5">
-              {section.entries.map((e) => renderEntry(e))}
+              {section.entries.map((e) => renderEntry(e, section.key))}
             </div>
           </div>
         ))}
