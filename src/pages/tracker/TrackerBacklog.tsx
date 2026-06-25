@@ -59,10 +59,11 @@ const TaskRow = ({
 
 /* ============ Sprint Section ============ */
 const SprintSection = ({
-  sprint, projectId, sprints, nameMap,
+  sprint, projectId, sprints, nameMap, onOpen,
 }: {
   sprint: TrackerSprint; projectId: string;
   sprints: TrackerSprint[]; nameMap: Map<string, string>;
+  onOpen: (t: TrackerTask) => void;
 }) => {
   const { data: tasks = [] } = useSprintTasks(sprint.id);
   const startSprint = useStartSprint();
@@ -178,7 +179,7 @@ const SprintSection = ({
         ) : (
           <div className="border-t border-border">
             {tasks.map((t) => (
-              <TaskRow key={t.id} task={t} nameMap={nameMap}
+              <TaskRow key={t.id} task={t} nameMap={nameMap} onOpen={onOpen}
                 actions={sprint.status !== "completed" ? (
                   <Button size="icon" variant="ghost" className="h-7 w-7"
                     title="В бэклог"
@@ -197,8 +198,8 @@ const SprintSection = ({
 
 /* ============ Backlog Section ============ */
 const BacklogSection = ({
-  projectId, sprints, nameMap,
-}: { projectId: string; sprints: TrackerSprint[]; nameMap: Map<string, string> }) => {
+  projectId, sprints, nameMap, onOpen,
+}: { projectId: string; sprints: TrackerSprint[]; nameMap: Map<string, string>; onOpen: (t: TrackerTask) => void }) => {
   const { data: backlog = [], isLoading } = useBacklog(projectId);
   const assign = useAssignTaskToSprint();
   const createTask = useCreateTask();
@@ -261,7 +262,7 @@ const BacklogSection = ({
         ) : (
           <div className="border-t border-border">
             {backlog.map((t) => (
-              <TaskRow key={t.id} task={t} nameMap={nameMap}
+              <TaskRow key={t.id} task={t} nameMap={nameMap} onOpen={onOpen}
                 actions={openSprints.length > 0 ? (
                   <Select onValueChange={(sprintId) => assign.mutate({ taskId: t.id, sprintId, projectId })}>
                     <SelectTrigger className="h-7 w-36 text-xs"><SelectValue placeholder="В спринт →" /></SelectTrigger>
@@ -343,6 +344,7 @@ const TrackerBacklog = () => {
   const { projectId } = useTrackerProject();
   const { data: sprints = [], isLoading } = useSprints(projectId);
   const nameMap = useEmployeeNameMap();
+  const [openTask, setOpenTask] = useState<TrackerTask | null>(null);
 
   if (!projectId) {
     return (
@@ -375,13 +377,13 @@ const TrackerBacklog = () => {
       {isLoading && <p className="text-sm text-muted-foreground">Загрузка спринтов…</p>}
 
       {active.map((s) => (
-        <SprintSection key={s.id} sprint={s} projectId={projectId} sprints={sprints} nameMap={nameMap} />
+        <SprintSection key={s.id} sprint={s} projectId={projectId} sprints={sprints} nameMap={nameMap} onOpen={setOpenTask} />
       ))}
       {planned.map((s) => (
-        <SprintSection key={s.id} sprint={s} projectId={projectId} sprints={sprints} nameMap={nameMap} />
+        <SprintSection key={s.id} sprint={s} projectId={projectId} sprints={sprints} nameMap={nameMap} onOpen={setOpenTask} />
       ))}
 
-      <BacklogSection projectId={projectId} sprints={sprints} nameMap={nameMap} />
+      <BacklogSection projectId={projectId} sprints={sprints} nameMap={nameMap} onOpen={setOpenTask} />
 
       {completed.length > 0 && (
         <details className="rounded-lg border border-border">
@@ -390,11 +392,13 @@ const TrackerBacklog = () => {
           </summary>
           <div className="space-y-3 p-3">
             {completed.map((s) => (
-              <SprintSection key={s.id} sprint={s} projectId={projectId} sprints={sprints} nameMap={nameMap} />
+              <SprintSection key={s.id} sprint={s} projectId={projectId} sprints={sprints} nameMap={nameMap} onOpen={setOpenTask} />
             ))}
           </div>
         </details>
       )}
+
+      <TaskDetailDialog task={openTask} open={!!openTask} onOpenChange={(v) => !v && setOpenTask(null)} />
     </div>
   );
 };
