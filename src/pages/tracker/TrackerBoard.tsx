@@ -24,7 +24,7 @@ import { format } from "date-fns";
 import { Link } from "react-router-dom";
 
 /* ============ Карточка ============ */
-const TaskCard = ({ task, projectKey, nameMap }: { task: TrackerTask; projectKey: string; nameMap: Record<string, string> }) => {
+const TaskCard = ({ task, projectKey, nameMap }: { task: TrackerTask; projectKey: string; nameMap: Map<string, string> }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { type: "task", task },
@@ -53,7 +53,7 @@ const TaskCard = ({ task, projectKey, nameMap }: { task: TrackerTask; projectKey
             )}
             {task.assignee_id && (
               <span className="inline-flex items-center gap-1 text-muted-foreground ml-auto max-w-[140px] truncate">
-                <User className="w-3 h-3" />{nameMap[task.assignee_id] ?? "—"}
+                <User className="w-3 h-3" />{nameMap.get(task.assignee_id) ?? "—"}
               </span>
             )}
           </div>
@@ -68,7 +68,7 @@ const Column = ({
   status, label, tasks, projectKey, nameMap, onQuickAdd,
 }: {
   status: TaskStatus; label: string; tasks: TrackerTask[];
-  projectKey: string; nameMap: Record<string, string>;
+  projectKey: string; nameMap: Map<string, string>;
   onQuickAdd: (status: TaskStatus, title: string) => void;
 }) => {
   const { setNodeRef, isOver } = useDroppable({ id: `col:${status}`, data: { type: "column", status } });
