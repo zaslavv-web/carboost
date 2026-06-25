@@ -1,130 +1,72 @@
-# План: навести порядок на сервере и починить SMTP
+# Проблема: хостинг блокирует исходящий SMTP
 
-## Что мы знаем
+`Connection timed out` на `ssl://smtp.yandex.ru:465` — это **не проблема пароля**. Пароль теперь правильный (Laravel дошёл до этапа подключения). Сервер просто **не может открыть TCP-соединение** до Яндекса.
 
-- Рабочий домен — **growth-peak.pro** (с дефисом).
-- Вы запускали artisan из `~/backend` — это **не настоящий Laravel проекта**, а сторонний «огрызок» с битым git (1 локальный коммит, 1651 отставание от origin, тысячи untracked-файлов). Именно из него тянулся «не тот» `.env` с 10-символьным паролем.
-- Параллельно есть `~/growthpeak.pro/` (без дефиса) — старая копия / мусор.
-- `~/server-local-changes/` — пустая (поэтому `diff` падает с "No such file or directory").
-- Настоящий код приложения живёт в репозитории в папке `backend-laravel/`.
+На shared-хостингах (а у вас именно такой — `gro7659365@gro7659365`, без Docker) провайдеры почти всегда закрывают исходящие порты 25/465/587, чтобы с их IP не рассылали спам. Это нужно подтвердить и решить.
 
-Никаких изменений в исходниках проекта по этому плану не требуется. Это операционная зачистка сервера + один правильный деплой.
+## Шаг 1. Подтвердить блокировку
 
-## Цели
-
-1. Один-единственный каталог Laravel на сервере = свежий клон репозитория, путь `~/growth-peak.pro/app/` (см. ниже).
-2. Один-единственный `.env` живёт **только на сервере**, не в git.
-3. Все мусорные/дублирующие папки удалены после бэкапа.
-4. SMTP читает реальный 16-символьный пароль и тест-письмо уходит.
-
-## Шаги (выполняются на сервере по SSH)
-
-### Шаг 1. Диагностика — куда смотрит nginx/Apache
-
-Понять, какая папка реально отдаёт сайт `growth-peak.pro`:
+Выполните на сервере:
 
 ```bash
-# для shared-хостинга nichost обычно так:
-ls -la ~/growth-peak.pro/
-cat ~/growth-peak.pro/.htaccess 2>/dev/null | head -20
-# найдём, где DocumentRoot
-grep -rEn "DocumentRoot|root " /etc/nginx/ /etc/apache2/ /etc/httpd/ 2>/dev/null | grep -i peak
+# проверяем все три популярных SMTP-порта Яндекса
+timeout 5 bash -c '</dev/tcp/smtp.yandex.ru/465' && echo "465 OPEN" || echo "465 BLOCKED"
+465 BLOCKED
+
+timeout 5 bash -c '</dev/tcp/smtp.yandex.ru/587' && echo "587 OPEN" || echo "587 BLOCKED"
+587 BLOCKED
+
+timeout 5 bash -c '</dev/tcp/smtp.yandex.ru/25'  && echo "25 OPEN"  || echo "25 BLOCKED"
+[gro7659365@gro7659365 backend]$ timeout 5 bash -c '</dev/tcp/smtp.yandex.ru/25'  && echo "25 OPEN"  || echo "25 BLOCKED"
+25 OPEN
+
 ```
 
-Результат пришлите — он определит финальный путь (`~/growth-peak.pro/public_html`, `~/growth-peak.pro/app/public`, и т.п.).
+Если все три `BLOCKED` — порты закрыты провайдером, прямой SMTP с этого сервера невозможен.
 
-### Шаг 2. Полный бэкап перед любыми удалениями
+## Шаг 2. Выбрать решение
 
-```bash
-cd ~
-tar -czf full-backup-$(date +%Y%m%d-%H%M%S).tar.gz \
-  backend growthpeak.pro growth-peak.pro server-local-changes 2>/dev/null
-ls -lh full-backup-*.tar.gz
+Дальше есть три пути — нужно выбрать один.
+
+### Вариант A. Попросить хостера открыть SMTP (быстро, бесплатно)
+
+Написать в техподдержку хостинга: «откройте, пожалуйста, исходящие соединения на `smtp.yandex.ru:465` для аккаунта `gro7659365`». Часть провайдеров делает это по запросу за 10 минут, часть отказывает категорически. Если откроют — ничего в коде менять не нужно, текущая отправка заработает.
+
+### Вариант B. Использовать локальный SMTP-релей хостинга
+
+Многие shared-хостинги дают свой `localhost:25` без авторизации — он сам пересылает почту. Тогда в `.env`:
+
+```
+MAIL_MAILER=smtp
+MAIL_HOST=localhost
+MAIL_PORT=25
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_ENCRYPTION=
+MAIL_FROM_ADDRESS=growthpeak@growth-peak.pro   # адрес на вашем домене
 ```
 
-И отдельно сохранить текущий `.env` из `~/backend`:
+Минус: From должен быть на домене хостинга, и письма из Яндекса так не отправить.
 
-```bash
-cp ~/backend/.env ~/env-backup-from-backend-$(date +%Y%m%d-%H%M%S).txt
-```
+### Вариант C. Перейти на HTTP API-провайдера (рекомендую)
 
-### Шаг 3. Свежий клон рабочего репозитория
+HTTP/HTTPS (порт 443) у хостеров **никогда** не блокируется. Поэтому надёжнее всего отправлять не через SMTP, а через REST API одного из сервисов:
 
-```bash
-cd ~/growth-peak.pro
-git clone <URL_РЕПОЗИТОРИЯ> app
-cd app/backend-laravel
-composer install --no-dev --optimize-autoloader
-```
+- **Unisender Go** — российский, доставка на yandex/mail.ru хорошая, бесплатно до 1500 писем/мес.
+- **SendPulse** — российский, бесплатно до 12000/мес.
+- **Resend** — зарубежный, простой API, бесплатно до 3000/мес.
 
-URL репозитория подскажете (ссылка вида `git@github.com:.../....git` или `https://...`).
+Что я сделаю в коде, если выберете этот вариант:
 
-### Шаг 4. Положить правильный `.env` в новый клон
+- добавлю драйвер в `config/mail.php` и Service класс (`UnisenderGoMailer.php` или аналог),
+- переключу `MAIL_MAILER=unisender_go`,
+- добавлю в `.env` поля `UNISENDER_GO_API_KEY` и `UNISENDER_GO_FROM`,
+- `DemoRequestSubmitted` и `PricingInquirySubmitted` будут уходить через HTTPS,
+- команда `smtp:test` останется (переименую в `mail:test`) и будет проверять реальную отправку.
 
-```bash
-cd ~/growth-peak.pro/app/backend-laravel
-cp .env.example .env
-nano .env   # вписать APP_KEY, DB_*, MAIL_*
-```
+## Что нужно от вас
 
-Пароль приложения Яндекса вписать без кавычек и без пробелов через безопасный ввод (не светим в history):
+1. Запустите три команды из шага 1 и пришлите вывод — подтвердим, что дело именно в портах.
+2. Скажите, какой вариант выбираем: **A** (писать хостеру), **B** (локальный релей — если он у вас есть), или **C** (перевести отправку на HTTP API; уточните, какой сервис — Unisender Go / SendPulse / Resend).
 
-```bash
-sed -i '/^SMTP_PASSWORD=/d;/^MAIL_PASSWORD=/d' .env
-printf 'SMTP_PASSWORD=' >> .env && read -rs PW && printf '%s\n' "$PW" >> .env
-printf 'MAIL_PASSWORD=' >> .env && printf '%s\n' "$PW" >> .env
-unset PW
-chmod 600 .env
-```
-
-Затем:
-
-```bash
-php artisan key:generate   # только если APP_KEY пустой
-php artisan optimize:clear
-php artisan smtp:where     # должна показать backend-laravel/.env из НОВОГО пути
-php artisan smtp:env-doctor
-php artisan smtp:test growthpeak@yandex.ru
-```
-
-Ожидаемо: `raw length: 16`, `parsed length: 16`, письмо приходит.
-
-### Шаг 5. Переключить веб-сервер на новый путь
-
-Если DocumentRoot указывал на `~/growth-peak.pro/public_html` — заменить эту папку симлинком на новый `public`:
-
-```bash
-mv ~/growth-peak.pro/public_html ~/growth-peak.pro/public_html.old
-ln -s ~/growth-peak.pro/app/backend-laravel/public ~/growth-peak.pro/public_html
-```
-
-(Точная команда зависит от вывода Шага 1 — поэтому сначала диагностика.)
-
-Проверить, что сайт открывается, что вход/регистрация работают, что заявка на демо уходит.
-
-### Шаг 6. Удалить мусор после успешной проверки
-
-Только после того, как сайт стабильно работает с нового клона **минимум сутки**:
-
-```bash
-rm -rf ~/backend
-rm -rf ~/growthpeak.pro            # старый домен без дефиса, если он не нужен
-rm -rf ~/server-local-changes
-rm -rf ~/growth-peak.pro/public_html.old
-```
-
-Бэкап `full-backup-*.tar.gz` оставить ещё на месяц.
-
-### Шаг 7. Закрыть утечку пароля из git
-
-Сейчас `backend-laravel/.env` лежит **внутри git-репозитория** — пароль приложения Яндекса фактически в истории. После того как почта заработает:
-
-1. Отозвать текущий пароль приложения в Яндекс ID.
-2. Сгенерировать новый, обновить только серверный `.env`.
-3. В репозитории: добавить `backend-laravel/.env` в `.gitignore`, удалить файл из текущего коммита, при необходимости почистить историю через `git filter-repo`. Это уже отдельная задача в коде проекта — оформим следующим планом, когда закроем операционную часть.
-
-## Что нужно от вас перед запуском плана
-
-1. Вывод команд из Шага 1 (куда смотрит веб-сервер для `growth-peak.pro`).
-2. URL git-репозитория для клонирования.
-3. Подтверждение, что `growthpeak.pro` без дефиса можно удалять.
+После вашего ответа я подготовлю конкретные правки кода и инструкции.
