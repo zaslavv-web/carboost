@@ -147,6 +147,19 @@ const EmailSettingsManagement = () => {
     onError: (e: any) => toast.error(e.message || t("emailSettings.toastHandshakeFail")),
   });
 
+  const clearMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await laravel.delete<{ ok: boolean }>("/admin/email-settings");
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email_settings"] });
+      toast.success("Запись в БД деактивирована. Laravel применит SMTP из service-infra.php / .env");
+    },
+    onError: (e: any) => toast.error(e.message || "Не удалось очистить настройки"),
+  });
+
   const applyPreset = (provider: string) => {
     const preset = presets[provider];
     setForm((prev) => normalizeYandexSmtp({
