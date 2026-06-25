@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Mail, Send, ShieldCheck, Loader2, AlertTriangle, PlugZap } from "lucide-react";
+import { Mail, Send, ShieldCheck, Loader2, AlertTriangle, PlugZap, Database, FileCode, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { laravel } from "@/integrations/laravel/client";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,15 @@ interface SmtpPreflightResult {
   username?: string | null;
 }
 
+interface EffectiveSource {
+  source: "database" | "file" | "env";
+  label: string;
+  host: string | null;
+  username: string | null;
+  from_address: string | null;
+  has_usable_password: boolean;
+}
+
 type Presets = Record<string, { label: string; host: string; port: number; encryption: "ssl" | "tls" | "none"; hint: string }>;
 
 const emptyForm = {
@@ -67,7 +76,7 @@ const EmailSettingsManagement = () => {
   const { data, isLoading } = useQuery({
     queryKey: ["email_settings"],
     queryFn: async () => {
-      const { data, error } = await laravel.get<{ setting: EmailSetting | null; presets: Presets }>("/admin/email-settings");
+      const { data, error } = await laravel.get<{ setting: EmailSetting | null; presets: Presets; effective: EffectiveSource }>("/admin/email-settings");
       if (error) throw new Error(error.message);
       return data;
     },
@@ -75,6 +84,7 @@ const EmailSettingsManagement = () => {
 
   const setting = data?.setting;
   const presets = data?.presets ?? {};
+  const effective = data?.effective;
   const selectedPreset = useMemo(() => presets[form.provider], [form.provider, presets]);
 
   useEffect(() => {
@@ -137,6 +147,19 @@ const EmailSettingsManagement = () => {
     onError: (e: any) => toast.error(e.message || t("emailSettings.toastHandshakeFail")),
   });
 
+  const clearMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await laravel.delete<{ ok: boolean }>("/admin/email-settings");
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email_settings"] });
+      toast.success("Запись в БД деактивирована. Laravel применит SMTP из service-infra.php / .env");
+    },
+    onError: (e: any) => toast.error(e.message || "Не удалось очистить настройки"),
+  });
+
   const applyPreset = (provider: string) => {
     const preset = presets[provider];
     setForm((prev) => normalizeYandexSmtp({
@@ -164,6 +187,50 @@ const EmailSettingsManagement = () => {
           {setting?.is_active ? t("emailSettings.statusActive") : t("emailSettings.statusInactive")}
         </div>
       </div>
+
+      {effective && (
+        <Card className="border-primary/20">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3 flex-wrap justify-between">
+              <div className="flex items-start gap-3">
+                {effective.source === "database" ? (
+                  <Database className="w-5 h-5 text-primary mt-0.5" />
+                ) : (
+                  <FileCode className="w-5 h-5 text-primary mt-0.5" />
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Текущий источник SMTP: {effective.label}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    host: <code>{effective.host || "—"}</code> · user: <code>{effective.username || "—"}</code> · from: <code>{effective.from_address || "—"}</code> · пароль: {effective.has_usable_password ? "есть" : <span className="text-destructive">нет</span>}
+                  </p>
+                  {effective.source === "database" && (
+                    <p className="text-xs text-warning mt-2">
+                      ⚠️ Пока существует активная запись в БД, изменения <code>MAIL_PASSWORD</code> / <code>SMTP_PASSWORD</code> в <code>.env</code> игнорируются. Чтобы Laravel читал .env — деактивируйте запись.
+                    </p>
+                  )}
+                </div>
+              </div>
+              {effective.source === "database" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (confirm("Деактивировать SMTP-настройки из БД? Laravel перейдёт на конфиг из service-infra.php / .env.")) {
+                      clearMutation.mutate();
+                    }
+                  }}
+                  disabled={clearMutation.isPending}
+                >
+                  {clearMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Перейти на .env
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
 
       <Card>
         <CardHeader>

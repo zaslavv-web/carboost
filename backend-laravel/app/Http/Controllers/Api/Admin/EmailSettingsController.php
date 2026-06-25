@@ -22,7 +22,71 @@ class EmailSettingsController extends Controller
         return response()->json([
             'setting' => $this->present($this->mail->active()),
             'presets' => EmailConfigService::PRESETS,
+            'effective' => $this->effectiveSource(),
         ]);
+    }
+
+    /**
+     * Деактивировать запись в БД, чтобы Laravel применил fallback из service-infra.php / .env.
+     * Полезно, когда после смены SMTP_PASSWORD/MAIL_PASSWORD в .env письма всё ещё не уходят —
+     * значит, активная запись в БД перекрывает .env.
+     */
+    public function clear(Request $request): JsonResponse
+    {
+        $this->ensureSuperadmin($request);
+
+        EmailSetting::query()->update(['is_active' => false]);
+        $this->mail->applyFileDefaults();
+
+        return response()->json([
+            'ok' => true,
+            'setting' => null,
+            'effective' => $this->effectiveSource(),
+        ]);
+    }
+
+    private function effectiveSource(): array
+    {
+        $setting = $this->mail->active();
+        $usingDb = (bool) ($setting && $setting->is_active && $setting->host && $setting->from_address);
+
+        if ($usingDb) {
+            try {
+                $hasUsablePass = $setting->hasUsablePassword();
+            } catch (\Throwable $e) {
+                $hasUsablePass = false;
+            }
+            return [
+                'source' => 'database',
+                'label' => 'Настройки из БД (email_settings)',
+                'host' => $setting->host,
+                'username' => $setting->username,
+                'from_address' => $setting->from_address,
+                'has_usable_password' => $hasUsablePass,
+            ];
+        }
+
+        $defaults = \App\Support\ServiceInfra::smtpDefaults();
+        $filePassword = $defaults['password'] ?? null;
+        if (!empty($defaults['host']) && !empty($defaults['from_address']) && $filePassword) {
+            return [
+                'source' => 'file',
+                'label' => 'Файл service-infra.php (env SMTP_PASSWORD)',
+                'host' => $defaults['host'],
+                'username' => $defaults['username'] ?? null,
+                'from_address' => $defaults['from_address'],
+                'has_usable_password' => true,
+            ];
+        }
+
+        return [
+            'source' => 'env',
+            'label' => '.env (MAIL_* переменные)',
+            'host' => \App\Support\RuntimeEnv::get('MAIL_HOST'),
+            'username' => \App\Support\RuntimeEnv::get('MAIL_USERNAME'),
+            'from_address' => \App\Support\RuntimeEnv::get('MAIL_FROM_ADDRESS'),
+            'has_usable_password' => (bool) \App\Support\RuntimeEnv::get('MAIL_PASSWORD'),
+        ];
     }
 
     public function update(Request $request): JsonResponse
