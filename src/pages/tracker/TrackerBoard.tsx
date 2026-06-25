@@ -185,6 +185,7 @@ const TrackerBoard = () => {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const [activeTask, setActiveTask] = useState<TrackerTask | null>(null);
+  const [openTask, setOpenTask] = useState<TrackerTask | null>(null);
 
   const onDragStart = (e: DragStartEvent) => {
     setActiveTask(tasks.find((x) => x.id === e.active.id) ?? null);
@@ -284,7 +285,7 @@ const TrackerBoard = () => {
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-3 -mx-2 px-2">
           {columnDefs.map((c) => (
-            <Column key={c.id} column={c} tasks={columns[c.id] ?? []} nameMap={nameMap} onQuickAdd={handleQuickAdd} />
+            <Column key={c.id} column={c} tasks={columns[c.id] ?? []} nameMap={nameMap} onQuickAdd={handleQuickAdd} onOpenTask={setOpenTask} />
           ))}
         </div>
         <DragOverlay>
@@ -297,6 +298,7 @@ const TrackerBoard = () => {
           )}
         </DragOverlay>
       </DndContext>
+      <TaskDetailDialog task={openTask} open={!!openTask} onOpenChange={(v) => !v && setOpenTask(null)} />
     </div>
   );
 };
