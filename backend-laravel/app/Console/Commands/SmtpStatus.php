@@ -39,6 +39,8 @@ class SmtpStatus extends Command
 
         $this->line('');
         $this->info('=== SMTP STATUS ===');
+        $this->line('base_path         : ' . base_path());
+        $this->line('env file (loaded) : ' . app()->environmentFilePath());
         $this->line("Активный источник : {$source}");
         $this->line('');
         $this->line('--- .env ---');

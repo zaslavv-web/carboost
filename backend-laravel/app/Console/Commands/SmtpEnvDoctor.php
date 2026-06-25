@@ -31,7 +31,10 @@ class SmtpEnvDoctor extends Command
 
         $this->line('');
         $this->info('=== SMTP ENV DOCTOR ===');
-        $this->line("Файл: {$path}");
+        $this->line('base_path()      : ' . base_path());
+        $this->line('env file (Laravel): ' . app()->environmentFilePath());
+        $this->line("Анализируемый файл: {$path}");
+        $this->line('realpath          : ' . (realpath($path) ?: '(не разрешается)'));
         $this->line('Размер: ' . strlen($raw) . ' байт');
 
         // BOM
