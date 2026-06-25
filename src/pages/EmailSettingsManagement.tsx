@@ -36,6 +36,15 @@ interface SmtpPreflightResult {
   username?: string | null;
 }
 
+interface EffectiveSource {
+  source: "database" | "file" | "env";
+  label: string;
+  host: string | null;
+  username: string | null;
+  from_address: string | null;
+  has_usable_password: boolean;
+}
+
 type Presets = Record<string, { label: string; host: string; port: number; encryption: "ssl" | "tls" | "none"; hint: string }>;
 
 const emptyForm = {
