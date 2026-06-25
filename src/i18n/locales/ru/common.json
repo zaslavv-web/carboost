@@ -75,9 +75,11 @@
     "shop": "Магазин",
     "notifications": "Уведомления",
     "tracker": "Трекер задач",
+    "myProfile": "Мой профиль",
     "university": "Университет",
     "ragDocuments": "База знаний",
     "sections": {
+      "myWork": "Моя работа",
       "communication": "Коммуникация",
       "analytics": "Аналитика",
       "hr": "Управление персоналом",

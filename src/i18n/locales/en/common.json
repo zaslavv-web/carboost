@@ -75,9 +75,11 @@
     "shop": "Shop",
     "notifications": "Notifications",
     "tracker": "Task tracker",
+    "myProfile": "My profile",
     "university": "University",
     "ragDocuments": "Knowledge base",
     "sections": {
+      "myWork": "My work",
       "communication": "Communication",
       "analytics": "Analytics",
       "hr": "People management",
