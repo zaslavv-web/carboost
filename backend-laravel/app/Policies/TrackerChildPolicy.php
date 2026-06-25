@@ -48,10 +48,8 @@ class TrackerChildPolicy extends BasePolicy
 
     protected function isCompanyAdmin(User $user, $model): bool
     {
-        // HRD / company_admin внутри компании ребёнка
-        if (! method_exists($user, 'hasAnyRole')) return false;
         if ((string) ($model->company_id ?? '') !== (string) ($user->companyId() ?? '')) return false;
-        return $user->hasAnyRole(['hrd', 'company_admin', 'superadmin']);
+        return $user->hasRole('hrd') || $user->hasRole('company_admin') || $user->hasRole('superadmin');
     }
 
     protected function parentAllows(User $user, $model, string $ability): bool
