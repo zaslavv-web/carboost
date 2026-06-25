@@ -105,10 +105,11 @@ export function useEmployeeLevel(opts: { userId?: string | null; companyId?: str
     queryKey: ["employee_level", userId, companyId, opts.hireDate],
     enabled: !!userId,
     queryFn: async () => {
-      const [rewardsRes, achievementsRes, typesRes] = await Promise.all([
+      const [rewardsRes, achievementsRes, typesRes, serverLevelsRes] = await Promise.all([
         laravelDb.from("employee_rewards").select("reward_type_id").eq("user_id", userId!),
         laravelDb.from("achievements").select("id").eq("user_id", userId!),
         laravelDb.from("gamification_reward_types").select("id,points"),
+        laravelDb.from("gamification_levels" as any).select("*").then((r: any) => r).catch(() => ({ data: null })),
       ]);
       const rewards = (rewardsRes.data as any[]) || [];
       const achievements = (achievementsRes.data as any[]) || [];
@@ -116,7 +117,14 @@ export function useEmployeeLevel(opts: { userId?: string | null; companyId?: str
       const pointsMap = new Map<string, number>(types.map((t) => [t.id, Number(t.points) || 0]));
       const points = rewards.reduce((s, r) => s + (pointsMap.get(r.reward_type_id) ?? 0), 0);
 
-      const levels = readLevels(companyId);
+      const serverLevels = (serverLevelsRes as any)?.data as any[] | null;
+      const levels = serverLevels && serverLevels.length
+        ? serverLevels.map((l) => ({
+            id: l.id, order: l.order, title: l.title, icon: l.icon, color: l.color,
+            min_points: l.min_points, min_tenure_months: l.min_tenure_months,
+            min_achievements: l.min_achievements, description: l.description,
+          })) as GamificationLevel[]
+        : readLevels(companyId);
       const tenureMonths = monthsBetween(opts.hireDate ?? null);
       return computeLevel(levels, points, tenureMonths, achievements.length);
     },
