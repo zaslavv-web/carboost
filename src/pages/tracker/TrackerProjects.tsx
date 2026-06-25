@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { useProjects, useCreateProject, useUpdateProject } from "@/hooks/tracker";
+import { useProjects, useCreateProject, useUpdateProject, useWorkflows } from "@/hooks/tracker";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, FolderKanban, Archive } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, FolderKanban, Archive, Workflow } from "lucide-react";
 import { useTrackerProject } from "@/contexts/TrackerProjectContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const ProjectCreateDialog = () => {
   const [open, setOpen] = useState(false);
@@ -57,6 +58,7 @@ const ProjectCreateDialog = () => {
 
 const TrackerProjects = () => {
   const { data: projects = [], isLoading } = useProjects();
+  const { data: workflows = [] } = useWorkflows();
   const { setProjectId } = useTrackerProject();
   const navigate = useNavigate();
   const update = useUpdateProject();
