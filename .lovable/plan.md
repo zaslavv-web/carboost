@@ -1,46 +1,31 @@
-## Проблема
+## Диагноз
 
-В `RpcController::submitDemoRequest` и `submitPricingInquiry` заявка только сохраняется в БД (`demo_requests` / `pricing_inquiries`) — никакой отправки email нет. Поэтому ошибки нет, но и письма не приходит.
+`RpcController::notifySales()` сейчас просто зовёт `Mail::to(...)->send(...)` и проглатывает любые ошибки через `report($e)`. В проекте уже есть полноценный `EmailConfigService` (DB → file → runtime env), которым пользуется `PasswordResetController`, и он умеет:
+- применять активные SMTP-настройки из таблицы `email_settings`,
+- при ошибках расшифровки/AUTH (`shouldFallbackToRuntimeEnv`) повторять отправку через `applyRuntimeEnv()` (`MAIL_*` из `.env`).
 
-## Что сделаю
+Заявки на демо/тарифы используют тот же mail-стек, но без этого фолбэка. Если в `email_settings` есть «битая» строка (нерасшифровываемый пароль, протухший пароль приложения Яндекса) — письмо тихо не уходит, ошибка падает только в `report($e)` без человекочитаемого контекста.
 
-### 1. Mailables (Laravel)
+## Что меняю
 
-- `backend-laravel/app/Mail/DemoRequestSubmitted.php` — письмо менеджеру со всеми полями заявки (имя, email, компания, штат, источник).
-- `backend-laravel/app/Mail/PricingInquirySubmitted.php` — то же для запроса по тарифу.
-- Простые HTML-шаблоны:
-  - `resources/views/emails/demo-request.blade.php`
-  - `resources/views/emails/pricing-inquiry.blade.php`
-- Subject на русском, `replyTo` = email клиента, чтобы можно было ответить прямо из почты.
+Только `backend-laravel/app/Http/Controllers/Api/RpcController.php`, метод `notifySales()`:
 
-### 2. Триггер в `RpcController`
+1. Получать `EmailConfigService` через контейнер.
+2. Вызвать `autoRepairActiveSettings()` + `apply()` перед отправкой.
+3. Обернуть `Mail::to($recipient)->send(...)` в try/catch:
+   - при `EmailConfigService::shouldFallbackToRuntimeEnv($e)` — `applyRuntimeEnv()` и повторить отправку;
+   - иначе — `Log::warning('Sales notification failed', [...])` с темой письма, получателем, сообщением исключения.
+4. При успехе писать `Log::info('Sales notification sent', ['to' => $recipient, 'subject' => ...])` — чтобы по `storage/logs/laravel.log` можно было однозначно подтвердить факт отправки.
+5. По-прежнему никогда не ронять HTTP-ответ пользователю (внешний try/catch остаётся).
 
-После успешного `DemoRequest::create()` / `PricingInquiry::create()`:
+## Как проверить после деплоя
 
-```php
-Mail::to(config('mail.sales_recipient'))->send(new DemoRequestSubmitted($row));
-```
+1. Отправить форму демо/прайсинга с лендинга.
+2. На сервере: `tail -n 200 backend-laravel/storage/logs/laravel.log | grep -i "Sales notification"`.
+   - `Sales notification sent` → письмо ушло в SMTP, дальше смотреть Яндекс (входящие/спам, журнал отправок Яндекс 360).
+   - `Sales notification failed` → в логе будет точная причина (AUTH 535, таймаут, decrypt и т.д.) — по ней уже чиним SMTP-настройки или пароль в `email_settings`/`.env`.
 
-Обернуть в `try/catch` + `report($e)`, чтобы провал почты не валил ответ клиенту (заявка уже в БД).
+## Что НЕ меняю
 
-### 3. Конфиг получателя
-
-- `config/mail.php`: добавить `'sales_recipient' => env('SALES_NOTIFICATION_EMAIL', env('MAIL_FROM_ADDRESS'))`.
-- `.env.example`: добавить `SALES_NOTIFICATION_EMAIL=sales@yourcompany.ru` с комментарием.
-
-### 4. Диагностика текущего окружения
-
-В ответе после плана напомню проверить на проде:
-
-- `MAIL_MAILER`, `MAIL_HOST`, `MAIL_USERNAME/PASSWORD` заданы (если `MAIL_MAILER=log` — письма уходят только в `storage/logs/laravel.log`, это самая частая причина «писем нет»);
-- `SALES_NOTIFICATION_EMAIL` задан;
-- проверить `storage/logs/laravel.log` на ошибки SMTP.
-
-### 5. Тест
-
-Добавлю в `tests/Feature/RpcControllerTest.php` ассерт с `Mail::fake()` — что после `submit_demo_request` отправляется `DemoRequestSubmitted` указанному получателю.
-
-## Вопрос
-
-Какой email указать получателем уведомлений по умолчанию (через `SALES_NOTIFICATION_EMAIL`)? Если не уточните — оставлю фолбэк на `MAIL_FROM_ADDRESS`, и вы зададите переменную на сервере.  
-growthpeak@yandex.ru
+- `config/mail.php`, `EmailConfigService`, Mailable-классы, шаблоны писем — без изменений.
+- `.env` на сервере трогать не нужно: `SALES_NOTIFICATION_EMAIL` имеет фолбэк на `MAIL_FROM_ADDRESS` = `growthpeak@yandex.ru`.
