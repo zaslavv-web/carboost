@@ -90,6 +90,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const S = (key: string) => t(`nav.sections.${key}`);
     const dashboard: NavItem = { icon: LayoutDashboard, label: t("nav.dashboard"), path: "/dashboard" };
     const tracker: NavItem = { icon: Crosshair, label: t("nav.tracker", { defaultValue: "Трекер задач" }), path: "/tracker/dashboard" };
+    const myProfile: NavItem = { icon: User, label: t("nav.myProfile", { defaultValue: "Мой профиль" }), path: "/me" };
     const university: NavItem = { icon: GraduationCap, label: t("nav.university", { defaultValue: "Университет" }), path: "/university" };
     const ragDocs: NavItem = { icon: BookText, label: t("nav.ragDocuments", { defaultValue: "База знаний" }), path: "/rag-documents" };
     const branding: NavItem = { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" };
@@ -98,6 +99,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 
     if (role === "superadmin") {
       return [
+        { key: "myWork", label: S("myWork"), entries: [myProfile, tracker] },
         { key: "communication", label: S("communication"), entries: [
           { icon: LifeBuoy, label: t("nav.support"), path: "/support" },
           { icon: Mail, label: t("nav.emailService"), path: "/email-settings" },
@@ -111,13 +113,14 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: UserCog, label: t("nav.users"), path: "/users" },
           { icon: Banknote, label: t("nav.pricingInquiries"), path: "/pricing-inquiries" },
         ]},
-        { key: "knowledge", label: S("knowledge"), entries: [university, ragDocs, tracker] },
+        { key: "knowledge", label: S("knowledge"), entries: [university, ragDocs] },
         { key: "system", label: S("system"), entries: [branding, aiSettings, settings] },
       ];
     }
 
     if (role === "company_admin") {
       return [
+        { key: "myWork", label: S("myWork"), entries: [myProfile, tracker] },
         { key: "communication", label: S("communication"), entries: [
           { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" },
           { icon: LifeBuoy, label: t("nav.support"), path: "/support" },
@@ -132,7 +135,6 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: UserCog, label: t("nav.users"), path: "/users" },
           { icon: Users, label: t("nav.employees"), path: "/employees" },
           { icon: Briefcase, label: t("nav.positions"), path: "/positions" },
-          tracker,
         ]},
         { key: "knowledge", label: S("knowledge"), entries: [university, ragDocs] },
         { key: "system", label: S("system"), entries: [branding, aiSettings, settings] },
@@ -141,6 +143,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 
     if (role === "hrd") {
       return [
+        { key: "myWork", label: S("myWork"), entries: [myProfile, tracker] },
         { key: "communication", label: S("communication"), entries: [
           { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" },
           { icon: Heart, label: t("nav.recognitionFeed"), path: "/recognition" },
@@ -194,13 +197,14 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Trophy, label: t("nav.gamification"), path: "/gamification" },
           { icon: Store, label: t("nav.shopAdmin"), path: "/shop-admin" },
         ]},
-        { key: "knowledge", label: S("knowledge"), entries: [university, ragDocs, tracker] },
+        { key: "knowledge", label: S("knowledge"), entries: [university, ragDocs] },
         { key: "system", label: S("system"), entries: [branding, aiSettings, settings] },
       ];
     }
 
     if (role === "manager") {
       return [
+        { key: "myWork", label: S("myWork"), entries: [myProfile, tracker] },
         { key: "communication", label: S("communication"), entries: [
           { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" },
         ]},
@@ -215,13 +219,18 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: TimerReset, label: t("performance:probation.title", { defaultValue: "Испытательный" }), path: "/probation" },
           { icon: AlertOctagon, label: t("performance:disciplinary.title", { defaultValue: "PIP / Взыскания" }), path: "/disciplinary" },
         ]},
-        { key: "knowledge", label: S("knowledge"), entries: [university, tracker] },
+        { key: "knowledge", label: S("knowledge"), entries: [university] },
         { key: "system", label: S("system"), entries: [settings] },
       ];
     }
 
     // Employee
     return [
+      { key: "myWork", label: S("myWork"), entries: [
+        myProfile,
+        tracker,
+        { icon: Target, label: t("nav.careerTrack"), path: "/career-track" },
+      ]},
       { key: "communication", label: S("communication"), entries: [
         { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" },
         { icon: Heart, label: t("nav.recognition"), path: "/recognition" },
@@ -236,13 +245,11 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       { key: "motivation", label: S("motivation"), entries: [
         { icon: MessageSquare, label: t("nav.aiAssessment"), path: "/assessment" },
         { icon: ClipboardCheck, label: t("nav.questionnaire"), path: "/employee-questionnaire" },
-        { icon: Target, label: t("nav.careerTrack"), path: "/career-track" },
         { icon: ShoppingBag, label: t("nav.shop"), path: "/shop" },
       ]},
       { key: "knowledge", label: S("knowledge"), entries: [
         { icon: User, label: t("nav.passport"), path: "/passport" },
         university,
-        tracker,
       ]},
       { key: "system", label: S("system"), entries: [settings] },
     ];
