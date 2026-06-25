@@ -7,9 +7,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import {
   Plus, X, Edit2, Trash2, Award, Trophy, Star, Mic, Clock, TrendingUp, Loader2,
-  Gift, Banknote, Package, Image as ImageIcon, Zap, Hand, Search,
+  Gift, Banknote, Package, Image as ImageIcon, Zap, Hand, Search, Crown,
 } from "lucide-react";
 import { toast } from "sonner";
+import { readLevels, writeLevels, DEFAULT_GAMIFICATION_LEVELS, type GamificationLevel } from "@/hooks/useEmployeeLevel";
+import { LevelBadge } from "@/components/gamification/LevelBadge";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const categoryConfig: Record<string, { icon: any; color: string }> = {
@@ -79,7 +81,7 @@ const GamificationManagement = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<RewardForm>(EMPTY_FORM);
-  const [tab, setTab] = useState<"types" | "awarded" | "events" | "analytics">("types");
+  const [tab, setTab] = useState<"types" | "awarded" | "events" | "levels" | "analytics">("types");
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const catLabels: Record<string, string> = {
