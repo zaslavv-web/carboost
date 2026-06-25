@@ -21,18 +21,28 @@ class RpcControllerTest extends TestCase
 
     public function test_submit_demo_request_is_public(): void
     {
-        // No auth — endpoint is whitelisted as public in api.php.
-        DB::shouldReceive('select')->andReturn([(object) ['result' => '{"ok":true}']]);
-        DB::shouldReceive('statement')->zeroOrMoreTimes()->andReturnTrue();
-
         $res = $this->postJson('/api/rpc/submit_demo_request', [
             'params' => [
                 '_name' => 'Ivan', '_email' => 'i@v.an',
                 '_company' => 'Co', '_headcount' => 10, '_source' => 'landing',
             ],
         ]);
-        $res->assertOk()->assertJsonPath('data.ok', true);
+        $res->assertOk()->assertJsonStructure(['data' => ['id']]);
+        $this->assertDatabaseHas('demo_requests', ['email' => 'i@v.an', 'name' => 'Ivan']);
     }
+
+    public function test_submit_pricing_inquiry_is_public(): void
+    {
+        $res = $this->postJson('/api/rpc/submit_pricing_inquiry', [
+            'params' => [
+                '_name' => 'Ivan', '_email' => 'i@v.an', '_plan' => 'pro',
+                '_company' => 'Co', '_headcount' => 50, '_source' => 'pricing_page',
+            ],
+        ]);
+        $res->assertOk()->assertJsonStructure(['data' => ['id']]);
+        $this->assertDatabaseHas('pricing_inquiries', ['email' => 'i@v.an', 'plan' => 'pro']);
+    }
+
 
     public function test_rpc_localizes_postgres_rls_error(): void
     {
