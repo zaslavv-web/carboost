@@ -22,14 +22,21 @@ import {
 import { Plus, Play, CheckCircle2, Trash2, FolderKanban, Hash, Calendar, User, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
+import { TaskDetailDialog } from "@/components/tracker/TaskDetailDialog";
 
 /* ============ Карточка задачи (компактная) ============ */
 const TaskRow = ({
-  task, nameMap, actions,
-}: { task: TrackerTask; nameMap: Map<string, string>; actions?: React.ReactNode }) => (
+  task, nameMap, actions, onOpen,
+}: { task: TrackerTask; nameMap: Map<string, string>; actions?: React.ReactNode; onOpen?: (t: TrackerTask) => void }) => (
   <div className="flex items-center gap-2 px-3 py-2 border-b last:border-b-0 border-border hover:bg-muted/40">
     <span className="text-xs font-mono text-muted-foreground uppercase">{task.type}</span>
-    <span className="text-sm flex-1 truncate">{task.title}</span>
+    <button
+      type="button"
+      className="text-sm flex-1 truncate text-left hover:underline"
+      onClick={() => onOpen?.(task)}
+    >
+      {task.title}
+    </button>
     <UrgencyBadge urgency={task.urgency} />
     {task.story_points != null && (
       <Badge variant="outline" className="gap-1 h-5 px-1.5 font-mono text-xs">
