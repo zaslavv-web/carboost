@@ -168,6 +168,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     Route::post('/admin/email-settings/test', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'test']);
     Route::post('/admin/email-settings/preflight', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'preflight']);
     Route::post('/admin/email-settings/activate', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'activate']);
+    Route::delete('/admin/email-settings', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'clear']);
 
 
     // Профиль текущего пользователя — без has.company (нужен на CompleteRegistration)
