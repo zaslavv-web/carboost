@@ -13,7 +13,10 @@ import { EmployeePicker, useEmployeeNameMap } from "@/components/tracker/Employe
 import { Plus, Link2, X, Calendar, User } from "lucide-react";
 import { format } from "date-fns";
 
+import { useTrackerProject } from "@/contexts/TrackerProjectContext";
+
 const TaskCreateDialog = () => {
+  const { projectId } = useTrackerProject();
   const uid = useEffectiveUserId();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<{ title: string; description: string; urgency: TaskUrgency; due_at: string; assignee_id: string }>({
@@ -34,7 +37,8 @@ const TaskCreateDialog = () => {
       due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
       status: "published",
       assignee_id: form.assignee_id,
-    });
+      project_id: projectId ?? null,
+    } as any);
     setOpen(false);
     setForm({ title: "", description: "", urgency: "medium", due_at: "", assignee_id: "" });
   };
