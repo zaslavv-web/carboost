@@ -46,6 +46,20 @@ class TrackerAttachment extends Model
                 ],
             ]);
         });
+
+        static::deleted(function (self $m) {
+            TrackerAuditLog::create([
+                'company_id'  => $m->company_id,
+                'entity_type' => 'task',
+                'entity_id'   => $m->task_id,
+                'action'      => 'attachment_deleted',
+                'actor_id'    => auth()->id() ?? $m->uploader_id,
+                'payload'     => [
+                    'attachment_id' => $m->id,
+                    'filename'      => $m->filename,
+                ],
+            ]);
+        });
     }
 
     public function task() { return $this->belongsTo(TrackerTask::class, 'task_id'); }
