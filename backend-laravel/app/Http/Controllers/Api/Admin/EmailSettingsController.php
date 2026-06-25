@@ -47,10 +47,25 @@ class EmailSettingsController extends Controller
 
     private function effectiveSource(): array
     {
-        $setting = $this->mail->active();
-        $usingDb = (bool) ($setting && $setting->is_active && $setting->host && $setting->from_address);
+        $envHost = \App\Support\RuntimeEnv::get('MAIL_HOST');
+        $envFrom = \App\Support\RuntimeEnv::get('MAIL_FROM_ADDRESS');
+        $envUser = \App\Support\RuntimeEnv::get('MAIL_USERNAME');
+        $envPass = \App\Support\RuntimeEnv::get('MAIL_PASSWORD') ?: \App\Support\RuntimeEnv::get('SMTP_PASSWORD');
 
-        if ($usingDb) {
+        // .env имеет приоритет; БД считается переопределением только если в .env пусто.
+        if ($envHost && $envFrom && $envPass) {
+            return [
+                'source' => 'env',
+                'label' => '.env (MAIL_* переменные)',
+                'host' => $envHost,
+                'username' => $envUser,
+                'from_address' => $envFrom,
+                'has_usable_password' => true,
+            ];
+        }
+
+        $setting = $this->mail->active();
+        if ($setting && $setting->is_active && $setting->host && $setting->from_address) {
             try {
                 $hasUsablePass = $setting->hasUsablePassword();
             } catch (\Throwable $e) {
@@ -66,28 +81,16 @@ class EmailSettingsController extends Controller
             ];
         }
 
-        $defaults = \App\Support\ServiceInfra::smtpDefaults();
-        $filePassword = $defaults['password'] ?? null;
-        if (!empty($defaults['host']) && !empty($defaults['from_address']) && $filePassword) {
-            return [
-                'source' => 'file',
-                'label' => 'Файл service-infra.php (env SMTP_PASSWORD)',
-                'host' => $defaults['host'],
-                'username' => $defaults['username'] ?? null,
-                'from_address' => $defaults['from_address'],
-                'has_usable_password' => true,
-            ];
-        }
-
         return [
             'source' => 'env',
-            'label' => '.env (MAIL_* переменные)',
-            'host' => \App\Support\RuntimeEnv::get('MAIL_HOST'),
-            'username' => \App\Support\RuntimeEnv::get('MAIL_USERNAME'),
-            'from_address' => \App\Support\RuntimeEnv::get('MAIL_FROM_ADDRESS'),
-            'has_usable_password' => (bool) \App\Support\RuntimeEnv::get('MAIL_PASSWORD'),
+            'label' => '.env (MAIL_* переменные) — неполная конфигурация',
+            'host' => $envHost,
+            'username' => $envUser,
+            'from_address' => $envFrom,
+            'has_usable_password' => (bool) $envPass,
         ];
     }
+
 
     public function update(Request $request): JsonResponse
     {
