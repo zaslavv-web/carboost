@@ -3,44 +3,38 @@
 /**
  * Централизованный репозиторий стабильных инфраструктурных настроек сервиса.
  *
- * Сюда складывается всё, что:
- *   - редко меняется,
- *   - одинаково на проде,
- *   - не должно редактироваться через UI обычным админом.
+ * ВАЖНО: SMTP, frontend URL и Google OAuth теперь читаются ИСКЛЮЧИТЕЛЬНО из .env.
+ * Этот файл оставлен как тонкая обёртка над env() для обратной совместимости —
+ * чтобы любые места, которые исторически читали ServiceInfra::smtpDefaults() и т.п.,
+ * автоматически получали актуальные значения из .env, без захардкоженных дефолтов.
  *
- * Секреты остаются в .env (через env() здесь и далее).
- *
- * Иерархия источников SMTP:
- *   1. Активная запись в БД (email_settings) — управляется суперадмином через UI.
- *   2. smtp_defaults ниже — fallback, если БД пустая/битая.
- *   3. .env (MAIL_*) — legacy fallback третьего уровня.
- *
- * Для Google OAuth / AI gateway / monitor inbox / frontend URL — источник всегда этот файл.
+ * Единственный источник правды для учётных данных — .env.
  */
 return [
     'smtp_defaults' => [
-        'provider'     => 'yandex',
-        'host'         => 'smtp.yandex.ru',
-        'port'         => 465,
-        'encryption'   => 'ssl',
-        'username'     => 'growthpeak@yandex.ru',
-        'password'     => env('SMTP_PASSWORD'),
-        'from_address' => 'growthpeak@yandex.ru',
-        'from_name'    => 'Пик Роста',
+        'provider'     => env('MAIL_PROVIDER', 'custom'),
+        'host'         => env('MAIL_HOST'),
+        'port'         => env('MAIL_PORT', 587),
+        'encryption'   => env('MAIL_ENCRYPTION'),
+        'username'     => env('MAIL_USERNAME'),
+        // SMTP_PASSWORD сохранён как алиас для обратной совместимости со старыми .env.
+        'password'     => env('MAIL_PASSWORD', env('SMTP_PASSWORD')),
+        'from_address' => env('MAIL_FROM_ADDRESS'),
+        'from_name'    => env('MAIL_FROM_NAME', env('APP_NAME', 'Career Track')),
     ],
 
     'mail_monitor' => [
-        'inbox'              => 'growthpeak@yandex.ru',
-        'bcc_critical'       => true,
-        'heartbeat_enabled'  => true,
-        'heartbeat_time'     => '08:00',
-        'heartbeat_timezone' => 'Europe/Moscow',
+        'inbox'              => env('SALES_NOTIFICATION_EMAIL', env('MAIL_FROM_ADDRESS')),
+        'bcc_critical'       => env('MAIL_MONITOR_BCC_CRITICAL', true),
+        'heartbeat_enabled'  => env('MAIL_HEARTBEAT_ENABLED', true),
+        'heartbeat_time'     => env('MAIL_HEARTBEAT_TIME', '08:00'),
+        'heartbeat_timezone' => env('MAIL_HEARTBEAT_TIMEZONE', 'Europe/Moscow'),
     ],
 
     'google_oauth' => [
         'client_id'     => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'redirect_uri'  => 'https://growth-peak.pro/api/auth/google/callback',
+        'redirect_uri'  => env('GOOGLE_REDIRECT_URI'),
     ],
 
     'sso' => [
@@ -54,6 +48,6 @@ return [
     ],
 
     'frontend' => [
-        'url' => 'https://growth-peak.pro',
+        'url' => env('FRONTEND_URL', env('APP_URL', '')),
     ],
 ];
