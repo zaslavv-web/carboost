@@ -12,14 +12,20 @@ class TrackerTask extends Model
 
     protected $table = 'tracker_tasks';
     protected $fillable = [
-        'company_id', 'author_id', 'assignee_id', 'parent_task_id',
-        'title', 'description', 'status', 'urgency', 'due_at',
-        'jira_key', 'completed_at', 'last_notified_at',
+        'company_id', 'project_id', 'author_id', 'assignee_id', 'parent_task_id',
+        'type', 'title', 'description', 'status', 'urgency', 'priority',
+        'story_points', 'estimate_minutes', 'labels', 'order_index',
+        'due_at', 'start_at', 'jira_key', 'completed_at', 'last_notified_at',
     ];
     protected $casts = [
         'due_at' => 'datetime',
+        'start_at' => 'datetime',
         'completed_at' => 'datetime',
         'last_notified_at' => 'datetime',
+        'labels' => 'array',
+        'story_points' => 'float',
+        'order_index' => 'integer',
+        'estimate_minutes' => 'integer',
     ];
 
     protected static function booted(): void
