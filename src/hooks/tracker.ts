@@ -42,17 +42,41 @@ export interface TrackerKeyResult {
   position: number;
 }
 
+export type TaskType = "epic" | "story" | "task" | "bug" | "subtask";
+
+export interface TrackerProject {
+  id: string;
+  company_id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  lead_id: string | null;
+  color: string | null;
+  icon: string | null;
+  status: "active" | "archived";
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TrackerTask {
   id: string;
   company_id: string;
+  project_id: string | null;
   author_id: string;
   assignee_id: string;
   parent_task_id: string | null;
+  type: TaskType;
   title: string;
   description: string | null;
   status: TaskStatus;
   urgency: TaskUrgency;
+  priority: TaskUrgency | null;
+  story_points: number | null;
+  estimate_minutes: number | null;
+  labels: string[] | null;
+  order_index: number;
   due_at: string | null;
+  start_at: string | null;
   jira_key: string | null;
   completed_at: string | null;
   created_at: string;
