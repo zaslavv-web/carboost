@@ -366,6 +366,7 @@ class RpcController extends Controller
                 'source'    => $source,
                 'status'    => 'new',
             ]);
+            $this->notifySales(fn () => new PricingInquirySubmitted($row));
             return response()->json(['data' => ['id' => $row->id]]);
         } catch (Throwable $e) {
             report($e);
