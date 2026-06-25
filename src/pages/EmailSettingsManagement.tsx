@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Mail, Send, ShieldCheck, Loader2, AlertTriangle, PlugZap } from "lucide-react";
+import { Mail, Send, ShieldCheck, Loader2, AlertTriangle, PlugZap, Database, FileCode, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { laravel } from "@/integrations/laravel/client";
 import { Button } from "@/components/ui/button";
