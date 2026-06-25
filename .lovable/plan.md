@@ -1,40 +1,73 @@
-## Цель
+## Вывод по ошибке
 
-`.env` становится единственным источником правды для SMTP и других учётных данных. БД-настройки (`email_settings`) и захардкоженные значения в `config/service-infra.php` перестают перекрывать `.env`.
+`535 5.7.8 authentication failed: Invalid user or password` означает, что соединение с Яндекс SMTP есть, хост/порт/шифрование корректные, но Яндекс не принимает пару `growthpeak@yandex.ru` + пароль.
 
-## Что меняется
+Это не ошибка кода и не ошибка формы на сайте. Сейчас нужно заменить пароль в `.env` на новый пароль приложения Яндекса.
 
-### 1. SMTP читается только из .env
-- `config/mail.php` остаётся как есть (он уже читает `MAIL_*` из env).
-- `config/service-infra.php` — убрать захардкоженные значения (`smtp.yandex.ru`, `growthpeak@yandex.ru`, и т.д.), заменить на `env('MAIL_HOST')`, `env('MAIL_FROM_ADDRESS')`, `env('MAIL_USERNAME')`, `env('MAIL_PASSWORD')`. Поддержать и `SMTP_PASSWORD`, и `MAIL_PASSWORD` как алиасы для обратной совместимости.
-- `EmailConfigService::apply()` — изменить приоритет: сначала всегда `.env` (`applyRuntimeEnv`), запись в БД используется только если в `.env` явно пусто. Это инвертирует текущую логику «БД важнее .env».
-- Frontend URL и Google OAuth redirect в `service-infra.php` тоже переводятся на `env(...)` (`FRONTEND_URL`, `GOOGLE_REDIRECT_URI`) с дефолтом для прода.
+## План действий
 
-### 2. Кнопка «использовать .env» в админке остаётся, но становится индикатором
-- В UI добавляется явная плашка: «Активный источник SMTP — .env». Запись в БД теперь возможна как переопределение (если её специально активируют), но по умолчанию игнорируется.
-- Тестовая отправка из админки и из RPC (`notifySales`) тоже идёт через `.env`.
+1. **Создать новый пароль приложения в Яндекс ID**
+  - Открыть Яндекс ID для аккаунта `growthpeak@yandex.ru`.
+  - Перейти в безопасность → пароли приложений.
+  - Создать пароль для почты / IMAP / SMTP.
+  - Скопировать именно пароль приложения, не обычный пароль от Яндекс-аккаунта.
+2. **Обновить `.env` на сервере**
+  Проверить, чтобы были заданы одинаковые актуальные значения:
+   Если пароль содержит спецсимволы, лучше взять его в двойные кавычки.
+3. **Очистить кэш Laravel**
+  ```text
+   php artisan optimize:clear
+  ```
+4. **Проверить, что приложение видит новый пароль**
+  ```text
+   php artisan smtp:status
+  ```
+   Ожидаем:
+  - источник: `.env`
+  - username: `growthpeak@yandex.ru`
+  - password: присутствует / длина больше нуля
+  - host: `smtp.yandex.ru`
+  - port: `465`
+  - encryption: `ssl`
+5. **Повторить тестовую отправку**
+  ```text
+   php artisan smtp:test growthpeak@yandex.ru
+  ```
+6. **Если снова будет 535**
+  Тогда проблема на стороне доступа Яндекса:
+  - пароль приложения создан не для этого аккаунта;
+  - скопирован не полностью;
+  - в `.env` остался старый пароль;
+  - после правки не выполнен `php artisan optimize:clear`;
+  - у ящика отключён доступ почтовых клиентов / SMTP.
+7. **Если письмо уйдёт успешно**
+  После этого проверяем форму заявки на демо на сайте и отдельно восстанавливаем доступ суперадмина через:
 
-### 3. Artisan-команды для SSH-диагностики
-- `php artisan smtp:status` — показывает host, port, encryption, username, from, есть ли пароль (без вывода значения), какой именно источник (`.env` / БД / файл).
-- `php artisan smtp:test you@example.com` — отправляет тестовое письмо через тот же путь, что и заявки с лендинга, и пишет результат и причину 535/прочих ошибок прямо в stdout.
-- `php artisan smtp:db-clear` — деактивирует записи в `email_settings`, чтобы они точно не перекрывали `.env`.
+## Что прислать мне после замены пароля
 
-### 4. Сброс пароля суперадмина без UI
-- `php artisan superadmin:reset-password <email>` — запросит новый пароль интерактивно (не светится в bash history), назначит роль `superadmin`, выставит `is_verified=true`. Полезно прямо сейчас, чтобы вернуть доступ.
+- вывод `php artisan smtp:status`;  
+=== SMTP STATUS ===
+  Активный источник : .env (приоритет)
+  --- .env ---
+  MAIL_HOST         : [smtp.yandex.ru](http://smtp.yandex.ru)
+  MAIL_PORT         : 465
+  MAIL_ENCRYPTION   : ssl
+  MAIL_USERNAME     : [growthpeak@yandex.ru](mailto:growthpeak@yandex.ru)
+  MAIL_PASSWORD     : есть (10 симв.)
+  MAIL_FROM_ADDRESS : [growthpeak@yandex.ru](mailto:growthpeak@yandex.ru)
+  MAIL_FROM_NAME    : Пик роста
+  SALES_NOTIFICATION_EMAIL : (пусто)
+  --- email_settings (БД) ---
+  активная запись : отсутствует
+  --- эффективная конфигурация Laravel ---
+  host        : [smtp.yandex.ru](http://smtp.yandex.ru)
+  port        : 465
+  encryption  : ssl
+  username    : [growthpeak@yandex.ru](mailto:growthpeak@yandex.ru)
+  &nbsp;
+- вывод `php artisan smtp:test growthpeak@yandex.ru`;  
 
-### 5. Документация в `.env.example`
-- Добавить блок с актуальными ключами: `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `SALES_NOTIFICATION_EMAIL`, плюс пометка про пароль приложения Яндекса.
-
-## Что делает пользователь после деплоя
-
-1. `php artisan optimize:clear`
-2. `php artisan smtp:db-clear` — на всякий случай отключить запись в БД.
-3. `php artisan smtp:status` — проверить, что показывает host/user из `.env`.
-4. `php artisan smtp:test growthpeak@yandex.ru` — увидеть конкретную ошибку или подтверждение отправки.
-5. Если всё ещё 535 — это уже однозначно неверный пароль приложения Яндекса; перевыпустить пароль приложения в Яндекс ID и обновить только `MAIL_PASSWORD` в `.env`.
-6. `php artisan superadmin:reset-password ваш@email` — вернуть доступ к админке.
-
-## Что НЕ меняется
-
-- Таблица `email_settings` остаётся (для обратной совместимости и аудита), но по умолчанию не используется.
-- Шаблоны писем и `RpcController` логика отправки заявок — без изменений, только источник SMTP меняется.
+  Использую: smtp.yandex.ru:465 (ssl) как [growthpeak@yandex.ru](mailto:growthpeak@yandex.ru)
+  Отправка не удалась: Connection could not be established with host "ssl://smtp.yandex.ru:465": stream_socket_client(): Unable to connect to ssl://smtp.yandex.ru:465 (Connection timed out)
+  &nbsp;
+- пришло ли письмо во входящие или спам.
