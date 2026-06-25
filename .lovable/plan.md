@@ -1,81 +1,40 @@
+## Цель
 
-## Диагноз
+`.env` становится единственным источником правды для SMTP и других учётных данных. БД-настройки (`email_settings`) и захардкоженные значения в `config/service-infra.php` перестают перекрывать `.env`.
 
-**Проблема 1 — SMTP не видит новый пароль.**
-В коде `RpcController::notifySales` вызывается `EmailConfigService`, который грузит настройки из таблицы `email_settings` (admin UI). Если в БД сохранены старые значения, они **перекрывают `.env`**. Поэтому смена `MAIL_PASSWORD` в `.env` ничего не дала — Laravel читает пароль из БД.
+## Что меняется
 
-**Проблема 2 — сброс пароля суперадмина.**
-Сброс отправляется по почте — а почта как раз не работает. Замкнутый круг. Решение — сбросить пароль напрямую в БД через SSH (`php artisan tinker`).
+### 1. SMTP читается только из .env
+- `config/mail.php` остаётся как есть (он уже читает `MAIL_*` из env).
+- `config/service-infra.php` — убрать захардкоженные значения (`smtp.yandex.ru`, `growthpeak@yandex.ru`, и т.д.), заменить на `env('MAIL_HOST')`, `env('MAIL_FROM_ADDRESS')`, `env('MAIL_USERNAME')`, `env('MAIL_PASSWORD')`. Поддержать и `SMTP_PASSWORD`, и `MAIL_PASSWORD` как алиасы для обратной совместимости.
+- `EmailConfigService::apply()` — изменить приоритет: сначала всегда `.env` (`applyRuntimeEnv`), запись в БД используется только если в `.env` явно пусто. Это инвертирует текущую логику «БД важнее .env».
+- Frontend URL и Google OAuth redirect в `service-infra.php` тоже переводятся на `env(...)` (`FRONTEND_URL`, `GOOGLE_REDIRECT_URI`) с дефолтом для прода.
 
----
+### 2. Кнопка «использовать .env» в админке остаётся, но становится индикатором
+- В UI добавляется явная плашка: «Активный источник SMTP — .env». Запись в БД теперь возможна как переопределение (если её специально активируют), но по умолчанию игнорируется.
+- Тестовая отправка из админки и из RPC (`notifySales`) тоже идёт через `.env`.
 
-## Шаги
+### 3. Artisan-команды для SSH-диагностики
+- `php artisan smtp:status` — показывает host, port, encryption, username, from, есть ли пароль (без вывода значения), какой именно источник (`.env` / БД / файл).
+- `php artisan smtp:test you@example.com` — отправляет тестовое письмо через тот же путь, что и заявки с лендинга, и пишет результат и причину 535/прочих ошибок прямо в stdout.
+- `php artisan smtp:db-clear` — деактивирует записи в `email_settings`, чтобы они точно не перекрывали `.env`.
 
-### 1. Обновить SMTP-пароль в БД (источник истины)
+### 4. Сброс пароля суперадмина без UI
+- `php artisan superadmin:reset-password <email>` — запросит новый пароль интерактивно (не светится в bash history), назначит роль `superadmin`, выставит `is_verified=true`. Полезно прямо сейчас, чтобы вернуть доступ.
 
-На сервере в `/home/gro7659365/growth-peak.pro/docs/backend`:
+### 5. Документация в `.env.example`
+- Добавить блок с актуальными ключами: `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `SALES_NOTIFICATION_EMAIL`, плюс пометка про пароль приложения Яндекса.
 
-```bash
-php artisan tinker --execute="
-\$s = DB::table('email_settings')->first();
-print_r(['host'=>\$s->smtp_host,'user'=>\$s->smtp_username,'pass_len'=>strlen(\$s->smtp_password ?? '')]);
-"
-```
+## Что делает пользователь после деплоя
 
-Если запись есть — обновить пароль:
-```bash
-php artisan tinker --execute="
-DB::table('email_settings')->update([
-  'smtp_password' => 'НОВЫЙ_ПАРОЛЬ_ПРИЛОЖЕНИЯ',
-  'smtp_host' => 'smtp.yandex.ru',
-  'smtp_port' => 465,
-  'smtp_encryption' => 'ssl',
-  'smtp_username' => 'growthpeak@yandex.ru',
-  'from_address' => 'growthpeak@yandex.ru',
-  'from_name' => 'Growth Peak',
-]);
-"
-php artisan config:clear && php artisan cache:clear
-```
+1. `php artisan optimize:clear`
+2. `php artisan smtp:db-clear` — на всякий случай отключить запись в БД.
+3. `php artisan smtp:status` — проверить, что показывает host/user из `.env`.
+4. `php artisan smtp:test growthpeak@yandex.ru` — увидеть конкретную ошибку или подтверждение отправки.
+5. Если всё ещё 535 — это уже однозначно неверный пароль приложения Яндекса; перевыпустить пароль приложения в Яндекс ID и обновить только `MAIL_PASSWORD` в `.env`.
+6. `php artisan superadmin:reset-password ваш@email` — вернуть доступ к админке.
 
-Если записи нет — `EmailConfigService` упадёт на .env, тогда проверим что `.env` действительно перезагружен:
-```bash
-php artisan tinker --execute="echo config('mail.mailers.smtp.password');"
-```
+## Что НЕ меняется
 
-### 2. Тест отправки
-
-```bash
-php artisan tinker --execute="
-Mail::raw('test', fn(\$m)=>\$m->to('growthpeak@yandex.ru')->subject('SMTP test'));
-echo 'ok';
-"
-tail -n 50 storage/logs/laravel.log
-```
-
-Если опять `535 Authentication failed` — пароль в Яндексе невалидный. Перевыпустить **Пароль приложения → Почта** на id.yandex.ru (именно «Почта», не общий, и без пробелов при копировании — Яндекс показывает с пробелами, но вводить надо слитно).
-
-### 3. Сбросить пароль суперадмина
-
-```bash
-php artisan tinker --execute="
-\$u = App\Models\User::where('email','EMAIL_СУПЕРАДМИНА')->first();
-\$u->password = Hash::make('ВРЕМЕННЫЙ_ПАРОЛЬ');
-\$u->save();
-echo 'done';
-"
-```
-
-После входа сменить пароль в UI.
-
-### 4. Доработка кода (опционально, чтобы не повторялось)
-
-Добавить в админку **Email Settings** кнопку **«Сбросить к .env»**, очищающую `email_settings`, чтобы Laravel падал на конфиг из окружения. И вывести в UI текущий источник конфига (DB / .env) — сейчас непонятно, что именно используется.
-
----
-
-## От тебя нужно
-
-1. Email суперадмина (для шага 3).
-2. Новый временный пароль (или сгенерировать?).
-3. Подтверждение что нужно делать шаг 4 (UI-улучшения) сразу или потом.
+- Таблица `email_settings` остаётся (для обратной совместимости и аудита), но по умолчанию не используется.
+- Шаблоны писем и `RpcController` логика отправки заявок — без изменений, только источник SMTP меняется.

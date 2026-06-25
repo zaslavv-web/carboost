@@ -162,24 +162,39 @@ class EmailConfigService
     public function apply(?EmailSetting $setting = null): void
     {
         $explicit = $setting !== null;
-        $setting ??= $this->active();
 
-        if (!$setting || !$setting->is_active) {
-            $this->applyFileDefaults();
-            return;
+        // НОВЫЙ приоритет: .env — единственный источник правды по умолчанию.
+        // Запись в БД учитывается ТОЛЬКО если передана явно (явный вызов apply($setting) из админки/теста).
+        if (!$explicit) {
+            $envHost = self::normalizeHost(RuntimeEnv::get('MAIL_HOST'));
+            $envFrom = RuntimeEnv::get('MAIL_FROM_ADDRESS');
+            $envPass = RuntimeEnv::get('MAIL_PASSWORD') ?: RuntimeEnv::get('SMTP_PASSWORD');
+            if ($envHost && $envFrom && $envPass) {
+                $this->applyRuntimeEnv();
+                return;
+            }
+            // Если в .env чего-то не хватает, пробуем файловые дефолты, потом активную запись БД.
+            $defaults = ServiceInfra::smtpDefaults();
+            if (!empty($defaults['host']) && !empty($defaults['from_address']) && !empty($defaults['password'])) {
+                $this->applyFileDefaults();
+                return;
+            }
+            $setting = $this->active();
+            if (!$setting || !$setting->is_active) {
+                $this->applyRuntimeEnv(); // last resort: пусть Laravel хотя бы попробует .env
+                return;
+            }
         }
 
-        // Если запись существует, но настройки битые/пароль не расшифровывается:
-        //   - при автоприменении (boot/heartbeat) → тихий fallback на файл-дефолты,
-        //   - при явном вызове из админки (test/preflight) → бросаем исключение как раньше.
+        // Явный режим: применяем переданные настройки из БД.
         try {
             $hasUsable = $setting->hasUsablePassword();
         } catch (\Throwable $e) {
             if ($explicit) {
                 throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново. ' . $e->getMessage(), 0, $e);
             }
-            Log::warning('EmailConfigService: stored SMTP password is undecryptable, falling back to file defaults', ['error' => $e->getMessage()]);
-            $this->applyFileDefaults();
+            Log::warning('EmailConfigService: stored SMTP password is undecryptable, falling back to .env', ['error' => $e->getMessage()]);
+            $this->applyRuntimeEnv();
             return;
         }
 
@@ -187,8 +202,7 @@ class EmailConfigService
             if ($explicit) {
                 throw new \RuntimeException('Активные SMTP-настройки неполные или пароль больше не расшифровывается. Сохраните SMTP-пароль заново.');
             }
-            Log::info('EmailConfigService: stored SMTP settings incomplete, falling back to file defaults');
-            $this->applyFileDefaults();
+            $this->applyRuntimeEnv();
             return;
         }
 
@@ -222,10 +236,9 @@ class EmailConfigService
             'name' => $setting->from_name ?: config('app.name', 'Career Track'),
         ] : null);
 
-        // Сбросить кеш уже инстанцированных мейлеров (важно после смены настроек в рантайме):
-        // MailManager хранит резолвнутые драйверы в массиве и игнорирует обновления Config.
         $this->forgetResolvedMailers();
     }
+
 
     /**
      * Применить дефолты из config/service-infra.php.
