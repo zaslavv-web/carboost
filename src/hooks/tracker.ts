@@ -96,6 +96,7 @@ export interface TrackerTask {
   id: string;
   company_id: string;
   project_id: string | null;
+  sprint_id: string | null;
   author_id: string;
   assignee_id: string;
   parent_task_id: string | null;
@@ -114,6 +115,23 @@ export interface TrackerTask {
   start_at: string | null;
   jira_key: string | null;
   completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SprintStatus = "planned" | "active" | "completed";
+
+export interface TrackerSprint {
+  id: string;
+  company_id: string;
+  project_id: string;
+  name: string;
+  goal: string | null;
+  status: SprintStatus;
+  start_date: string | null;
+  end_date: string | null;
+  completed_at: string | null;
+  position: number;
   created_at: string;
   updated_at: string;
 }
@@ -699,5 +717,169 @@ export function useDeleteWorkflowTransition() {
     onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["tracker.workflow.transitions", v.workflow_id] }),
   });
 }
+
+/* ============ SPRINTS (Scrum) ============ */
+export function useSprints(projectId?: string | null, status?: SprintStatus) {
+  return useQuery({
+    queryKey: ["tracker.sprints", projectId ?? null, status ?? null],
+    enabled: !!projectId,
+    queryFn: async () => {
+      let q = laravelDb
+        .from("tracker_sprints").select("*")
+        .eq("project_id", projectId!)
+        .order("position", { ascending: true })
+        .order("created_at", { ascending: false });
+      if (status) q = q.eq("status", status);
+      const res = await q;
+      return handle<TrackerSprint[]>(res as any) ?? [];
+    },
+  });
+}
+
+export function useActiveSprint(projectId?: string | null) {
+  const q = useSprints(projectId, "active");
+  return { ...q, data: (q.data ?? [])[0] ?? null };
+}
+
+export function useCreateSprint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Partial<TrackerSprint> & { project_id: string }) => {
+      const res = await laravelDb.from("tracker_sprints")
+        .insert({ status: "planned", ...input })
+        .select("*").single();
+      return handle<TrackerSprint>(res as any);
+    },
+    onSuccess: (_d, v) => {
+      toast.success("Спринт создан");
+      qc.invalidateQueries({ queryKey: ["tracker.sprints", v.project_id] });
+    },
+  });
+}
+
+export function useUpdateSprint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...patch }: Partial<TrackerSprint> & { id: string }) => {
+      const res = await laravelDb.from("tracker_sprints").update(patch).eq("id", id).select("*").single();
+      return handle<TrackerSprint>(res as any);
+    },
+    onSuccess: (d) => {
+      qc.invalidateQueries({ queryKey: ["tracker.sprints", d.project_id] });
+    },
+  });
+}
+
+export function useDeleteSprint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; project_id: string }) => {
+      const res = await laravelDb.from("tracker_sprints").delete().eq("id", id);
+      return handle(res as any);
+    },
+    onSuccess: (_d, v) => {
+      toast.success("Спринт удалён");
+      qc.invalidateQueries({ queryKey: ["tracker.sprints", v.project_id] });
+      qc.invalidateQueries({ queryKey: ["tracker.backlog", v.project_id] });
+    },
+  });
+}
+
+export function useStartSprint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, project_id, start_date, end_date }: { id: string; project_id: string; start_date?: string; end_date?: string }) => {
+      const res = await laravelDb.from("tracker_sprints").update({
+        status: "active",
+        start_date: start_date ?? new Date().toISOString(),
+        end_date: end_date ?? null,
+      }).eq("id", id).select("*").single();
+      return handle<TrackerSprint>(res as any);
+    },
+    onSuccess: (_d, v) => {
+      toast.success("Спринт запущен");
+      qc.invalidateQueries({ queryKey: ["tracker.sprints", v.project_id] });
+    },
+  });
+}
+
+export function useCompleteSprint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, project_id, moveUnfinishedToSprintId }: { id: string; project_id: string; moveUnfinishedToSprintId?: string | null }) => {
+      // Перенос невыполненных задач: всё что != done в этом спринте → в указанный спринт (или в бэклог)
+      const unfinished = await laravelDb.from("tracker_tasks")
+        .select("id,status").eq("sprint_id", id).neq("status", "done");
+      const list = handle<{ id: string; status: string }[]>(unfinished as any) ?? [];
+      if (list.length) {
+        await Promise.all(list.map((t) =>
+          laravelDb.from("tracker_tasks").update({
+            sprint_id: moveUnfinishedToSprintId ?? null,
+          }).eq("id", t.id)
+        ));
+      }
+      const res = await laravelDb.from("tracker_sprints").update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      }).eq("id", id).select("*").single();
+      return handle<TrackerSprint>(res as any);
+    },
+    onSuccess: (_d, v) => {
+      toast.success("Спринт завершён");
+      qc.invalidateQueries({ queryKey: ["tracker.sprints", v.project_id] });
+      qc.invalidateQueries({ queryKey: ["tracker.backlog", v.project_id] });
+      qc.invalidateQueries({ queryKey: ["tracker.sprintTasks"] });
+    },
+  });
+}
+
+/* ============ BACKLOG ============ */
+export function useBacklog(projectId?: string | null) {
+  return useQuery({
+    queryKey: ["tracker.backlog", projectId ?? null],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const res = await laravelDb
+        .from("tracker_tasks").select("*")
+        .eq("project_id", projectId!)
+        .is("sprint_id", null)
+        .order("order_index", { ascending: true })
+        .order("created_at", { ascending: false });
+      return handle<TrackerTask[]>(res as any) ?? [];
+    },
+  });
+}
+
+export function useSprintTasks(sprintId?: string | null) {
+  return useQuery({
+    queryKey: ["tracker.sprintTasks", sprintId ?? null],
+    enabled: !!sprintId,
+    queryFn: async () => {
+      const res = await laravelDb
+        .from("tracker_tasks").select("*")
+        .eq("sprint_id", sprintId!)
+        .order("order_index", { ascending: true });
+      return handle<TrackerTask[]>(res as any) ?? [];
+    },
+  });
+}
+
+export function useAssignTaskToSprint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ taskId, sprintId }: { taskId: string; sprintId: string | null; projectId: string }) => {
+      const res = await laravelDb.from("tracker_tasks").update({ sprint_id: sprintId })
+        .eq("id", taskId).select("*").single();
+      return handle<TrackerTask>(res as any);
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["tracker.backlog", v.projectId] });
+      qc.invalidateQueries({ queryKey: ["tracker.sprints", v.projectId] });
+      qc.invalidateQueries({ queryKey: ["tracker.sprintTasks"] });
+      qc.invalidateQueries({ queryKey: ["tracker.board", v.projectId] });
+    },
+  });
+}
+
 
 
