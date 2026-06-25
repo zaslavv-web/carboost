@@ -282,7 +282,81 @@ class RpcController extends Controller
         }
     }
 
+    /** Public landing form: create a demo request row. */
+    private function submitDemoRequest(array $payload)
+    {
+        $name = trim((string) ($payload['_name'] ?? $payload['name'] ?? ''));
+        $email = trim((string) ($payload['_email'] ?? $payload['email'] ?? ''));
+        $company = trim((string) ($payload['_company'] ?? $payload['company'] ?? ''));
+        $headcountRaw = $payload['_headcount'] ?? $payload['headcount'] ?? null;
+        $source = trim((string) ($payload['_source'] ?? $payload['source'] ?? '')) ?: 'landing';
+
+        if ($name === '') {
+            return response()->json(['error' => 'Укажите имя'], 422);
+        }
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return response()->json(['error' => 'Укажите корректный email'], 422);
+        }
+
+        try {
+            $row = \App\Models\DemoRequest::create([
+                'name'      => $name,
+                'email'     => $email,
+                'company'   => $company !== '' ? $company : null,
+                'headcount' => $headcountRaw !== null && $headcountRaw !== '' ? (int) $headcountRaw : null,
+                'source'    => $source,
+                'status'    => 'new',
+            ]);
+            return response()->json(['data' => ['id' => $row->id]]);
+        } catch (Throwable $e) {
+            report($e);
+            return response()->json(['error' => self::localize($e->getMessage())], 422);
+        }
+    }
+
+    /** Public pricing page form: create a pricing inquiry row. */
+    private function submitPricingInquiry(array $payload)
+    {
+        $name = trim((string) ($payload['_name'] ?? $payload['name'] ?? ''));
+        $email = trim((string) ($payload['_email'] ?? $payload['email'] ?? ''));
+        $plan = trim((string) ($payload['_plan'] ?? $payload['plan'] ?? ''));
+        $company = trim((string) ($payload['_company'] ?? $payload['company'] ?? ''));
+        $phone = trim((string) ($payload['_phone'] ?? $payload['phone'] ?? ''));
+        $message = trim((string) ($payload['_message'] ?? $payload['message'] ?? ''));
+        $headcountRaw = $payload['_headcount'] ?? $payload['headcount'] ?? null;
+        $source = trim((string) ($payload['_source'] ?? $payload['source'] ?? '')) ?: 'pricing_page';
+
+        if ($name === '') {
+            return response()->json(['error' => 'Укажите имя'], 422);
+        }
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return response()->json(['error' => 'Укажите корректный email'], 422);
+        }
+        if ($plan === '') {
+            return response()->json(['error' => 'Укажите тариф'], 422);
+        }
+
+        try {
+            $row = \App\Models\PricingInquiry::create([
+                'name'      => $name,
+                'email'     => $email,
+                'plan'      => $plan,
+                'company'   => $company !== '' ? $company : null,
+                'phone'     => $phone !== '' ? $phone : null,
+                'message'   => $message !== '' ? $message : null,
+                'headcount' => $headcountRaw !== null && $headcountRaw !== '' ? (int) $headcountRaw : null,
+                'source'    => $source,
+                'status'    => 'new',
+            ]);
+            return response()->json(['data' => ['id' => $row->id]]);
+        } catch (Throwable $e) {
+            report($e);
+            return response()->json(['error' => self::localize($e->getMessage())], 422);
+        }
+    }
+
     /** Map common Postgres errors to Russian per project memory. */
+
     protected static function localize(string $raw): string
     {
         if (preg_match('/violates row-level security/i', $raw)) {
