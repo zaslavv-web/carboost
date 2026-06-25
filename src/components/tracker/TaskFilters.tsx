@@ -80,10 +80,16 @@ export function applyTaskFilters(tasks: TrackerTask[], f: TaskFilterState): Trac
         av = a.story_points ?? -1; bv = b.story_points ?? -1; break;
       case "title":
         return a.title.localeCompare(b.title) * dir;
-      case "due_at":
-        av = a.due_at ? new Date(a.due_at).getTime() : Number.POSITIVE_INFINITY * (dir === 1 ? 1 : -1);
-        bv = b.due_at ? new Date(b.due_at).getTime() : Number.POSITIVE_INFINITY * (dir === 1 ? 1 : -1);
+      case "due_at": {
+        // nulls — всегда в конец, независимо от направления сортировки
+        const aNull = !a.due_at, bNull = !b.due_at;
+        if (aNull && bNull) return 0;
+        if (aNull) return 1;
+        if (bNull) return -1;
+        av = new Date(a.due_at!).getTime();
+        bv = new Date(b.due_at!).getTime();
         break;
+      }
       default:
         av = new Date(a.created_at).getTime(); bv = new Date(b.created_at).getTime();
     }
