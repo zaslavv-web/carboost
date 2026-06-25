@@ -22,14 +22,21 @@ import {
 import { Plus, Play, CheckCircle2, Trash2, FolderKanban, Hash, Calendar, User, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
+import { TaskDetailDialog } from "@/components/tracker/TaskDetailDialog";
 
 /* ============ Карточка задачи (компактная) ============ */
 const TaskRow = ({
-  task, nameMap, actions,
-}: { task: TrackerTask; nameMap: Map<string, string>; actions?: React.ReactNode }) => (
+  task, nameMap, actions, onOpen,
+}: { task: TrackerTask; nameMap: Map<string, string>; actions?: React.ReactNode; onOpen?: (t: TrackerTask) => void }) => (
   <div className="flex items-center gap-2 px-3 py-2 border-b last:border-b-0 border-border hover:bg-muted/40">
     <span className="text-xs font-mono text-muted-foreground uppercase">{task.type}</span>
-    <span className="text-sm flex-1 truncate">{task.title}</span>
+    <button
+      type="button"
+      className="text-sm flex-1 truncate text-left hover:underline"
+      onClick={() => onOpen?.(task)}
+    >
+      {task.title}
+    </button>
     <UrgencyBadge urgency={task.urgency} />
     {task.story_points != null && (
       <Badge variant="outline" className="gap-1 h-5 px-1.5 font-mono text-xs">
@@ -52,10 +59,11 @@ const TaskRow = ({
 
 /* ============ Sprint Section ============ */
 const SprintSection = ({
-  sprint, projectId, sprints, nameMap,
+  sprint, projectId, sprints, nameMap, onOpen,
 }: {
   sprint: TrackerSprint; projectId: string;
   sprints: TrackerSprint[]; nameMap: Map<string, string>;
+  onOpen: (t: TrackerTask) => void;
 }) => {
   const { data: tasks = [] } = useSprintTasks(sprint.id);
   const startSprint = useStartSprint();
@@ -171,7 +179,7 @@ const SprintSection = ({
         ) : (
           <div className="border-t border-border">
             {tasks.map((t) => (
-              <TaskRow key={t.id} task={t} nameMap={nameMap}
+              <TaskRow key={t.id} task={t} nameMap={nameMap} onOpen={onOpen}
                 actions={sprint.status !== "completed" ? (
                   <Button size="icon" variant="ghost" className="h-7 w-7"
                     title="В бэклог"
@@ -190,8 +198,8 @@ const SprintSection = ({
 
 /* ============ Backlog Section ============ */
 const BacklogSection = ({
-  projectId, sprints, nameMap,
-}: { projectId: string; sprints: TrackerSprint[]; nameMap: Map<string, string> }) => {
+  projectId, sprints, nameMap, onOpen,
+}: { projectId: string; sprints: TrackerSprint[]; nameMap: Map<string, string>; onOpen: (t: TrackerTask) => void }) => {
   const { data: backlog = [], isLoading } = useBacklog(projectId);
   const assign = useAssignTaskToSprint();
   const createTask = useCreateTask();
@@ -254,7 +262,7 @@ const BacklogSection = ({
         ) : (
           <div className="border-t border-border">
             {backlog.map((t) => (
-              <TaskRow key={t.id} task={t} nameMap={nameMap}
+              <TaskRow key={t.id} task={t} nameMap={nameMap} onOpen={onOpen}
                 actions={openSprints.length > 0 ? (
                   <Select onValueChange={(sprintId) => assign.mutate({ taskId: t.id, sprintId, projectId })}>
                     <SelectTrigger className="h-7 w-36 text-xs"><SelectValue placeholder="В спринт →" /></SelectTrigger>
@@ -336,6 +344,7 @@ const TrackerBacklog = () => {
   const { projectId } = useTrackerProject();
   const { data: sprints = [], isLoading } = useSprints(projectId);
   const nameMap = useEmployeeNameMap();
+  const [openTask, setOpenTask] = useState<TrackerTask | null>(null);
 
   if (!projectId) {
     return (
@@ -368,13 +377,13 @@ const TrackerBacklog = () => {
       {isLoading && <p className="text-sm text-muted-foreground">Загрузка спринтов…</p>}
 
       {active.map((s) => (
-        <SprintSection key={s.id} sprint={s} projectId={projectId} sprints={sprints} nameMap={nameMap} />
+        <SprintSection key={s.id} sprint={s} projectId={projectId} sprints={sprints} nameMap={nameMap} onOpen={setOpenTask} />
       ))}
       {planned.map((s) => (
-        <SprintSection key={s.id} sprint={s} projectId={projectId} sprints={sprints} nameMap={nameMap} />
+        <SprintSection key={s.id} sprint={s} projectId={projectId} sprints={sprints} nameMap={nameMap} onOpen={setOpenTask} />
       ))}
 
-      <BacklogSection projectId={projectId} sprints={sprints} nameMap={nameMap} />
+      <BacklogSection projectId={projectId} sprints={sprints} nameMap={nameMap} onOpen={setOpenTask} />
 
       {completed.length > 0 && (
         <details className="rounded-lg border border-border">
@@ -383,11 +392,13 @@ const TrackerBacklog = () => {
           </summary>
           <div className="space-y-3 p-3">
             {completed.map((s) => (
-              <SprintSection key={s.id} sprint={s} projectId={projectId} sprints={sprints} nameMap={nameMap} />
+              <SprintSection key={s.id} sprint={s} projectId={projectId} sprints={sprints} nameMap={nameMap} onOpen={setOpenTask} />
             ))}
           </div>
         </details>
       )}
+
+      <TaskDetailDialog task={openTask} open={!!openTask} onOpenChange={(v) => !v && setOpenTask(null)} />
     </div>
   );
 };
