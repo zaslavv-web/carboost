@@ -1,73 +1,130 @@
-# План: разобраться с «не тем» .env
+# План: навести порядок на сервере и починить SMTP
 
-## Гипотеза
+## Что мы знаем
 
-`php artisan ...` на сервере запускается из директории, где лежит **другой** Laravel (например, симлинк/копия в `~/backend`), и читает свой собственный `.env`. Нужный файл `backend-laravel/.env` при этом не используется вообще. Поэтому правки пароля «не доезжают».
+- Рабочий домен — **growth-peak.pro** (с дефисом).
+- Вы запускали artisan из `~/backend` — это **не настоящий Laravel проекта**, а сторонний «огрызок» с битым git (1 локальный коммит, 1651 отставание от origin, тысячи untracked-файлов). Именно из него тянулся «не тот» `.env` с 10-символьным паролем.
+- Параллельно есть `~/growthpeak.pro/` (без дефиса) — старая копия / мусор.
+- `~/server-local-changes/` — пустая (поэтому `diff` падает с "No such file or directory").
+- Настоящий код приложения живёт в репозитории в папке `backend-laravel/`.
 
-## Что добавим
+Никаких изменений в исходниках проекта по этому плану не требуется. Это операционная зачистка сервера + один правильный деплой.
 
-### 1. Новая команда `smtp:where` (диагностика путей)
+## Цели
 
-Файл `backend-laravel/app/Console/Commands/SmtpWhere.php`. Выводит без раскрытия секретов:
+1. Один-единственный каталог Laravel на сервере = свежий клон репозитория, путь `~/growth-peak.pro/app/` (см. ниже).
+2. Один-единственный `.env` живёт **только на сервере**, не в git.
+3. Все мусорные/дублирующие папки удалены после бэкапа.
+4. SMTP читает реальный 16-символьный пароль и тест-письмо уходит.
 
-- `base_path()` — корень Laravel, который видит artisan
-- `app()->environmentFilePath()` — абсолютный путь к `.env`, который реально грузит фреймворк
-- `realpath` этого файла (раскрывает симлинки)
-- размер, mtime, владелец, права
-- наличие строк `MAIL_PASSWORD=` / `SMTP_PASSWORD=` (только количество и номера строк, без значений)
-- текущий `getcwd()` шелла и `php_sapi_name()`
-- путь к бинарю PHP (`PHP_BINARY`)
+## Шаги (выполняются на сервере по SSH)
 
-Это сразу покажет: совпадает ли `environmentFilePath()` с `backend-laravel/.env` на VPS.
+### Шаг 1. Диагностика — куда смотрит nginx/Apache
 
-### 2. Расширение `smtp:status` и `smtp:env-doctor`
-
-В шапку вывода добавить две строки:
-```
-base_path            : /var/www/.../backend-laravel
-env file (loaded)    : /var/www/.../backend-laravel/.env
-```
-Чтобы при любом запуске было видно, какой именно файл анализируется.
-
-### 3. Поддержка `--env-file=` в `smtp:test` и `smtp:env-doctor`
-
-Если передан `--env-file=/абсолютный/путь/.env`, команда:
-- читает указанный файл вручную (vlucas/phpdotenv `Dotenv::createMutable(dir, name)->load()`),
-- временно подменяет `MAIL_*` / `SMTP_PASSWORD` в `config('mail')` и `config('service-infra')`,
-- выполняет тест/диагностику.
-
-Это даст возможность убедиться, что пароль в `backend-laravel/.env` рабочий, даже если основной artisan читает что-то иное:
-```
-php artisan smtp:test --env-file=/полный/путь/backend-laravel/.env you@example.com
-```
-
-### 4. README-блок «Как найти правильный .env»
-
-Короткая инструкция в `backend-laravel/README.md` (раздел SMTP): запускать artisan ТОЛЬКО из корня `backend-laravel` (`cd backend-laravel && php artisan ...`), и как проверить через `smtp:where`.
-
-## Что сделать на сервере после деплоя
+Понять, какая папка реально отдаёт сайт `growth-peak.pro`:
 
 ```bash
-cd <корень_проекта>
-git pull
-
-# 1) Узнать, какой .env реально подхватывается
-cd backend-laravel
-php artisan smtp:where
-
-# 2) Если путь НЕ /…/backend-laravel/.env — значит artisan
-#    исполняется не из той директории. Запускать всегда отсюда.
-
-# 3) Проверить пароль именно в backend-laravel/.env
-php artisan smtp:env-doctor --path=$(pwd)/.env
-
-# 4) Тест отправки с принудительной загрузкой нужного файла
-php artisan smtp:test --env-file=$(pwd)/.env growthpeak@yandex.ru
+# для shared-хостинга nichost обычно так:
+ls -la ~/growth-peak.pro/
+cat ~/growth-peak.pro/.htaccess 2>/dev/null | head -20
+# найдём, где DocumentRoot
+grep -rEn "DocumentRoot|root " /etc/nginx/ /etc/apache2/ /etc/httpd/ 2>/dev/null | grep -i peak
 ```
 
-## Технические детали
+Результат пришлите — он определит финальный путь (`~/growth-peak.pro/public_html`, `~/growth-peak.pro/app/public`, и т.п.).
 
-- Все новые команды read-only, ничего в БД не пишут.
-- Значения паролей по-прежнему НЕ выводятся — только метаданные (длина, флаги, путь).
-- Никаких изменений в логике `EmailConfigService` — только наблюдаемость.
-- `--env-file` использует `Dotenv\Dotenv::createMutable($dir, $name)->load()`; область действия — только текущая команда.
+### Шаг 2. Полный бэкап перед любыми удалениями
+
+```bash
+cd ~
+tar -czf full-backup-$(date +%Y%m%d-%H%M%S).tar.gz \
+  backend growthpeak.pro growth-peak.pro server-local-changes 2>/dev/null
+ls -lh full-backup-*.tar.gz
+```
+
+И отдельно сохранить текущий `.env` из `~/backend`:
+
+```bash
+cp ~/backend/.env ~/env-backup-from-backend-$(date +%Y%m%d-%H%M%S).txt
+```
+
+### Шаг 3. Свежий клон рабочего репозитория
+
+```bash
+cd ~/growth-peak.pro
+git clone <URL_РЕПОЗИТОРИЯ> app
+cd app/backend-laravel
+composer install --no-dev --optimize-autoloader
+```
+
+URL репозитория подскажете (ссылка вида `git@github.com:.../....git` или `https://...`).
+
+### Шаг 4. Положить правильный `.env` в новый клон
+
+```bash
+cd ~/growth-peak.pro/app/backend-laravel
+cp .env.example .env
+nano .env   # вписать APP_KEY, DB_*, MAIL_*
+```
+
+Пароль приложения Яндекса вписать без кавычек и без пробелов через безопасный ввод (не светим в history):
+
+```bash
+sed -i '/^SMTP_PASSWORD=/d;/^MAIL_PASSWORD=/d' .env
+printf 'SMTP_PASSWORD=' >> .env && read -rs PW && printf '%s\n' "$PW" >> .env
+printf 'MAIL_PASSWORD=' >> .env && printf '%s\n' "$PW" >> .env
+unset PW
+chmod 600 .env
+```
+
+Затем:
+
+```bash
+php artisan key:generate   # только если APP_KEY пустой
+php artisan optimize:clear
+php artisan smtp:where     # должна показать backend-laravel/.env из НОВОГО пути
+php artisan smtp:env-doctor
+php artisan smtp:test growthpeak@yandex.ru
+```
+
+Ожидаемо: `raw length: 16`, `parsed length: 16`, письмо приходит.
+
+### Шаг 5. Переключить веб-сервер на новый путь
+
+Если DocumentRoot указывал на `~/growth-peak.pro/public_html` — заменить эту папку симлинком на новый `public`:
+
+```bash
+mv ~/growth-peak.pro/public_html ~/growth-peak.pro/public_html.old
+ln -s ~/growth-peak.pro/app/backend-laravel/public ~/growth-peak.pro/public_html
+```
+
+(Точная команда зависит от вывода Шага 1 — поэтому сначала диагностика.)
+
+Проверить, что сайт открывается, что вход/регистрация работают, что заявка на демо уходит.
+
+### Шаг 6. Удалить мусор после успешной проверки
+
+Только после того, как сайт стабильно работает с нового клона **минимум сутки**:
+
+```bash
+rm -rf ~/backend
+rm -rf ~/growthpeak.pro            # старый домен без дефиса, если он не нужен
+rm -rf ~/server-local-changes
+rm -rf ~/growth-peak.pro/public_html.old
+```
+
+Бэкап `full-backup-*.tar.gz` оставить ещё на месяц.
+
+### Шаг 7. Закрыть утечку пароля из git
+
+Сейчас `backend-laravel/.env` лежит **внутри git-репозитория** — пароль приложения Яндекса фактически в истории. После того как почта заработает:
+
+1. Отозвать текущий пароль приложения в Яндекс ID.
+2. Сгенерировать новый, обновить только серверный `.env`.
+3. В репозитории: добавить `backend-laravel/.env` в `.gitignore`, удалить файл из текущего коммита, при необходимости почистить историю через `git filter-repo`. Это уже отдельная задача в коде проекта — оформим следующим планом, когда закроем операционную часть.
+
+## Что нужно от вас перед запуском плана
+
+1. Вывод команд из Шага 1 (куда смотрит веб-сервер для `growth-peak.pro`).
+2. URL git-репозитория для клонирования.
+3. Подтверждение, что `growthpeak.pro` без дефиса можно удалять.
