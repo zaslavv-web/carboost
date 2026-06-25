@@ -93,6 +93,7 @@ class AuthServiceProvider extends ServiceProvider
         Models\TrackerWorkflow::class              => CompanyScopedPolicy::class,
         Models\TrackerWorkflowStatus::class        => CompanyScopedPolicy::class,
         Models\TrackerWorkflowTransition::class    => CompanyScopedPolicy::class,
+        Models\TrackerSprint::class                => CompanyScopedPolicy::class,
     ];
 
     public function boot(): void
