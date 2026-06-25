@@ -188,6 +188,50 @@ const EmailSettingsManagement = () => {
         </div>
       </div>
 
+      {effective && (
+        <Card className="border-primary/20">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3 flex-wrap justify-between">
+              <div className="flex items-start gap-3">
+                {effective.source === "database" ? (
+                  <Database className="w-5 h-5 text-primary mt-0.5" />
+                ) : (
+                  <FileCode className="w-5 h-5 text-primary mt-0.5" />
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Текущий источник SMTP: {effective.label}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    host: <code>{effective.host || "—"}</code> · user: <code>{effective.username || "—"}</code> · from: <code>{effective.from_address || "—"}</code> · пароль: {effective.has_usable_password ? "есть" : <span className="text-destructive">нет</span>}
+                  </p>
+                  {effective.source === "database" && (
+                    <p className="text-xs text-warning mt-2">
+                      ⚠️ Пока существует активная запись в БД, изменения <code>MAIL_PASSWORD</code> / <code>SMTP_PASSWORD</code> в <code>.env</code> игнорируются. Чтобы Laravel читал .env — деактивируйте запись.
+                    </p>
+                  )}
+                </div>
+              </div>
+              {effective.source === "database" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (confirm("Деактивировать SMTP-настройки из БД? Laravel перейдёт на конфиг из service-infra.php / .env.")) {
+                      clearMutation.mutate();
+                    }
+                  }}
+                  disabled={clearMutation.isPending}
+                >
+                  {clearMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Перейти на .env
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg"><Mail className="w-5 h-5 text-primary" /> {t("emailSettings.smtpCardTitle")}</CardTitle>
