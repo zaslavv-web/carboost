@@ -48,11 +48,38 @@ class TrackerComment extends Model
             ]);
         });
 
+        static::updating(function (self $m) {
+            // edited_at проставляем в том же UPDATE, без второго round-trip
+            if ($m->isDirty('body')) {
+                $m->edited_at = now();
+            }
+        });
+
         static::updated(function (self $m) {
             if ($m->wasChanged('body')) {
-                $m->edited_at = now();
-                $m->saveQuietly();
+                TrackerAuditLog::create([
+                    'company_id'  => $m->company_id,
+                    'entity_type' => 'task',
+                    'entity_id'   => $m->task_id,
+                    'action'      => 'comment_edited',
+                    'actor_id'    => auth()->id() ?? $m->author_id,
+                    'payload'     => [
+                        'comment_id' => $m->id,
+                        'preview'    => mb_substr((string) $m->body, 0, 160),
+                    ],
+                ]);
             }
+        });
+
+        static::deleted(function (self $m) {
+            TrackerAuditLog::create([
+                'company_id'  => $m->company_id,
+                'entity_type' => 'task',
+                'entity_id'   => $m->task_id,
+                'action'      => 'comment_deleted',
+                'actor_id'    => auth()->id() ?? $m->author_id,
+                'payload'     => ['comment_id' => $m->id],
+            ]);
         });
     }
 
