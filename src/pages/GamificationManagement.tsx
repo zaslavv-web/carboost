@@ -304,16 +304,21 @@ const GamificationManagement = () => {
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {(["types", "awarded", "events", "analytics"] as const).map(tabKey => (
+        {(["types", "awarded", "events", "levels", "analytics"] as const).map(tabKey => (
           <button key={tabKey} onClick={() => setTab(tabKey)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === tabKey ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
             {tabKey === "types" ? t("gamification.tabTypes", { count: rewardTypes.length })
               : tabKey === "awarded" ? t("gamification.tabAwarded", { count: employeeRewards.length })
               : tabKey === "events" ? t("gamification.tabEvents", { count: customEvents.length })
+              : tabKey === "levels" ? `Уровни`
               : t("gamification.tabAnalytics")}
           </button>
         ))}
       </div>
+
+      {tab === "levels" && (
+        <LevelsTab companyId={companyId || null} employeeRewards={employeeRewards} rewardTypeMap={rewardTypeMap} />
+      )}
 
       {/* Form */}
       {showForm && (
