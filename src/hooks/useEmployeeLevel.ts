@@ -109,7 +109,7 @@ export function useEmployeeLevel(opts: { userId?: string | null; companyId?: str
         laravelDb.from("employee_rewards").select("reward_type_id").eq("user_id", userId!),
         laravelDb.from("achievements").select("id").eq("user_id", userId!),
         laravelDb.from("gamification_reward_types").select("id,points"),
-        laravelDb.from("gamification_levels" as any).select("*").then((r: any) => r).catch(() => ({ data: null })),
+        Promise.resolve(laravelDb.from("gamification_levels" as any).select("*")).then((r: any) => r).catch(() => ({ data: null })),
       ]);
       const rewards = (rewardsRes.data as any[]) || [];
       const achievements = (achievementsRes.data as any[]) || [];
