@@ -80,6 +80,7 @@ class AuthServiceProvider extends ServiceProvider
         Models\TeamMember::class               => TeamMemberPolicy::class,
 
         // Tracker module
+        Models\TrackerProject::class           => CompanyScopedPolicy::class,
         Models\TrackerOkrPeriod::class         => CompanyScopedPolicy::class,
         Models\TrackerGoal::class              => TrackerOwnedPolicy::class,
         Models\TrackerTask::class              => TrackerOwnedPolicy::class,
