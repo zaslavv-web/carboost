@@ -881,5 +881,173 @@ export function useAssignTaskToSprint() {
   });
 }
 
+/* ============ COMMENTS ============ */
+export interface TrackerMention { user_id: string; name: string }
 
+export interface TrackerComment {
+  id: string;
+  company_id: string;
+  task_id: string;
+  author_id: string;
+  body: string;
+  mentions: TrackerMention[] | null;
+  edited_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useTaskComments(taskId?: string | null) {
+  return useQuery({
+    queryKey: ["tracker.comments", taskId ?? null],
+    enabled: !!taskId,
+    queryFn: async () => {
+      const res = await laravelDb
+        .from("tracker_comments").select("*")
+        .eq("task_id", taskId!)
+        .order("created_at", { ascending: true });
+      return handle<TrackerComment[]>(res as any) ?? [];
+    },
+  });
+}
+
+export function useCreateComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ task_id, body, mentions }: { task_id: string; body: string; mentions?: TrackerMention[] }) => {
+      const res = await laravelDb.from("tracker_comments")
+        .insert({ task_id, body, mentions: mentions ?? null })
+        .select("*").single();
+      return handle<TrackerComment>(res as any);
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["tracker.comments", v.task_id] });
+      qc.invalidateQueries({ queryKey: ["tracker.activity", v.task_id] });
+    },
+  });
+}
+
+export function useUpdateComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, body, task_id }: { id: string; body: string; task_id: string }) => {
+      const res = await laravelDb.from("tracker_comments").update({ body }).eq("id", id).select("*").single();
+      return handle<TrackerComment>(res as any);
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["tracker.comments", v.task_id] }),
+  });
+}
+
+export function useDeleteComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; task_id: string }) => {
+      const res = await laravelDb.from("tracker_comments").delete().eq("id", id);
+      return handle(res as any);
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["tracker.comments", v.task_id] }),
+  });
+}
+
+/* ============ ATTACHMENTS ============ */
+export interface TrackerAttachment {
+  id: string;
+  company_id: string;
+  task_id: string;
+  comment_id: string | null;
+  uploader_id: string;
+  filename: string;
+  mime: string | null;
+  size_bytes: number | null;
+  storage_path: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useTaskAttachments(taskId?: string | null) {
+  return useQuery({
+    queryKey: ["tracker.attachments", taskId ?? null],
+    enabled: !!taskId,
+    queryFn: async () => {
+      const res = await laravelDb
+        .from("tracker_attachments").select("*")
+        .eq("task_id", taskId!)
+        .order("created_at", { ascending: false });
+      return handle<TrackerAttachment[]>(res as any) ?? [];
+    },
+  });
+}
+
+export function useUploadAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ task_id, file }: { task_id: string; file: File }) => {
+      const { laravelStorage } = await import("@/integrations/laravel/storage");
+      const path = `${task_id}/${Date.now()}_${file.name}`;
+      const up = await laravelStorage.from("tracker-attachments").upload(path, file);
+      if (up.error) throw new Error(up.error.message);
+      const storagePath = up.data?.path ?? path;
+      const res = await laravelDb.from("tracker_attachments").insert({
+        task_id,
+        filename: file.name,
+        mime: file.type || null,
+        size_bytes: file.size,
+        storage_path: storagePath,
+      }).select("*").single();
+      return handle<TrackerAttachment>(res as any);
+    },
+    onSuccess: (_d, v) => {
+      toast.success("Файл загружен");
+      qc.invalidateQueries({ queryKey: ["tracker.attachments", v.task_id] });
+      qc.invalidateQueries({ queryKey: ["tracker.activity", v.task_id] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Не удалось загрузить файл"),
+  });
+}
+
+export function useDeleteAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; task_id: string }) => {
+      const res = await laravelDb.from("tracker_attachments").delete().eq("id", id);
+      return handle(res as any);
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["tracker.attachments", v.task_id] }),
+  });
+}
+
+export async function getAttachmentSignedUrl(storagePath: string): Promise<string | null> {
+  const { laravelStorage } = await import("@/integrations/laravel/storage");
+  const res = await laravelStorage.from("tracker-attachments").createSignedUrl(storagePath, 600);
+  return res.data?.signedUrl ?? null;
+}
+
+/* ============ ACTIVITY (task feed via audit log) ============ */
+export interface TrackerActivityEntry {
+  id: string;
+  company_id: string;
+  entity_type: string;
+  entity_id: string;
+  action: string;
+  status_from: string | null;
+  status_to: string | null;
+  actor_id: string | null;
+  payload: any;
+  created_at: string;
+}
+
+export function useTaskActivity(taskId?: string | null) {
+  return useQuery({
+    queryKey: ["tracker.activity", taskId ?? null],
+    enabled: !!taskId,
+    queryFn: async () => {
+      const res = await laravelDb
+        .from("tracker_audit_log").select("*")
+        .eq("entity_type", "task")
+        .eq("entity_id", taskId!)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      return handle<TrackerActivityEntry[]>(res as any) ?? [];
+    },
+  });
+}
 
