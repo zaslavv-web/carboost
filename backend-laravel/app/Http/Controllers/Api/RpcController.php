@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\DemoRequestSubmitted;
+use App\Mail\PricingInquirySubmitted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
@@ -307,10 +310,25 @@ class RpcController extends Controller
                 'source'    => $source,
                 'status'    => 'new',
             ]);
+            $this->notifySales(fn () => new DemoRequestSubmitted($row));
             return response()->json(['data' => ['id' => $row->id]]);
         } catch (Throwable $e) {
             report($e);
             return response()->json(['error' => self::localize($e->getMessage())], 422);
+        }
+    }
+
+    /** Send a sales notification email; never let mail failures break the API response. */
+    private function notifySales(\Closure $mailableFactory): void
+    {
+        try {
+            $recipient = config('mail.sales_recipient');
+            if (! $recipient) {
+                return;
+            }
+            Mail::to($recipient)->send($mailableFactory());
+        } catch (Throwable $e) {
+            report($e);
         }
     }
 
@@ -348,6 +366,7 @@ class RpcController extends Controller
                 'source'    => $source,
                 'status'    => 'new',
             ]);
+            $this->notifySales(fn () => new PricingInquirySubmitted($row));
             return response()->json(['data' => ['id' => $row->id]]);
         } catch (Throwable $e) {
             report($e);

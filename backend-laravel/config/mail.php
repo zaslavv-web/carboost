@@ -29,4 +29,7 @@ return [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', 'Career Track'),
     ],
+
+    // Получатель уведомлений с публичных форм лендинга (демо, тарифы).
+    'sales_recipient' => env('SALES_NOTIFICATION_EMAIL', env('MAIL_FROM_ADDRESS', 'growthpeak@yandex.ru')),
 ];
