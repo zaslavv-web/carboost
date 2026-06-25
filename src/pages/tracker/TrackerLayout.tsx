@@ -1,11 +1,12 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Target, ListChecks, CalendarClock, LayoutDashboard, FolderKanban, Columns3, Workflow, Layers } from "lucide-react";
+import { Target, ListChecks, CalendarClock, LayoutDashboard, FolderKanban, Columns3, Workflow, Layers, Inbox } from "lucide-react";
 import { TrackerProjectProvider } from "@/contexts/TrackerProjectContext";
 import { ProjectSelector } from "@/components/tracker/ProjectSelector";
 
 const tabs = [
   { to: "/tracker/dashboard", label: "Дашборд", icon: LayoutDashboard },
+  { to: "/tracker/my-backlog", label: "Мой бэклог", icon: Inbox },
   { to: "/tracker/board", label: "Доска", icon: Columns3 },
   { to: "/tracker/backlog", label: "Бэклог / Спринты", icon: Layers },
   { to: "/tracker/projects", label: "Проекты", icon: FolderKanban },

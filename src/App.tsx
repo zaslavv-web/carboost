@@ -75,6 +75,8 @@ import TrackerProjects from "@/pages/tracker/TrackerProjects";
 import TrackerBoard from "@/pages/tracker/TrackerBoard";
 import TrackerWorkflows from "@/pages/tracker/TrackerWorkflows";
 import TrackerBacklog from "@/pages/tracker/TrackerBacklog";
+import TrackerMyBacklog from "@/pages/tracker/MyBacklog";
+import MyProfile from "@/pages/MyProfile";
 import { Navigate } from "react-router-dom";
 
 
@@ -104,6 +106,7 @@ const App = () => (
                 <Route path="/complete-registration" element={<CompleteRegistration />} />
                 <Route path="/assessment" element={<Assessment />} />
                 <Route path="/passport" element={<Passport />} />
+                <Route path="/me" element={<MyProfile />} />
                 <Route path="/employee-questionnaire" element={<EmployeeQuestionnaire />} />
                 <Route path="/career-track" element={<CareerTrack />} />
                 <Route path="/notifications" element={<Notifications />} />
@@ -151,6 +154,7 @@ const App = () => (
                 <Route path="/tracker" element={<TrackerLayout />}>
                   <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<TrackerDashboard />} />
+                  <Route path="my-backlog" element={<TrackerMyBacklog />} />
                   <Route path="board" element={<TrackerBoard />} />
                   <Route path="projects" element={<TrackerProjects />} />
                   <Route path="workflows" element={<TrackerWorkflows />} />
