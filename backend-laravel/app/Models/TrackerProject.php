@@ -13,8 +13,13 @@ class TrackerProject extends Model
     protected $table = 'tracker_projects';
     protected $fillable = [
         'company_id', 'key', 'name', 'description',
-        'lead_id', 'color', 'icon', 'status',
+        'lead_id', 'color', 'icon', 'status', 'workflow_id',
     ];
+
+    public function workflow()
+    {
+        return $this->belongsTo(TrackerWorkflow::class, 'workflow_id');
+    }
 
     public function tasks()
     {

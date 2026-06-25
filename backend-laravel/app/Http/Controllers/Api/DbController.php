@@ -78,6 +78,9 @@ class DbController extends Controller
         'tracker_one_on_ones'        => \App\Models\TrackerOneOnOne::class,
         'tracker_one_on_one_agenda'  => \App\Models\TrackerOneOnOneAgenda::class,
         'tracker_audit_log'          => \App\Models\TrackerAuditLog::class,
+        'tracker_workflows'              => \App\Models\TrackerWorkflow::class,
+        'tracker_workflow_statuses'      => \App\Models\TrackerWorkflowStatus::class,
+        'tracker_workflow_transitions'   => \App\Models\TrackerWorkflowTransition::class,
     ];
 
     protected const OPS = [
