@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTasks, useCreateTask, useUpdateTask, useGoals, useTaskLinks, useLinkTaskToGoal, useUnlinkTaskFromGoal, type TrackerTask, type TaskStatus, type TaskUrgency } from "@/hooks/tracker";
 import { useEffectiveUserId } from "@/hooks/useUserProfile";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { EmployeePicker, useEmployeeNameMap } from "@/components/tracker/Employe
 import { Plus, Link2, X, Calendar, User, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { TaskDetailDialog } from "@/components/tracker/TaskDetailDialog";
+import { TaskFilters, applyTaskFilters, DEFAULT_TASK_FILTERS, type TaskFilterState } from "@/components/tracker/TaskFilters";
 
 import { useTrackerProject } from "@/contexts/TrackerProjectContext";
 
@@ -174,41 +175,44 @@ const TaskRow = ({ task, onOpen }: { task: TrackerTask; onOpen: (t: TrackerTask)
 const TrackerTasks = () => {
   const uid = useEffectiveUserId();
   const [scope, setScope] = useState<"mine" | "all">("mine");
-  const [urgencyFilter, setUrgencyFilter] = useState<TaskUrgency | "all">("all");
+  const [filters, setFilters] = useState<TaskFilterState>(DEFAULT_TASK_FILTERS);
   const [openTask, setOpenTask] = useState<TrackerTask | null>(null);
+
+  // Загружаем расширенный набор задач, серверный фильтр оставляем только по scope
   const { data: tasks = [], isLoading } = useTasks({
     assignee_id: scope === "mine" ? uid ?? undefined : undefined,
-    urgency: urgencyFilter === "all" ? undefined : urgencyFilter,
   });
+
+  const filtered = useMemo(() => applyTaskFilters(tasks, filters), [tasks, filters]);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex gap-2 flex-wrap">
-          <Select value={scope} onValueChange={(v: any) => setScope(v)}>
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="mine">Мои поручения</SelectItem>
-              <SelectItem value="all">Все доступные</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={urgencyFilter} onValueChange={(v: any) => setUrgencyFilter(v)}>
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все срочности</SelectItem>
-              {URGENCY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={scope} onValueChange={(v: any) => setScope(v)}>
+          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="mine">Мои поручения</SelectItem>
+            <SelectItem value="all">Все доступные</SelectItem>
+          </SelectContent>
+        </Select>
         <TaskCreateDialog />
       </div>
 
+      <TaskFilters
+        value={filters}
+        onChange={setFilters}
+        totalCount={tasks.length}
+        shownCount={filtered.length}
+      />
+
       {isLoading ? (
         <p className="text-muted-foreground text-sm">Загрузка…</p>
-      ) : tasks.length === 0 ? (
-        <Card><CardContent className="p-10 text-center text-muted-foreground">Поручений нет.</CardContent></Card>
+      ) : filtered.length === 0 ? (
+        <Card><CardContent className="p-10 text-center text-muted-foreground">
+          {tasks.length === 0 ? "Поручений нет." : "Ничего не найдено по выбранным фильтрам."}
+        </CardContent></Card>
       ) : (
-        <div className="space-y-3">{tasks.map((t) => <TaskRow key={t.id} task={t} onOpen={setOpenTask} />)}</div>
+        <div className="space-y-3">{filtered.map((t) => <TaskRow key={t.id} task={t} onOpen={setOpenTask} />)}</div>
       )}
 
       <TaskDetailDialog task={openTask} open={!!openTask} onOpenChange={(v) => !v && setOpenTask(null)} />
