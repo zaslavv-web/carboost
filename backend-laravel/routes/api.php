@@ -231,6 +231,11 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         // Teams
         Route::apiResource('team-members', TeamMemberController::class);
 
+        // ---- Gamification levels (Iteration 11) ----
+        Route::apiResource('gamification-levels', \App\Http\Controllers\Api\GamificationLevelController::class)
+            ->except(['show']);
+
+
         // ---- Leaves module (Iteration 1) ----
         Route::apiResource('leave-types', \App\Http\Controllers\Api\LeaveTypeController::class);
         Route::apiResource('leave-balances', \App\Http\Controllers\Api\LeaveBalanceController::class);
