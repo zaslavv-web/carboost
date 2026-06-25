@@ -40,7 +40,9 @@ class TrackerChildPolicy extends BasePolicy
         return match ($table) {
             'tracker_key_results' => \App\Models\TrackerGoal::withoutGlobalScopes()->find($model->goal_id),
             'tracker_task_goal_links',
-            'tracker_task_checkins' => \App\Models\TrackerTask::withoutGlobalScopes()->find($model->task_id),
+            'tracker_task_checkins',
+            'tracker_comments',
+            'tracker_attachments' => \App\Models\TrackerTask::withoutGlobalScopes()->find($model->task_id),
             'tracker_one_on_one_agenda' => \App\Models\TrackerOneOnOne::withoutGlobalScopes()->find($model->meeting_id),
             default => null,
         };

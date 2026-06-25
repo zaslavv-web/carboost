@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UrgencyBadge, TaskStatusBadge, URGENCY_OPTIONS, TASK_STATUS_OPTIONS } from "@/components/tracker/Badges";
 import { EmployeePicker, useEmployeeNameMap } from "@/components/tracker/EmployeePicker";
-import { Plus, Link2, X, Calendar, User } from "lucide-react";
+import { Plus, Link2, X, Calendar, User, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
+import { TaskDetailDialog } from "@/components/tracker/TaskDetailDialog";
 
 import { useTrackerProject } from "@/contexts/TrackerProjectContext";
 
@@ -125,7 +126,7 @@ const LinkGoalDialog = ({ taskId }: { taskId: string }) => {
   );
 };
 
-const TaskRow = ({ task }: { task: TrackerTask }) => {
+const TaskRow = ({ task, onOpen }: { task: TrackerTask; onOpen: (t: TrackerTask) => void }) => {
   const update = useUpdateTask();
   const names = useEmployeeNameMap();
   const overdue = task.due_at && new Date(task.due_at) < new Date() && task.status !== "done" && task.status !== "archived";
@@ -133,10 +134,10 @@ const TaskRow = ({ task }: { task: TrackerTask }) => {
   return (
     <Card>
       <CardContent className="p-4 flex items-start gap-4 flex-wrap">
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-[200px] cursor-pointer" onClick={() => onOpen(task)}>
           <div className="flex items-center gap-2 flex-wrap">
             <UrgencyBadge urgency={task.urgency} />
-            <p className="font-medium">{task.title}</p>
+            <p className="font-medium hover:underline">{task.title}</p>
           </div>
           {task.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{task.description}</p>}
           <div className="mt-2 flex items-center gap-3 flex-wrap text-xs">
@@ -160,6 +161,9 @@ const TaskRow = ({ task }: { task: TrackerTask }) => {
             <SelectTrigger className="w-44 h-8"><SelectValue /></SelectTrigger>
             <SelectContent>{TASK_STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
           </Select>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onOpen(task)}>
+            <MessageSquare className="w-3.5 h-3.5" />Открыть
+          </Button>
           <LinkGoalDialog taskId={task.id} />
         </div>
       </CardContent>
@@ -171,6 +175,7 @@ const TrackerTasks = () => {
   const uid = useEffectiveUserId();
   const [scope, setScope] = useState<"mine" | "all">("mine");
   const [urgencyFilter, setUrgencyFilter] = useState<TaskUrgency | "all">("all");
+  const [openTask, setOpenTask] = useState<TrackerTask | null>(null);
   const { data: tasks = [], isLoading } = useTasks({
     assignee_id: scope === "mine" ? uid ?? undefined : undefined,
     urgency: urgencyFilter === "all" ? undefined : urgencyFilter,
@@ -203,8 +208,10 @@ const TrackerTasks = () => {
       ) : tasks.length === 0 ? (
         <Card><CardContent className="p-10 text-center text-muted-foreground">Поручений нет.</CardContent></Card>
       ) : (
-        <div className="space-y-3">{tasks.map((t) => <TaskRow key={t.id} task={t} />)}</div>
+        <div className="space-y-3">{tasks.map((t) => <TaskRow key={t.id} task={t} onOpen={setOpenTask} />)}</div>
       )}
+
+      <TaskDetailDialog task={openTask} open={!!openTask} onOpenChange={(v) => !v && setOpenTask(null)} />
     </div>
   );
 };

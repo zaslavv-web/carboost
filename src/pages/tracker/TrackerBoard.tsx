@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Calendar, User, Hash, FolderKanban } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
+import { TaskDetailDialog } from "@/components/tracker/TaskDetailDialog";
 
 /* ============ Унифицированное описание колонки ============ */
 type ColumnDef = {
@@ -33,14 +34,20 @@ type ColumnDef = {
 };
 
 /* ============ Карточка ============ */
-const TaskCard = ({ task, nameMap }: { task: TrackerTask; nameMap: Map<string, string> }) => {
+const TaskCard = ({ task, nameMap, onOpen }: { task: TrackerTask; nameMap: Map<string, string>; onOpen: (t: TrackerTask) => void }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id, data: { type: "task", task },
   });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <Card className="hover:border-primary/40 transition-colors cursor-grab active:cursor-grabbing">
+      <Card
+        className="hover:border-primary/40 transition-colors cursor-grab active:cursor-grabbing"
+        onClick={(e) => {
+          // Открываем диалог только если это не drag — у dnd-kit при простом клике transform=null
+          if (!isDragging) onOpen(task);
+        }}
+      >
         <CardContent className="p-3 space-y-2">
           <div className="text-sm leading-snug">{task.title}</div>
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -69,10 +76,11 @@ const TaskCard = ({ task, nameMap }: { task: TrackerTask; nameMap: Map<string, s
 
 /* ============ Колонка ============ */
 const Column = ({
-  column, tasks, nameMap, onQuickAdd,
+  column, tasks, nameMap, onQuickAdd, onOpenTask,
 }: {
   column: ColumnDef; tasks: TrackerTask[]; nameMap: Map<string, string>;
   onQuickAdd: (column: ColumnDef, title: string) => void;
+  onOpenTask: (t: TrackerTask) => void;
 }) => {
   const { setNodeRef, isOver } = useDroppable({ id: `col:${column.id}`, data: { type: "column", columnId: column.id } });
   const [adding, setAdding] = useState(false);
@@ -97,7 +105,7 @@ const Column = ({
         className={"flex-1 space-y-2 px-1 pt-1 pb-2 min-h-[80px] rounded-md " + (isOver ? "bg-primary/5 ring-1 ring-primary/30" : "")}
       >
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-          {tasks.map((t) => <TaskCard key={t.id} task={t} nameMap={nameMap} />)}
+          {tasks.map((t) => <TaskCard key={t.id} task={t} nameMap={nameMap} onOpen={onOpenTask} />)}
         </SortableContext>
         {adding && (
           <div className="space-y-1.5 p-1">
@@ -177,6 +185,7 @@ const TrackerBoard = () => {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const [activeTask, setActiveTask] = useState<TrackerTask | null>(null);
+  const [openTask, setOpenTask] = useState<TrackerTask | null>(null);
 
   const onDragStart = (e: DragStartEvent) => {
     setActiveTask(tasks.find((x) => x.id === e.active.id) ?? null);
@@ -276,7 +285,7 @@ const TrackerBoard = () => {
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-3 -mx-2 px-2">
           {columnDefs.map((c) => (
-            <Column key={c.id} column={c} tasks={columns[c.id] ?? []} nameMap={nameMap} onQuickAdd={handleQuickAdd} />
+            <Column key={c.id} column={c} tasks={columns[c.id] ?? []} nameMap={nameMap} onQuickAdd={handleQuickAdd} onOpenTask={setOpenTask} />
           ))}
         </div>
         <DragOverlay>
@@ -289,6 +298,7 @@ const TrackerBoard = () => {
           )}
         </DragOverlay>
       </DndContext>
+      <TaskDetailDialog task={openTask} open={!!openTask} onOpenChange={(v) => !v && setOpenTask(null)} />
     </div>
   );
 };
