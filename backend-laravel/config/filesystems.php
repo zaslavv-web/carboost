@@ -52,7 +52,9 @@ return [
         'hrd-tests'               => $diskFor('hrd-tests',               false),
         'employee-questionnaires' => $diskFor('employee-questionnaires', false),
         'career-submissions'      => $diskFor('career-submissions',      false),
+        'tracker-attachments'     => $diskFor('tracker-attachments',     false),
     ],
+
 
     'links' => [public_path('storage') => storage_path('app/public')],
 ];

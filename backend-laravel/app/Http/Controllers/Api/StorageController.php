@@ -28,7 +28,9 @@ class StorageController extends Controller
         'hrd-tests'               => ['hrd-tests',              false],
         'employee-questionnaires' => ['employee-questionnaires', false],
         'career-submissions'     => ['career-submissions',     false],
+        'tracker-attachments'    => ['tracker-attachments',    false],
     ];
+
 
     public function upload(Request $request, string $bucket)
     {
