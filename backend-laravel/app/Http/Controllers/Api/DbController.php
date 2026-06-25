@@ -81,6 +81,7 @@ class DbController extends Controller
         'tracker_workflows'              => \App\Models\TrackerWorkflow::class,
         'tracker_workflow_statuses'      => \App\Models\TrackerWorkflowStatus::class,
         'tracker_workflow_transitions'   => \App\Models\TrackerWorkflowTransition::class,
+        'tracker_sprints'                => \App\Models\TrackerSprint::class,
     ];
 
     protected const OPS = [

@@ -12,7 +12,7 @@ class TrackerTask extends Model
 
     protected $table = 'tracker_tasks';
     protected $fillable = [
-        'company_id', 'project_id', 'author_id', 'assignee_id', 'parent_task_id',
+        'company_id', 'project_id', 'sprint_id', 'author_id', 'assignee_id', 'parent_task_id',
         'type', 'title', 'description', 'status', 'workflow_status_id',
         'urgency', 'priority',
         'story_points', 'estimate_minutes', 'labels', 'order_index',
