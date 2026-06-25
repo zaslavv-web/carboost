@@ -429,3 +429,93 @@ export function useTrackerStats() {
     upcomingMeetings: meetings.filter((m) => m.status === "planned" && new Date(m.scheduled_at) >= new Date()).length,
   };
 }
+
+/* ============ PROJECTS ============ */
+export function useProjects(filter?: { status?: "active" | "archived" }) {
+  return useQuery({
+    queryKey: ["tracker.projects", filter],
+    queryFn: async () => {
+      let q = laravelDb.from("tracker_projects").select("*").order("created_at", { ascending: false });
+      if (filter?.status) q = q.eq("status", filter.status);
+      const res = await q;
+      return handle<TrackerProject[]>(res as any) ?? [];
+    },
+  });
+}
+
+export function useProject(projectId?: string) {
+  return useQuery({
+    queryKey: ["tracker.project", projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const res = await laravelDb.from("tracker_projects").select("*").eq("id", projectId!).single();
+      return handle<TrackerProject>(res as any);
+    },
+  });
+}
+
+export function useCreateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Partial<TrackerProject>) => {
+      const res = await laravelDb.from("tracker_projects").insert({ status: "active", ...input }).select("*").single();
+      return handle<TrackerProject>(res as any);
+    },
+    onSuccess: () => {
+      toast.success("Проект создан");
+      qc.invalidateQueries({ queryKey: ["tracker.projects"] });
+    },
+  });
+}
+
+export function useUpdateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...patch }: Partial<TrackerProject> & { id: string }) => {
+      const res = await laravelDb.from("tracker_projects").update(patch).eq("id", id).select("*").single();
+      return handle<TrackerProject>(res as any);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tracker.projects"] }),
+  });
+}
+
+/* ============ KANBAN BOARD ============ */
+/** Fixed columns until customizable workflows ship (stage 3). */
+export const BOARD_COLUMNS: { status: TaskStatus; label: string }[] = [
+  { status: "draft", label: "К проработке" },
+  { status: "published", label: "В работе" },
+  { status: "awaiting_checkin", label: "На проверке" },
+  { status: "done", label: "Готово" },
+];
+
+export function useBoardTasks(projectId?: string | null) {
+  return useQuery({
+    queryKey: ["tracker.board", projectId ?? "inbox"],
+    queryFn: async () => {
+      let q = laravelDb
+        .from("tracker_tasks")
+        .select("*")
+        .order("order_index", { ascending: true })
+        .order("created_at", { ascending: false });
+      if (projectId) q = q.eq("project_id", projectId);
+      else q = q.is("project_id", null);
+      const res = await q;
+      return handle<TrackerTask[]>(res as any) ?? [];
+    },
+  });
+}
+
+export function useMoveTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status, order_index }: { id: string; status: TaskStatus; order_index: number; projectKey: string }) => {
+      const res = await laravelDb.from("tracker_tasks").update({ status, order_index }).eq("id", id).select("*").single();
+      return handle<TrackerTask>(res as any);
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["tracker.board", v.projectKey] });
+      qc.invalidateQueries({ queryKey: ["tracker.tasks"] });
+    },
+  });
+}
+
