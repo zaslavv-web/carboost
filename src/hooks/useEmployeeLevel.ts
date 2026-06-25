@@ -1,8 +1,7 @@
 /**
  * Уровни геймификации сотрудника.
- * Бэкенд `gamification_levels` пока не реализован — конфиг хранится в localStorage
- * на уровне компании (по аналогии с custom events в GamificationManagement).
- * Уровень рассчитывается локально по очкам / выслуге / числу достижений.
+ * С 2026-06-25 уровни persist на бэке (gamification_levels, миграция 0021).
+ * localStorage остаётся как фолбэк, пока сервер не отдаёт записи (миграция не накатана).
  */
 import { useQuery } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
