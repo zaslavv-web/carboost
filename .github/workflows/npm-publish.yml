@@ -327,10 +327,10 @@ jobs:
 
           defaults = {
               'DB_CONNECTION': 'mysql',
-              'DB_HOST': 'localhost',
+              'DB_HOST': 'gro7659365.mysql',
               'DB_PORT': '3306',
-              'DB_DATABASE': '',
-              'DB_USERNAME': '',
+              'DB_DATABASE': 'gro7659365_d',
+              'DB_USERNAME': 'gro7659365_grow',
               'DB_PASSWORD': '',
               'MAIL_MAILER': 'unisender_go',
               'MAIL_HOST': 'localhost',
@@ -466,7 +466,7 @@ jobs:
                   new PDO("mysql:host={$host};port={$port};dbname={$db};charset=utf8mb4", $user, $password, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
                   echo "DB preflight: OK\n";
               } catch (Throwable $e) {
-                  fwrite(STDERR, "DB preflight failed: MySQL rejected credentials or database privileges. Check DB_DATABASE/DB_USERNAME/DB_PASSWORD in backend/.env and Beget database user binding.\n");
+                  fwrite(STDERR, "DB preflight failed: MySQL rejected credentials or database privileges. Check DB_HOST=gro7659365.mysql, DB_DATABASE=gro7659365_d, DB_USERNAME=gro7659365_grow, DB_PASSWORD in backend/.env and GitHub Secrets.\n");
                   exit(1);
               }
               ' \
