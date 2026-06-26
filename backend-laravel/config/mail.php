@@ -23,7 +23,15 @@ return [
         'array' => [
             'transport' => 'array',
         ],
+
+        'unisender_go' => [
+            'transport' => 'unisender_go',
+            'key'       => env('UNISENDER_GO_API_KEY'),
+            'endpoint'  => env('UNISENDER_GO_ENDPOINT', 'https://go1.unisender.ru/ru/transactional/api/v1/email/send.json'),
+            'timeout'   => (int) env('UNISENDER_GO_TIMEOUT', 15),
+        ],
     ],
+
 
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),

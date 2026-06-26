@@ -3,12 +3,15 @@
 namespace App\Providers;
 
 use App\Listeners\AttachMonitoringBcc;
+use App\Mail\Transport\UnisenderGoTransport;
 use App\Services\EmailConfigService;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
+
 
 class AppServiceProvider extends ServiceProvider
 {
