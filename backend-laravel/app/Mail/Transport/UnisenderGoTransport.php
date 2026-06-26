@@ -20,7 +20,7 @@ class UnisenderGoTransport extends AbstractTransport
 {
     public function __construct(
         protected string $apiKey,
-        protected string $endpoint = 'https://go1.unisender.ru/ru/transactional/api/v1/email/send.json',
+        protected string $endpoint = 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json',
         protected int $timeoutSeconds = 15,
     ) {
         parent::__construct();
@@ -28,7 +28,7 @@ class UnisenderGoTransport extends AbstractTransport
 
     public function __toString(): string
     {
-        return 'unisender_go+https://go1.unisender.ru';
+        return 'unisender_go+' . $this->endpoint;
     }
 
     protected function doSend(SentMessage $message): void

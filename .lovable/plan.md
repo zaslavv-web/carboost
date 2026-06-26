@@ -1,56 +1,44 @@
-«Ничего не произошло» — это нормально: `sed`, `cat >> .env`, `grep` не печатают вывод при успехе. Они молча отредактировали файл. Давайте проверим результат и вставим ключ.
+## Причина
 
-## Шаг 1. Убедиться, что строки реально добавились
+Аккаунт Growth Peak находится на шарде **go2**, а наш транспорт по умолчанию бьёт в `go1`. Поэтому Unisender принимает ключ как валидный по формату, но не находит пользователя в этом шарде → ошибка 114 `User with id ... not found`.
 
-В папке `~/growth-peak.pro/docs/backend`:
+## Что меняем
+
+Меняем дефолтный endpoint и фиксируем его через `.env`, чтобы при смене шарда не пришлось править код.
+
+### 1. `backend-laravel/app/Mail/Transport/UnisenderGoTransport.php`
+В конструкторе по умолчанию заменить
+```
+https://go1.unisender.ru/...
+```
+на
+```
+https://go2.unisender.ru/ru/transactional/api/v1/email/send.json
+```
+
+### 2. `backend-laravel/config/mail.php`
+В блоке `unisender_go` поменять дефолт `UNISENDER_GO_ENDPOINT` на `go2`-URL (env-override продолжает работать).
+
+### 3. `backend-laravel/.env` (на VPS, вручную)
+Добавить явную строку (на случай, если позже поменяется шард):
+```
+UNISENDER_GO_ENDPOINT=https://go2.unisender.ru/ru/transactional/api/v1/email/send.json
+```
+
+### 4. `backend-laravel/app/Console/Commands/SmtpStatus.php`
+Дописать вывод текущего endpoint, чтобы в будущем сразу видеть, какой шард используется.
+
+## Шаги на VPS после деплоя
 
 ```bash
-grep -E '^(MAIL_MAILER|MAIL_FROM_ADDRESS|MAIL_FROM_NAME|UNISENDER_GO_API_KEY|CACHE_STORE|QUEUE_CONNECTION|SESSION_DRIVER)=' .env
-
-вывод
-CACHE_STORE="file"
-QUEUE_CONNECTION="sync"
-SESSION_DRIVER="file"
-MAIL_MAILER="unisender_go"
-MAIL_FROM_ADDRESS="growthpeak@yandex.ru"
-MAIL_FROM_NAME="Пик роста"
-
-```
-
-&nbsp;
-
-Должно вывести 7 строк, включая:
-
-```
-MAIL_MAILER=unisender_go
-UNISENDER_GO_API_KEY=ВСТАВЬТЕ_СЮДА_КЛЮЧ_ИЗ_КАБИНЕТА_UNISENDER
-```
-
-## Шаг 2. Заменить плейсхолдер на реальный ключ
-
-`nano .env` — это команда, которая **открывает текстовый редактор прямо в терминале**. Куда «открывать» не нужно — он развернётся на весь экран SSH-сессии. Внутри:
-
-1. Стрелками ↓ доскрольте до строки `UNISENDER_GO_API_KEY=ВСТАВЬТЕ_СЮДА...`
-2. Удалите `ВСТАВЬТЕ_СЮДА_КЛЮЧ_ИЗ_КАБИНЕТА_UNISENDER` и вставьте настоящий ключ из кабинета Unisender Go (правая кнопка мыши → Paste, или Shift+Insert).
-3. `Ctrl+O`, затем `Enter` — сохранить.
-4. `Ctrl+X` — выйти.
-
-Если `nano` не установлен (`command not found`) — используйте `vi .env` (там: `i` для редактирования, `Esc` → `:wq` → `Enter` чтобы сохранить) или одной командой без редактора:
-
-```bash
-sed -i 's|^UNISENDER_GO_API_KEY=.*|UNISENDER_GO_API_KEY=ВАШ_РЕАЛЬНЫЙ_КЛЮЧ|' .env
-```
-
-(подставив реальный ключ вместо `ВАШ_РЕАЛЬНЫЙ_КЛЮЧ`).
-
-## Шаг 3. Применить и протестировать
-
-```bash
+cd ~/growth-peak.pro/docs/backend
+git pull   # или ваш способ доставки
+# (опционально) зафиксировать endpoint в .env
+grep -q '^UNISENDER_GO_ENDPOINT=' .env \
+  || echo 'UNISENDER_GO_ENDPOINT=https://go2.unisender.ru/ru/transactional/api/v1/email/send.json' >> .env
 php artisan config:clear && php artisan config:cache
 php artisan smtp:status
-php artisan unisender:test ваш@email
+php artisan unisender:test zaslavv@yandex.ru
 ```
 
-Пришлите вывод `smtp:status` и `unisender:test` — по ним сразу видно, ушло письмо или нет.
-
-Изменения в коде проекта не требуются. Подтвердите план, и я переключусь в build-режим, если потребуется что-то поправить на стороне приложения.
+Ожидаем `OK — письмо отправлено` и письмо в ящике.

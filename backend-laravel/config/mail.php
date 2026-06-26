@@ -27,7 +27,7 @@ return [
         'unisender_go' => [
             'transport' => 'unisender_go',
             'key'       => env('UNISENDER_GO_API_KEY'),
-            'endpoint'  => env('UNISENDER_GO_ENDPOINT', 'https://go1.unisender.ru/ru/transactional/api/v1/email/send.json'),
+            'endpoint'  => env('UNISENDER_GO_ENDPOINT', 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json'),
             'timeout'   => (int) env('UNISENDER_GO_TIMEOUT', 15),
         ],
     ],
