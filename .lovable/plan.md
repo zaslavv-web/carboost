@@ -1,77 +1,82 @@
-## Диагноз
+Unisender Go отдал тебе список DNS-записей, которые нужно прописать в зоне домена `growth-peak.pro` (там же, где ты делал A-записи для VPS — судя по истории, это nic.ru). Пока этих записей нет в DNS, Unisender Go не подтвердит домен и будет отдавать ошибку 1574.
 
-`.env` теперь читается — это уже хорошо. Но видно две ошибки:
+## Что сделать у регистратора (nic.ru → DNS-зона growth-peak.pro)
 
-1. `**MAIL_MAILER=smtp**` — система продолжает слать через Yandex SMTP (тот самый, что даёт `535 auth failed`). Нужно `unisender_go`.
-2. `**MAIL_FROM_ADDRESS=growthpeak@yandex.ru**` — Unisender Go отвечает:
+Добавить ровно 6 записей. В колонке «Имя/Subdomain» вводи именно то, что указано — без `.growth-peak.pro` в конце (регистратор сам подставит).
+
+### 1) SPF (TXT на корне)
+
+- Тип: `TXT`
+- Имя: `@`
+- TTL: `1800`
+- Значение:
+  ```text
+  v=spf1 include:spf.unisender.ru ~all
   ```
-   Error in 'from_email' field. Denied 'from_email': growthpeak@yandex.ru - use address from a confirmed domain
+
+Важно: если на `@` уже есть другая TXT с `v=spf1 ...` (например от Yandex) — её надо **объединить**, а не создавать вторую. Двух SPF-записей быть не должно. Если активной отправки через Yandex больше нет — старую SPF удалить, оставить только эту.
+
+### 2) DKIM (TXT)
+
+- Тип: `TXT`
+- Имя: `us._domainkey`
+- TTL: `1800`
+- Значение (одной строкой, без переносов):
+  ```text
+  v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCiZdqdi+dZWEInnUQ9ieoeKWopejXWhQSS0Jr0t9u+Tjf7Lii0b1qnGcfMySBNeNH71O571PBRhBuqSbKdSluPt31wvJphZupFd36wQ96MO2WvV5Dy3Y3kHzUtD/unvi7ey7hiBZS44ZwyiqBapqp2Kn/3B17yqR5cnWpxfepnmwIDAQAB
   ```
-   Отправлять можно только с **подтверждённого домена**. Подтверждён `mail.growth-peak.pro` (через DKIM/SPF/DMARC), значит `from` должен быть на этом домене, например `noreply@mail.growth-peak.pro`.
 
-## Что поправить в `.env` на VPS
+### 3) Verification-hash (TXT на корне)
 
-```bash
-cd ~/growth-peak.pro/docs/backend
-nano .env
-```
+- Тип: `TXT`
+- Имя: `@`
+- TTL: `1800`
+- Значение:
+  ```text
+  unisender-go-validate-hash=adb533d5c7d4f14f21428b9528f09276
+  ```
 
-Изменить **три** строки:
+Это вторая TXT на `@` — это нормально (SPF и verification hash могут сосуществовать как отдельные TXT-записи; правило «одна запись» касается только SPF).
 
-```env
-MAIL_MAILER=unisender_go
-MAIL_FROM_ADDRESS=noreply@mail.growth-peak.pro
-MAIL_FROM_NAME=Growth Peak
-```
+### 4) DMARC (CNAME)
 
-(Старые `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` для Yandex можно оставить как fallback или удалить — на работу Unisender они не влияют.)
+- Тип: `CNAME`
+- Имя: `_dmarc`
+- TTL: `1800`
+- Значение:
+  ```text
+  growth-peak.pro.dmarc.unisender.ru.
+  ```
 
-сейчас так и есть
+Точка в конце обязательна. Если на `_dmarc` уже есть TXT-запись — её нужно удалить, иначе CNAME не примут.
 
-Заодно проверь, что задано:
+### 5–7) Делегирование поддомена `mail.growth-peak.pro` на Unisender (NS)
 
-```env
-SALES_NOTIFICATION_EMAIL=zaslavv@gmail.com
-```
+- Тип: `NS`, Имя: `mail`, TTL: `3600`, Значение: `uns1.unisender.com.`
+- Тип: `NS`, Имя: `mail`, TTL: `3600`, Значение: `uns2.unisender.com.`
+- Тип: `NS`, Имя: `mail`, TTL: `3600`, Значение: `uns3.unisender.com.`
 
-где это указывать?
+В nic.ru обычно три отдельные записи с одним именем `mail` и разными значениями. Точки в конце имён серверов обязательны.
 
-— чтобы заявки с сайта приходили тебе на gmail (сейчас пусто).
+Важно: после этого **весь поддомен `mail.growth-peak.pro` управляется Unisender'ом**. Если у тебя сейчас есть какие-то записи на `mail.growth-peak.pro` (A, MX, TXT и т.п.) у nic.ru — они перестанут работать. Судя по конфигу, ты используешь только `noreply@mail.growth-peak.pro` для отправки — это ок.
 
-## Проверить, что домен реально подтверждён
+## После сохранения записей
 
-В кабинете Unisender Go → **Settings → Sending domains** домен `mail.growth-peak.pro` должен быть со статусом **Verified** (зелёная галка по SPF и DKIM). Если статус не verified — `from_email` на этом домене тоже не пропустит, надо сначала дождаться проверки DNS (до 24ч после добавления записей в nic.ru).  
-  
-вот что указано в свойствах домена отправки
+1. Подожди распространения DNS — обычно 15 минут–2 часа, иногда до суток. Проверить можно так:
+  ```bash
+   dig +short TXT us._domainkey.growth-peak.pro
+   dig +short TXT growth-peak.pro
+   dig +short NS mail.growth-peak.pro
+   dig +short CNAME _dmarc.growth-peak.pro
+  ```
+   Должны вернуться те же значения, что выше.
+2. В кабинете Unisender Go нажми **Проверить** рядом с доменом `growth-peak.pro`. Когда все галочки станут зелёными — домен подтверждён.
+3. На VPS повтори тест:
+  ```bash
+   cd ~/growth-peak.pro/docs/backend
+   php artisan unisender:test zaslavv@gmail.com
+  ```
+   Ожидаемый результат: `OK — письмо отправлено`.
 
-
-| Domain                                              | TTL  | Type  | Value                                                                                                                                                                                                                                      |
-| --------------------------------------------------- | ---- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| @                                                   | 1800 | TXT   | v=spf1 include:[spf.unisender.ru](http://spf.unisender.ru) ~all                                                                                                                                                                            |
-| us._domainkey                                       | 1800 | TXT   | v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCiZdqdi+dZWEInnUQ9ieoeKWopejXWhQSS0Jr0t9u+Tjf7Lii0b1qnGcfMySBNeNH71O571PBRhBuqSbKdSluPt31wvJphZupFd36wQ96MO2WvV5Dy3Y3kHzUtD/unvi7ey7hiBZS44ZwyiqBapqp2Kn/3B17yqR5cnWpxfepnmwIDAQAB |
-| @                                                   | 1800 | TXT   | unisender-go-validate-hash=adb533d5c7d4f14f21428b9528f09276                                                                                                                                                                                |
-| _dmarc                                              | 1800 | CNAME | [growth-peak.pro.dmarc.unisender.ru](http://growth-peak.pro.dmarc.unisender.ru).                                                                                                                                                           |
-| [mail.growth-peak.pro](http://mail.growth-peak.pro) | 3600 | NS    | [uns1.unisender.com](http://uns1.unisender.com).                                                                                                                                                                                           |
-| [mail.growth-peak.pro](http://mail.growth-peak.pro) | 3600 | NS    | [uns2.unisender.com](http://uns2.unisender.com).                                                                                                                                                                                           |
-| [mail.growth-peak.pro](http://mail.growth-peak.pro) | 3600 | NS    | [uns3.unisender.com](http://uns3.unisender.com).                                                                                                                                                                                           |
-
-
-## Применить и проверить
-
-```bash
-php artisan config:clear
-php artisan cache:clear
-php artisan smtp:status
-php artisan unisender:test zaslavv@gmail.com
-```
-
-Ожидаемо:
-
-- `smtp:status` → `Активный канал: unisender_go`
-- `unisender:test` → `Письмо отправлено успешно` и оно реально придёт на [zaslavv@gmail.com](mailto:zaslavv@gmail.com).
-
-## Если снова ошибка
-
-- `[1574] use address from a confirmed domain` повторно → домен ещё не verified в Unisender, дожидаемся DNS.
-- `[114] User ... not found` → API-ключ не от того аккаунта, в котором подтверждён домен; берём ключ из того же кабинета, где добавлен `mail.growth-peak.pro`.
-- Любая другая — пришли вывод, разберём.
+Код в проекте менять не нужно — это правки только в DNS-зоне у регистратора.  
+это все сделано давным-давно иначе unisender не смог бы подтвердить домен
