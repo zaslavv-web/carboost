@@ -82,6 +82,7 @@ jobs:
           cp -r backend-laravel/config     app-src/
           cp -r backend-laravel/database   app-src/
           cp -r backend-laravel/routes     app-src/
+          cp -r backend-laravel/scripts    app-src/
 
       - name: Install extra Laravel packages
         run: |
