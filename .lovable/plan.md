@@ -1,66 +1,56 @@
-Отлично, `artisan` найден по пути `./growth-peak.pro/docs/backend/artisan`. Значит корень Laravel-бэкенда на VPS — `~/growth-peak.pro/docs/backend`.
+«Ничего не произошло» — это нормально: `sed`, `cat >> .env`, `grep` не печатают вывод при успехе. Они молча отредактировали файл. Давайте проверим результат и вставим ключ.
 
-## Что сделать на VPS
+## Шаг 1. Убедиться, что строки реально добавились
+
+В папке `~/growth-peak.pro/docs/backend`:
 
 ```bash
-cd ~/growth-peak.pro/docs/backend
+grep -E '^(MAIL_MAILER|MAIL_FROM_ADDRESS|MAIL_FROM_NAME|UNISENDER_GO_API_KEY|CACHE_STORE|QUEUE_CONNECTION|SESSION_DRIVER)=' .env
 
-# 1. Проверяем, что .env здесь есть
-ls -la artisan .env
--rwxr-xr-x. 1 gro7659365 gro7659365  350 янв 24  2025 artisan
--rw-r--r--. 1 gro7659365 gro7659365 1448 июн 26 18:32 .env
+вывод
+CACHE_STORE="file"
+QUEUE_CONNECTION="sync"
+SESSION_DRIVER="file"
+MAIL_MAILER="unisender_go"
+MAIL_FROM_ADDRESS="growthpeak@yandex.ru"
+MAIL_FROM_NAME="Пик роста"
 
 ```
 
-Если `.env` отсутствует — сначала создаём из шаблона:
+&nbsp;
 
-```bash
-cp .env.production.example .env
-# затем отредактируйте: APP_KEY, DB_*, MAIL_MAILER=unisender_go,
-# MAIL_FROM_ADDRESS=noreply@mail.growth-peak.pro, UNISENDER_GO_API_KEY=...
-php artisan key:generate
+Должно вывести 7 строк, включая:
+
+```
+MAIL_MAILER=unisender_go
+UNISENDER_GO_API_KEY=ВСТАВЬТЕ_СЮДА_КЛЮЧ_ИЗ_КАБИНЕТА_UNISENDER
 ```
 
-Если `.env` уже есть — переключаем кэш/очередь/сессии с Redis на файловые драйверы:
+## Шаг 2. Заменить плейсхолдер на реальный ключ
+
+`nano .env` — это команда, которая **открывает текстовый редактор прямо в терминале**. Куда «открывать» не нужно — он развернётся на весь экран SSH-сессии. Внутри:
+
+1. Стрелками ↓ доскрольте до строки `UNISENDER_GO_API_KEY=ВСТАВЬТЕ_СЮДА...`
+2. Удалите `ВСТАВЬТЕ_СЮДА_КЛЮЧ_ИЗ_КАБИНЕТА_UNISENDER` и вставьте настоящий ключ из кабинета Unisender Go (правая кнопка мыши → Paste, или Shift+Insert).
+3. `Ctrl+O`, затем `Enter` — сохранить.
+4. `Ctrl+X` — выйти.
+
+Если `nano` не установлен (`command not found`) — используйте `vi .env` (там: `i` для редактирования, `Esc` → `:wq` → `Enter` чтобы сохранить) или одной командой без редактора:
 
 ```bash
-sed -i 's/^CACHE_STORE=.*/CACHE_STORE=file/;s/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/;s/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
-ничего не произошло
-
-# Если каких-то ключей в .env вовсе нет — добавим:
-grep -q '^CACHE_STORE='       .env || echo 'CACHE_STORE=file'       >> .env
-grep -q '^QUEUE_CONNECTION='  .env || echo 'QUEUE_CONNECTION=sync'  >> .env
-grep -q '^SESSION_DRIVER='    .env || echo 'SESSION_DRIVER=file'    >> .env
+sed -i 's|^UNISENDER_GO_API_KEY=.*|UNISENDER_GO_API_KEY=ВАШ_РЕАЛЬНЫЙ_КЛЮЧ|' .env
 ```
 
-ничего не произошло
+(подставив реальный ключ вместо `ВАШ_РЕАЛЬНЫЙ_КЛЮЧ`).
 
-Сбрасываем кэш конфигурации и проверяем канал отправки:
+## Шаг 3. Применить и протестировать
 
 ```bash
-php artisan config:clear
-php artisan cache:clear
-php artisan config:cache
-
+php artisan config:clear && php artisan config:cache
 php artisan smtp:status
-php artisan unisender:test ваш-личный@email
-=== TEST EMAIL ===
-Канал       : smtp
-From        : growthpeak@yandex.ru
-To          : zaslavv@yandex.ru
-Ошибка отправки: Failed to authenticate on SMTP server with username "growthpeak@yandex.ru" using the following authenticators: "LOGIN", "PLAIN", "XOAUTH2". Authenticator "LOGIN" returned "Expected response code "235" but got code "535", with message "535 5.7.8 Error: authentication failed: Invalid user or password! 1782488295-Ecc7aPTeJW20".". Authenticator "PLAIN" returned "Expected response code "235" but got code "535", with message "535 5.7.8 Error: authentication failed: Invalid user or password! 1782488295-Ecc7aPTeJW20".". Authenticator "XOAUTH2" returned "Expected response code "235" but got code "535", with message "535 5.7.8 Error: authentication failed: Invalid user or password! 1782488295-Ecc7aPTeJW20".".
-
+php artisan unisender:test ваш@email
 ```
 
-## Что должно получиться
+Пришлите вывод `smtp:status` и `unisender:test` — по ним сразу видно, ушло письмо или нет.
 
-- `smtp:status` показывает `MAIL_MAILER=unisender_go` и длину API-ключа > 0.
-- `unisender:test` пишет `OK` и письмо приходит на указанный адрес (проверьте папку «Спам», т.к. DNS-записи ещё не добавлены — после добавления SPF/DKIM/DMARC доставляемость в инбокс будет нормальной).
-
-## Если что-то пойдёт не так
-
-- `Could not open input file: artisan` → вы не в той папке, вернитесь в `~/growth-peak.pro/docs/backend`.
-- `unisender:test` отвечает 401/403 → неверный `UNISENDER_GO_API_KEY` в `.env`, перепроверьте и снова `php artisan config:cache`.
-- Письмо не приходит и нет ошибки → пришлите вывод `tail -n 100 storage/logs/laravel.log`, разберу.
-
-Изменения в коде не требуются — это разовая операция на сервере. Подтвердите план, и я переключусь в build-режим, чтобы при необходимости донастроить .env.example/докуменацию под путь `docs/backend`.
+Изменения в коде проекта не требуются. Подтвердите план, и я переключусь в build-режим, если потребуется что-то поправить на стороне приложения.
