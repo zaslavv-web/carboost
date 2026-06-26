@@ -45,11 +45,12 @@ class SmtpStatus extends Command
             $source = 'файл / fallback';
         }
 
-        $emailConfig->apply();
         try {
+            $emailConfig->apply();
             $summary = $emailConfig->currentSmtpSummary();
         } catch (\Throwable $e) {
             $summary = ['host' => '(ошибка)', 'port' => '(?)', 'encryption' => '', 'username' => ''];
+            $dbError = $dbError ?: $e->getMessage();
         }
 
         $this->line('');
