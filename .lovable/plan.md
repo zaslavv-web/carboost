@@ -1,51 +1,30 @@
-## Что происходит
+## Проблема
 
-`.env` на VPS откатывается не сам по себе: его перезаписывает GitHub Actions workflow `.github/workflows/npm-publish.yml` при деплое.
+В `.github/workflows/npm-publish.yml` шаг «Create backend .env» подставляет `DB_HOST`/`DB_PORT`/`DB_DATABASE`/`DB_USERNAME`/`DB_PASSWORD` напрямую из GitHub Secrets и записывает их в `app-src/.env`, который затем заливается на VPS поверх рабочего `backend/.env`. Реальный пароль MySQL на Beget вы меняли через панель хостинга и в GitHub Secrets он не обновлён → `php artisan migrate` валится с `SQLSTATE[HY000] [1045] Access denied for user '***'@'localhost'`.
 
-В workflow есть шаг **Create backend .env**, который каждый раз генерирует новый `backend/.env`, а затем через `rsync --delete` отправляет его на сервер. В этом генераторе сейчас зашиты/подставляются старые значения:
+Раньше та же проблема была с MAIL_*; мы её решили, считывая значения из существующего `/backend/.env` на сервере и подставляя их вместо плейсхолдеров. Сейчас нужно повторить ту же схему для DB_*.
 
-- `MAIL_MAILER`: жёстко задан как `smtp`
-- `MAIL_FROM_ADDRESS`: берётся из GitHub Secret `MAIL_FROM_ADDRESS`, а если там старое значение — возвращается `growthpeak@yandex.ru`
-- `UNISENDER_GO_API_KEY` и `UNISENDER_GO_ENDPOINT` не попадают в генерируемый `.env`
-- вручную исправленные значения на VPS не сохраняются, кроме `APP_KEY`
+## Что меняю
 
-## План исправления
+Файл: `.github/workflows/npm-publish.yml`
 
-1. Обновить `.github/workflows/npm-publish.yml`:
-  - убрать хардкод `MAIL_MAILER=smtp`;
-  - добавить поддержку `MAIL_MAILER=unisender_go`;
-  - добавить переменные `UNISENDER_GO_API_KEY`, `UNISENDER_GO_ENDPOINT`, `UNISENDER_GO_TIMEOUT`;
-  - сделать preserve-логику для почтового блока: если на сервере уже есть корректные `MAIL_*` / `UNISENDER_GO_*`, workflow будет сохранять их, а не затирать.
-2. Добавить безопасные fallback-значения:
-  - `MAIL_MAILER` по умолчанию `unisender_go`, если в GitHub Secrets/Vars не задано другое;
-  - `UNISENDER_GO_ENDPOINT` по умолчанию `https://go2.unisender.ru/ru/transactional/api/v1/email/send.json`;
-  - `MAIL_FROM_ADDRESS` не должен автоматически возвращаться к `growthpeak@yandex.ru`.
-3. Оставить совместимость с SMTP:
-  - если когда-нибудь понадобится вернуться на SMTP, это можно будет сделать через GitHub Variables/Secrets, без правки кода workflow.
-4. После правки нужно будет на VPS один раз выставить правильный `.env` или обновить GitHub Secrets/Variables:
-  - `MAIL_MAILER=unisender_go`
-  - `MAIL_FROM_ADDRESS` = адрес на подтверждённом домене Unisender
-  - `UNISENDER_GO_API_KEY`
-  - `UNISENDER_GO_ENDPOINT=https://go2.unisender.ru/ru/transactional/api/v1/email/send.json`
+1. В шаге «Create backend .env» вместо прямой подстановки `DB_*` из секретов писать плейсхолдеры `__PRESERVE_SERVER_DB_HOST__`, `__PRESERVE_SERVER_DB_PORT__`, `__PRESERVE_SERVER_DB_DATABASE__`, `__PRESERVE_SERVER_DB_USERNAME__`, `__PRESERVE_SERVER_DB_PASSWORD__`, `__PRESERVE_SERVER_DB_CONNECTION__`, если соответствующий GitHub Secret пуст. Если секрет задан — использовать его как fallback.
 
-## Проверка после внедрения
+2. В шаге «Deploy backend» расширить SSH-чтение серверного `.env`: добавить в `grep` ключи `DB_CONNECTION|DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME|DB_PASSWORD` и тот же python-блок, что обрабатывает MAIL_*, расширить, чтобы он:
+   - читал значения DB_* из серверного `.env`,
+   - подставлял их с приоритетом над сгенерированными,
+   - заменял плейсхолдеры `__PRESERVE_SERVER_DB_*__` финальными значениями.
 
-После следующего деплоя выполнить на VPS:
+3. Логика приоритетов (как у MAIL_*): server `.env` > GitHub Secret > дефолт. Дефолт для `DB_CONNECTION` — `mysql`, для `DB_HOST` — `localhost`, для `DB_PORT` — `3306`. Для `DB_DATABASE/USERNAME/PASSWORD` дефолта нет — если ни на сервере, ни в секретах нет значения, деплой падает с понятной ошибкой.
 
-```bash
-cd ~/growth-peak.pro/docs/backend
-php artisan config:clear
-php artisan cache:clear
-php artisan smtp:status
-php artisan unisender:test zaslavv@gmail.com
-```
+4. Сохранить совместимость: если сервер ещё не инициализирован (нет `backend/.env`), деплой использует GitHub Secrets как раньше.
 
-Ожидаемо:
+## Результат
 
-- `Активный канал: unisender_go`
-- `From` больше не откатывается на `growthpeak@yandex.ru`
-- `.env` больше не возвращается к старой версии после деплоя
+- При следующем деплое DB-блок в `backend/.env` на VPS останется тем, который вы прописали вручную (с правильным паролем Beget).
+- Миграции и сидеры пройдут.
+- Менять пароль БД через Beget можно будет, не трогая GitHub Secrets.
 
-а настройки на сервере не слетят?
+## После внедрения
 
-&nbsp;
+Запустить деплой (push в `main`) и проверить, что шаг `php artisan migrate --force` отработал без `Access denied`.
