@@ -25,9 +25,14 @@ class SmtpStatus extends Command
 
         $dbActive = EmailSetting::query()->where('is_active', true)->latest('updated_at')->first();
 
+        $envMailer = strtolower((string) RuntimeEnv::get('MAIL_MAILER', ''));
+        $isHttpApi = $envMailer === 'unisender_go';
+
         $source = 'unknown';
-        if ($envHost && $envFrom && $envPass) {
-            $source = '.env (приоритет)';
+        if ($isHttpApi) {
+            $source = '.env (MAIL_MAILER=' . $envMailer . ', HTTP API)';
+        } elseif ($envHost && $envFrom && $envPass) {
+            $source = '.env (приоритет, SMTP)';
         } elseif ($dbActive) {
             $source = 'БД (email_settings)';
         } else {
@@ -38,11 +43,29 @@ class SmtpStatus extends Command
         $summary = $emailConfig->currentSmtpSummary();
 
         $this->line('');
-        $this->info('=== SMTP STATUS ===');
+        $this->info('=== EMAIL CHANNEL STATUS ===');
         $this->line('base_path         : ' . base_path());
         $this->line('env file (loaded) : ' . app()->environmentFilePath());
-        $this->line("Активный источник : {$source}");
+        $this->line('Активный канал    : ' . $emailConfig->activeChannel());
+        $this->line('Активный источник : ' . $source);
         $this->line('');
+
+        if ($isHttpApi) {
+            $apiKey   = RuntimeEnv::get('UNISENDER_GO_API_KEY');
+            $endpoint = RuntimeEnv::get('UNISENDER_GO_ENDPOINT', 'https://go1.unisender.ru/ru/transactional/api/v1/email/send.json');
+            $this->line('--- Unisender Go ---');
+            $this->line('UNISENDER_GO_API_KEY  : ' . ($apiKey ? 'есть (' . strlen($apiKey) . ' симв.)' : 'НЕТ'));
+            $this->line('UNISENDER_GO_ENDPOINT : ' . $endpoint);
+            $this->line('MAIL_FROM_ADDRESS     : ' . ($envFrom ?: '(пусто)'));
+            $this->line('MAIL_FROM_NAME        : ' . (RuntimeEnv::get('MAIL_FROM_NAME') ?: '(пусто)'));
+            $this->line('MAIL_REPLY_TO         : ' . (RuntimeEnv::get('MAIL_REPLY_TO') ?: '(пусто)'));
+            $this->line('SALES_NOTIFICATION_EMAIL : ' . (RuntimeEnv::get('SALES_NOTIFICATION_EMAIL') ?: '(пусто)'));
+            $this->line('');
+            $this->line('Тест: php artisan unisender:test your@email.com');
+            return self::SUCCESS;
+        }
+
+
         $this->line('--- .env ---');
         $this->line('MAIL_HOST         : ' . ($envHost ?: '(пусто)'));
         $this->line('MAIL_PORT         : ' . (RuntimeEnv::get('MAIL_PORT') ?: '(пусто)'));
