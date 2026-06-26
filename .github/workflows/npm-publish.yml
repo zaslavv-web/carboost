@@ -104,13 +104,22 @@ jobs:
           GOOGLE_CLIENT_ID_SECRET: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI_SECRET: ${{ secrets.GOOGLE_REDIRECT_URI }}
+          MAIL_MAILER_SECRET: ${{ secrets.MAIL_MAILER }}
+          MAIL_MAILER_VAR: ${{ vars.MAIL_MAILER }}
           MAIL_HOST_SECRET: ${{ secrets.MAIL_HOST }}
           MAIL_PORT_SECRET: ${{ secrets.MAIL_PORT }}
           MAIL_USERNAME_SECRET: ${{ secrets.MAIL_USERNAME }}
           MAIL_PASSWORD_SECRET: ${{ secrets.MAIL_PASSWORD }}
           MAIL_ENCRYPTION_SECRET: ${{ secrets.MAIL_ENCRYPTION }}
           MAIL_FROM_ADDRESS_SECRET: ${{ secrets.MAIL_FROM_ADDRESS }}
+          MAIL_FROM_ADDRESS_VAR: ${{ vars.MAIL_FROM_ADDRESS }}
           MAIL_FROM_NAME_SECRET: ${{ secrets.MAIL_FROM_NAME }}
+          MAIL_FROM_NAME_VAR: ${{ vars.MAIL_FROM_NAME }}
+          UNISENDER_GO_API_KEY_SECRET: ${{ secrets.UNISENDER_GO_API_KEY }}
+          UNISENDER_GO_ENDPOINT_SECRET: ${{ secrets.UNISENDER_GO_ENDPOINT }}
+          UNISENDER_GO_ENDPOINT_VAR: ${{ vars.UNISENDER_GO_ENDPOINT }}
+          UNISENDER_GO_TIMEOUT_SECRET: ${{ secrets.UNISENDER_GO_TIMEOUT }}
+          UNISENDER_GO_TIMEOUT_VAR: ${{ vars.UNISENDER_GO_TIMEOUT }}
           YANDEX_CLIENT_ID_SECRET: ${{ secrets.YANDEX_CLIENT_ID }}
           YANDEX_CLIENT_SECRET_SECRET: ${{ secrets.YANDEX_CLIENT_SECRET }}
           YANDEX_REDIRECT_URI_SECRET: ${{ secrets.YANDEX_REDIRECT_URI }}
@@ -159,11 +168,12 @@ jobs:
           else
             DB_PORT_VALUE="3306"
           fi
-          MAIL_HOST_VALUE="${MAIL_HOST_SECRET}"
+          MAIL_MAILER_VALUE="${MAIL_MAILER_SECRET:-${MAIL_MAILER_VAR:-__PRESERVE_SERVER_MAIL_MAILER__}}"
+          MAIL_HOST_VALUE="${MAIL_HOST_SECRET:-__PRESERVE_SERVER_MAIL_HOST__}"
           if [[ "$MAIL_HOST_VALUE" == "smtp.yandex.com" ]]; then
             MAIL_HOST_VALUE="smtp.yandex.ru"
           fi
-          MAIL_PORT_VALUE="${MAIL_PORT_SECRET:-587}"
+          MAIL_PORT_VALUE="${MAIL_PORT_SECRET:-__PRESERVE_SERVER_MAIL_PORT__}"
           if [[ "$MAIL_HOST_VALUE" == "smtp.yandex.ru" && "$MAIL_PORT_VALUE" == "465" ]]; then
             MAIL_ENCRYPTION_VALUE="ssl"
           elif [[ -n "$MAIL_ENCRYPTION_SECRET" ]]; then
@@ -171,15 +181,22 @@ jobs:
           elif [[ "$MAIL_PORT_VALUE" == "465" ]]; then
             MAIL_ENCRYPTION_VALUE="ssl"
           else
-            MAIL_ENCRYPTION_VALUE="tls"
+            MAIL_ENCRYPTION_VALUE="__PRESERVE_SERVER_MAIL_ENCRYPTION__"
           fi
-          MAIL_FROM_ADDRESS_VALUE="${MAIL_FROM_ADDRESS_SECRET:-noreply@${APP_HOST_VALUE}}"
-          MAIL_FROM_NAME_VALUE="${MAIL_FROM_NAME_SECRET:-Пик Роста}"
+          MAIL_USERNAME_VALUE="${MAIL_USERNAME_SECRET:-__PRESERVE_SERVER_MAIL_USERNAME__}"
+          MAIL_PASSWORD_VALUE="${MAIL_PASSWORD_SECRET:-__PRESERVE_SERVER_MAIL_PASSWORD__}"
+          MAIL_FROM_ADDRESS_VALUE="${MAIL_FROM_ADDRESS_SECRET:-${MAIL_FROM_ADDRESS_VAR:-__PRESERVE_SERVER_MAIL_FROM_ADDRESS__}}"
+          MAIL_FROM_NAME_VALUE="${MAIL_FROM_NAME_SECRET:-${MAIL_FROM_NAME_VAR:-__PRESERVE_SERVER_MAIL_FROM_NAME__}}"
+          UNISENDER_GO_API_KEY_VALUE="${UNISENDER_GO_API_KEY_SECRET:-__PRESERVE_SERVER_UNISENDER_GO_API_KEY__}"
+          UNISENDER_GO_ENDPOINT_VALUE="${UNISENDER_GO_ENDPOINT_SECRET:-${UNISENDER_GO_ENDPOINT_VAR:-__PRESERVE_SERVER_UNISENDER_GO_ENDPOINT__}}"
+          UNISENDER_GO_TIMEOUT_VALUE="${UNISENDER_GO_TIMEOUT_SECRET:-${UNISENDER_GO_TIMEOUT_VAR:-__PRESERVE_SERVER_UNISENDER_GO_TIMEOUT__}}"
           GEOIP_PROVIDER_VALUE="${GEOIP_PROVIDER_SECRET:-ip-api}"
           export APP_KEY_VALUE APP_CIPHER_VALUE APP_URL_VALUE APP_HOST_VALUE GOOGLE_REDIRECT_URI_VALUE \
             YANDEX_REDIRECT_URI_VALUE GEOIP_PROVIDER_VALUE \
             DB_CONNECTION_VALUE DB_PORT_VALUE MAIL_HOST_VALUE MAIL_PORT_VALUE \
-            MAIL_ENCRYPTION_VALUE MAIL_FROM_ADDRESS_VALUE MAIL_FROM_NAME_VALUE
+            MAIL_MAILER_VALUE MAIL_USERNAME_VALUE MAIL_PASSWORD_VALUE MAIL_ENCRYPTION_VALUE \
+            MAIL_FROM_ADDRESS_VALUE MAIL_FROM_NAME_VALUE UNISENDER_GO_API_KEY_VALUE \
+            UNISENDER_GO_ENDPOINT_VALUE UNISENDER_GO_TIMEOUT_VALUE
 
           python3 <<'PY'
           import os
@@ -223,14 +240,17 @@ jobs:
               'YANDEX_REDIRECT_URI': os.environ['YANDEX_REDIRECT_URI_VALUE'],
               'FRONTEND_URL': os.environ['APP_URL_VALUE'],
               'APP_FRONTEND_URL': os.environ['APP_URL_VALUE'],
-              'MAIL_MAILER': 'smtp',
+              'MAIL_MAILER': os.environ['MAIL_MAILER_VALUE'],
               'MAIL_HOST': os.environ['MAIL_HOST_VALUE'],
               'MAIL_PORT': os.environ['MAIL_PORT_VALUE'],
-              'MAIL_USERNAME': os.environ.get('MAIL_USERNAME_SECRET', ''),
-              'MAIL_PASSWORD': os.environ.get('MAIL_PASSWORD_SECRET', ''),
+              'MAIL_USERNAME': os.environ['MAIL_USERNAME_VALUE'],
+              'MAIL_PASSWORD': os.environ['MAIL_PASSWORD_VALUE'],
               'MAIL_ENCRYPTION': os.environ['MAIL_ENCRYPTION_VALUE'],
               'MAIL_FROM_ADDRESS': os.environ['MAIL_FROM_ADDRESS_VALUE'],
               'MAIL_FROM_NAME': os.environ['MAIL_FROM_NAME_VALUE'],
+              'UNISENDER_GO_API_KEY': os.environ['UNISENDER_GO_API_KEY_VALUE'],
+              'UNISENDER_GO_ENDPOINT': os.environ['UNISENDER_GO_ENDPOINT_VALUE'],
+              'UNISENDER_GO_TIMEOUT': os.environ['UNISENDER_GO_TIMEOUT_VALUE'],
               'GEOIP_PROVIDER': os.environ['GEOIP_PROVIDER_VALUE'],
               'GEOIP_DISABLED': '0',
           }
@@ -261,6 +281,95 @@ jobs:
             export APP_KEY_VALUE
             python3 -c "from pathlib import Path; import os; p=Path('app-src/.env'); p.write_text(p.read_text().replace('__PRESERVE_SERVER_APP_KEY__', os.environ['APP_KEY_VALUE']))"
           fi
+
+          SERVER_MAIL_ENV="$(ssh -o StrictHostKeyChecking=no \
+              -o HostKeyAlgorithms=+ssh-rsa \
+              -o PubkeyAcceptedKeyTypes=+ssh-rsa \
+              ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+              "if [ -f ${{ secrets.TARGET_DIR }}/backend/.env ]; then grep -E '^(MAIL_MAILER|MAIL_HOST|MAIL_PORT|MAIL_USERNAME|MAIL_PASSWORD|MAIL_ENCRYPTION|MAIL_FROM_ADDRESS|MAIL_FROM_NAME|UNISENDER_GO_API_KEY|UNISENDER_GO_ENDPOINT|UNISENDER_GO_TIMEOUT)=' ${{ secrets.TARGET_DIR }}/backend/.env || true; fi")"
+          export SERVER_MAIL_ENV
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          def parse_env_value(raw):
+              value = raw.strip()
+              if len(value) >= 2 and value[0] == value[-1] == '"':
+                  value = value[1:-1]
+                  value = value.replace('\\n', '\n').replace('\\"', '"').replace('\\\\', '\\')
+              return value
+
+          def parse_env_lines(text):
+              parsed = {}
+              for line in text.splitlines():
+                  if '=' not in line or line.lstrip().startswith('#'):
+                      continue
+                  key, value = line.split('=', 1)
+                  parsed[key.strip()] = parse_env_value(value)
+              return parsed
+
+          server = {}
+          for line in os.environ.get('SERVER_MAIL_ENV', '').splitlines():
+              if '=' not in line or line.lstrip().startswith('#'):
+                  continue
+              key, value = line.split('=', 1)
+              server[key.strip()] = parse_env_value(value)
+
+          defaults = {
+              'MAIL_MAILER': 'unisender_go',
+              'MAIL_HOST': 'localhost',
+              'MAIL_PORT': '587',
+              'MAIL_USERNAME': '',
+              'MAIL_PASSWORD': '',
+              'MAIL_ENCRYPTION': '',
+              'MAIL_FROM_ADDRESS': 'noreply@mail.growth-peak.pro',
+              'MAIL_FROM_NAME': 'Growth Peak',
+              'UNISENDER_GO_API_KEY': '',
+              'UNISENDER_GO_ENDPOINT': 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json',
+              'UNISENDER_GO_TIMEOUT': '15',
+          }
+          path = Path('app-src/.env')
+          content = path.read_text()
+          generated = parse_env_lines(content)
+
+          final_mail = {}
+          for key, default in defaults.items():
+              generated_value = generated.get(key, '')
+              if generated_value.startswith('__PRESERVE_SERVER_'):
+                  generated_value = ''
+
+              if key in server:
+                  server_value = server[key]
+                  if server_value or key in {'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_ENCRYPTION'}:
+                      final_mail[key] = server_value
+                      continue
+
+              final_mail[key] = generated_value or default
+
+          # Почтовые настройки на VPS имеют приоритет: деплой не должен
+          # откатывать рабочий .env к устаревшим GitHub Secrets.
+          placeholders = {
+              f'__PRESERVE_SERVER_{key}__': value
+              for key, value in final_mail.items()
+          }
+          for placeholder, value in placeholders.items():
+              escaped = value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+              content = content.replace(placeholder, escaped)
+
+          lines = []
+          for line in content.splitlines():
+              if '=' not in line or line.lstrip().startswith('#'):
+                  lines.append(line)
+                  continue
+              key = line.split('=', 1)[0].strip()
+              if key in final_mail:
+                  escaped = final_mail[key].replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+                  lines.append(f'{key}="{escaped}"')
+              else:
+                  lines.append(line)
+          content = '\n'.join(lines) + '\n'
+          path.write_text(content)
+          PY
 
           export APP_KEY_VALUE="${APP_KEY_VALUE:-}"
 
