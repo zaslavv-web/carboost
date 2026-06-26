@@ -326,6 +326,12 @@ jobs:
               server[key.strip()] = parse_env_value(value)
 
           defaults = {
+              'DB_CONNECTION': 'mysql',
+              'DB_HOST': 'localhost',
+              'DB_PORT': '3306',
+              'DB_DATABASE': '',
+              'DB_USERNAME': '',
+              'DB_PASSWORD': '',
               'MAIL_MAILER': 'unisender_go',
               'MAIL_HOST': 'localhost',
               'MAIL_PORT': '587',
@@ -338,6 +344,11 @@ jobs:
               'UNISENDER_GO_ENDPOINT': 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json',
               'UNISENDER_GO_TIMEOUT': '15',
           }
+          # Ключи, для которых пустое значение на сервере — валидное (например, MAIL_ENCRYPTION="").
+          allow_empty_from_server = {'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_ENCRYPTION', 'DB_PASSWORD'}
+          # Критичные ключи — без значения деплой должен падать, а не идти с пустой строкой.
+          required_keys = {'DB_DATABASE', 'DB_USERNAME'}
+
           path = Path('app-src/.env')
           content = path.read_text()
           generated = parse_env_lines(content)
@@ -350,11 +361,19 @@ jobs:
 
               if key in server:
                   server_value = server[key]
-                  if server_value or key in {'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_ENCRYPTION'}:
+                  if server_value or key in allow_empty_from_server:
                       final_mail[key] = server_value
                       continue
 
               final_mail[key] = generated_value or default
+
+          missing = [k for k in required_keys if not final_mail.get(k)]
+          if missing:
+              raise SystemExit(
+                  'Не удалось определить значения для ' + ', '.join(missing) +
+                  ': задайте соответствующие GitHub Secrets или пропишите их в backend/.env на сервере.'
+              )
+
 
           # Почтовые настройки на VPS имеют приоритет: деплой не должен
           # откатывать рабочий .env к устаревшим GitHub Secrets.
