@@ -46,20 +46,24 @@ class PasswordResetController extends Controller
         }
 
         $mail = app(\App\Services\EmailConfigService::class);
+        $channel = $mail->activeChannel();
+        $isSmtp = $channel === 'smtp';
 
         try {
-            $mail->autoRepairActiveSettings();
-            $mail->apply();
-            $smtp = $mail->currentSmtpSummary();
-
-            // Preflight: реальное SMTP-рукопожатие (TCP → EHLO → STARTTLS → AUTH).
-            // Не подменяем сохранённые админом SMTP-настройки .env-фолбэком: иначе UI
-            // показывает «активно», а восстановление может уйти через другие креды.
-            $mail->preflight();
+            if ($isSmtp) {
+                // SMTP-канал: чиним поля БД и делаем реальный handshake (TCP → EHLO → AUTH),
+                // чтобы ошибки авторизации не маскировались под «письмо ушло».
+                $mail->autoRepairActiveSettings();
+                $mail->apply();
+                $mail->preflight();
+            } else {
+                // HTTP API канал (например, unisender_go) — SMTP preflight неприменим.
+                $mail->apply();
+            }
 
             $status = Password::sendResetLink(['email' => strtolower($data['email'])]);
         } catch (\Throwable $e) {
-            if (\App\Services\EmailConfigService::shouldFallbackToRuntimeEnv($e)) {
+            if ($isSmtp && \App\Services\EmailConfigService::shouldFallbackToRuntimeEnv($e)) {
                 try {
                     Log::warning('Password reset stored SMTP failed, retrying with runtime env credentials', [
                         'email' => strtolower($data['email']),
@@ -75,10 +79,15 @@ class PasswordResetController extends Controller
                     ], 422);
                 }
             } else {
-                Log::error('Password reset email failed', ['email' => strtolower($data['email']), 'exception' => $e]);
-                return response()->json([
-                    'error' => $this->localizeSmtpError($e->getMessage()),
-                ], 422);
+                Log::error('Password reset email failed', [
+                    'email' => strtolower($data['email']),
+                    'channel' => $channel,
+                    'exception' => $e,
+                ]);
+                $errorText = $isSmtp
+                    ? $this->localizeSmtpError($e->getMessage())
+                    : ('Не удалось отправить письмо восстановления: ' . $e->getMessage());
+                return response()->json(['error' => $errorText], 422);
             }
         }
 

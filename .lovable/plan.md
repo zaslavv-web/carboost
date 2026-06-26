@@ -1,51 +1,35 @@
-## Цель
+## Проблема 1: восстановление пароля падает с SMTP-ошибкой
 
-Починить подключение Laravel к MySQL на Beget, чтобы Yandex OAuth (и весь сайт) перестал падать с `Access denied for 'gro7659365_grow'@'localhost'`.
+`PasswordResetController::forgot` (backend-laravel/app/Http/Controllers/Api/Auth/PasswordResetController.php) безусловно вызывает:
+- `autoRepairActiveSettings()` — чинит SMTP-поля в БД
+- `apply()` — корректно понимает `unisender_go`
+- `preflight()` — **всегда** делает TCP+EHLO+AUTH к SMTP (`config('mail.mailers.smtp')`), даже если активный канал — Unisender Go HTTP API
 
-## Диагноз
+Поэтому, несмотря на `MAIL_MAILER=unisender_go` в `.env`, восстановление пароля пробует логиниться на Yandex SMTP старым паролем → 535 → «SMTP-сервер отклонил логин или пароль». Само письмо через Unisender Go при этом даже не пробуется отправиться.
 
-- Пользователь `gro7659365_grow` существует и пароль верный — `mysql -u ... -p` возвращает `1`.
-- Ошибка приходит с суффиксом `@'localhost'`, а в `.env` стоит `DB_HOST=gro7659365.mysql`. Значит PHP всё равно резолвит соединение как локальный сокет (типичное поведение Beget на shared-хостинге: `gro7659365.mysql` для внешних подключений, а локально нужно `localhost`), и MySQL ищет грант для пары `user@localhost`, которого может не быть.
-- Самый чистый и стабильный фикс — заставить Laravel ходить именно тем способом, под который у пользователя выданы привилегии.
+### Что меняю
+В `PasswordResetController::forgot`:
+1. Получать активный канал через `$mail->activeChannel()`.
+2. Если канал = `unisender_go` — **пропустить** `autoRepairActiveSettings()` и `preflight()`, сразу вызывать `Password::sendResetLink(...)`.
+3. Блок retry с `applyRuntimeEnv()` (он SMTP-специфичен) — тоже выполнять только для SMTP-канала.
+4. Логирование ошибки оставить, но для HTTP API канала текст ошибки не подменять на «SMTP отклонил…» — отдавать оригинал (UnisenderGoTransport уже бросает понятные сообщения вида `Unisender Go API error [...]`).
 
-## Шаги (выполняет пользователь на VPS/shared)
+Других файлов не трогаю. На фронте поведение прежнее (POST `/api/auth/forgot-password`).
 
-1. В `~/growth-peak.pro/docs/backend/.env` поменять одну строку:
-  ```
-   DB_HOST=localhost
-  ```
-   (Остальные `DB_*` не трогаем.)
-2. Сбросить конфиг-кэш Laravel:
-  ```
-   php artisan config:clear
-   php artisan cache:clear
-  ```
-3. Проверить, что Laravel реально подключается:
-  ```
-   php artisan tinker --execute="DB::select('select 1 as ok');"
-  ничего не происходит
-  ```
-   Ожидаем массив с `ok => 1` без исключений.
-4. Открыть сайт и попробовать вход через Яндекс. Ошибка `Access denied` должна исчезнуть; дальше пойдёт обычный поток `findOrCreateFromYandex`.
+### Проверка
+- `php artisan tinker` → `Password::sendResetLink(['email'=>'zaslavv@gmail.com'])` после деплоя.
+- В `email_send_log`/логах Laravel — запрос ушёл через Unisender Go (`POST https://go2.unisender.ru/ru/transactional/api/v1/email/send.json`).
 
-## Если после шага 3 всё ещё `Access denied`
+## Проблема 2: «не работает авторизация по email/паролю» для zaslavv@gmail.com
 
-Значит у пользователя `gro7659365_grow` нет гранта на `@localhost` — только на `@'%'` или на сетевой хост. Тогда:
+Это отдельный сюжет — к SMTP отношения не имеет. Контроллер `AuthController::login` отдаёт «Неверный email или пароль», если:
+- пользователя с таким email нет в таблице `users` MySQL `gro7659365_d`, или
+- `users.password` пустой (учётка создана через Google OAuth — пароля нет, только OAuth-вход), или
+- хеш битый.
 
-- Зайти в панель Beget → **MySQL** → пользователь `gro7659365_grow` → в «Хост доступа» добавить `localhost` (или поставить `%`, если такая опция есть).
-- Привязать пользователя к базе `gro7659365_d` с полными правами.
-- Повторить шаг 3.
+Чтобы понять, что именно — мне нужны ответы (см. вопрос ниже), не лезу в код заранее.
 
-## Что не меняем
-
-- Код приложения (`YandexAuthController`, `AuthUserService`) — он работает корректно, падение происходит на первом же `select from users`, до OAuth-логики.
-- Остальные блоки `.env` (APP_KEY, MAIL_*, UNISENDER_*, GOOGLE_*, YANDEX_*) — не трогаем.
-- Никаких миграций сейчас не запускаем: сначала чиним коннект, потом отдельно проверим, что схема в `gro7659365_d` уже накатана (`php artisan migrate:status`).
-
-## Технические детали
-
-- `config/database.php` для `mysql` читает `DB_HOST` напрямую; PDO с `host=localhost` на Linux идёт через unix-socket, что совпадает с тем, как панель Beget выдаёт права по умолчанию.
-- Сетевой хост `gro7659365.mysql` нужен только для подключений с внешних серверов (например, локальная разработка с ноутбука) — для PHP, запущенного на самом аккаунте, он избыточен и провоцирует именно эту ошибку.  
-  
-все заработало
-  &nbsp;
+## Чего НЕ делаю
+- Не меняю UnisenderGoTransport, конфиг почты, env-файл.
+- Не правлю `apply()` — он уже корректно обрабатывает `unisender_go`.
+- Не трогаю фронт.
