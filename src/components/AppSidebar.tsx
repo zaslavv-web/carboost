@@ -297,7 +297,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             className={`relative w-full flex items-center gap-3 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-colors ${
               hasActive
                 ? "text-sidebar-primary-foreground bg-sidebar-primary/10"
-                : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-primary-foreground"
+                : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 dark:hover:text-white hover:text-sidebar-primary-foreground"
             } ${collapsed ? "justify-center" : ""}`}
           >
             {hasActive && !collapsed && (
@@ -325,7 +325,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
                     className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
                       childActive
                         ? "text-sidebar-primary-foreground bg-sidebar-primary/15"
-                        : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-primary-foreground"
+                        : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 dark:hover:text-white hover:text-sidebar-primary-foreground"
                     }`}
                   >
                     <child.icon className="w-4 h-4 flex-shrink-0" />
@@ -352,7 +352,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         className={`relative w-full flex items-center gap-3 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-colors ${
           isActive
             ? "text-sidebar-primary-foreground bg-sidebar-primary/10"
-            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-primary-foreground"
+            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 dark:hover:text-white hover:text-sidebar-primary-foreground"
         } ${collapsed ? "justify-center" : ""}`}
       >
         {isActive && !collapsed && (
