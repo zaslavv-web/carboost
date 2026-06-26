@@ -348,7 +348,7 @@ jobs:
 
           # Почтовые настройки на VPS имеют приоритет: деплой не должен
           # откатывать рабочий .env к устаревшим GitHub Secrets.
-          replacements = {
+          placeholders = {
               f'__PRESERVE_SERVER_{key}__': value
               for key, value in final_mail.items()
           }
