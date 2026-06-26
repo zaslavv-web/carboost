@@ -153,21 +153,27 @@ jobs:
           fi
           YANDEX_REDIRECT_URI_VALUE="${YANDEX_REDIRECT_URI_VALUE%/}"
 
-          DB_CONNECTION_VALUE="${DB_CONNECTION_SECRET:-mysql}"
-          if [[ "$DB_CONNECTION_VALUE" != "mysql" && "$DB_CONNECTION_VALUE" != "pgsql" ]]; then
+          DB_CONNECTION_VALUE="${DB_CONNECTION_SECRET:-__PRESERVE_SERVER_DB_CONNECTION__}"
+          if [[ "$DB_CONNECTION_VALUE" != "__PRESERVE_SERVER_DB_CONNECTION__" \
+                && "$DB_CONNECTION_VALUE" != "mysql" \
+                && "$DB_CONNECTION_VALUE" != "pgsql" ]]; then
             DB_CONNECTION_VALUE="mysql"
           fi
-          if [[ -n "$DB_PORT_SECRET" && "$DB_CONNECTION_VALUE" == "mysql" && "$DB_PORT_SECRET" == "5432" ]]; then
-            DB_PORT_VALUE="3306"
-          elif [[ -n "$DB_PORT_SECRET" && "$DB_CONNECTION_VALUE" == "pgsql" && "$DB_PORT_SECRET" == "3306" ]]; then
-            DB_PORT_VALUE="5432"
-          elif [[ -n "$DB_PORT_SECRET" ]]; then
+          if [[ -n "$DB_PORT_SECRET" ]]; then
             DB_PORT_VALUE="$DB_PORT_SECRET"
-          elif [[ "$DB_CONNECTION_VALUE" == "pgsql" ]]; then
-            DB_PORT_VALUE="5432"
+            if [[ "$DB_CONNECTION_VALUE" == "mysql" && "$DB_PORT_VALUE" == "5432" ]]; then
+              DB_PORT_VALUE="3306"
+            elif [[ "$DB_CONNECTION_VALUE" == "pgsql" && "$DB_PORT_VALUE" == "3306" ]]; then
+              DB_PORT_VALUE="5432"
+            fi
           else
-            DB_PORT_VALUE="3306"
+            DB_PORT_VALUE="__PRESERVE_SERVER_DB_PORT__"
           fi
+          DB_HOST_VALUE="${DB_HOST_SECRET:-__PRESERVE_SERVER_DB_HOST__}"
+          DB_DATABASE_VALUE="${DB_DATABASE_SECRET:-__PRESERVE_SERVER_DB_DATABASE__}"
+          DB_USERNAME_VALUE="${DB_USERNAME_SECRET:-__PRESERVE_SERVER_DB_USERNAME__}"
+          DB_PASSWORD_VALUE="${DB_PASSWORD_SECRET:-__PRESERVE_SERVER_DB_PASSWORD__}"
+
           MAIL_MAILER_VALUE="${MAIL_MAILER_SECRET:-${MAIL_MAILER_VAR:-__PRESERVE_SERVER_MAIL_MAILER__}}"
           MAIL_HOST_VALUE="${MAIL_HOST_SECRET:-__PRESERVE_SERVER_MAIL_HOST__}"
           if [[ "$MAIL_HOST_VALUE" == "smtp.yandex.com" ]]; then
@@ -193,10 +199,13 @@ jobs:
           GEOIP_PROVIDER_VALUE="${GEOIP_PROVIDER_SECRET:-ip-api}"
           export APP_KEY_VALUE APP_CIPHER_VALUE APP_URL_VALUE APP_HOST_VALUE GOOGLE_REDIRECT_URI_VALUE \
             YANDEX_REDIRECT_URI_VALUE GEOIP_PROVIDER_VALUE \
-            DB_CONNECTION_VALUE DB_PORT_VALUE MAIL_HOST_VALUE MAIL_PORT_VALUE \
+            DB_CONNECTION_VALUE DB_HOST_VALUE DB_PORT_VALUE DB_DATABASE_VALUE \
+            DB_USERNAME_VALUE DB_PASSWORD_VALUE \
+            MAIL_HOST_VALUE MAIL_PORT_VALUE \
             MAIL_MAILER_VALUE MAIL_USERNAME_VALUE MAIL_PASSWORD_VALUE MAIL_ENCRYPTION_VALUE \
             MAIL_FROM_ADDRESS_VALUE MAIL_FROM_NAME_VALUE UNISENDER_GO_API_KEY_VALUE \
             UNISENDER_GO_ENDPOINT_VALUE UNISENDER_GO_TIMEOUT_VALUE
+
 
           python3 <<'PY'
           import os
@@ -218,11 +227,12 @@ jobs:
               'LOG_CHANNEL': 'stack',
               'LOG_LEVEL': 'info',
               'DB_CONNECTION': os.environ['DB_CONNECTION_VALUE'],
-              'DB_HOST': os.environ.get('DB_HOST_SECRET', ''),
+              'DB_HOST': os.environ['DB_HOST_VALUE'],
               'DB_PORT': os.environ['DB_PORT_VALUE'],
-              'DB_DATABASE': os.environ.get('DB_DATABASE_SECRET', ''),
-              'DB_USERNAME': os.environ.get('DB_USERNAME_SECRET', ''),
-              'DB_PASSWORD': os.environ.get('DB_PASSWORD_SECRET', ''),
+              'DB_DATABASE': os.environ['DB_DATABASE_VALUE'],
+              'DB_USERNAME': os.environ['DB_USERNAME_VALUE'],
+              'DB_PASSWORD': os.environ['DB_PASSWORD_VALUE'],
+
               'CACHE_STORE': 'file',
               'QUEUE_CONNECTION': 'sync',
               'SESSION_DRIVER': 'file',
@@ -286,7 +296,7 @@ jobs:
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-              "if [ -f ${{ secrets.TARGET_DIR }}/backend/.env ]; then grep -E '^(MAIL_MAILER|MAIL_HOST|MAIL_PORT|MAIL_USERNAME|MAIL_PASSWORD|MAIL_ENCRYPTION|MAIL_FROM_ADDRESS|MAIL_FROM_NAME|UNISENDER_GO_API_KEY|UNISENDER_GO_ENDPOINT|UNISENDER_GO_TIMEOUT)=' ${{ secrets.TARGET_DIR }}/backend/.env || true; fi")"
+              "if [ -f ${{ secrets.TARGET_DIR }}/backend/.env ]; then grep -E '^(DB_CONNECTION|DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME|DB_PASSWORD|MAIL_MAILER|MAIL_HOST|MAIL_PORT|MAIL_USERNAME|MAIL_PASSWORD|MAIL_ENCRYPTION|MAIL_FROM_ADDRESS|MAIL_FROM_NAME|UNISENDER_GO_API_KEY|UNISENDER_GO_ENDPOINT|UNISENDER_GO_TIMEOUT)=' ${{ secrets.TARGET_DIR }}/backend/.env || true; fi")"
           export SERVER_MAIL_ENV
           python3 - <<'PY'
           import os
@@ -316,6 +326,12 @@ jobs:
               server[key.strip()] = parse_env_value(value)
 
           defaults = {
+              'DB_CONNECTION': 'mysql',
+              'DB_HOST': 'localhost',
+              'DB_PORT': '3306',
+              'DB_DATABASE': '',
+              'DB_USERNAME': '',
+              'DB_PASSWORD': '',
               'MAIL_MAILER': 'unisender_go',
               'MAIL_HOST': 'localhost',
               'MAIL_PORT': '587',
@@ -328,6 +344,11 @@ jobs:
               'UNISENDER_GO_ENDPOINT': 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json',
               'UNISENDER_GO_TIMEOUT': '15',
           }
+          # Ключи, для которых пустое значение на сервере — валидное (например, MAIL_ENCRYPTION="").
+          allow_empty_from_server = {'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_ENCRYPTION', 'DB_PASSWORD'}
+          # Критичные ключи — без значения деплой должен падать, а не идти с пустой строкой.
+          required_keys = {'DB_DATABASE', 'DB_USERNAME'}
+
           path = Path('app-src/.env')
           content = path.read_text()
           generated = parse_env_lines(content)
@@ -340,11 +361,19 @@ jobs:
 
               if key in server:
                   server_value = server[key]
-                  if server_value or key in {'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_ENCRYPTION'}:
+                  if server_value or key in allow_empty_from_server:
                       final_mail[key] = server_value
                       continue
 
               final_mail[key] = generated_value or default
+
+          missing = [k for k in required_keys if not final_mail.get(k)]
+          if missing:
+              raise SystemExit(
+                  'Не удалось определить значения для ' + ', '.join(missing) +
+                  ': задайте соответствующие GitHub Secrets или пропишите их в backend/.env на сервере.'
+              )
+
 
           # Почтовые настройки на VPS имеют приоритет: деплой не должен
           # откатывать рабочий .env к устаревшим GitHub Secrets.
