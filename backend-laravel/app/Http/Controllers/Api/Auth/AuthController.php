@@ -71,9 +71,14 @@ class AuthController extends Controller
                 ]);
             }
         } elseif ($user && empty($user->password)) {
-            throw ValidationException::withMessages([
-                'email' => 'Этот аккаунт зарегистрирован через Google. Войдите через кнопку "Google" или задайте пароль через "Забыли пароль?".',
-            ])->status(422)->errorBag('oauth_only');
+            return response()->json([
+                'message' => 'Этот аккаунт зарегистрирован через Google. Войдите через кнопку "Google" или задайте пароль через "Забыли пароль?".',
+                'errors' => [
+                    'email' => ['Этот аккаунт зарегистрирован через Google. Войдите через кнопку "Google" или задайте пароль через "Забыли пароль?".'],
+                ],
+                'code' => 'oauth_only',
+                'provider' => 'google',
+            ], 422);
         }
 
         if (!$user || !$passwordMatches) {
