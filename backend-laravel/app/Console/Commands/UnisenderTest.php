@@ -8,13 +8,16 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 
 /**
- * Отправляет тестовое письмо через активный mailer (Unisender Go / SMTP).
+ * Отправляет тестовое письмо именно через Unisender Go.
  *   php artisan unisender:test you@example.com
+ *
+ * Для диагностики текущего активного канала можно использовать:
+ *   php artisan unisender:test you@example.com --current
  */
 class UnisenderTest extends Command
 {
-    protected $signature = 'unisender:test {to : Адрес получателя}';
-    protected $description = 'Отправить тестовое письмо через текущий канал (Unisender Go / SMTP)';
+    protected $signature = 'unisender:test {to : Адрес получателя} {--current : Тестировать текущий MAIL_MAILER вместо принудительного Unisender Go}';
+    protected $description = 'Отправить тестовое письмо через Unisender Go HTTP API';
 
     public function handle(EmailConfigService $emailConfig): int
     {
@@ -24,28 +27,36 @@ class UnisenderTest extends Command
             return self::FAILURE;
         }
 
-        $emailConfig->apply();
+        $runtimeMailerRaw = RuntimeEnv::get('MAIL_MAILER') ?: '(пусто)';
+        $runtimeMailer = strtolower((string) $runtimeMailerRaw);
+
+        if ($this->option('current')) {
+            $emailConfig->apply();
+        } else {
+            $emailConfig->applyHttpApiMailer('unisender_go');
+        }
+
         $channel = $emailConfig->activeChannel();
-        $runtimeMailer = RuntimeEnv::get('MAIL_MAILER') ?: '(пусто)';
         $endpoint = RuntimeEnv::get('UNISENDER_GO_ENDPOINT', 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json');
-        $from    = RuntimeEnv::get('MAIL_FROM_ADDRESS') ?: '(пусто)';
+        $from = (string) (config('mail.from.address') ?: RuntimeEnv::get('MAIL_FROM_ADDRESS') ?: '(пусто)');
 
         $this->info('=== TEST EMAIL ===');
         $this->line('Канал       : ' . $channel);
-        $this->line('MAIL_MAILER : ' . $runtimeMailer);
+        $this->line('MAIL_MAILER : ' . $runtimeMailerRaw);
         $this->line('From        : ' . $from);
         $this->line('To          : ' . $to);
 
-        if ($channel === 'unisender_go') {
-            $key = RuntimeEnv::get('UNISENDER_GO_API_KEY');
-            $this->line('API key     : ' . ($key ? 'есть (' . strlen($key) . ' симв.)' : 'НЕТ'));
-            $this->line('Endpoint    : ' . $endpoint);
-            if (!$key) {
-                $this->error('UNISENDER_GO_API_KEY не задан в .env / окружении.');
-                return self::FAILURE;
-            }
-        } elseif (strtolower($runtimeMailer) === 'unisender_go') {
-            $this->warn('MAIL_MAILER=unisender_go найден, но активный канал не переключился. Выполните php artisan config:clear и повторите тест.');
+        $key = RuntimeEnv::get('UNISENDER_GO_API_KEY');
+        $this->line('API key     : ' . ($key ? 'есть (' . strlen($key) . ' симв.)' : 'НЕТ'));
+        $this->line('Endpoint    : ' . $endpoint);
+
+        if (!$key) {
+            $this->error('UNISENDER_GO_API_KEY не задан в .env / окружении.');
+            return self::FAILURE;
+        }
+
+        if ($runtimeMailer !== 'unisender_go') {
+            $this->warn('В .env сейчас MAIL_MAILER=' . $runtimeMailerRaw . '. Эта команда принудительно проверит Unisender Go, но системные письма будут идти через SMTP, пока не поставить MAIL_MAILER=unisender_go.');
         }
 
         try {
