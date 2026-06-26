@@ -28,7 +28,7 @@ class UnisenderGoTransport extends AbstractTransport
 
     public function __toString(): string
     {
-        return 'unisender_go+https://go1.unisender.ru';
+        return 'unisender_go+' . $this->endpoint;
     }
 
     protected function doSend(SentMessage $message): void
