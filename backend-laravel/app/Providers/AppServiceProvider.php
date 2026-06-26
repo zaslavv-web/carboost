@@ -36,7 +36,7 @@ class AppServiceProvider extends ServiceProvider
             }
             return new UnisenderGoTransport(
                 apiKey:         $key,
-                endpoint:       $config['endpoint'] ?? 'https://go1.unisender.ru/ru/transactional/api/v1/email/send.json',
+                endpoint:       $config['endpoint'] ?? 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json',
                 timeoutSeconds: (int) ($config['timeout'] ?? 15),
             );
         });
