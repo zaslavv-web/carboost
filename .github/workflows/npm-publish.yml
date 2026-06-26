@@ -296,7 +296,7 @@ jobs:
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-              "if [ -f ${{ secrets.TARGET_DIR }}/backend/.env ]; then grep -E '^(MAIL_MAILER|MAIL_HOST|MAIL_PORT|MAIL_USERNAME|MAIL_PASSWORD|MAIL_ENCRYPTION|MAIL_FROM_ADDRESS|MAIL_FROM_NAME|UNISENDER_GO_API_KEY|UNISENDER_GO_ENDPOINT|UNISENDER_GO_TIMEOUT)=' ${{ secrets.TARGET_DIR }}/backend/.env || true; fi")"
+              "if [ -f ${{ secrets.TARGET_DIR }}/backend/.env ]; then grep -E '^(DB_CONNECTION|DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME|DB_PASSWORD|MAIL_MAILER|MAIL_HOST|MAIL_PORT|MAIL_USERNAME|MAIL_PASSWORD|MAIL_ENCRYPTION|MAIL_FROM_ADDRESS|MAIL_FROM_NAME|UNISENDER_GO_API_KEY|UNISENDER_GO_ENDPOINT|UNISENDER_GO_TIMEOUT)=' ${{ secrets.TARGET_DIR }}/backend/.env || true; fi")"
           export SERVER_MAIL_ENV
           python3 - <<'PY'
           import os
