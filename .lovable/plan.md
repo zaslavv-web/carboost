@@ -1,35 +1,86 @@
-## Проблема 1: восстановление пароля падает с SMTP-ошибкой
+## Диагноз
 
-`PasswordResetController::forgot` (backend-laravel/app/Http/Controllers/Api/Auth/PasswordResetController.php) безусловно вызывает:
-- `autoRepairActiveSettings()` — чинит SMTP-поля в БД
-- `apply()` — корректно понимает `unisender_go`
-- `preflight()` — **всегда** делает TCP+EHLO+AUTH к SMTP (`config('mail.mailers.smtp')`), даже если активный канал — Unisender Go HTTP API
+Сейчас видно две независимые ошибки.
 
-Поэтому, несмотря на `MAIL_MAILER=unisender_go` в `.env`, восстановление пароля пробует логиниться на Yandex SMTP старым паролем → 535 → «SMTP-сервер отклонил логин или пароль». Само письмо через Unisender Go при этом даже не пробуется отправиться.
+1. **`unisender:test` всё ещё отправляет через SMTP/Yandex**
+   - Значит на VPS Laravel не видит `MAIL_MAILER=unisender_go` или mailer уже был собран из закешированного `config/mail.php` до runtime-подстановки.
+   - В коде `EmailConfigService::apply()` уже умеет выбирать `unisender_go`, но `config/mail.mailers.unisender_go.key` берётся из `env()` и при config cache может остаться пустым/старым.
+   - Плюс в `AppServiceProvider` Unisender transport берёт ключ из `$config['key'] ?? env(...)`, но не из `RuntimeEnv`, который специально читает реальный `.env` на shared hosting.
 
-### Что меняю
-В `PasswordResetController::forgot`:
-1. Получать активный канал через `$mail->activeChannel()`.
-2. Если канал = `unisender_go` — **пропустить** `autoRepairActiveSettings()` и `preflight()`, сразу вызывать `Password::sendResetLink(...)`.
-3. Блок retry с `applyRuntimeEnv()` (он SMTP-специфичен) — тоже выполнять только для SMTP-канала.
-4. Логирование ошибки оставить, но для HTTP API канала текст ошибки не подменять на «SMTP отклонил…» — отдавать оригинал (UnisenderGoTransport уже бросает понятные сообщения вида `Unisender Go API error [...]`).
+2. **`SQLSTATE[1045] Access denied for user 'gro7659365_grow'@'localhost'`**
+   - Это не ошибка кода логина и не OAuth.
+   - Laravel CLI/PHP сейчас подключается к MySQL с неправильной парой `DB_USERNAME`/`DB_PASSWORD` или не тем `DB_HOST` из фактически загруженного `.env`/config cache.
+   - Пока БД не подключается, tinker-запрос пользователя и авторизация по почте работать не будут.
 
-Других файлов не трогаю. На фронте поведение прежнее (POST `/api/auth/forgot-password`).
+3. **Аккаунт создан через Google OAuth**
+   - У такого пользователя может быть пустой `password`, поэтому обычный email+password вход должен показывать понятную ошибку: «войдите через Google или задайте пароль через восстановление».
 
-### Проверка
-- `php artisan tinker` → `Password::sendResetLink(['email'=>'zaslavv@gmail.com'])` после деплоя.
-- В `email_send_log`/логах Laravel — запрос ушёл через Unisender Go (`POST https://go2.unisender.ru/ru/transactional/api/v1/email/send.json`).
+## Что меняю в коде
 
-## Проблема 2: «не работает авторизация по email/паролю» для zaslavv@gmail.com
+### 1. Сделать Unisender Go устойчивым к config cache на shared hosting
+Файл: `backend-laravel/app/Providers/AppServiceProvider.php`
 
-Это отдельный сюжет — к SMTP отношения не имеет. Контроллер `AuthController::login` отдаёт «Неверный email или пароль», если:
-- пользователя с таким email нет в таблице `users` MySQL `gro7659365_d`, или
-- `users.password` пустой (учётка создана через Google OAuth — пароля нет, только OAuth-вход), или
-- хеш битый.
+- В регистрации `unisender_go` использовать `RuntimeEnv::get('UNISENDER_GO_API_KEY')`, `RuntimeEnv::get('UNISENDER_GO_ENDPOINT')`, `RuntimeEnv::get('UNISENDER_GO_TIMEOUT')` как приоритетный источник.
+- Это позволит `php artisan unisender:test ...` видеть реальные значения из `.env`, даже если Laravel config cache старый.
 
-Чтобы понять, что именно — мне нужны ответы (см. вопрос ниже), не лезу в код заранее.
+Файл: `backend-laravel/app/Services/EmailConfigService.php`
 
-## Чего НЕ делаю
-- Не меняю UnisenderGoTransport, конфиг почты, env-файл.
-- Не правлю `apply()` — он уже корректно обрабатывает `unisender_go`.
-- Не трогаю фронт.
+- В `applyHttpApiMailer()` дополнительно выставлять runtime config:
+  - `mail.mailers.unisender_go.key`
+  - `mail.mailers.unisender_go.endpoint`
+  - `mail.mailers.unisender_go.timeout`
+- После этого `Mail::raw()` должен строить именно Unisender Go transport, а не падать обратно в SMTP/Yandex.
+
+### 2. Улучшить диагностику команды `unisender:test`
+Файл: `backend-laravel/app/Console/Commands/UnisenderTest.php`
+
+- Перед отправкой показывать:
+  - активный канал,
+  - `MAIL_MAILER` из runtime `.env`,
+  - endpoint Unisender,
+  - наличие API key.
+- Если runtime `MAIL_MAILER=unisender_go`, но активный канал не `unisender_go`, команда будет явно писать диагностическое предупреждение.
+
+### 3. Понятная ошибка для Google-only аккаунта
+Файл: `backend-laravel/app/Http/Controllers/Api/Auth/AuthController.php`
+
+- В `login()` после поиска пользователя:
+  - если пользователь найден, но `password` пустой — вернуть 422 с сообщением:
+    `Этот аккаунт зарегистрирован через Google. Войдите через кнопку "Google" или задайте пароль через "Забыли пароль?".`
+  - добавить в JSON `code: oauth_only`, `provider: google`.
+
+## Что нужно сделать на VPS после деплоя
+
+```bash
+cd ~/growth-peak.pro/docs/backend
+php artisan config:clear
+php artisan cache:clear
+php artisan smtp:status
+php artisan unisender:test zaslavv@gmail.com
+```
+
+Для БД отдельно проверить фактически загруженные значения без раскрытия пароля:
+
+```bash
+php artisan tinker
+```
+
+Внутри tinker:
+
+```php
+[
+  'env_file' => app()->environmentFilePath(),
+  'db_host' => config('database.connections.mysql.host'),
+  'db_database' => config('database.connections.mysql.database'),
+  'db_username' => config('database.connections.mysql.username'),
+  'password_len' => strlen((string) config('database.connections.mysql.password')),
+]
+```
+
+Если `db_host/db_username/password_len` не совпадают с рабочими значениями из панели хостинга — править `.env` и снова `php artisan config:clear`.
+
+## Что НЕ делаю
+
+- Не меняю пароль БД и не трогаю `.env` из кода.
+- Не переписываю OAuth.
+- Не возвращаюсь к Yandex SMTP: целевой канал остаётся Unisender Go.

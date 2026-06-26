@@ -70,6 +70,15 @@ class AuthController extends Controller
                     'reason'  => $e->getMessage(),
                 ]);
             }
+        } elseif ($user && empty($user->password)) {
+            return response()->json([
+                'message' => 'Этот аккаунт зарегистрирован через Google. Войдите через кнопку "Google" или задайте пароль через "Забыли пароль?".',
+                'errors' => [
+                    'email' => ['Этот аккаунт зарегистрирован через Google. Войдите через кнопку "Google" или задайте пароль через "Забыли пароль?".'],
+                ],
+                'code' => 'oauth_only',
+                'provider' => 'google',
+            ], 422);
         }
 
         if (!$user || !$passwordMatches) {

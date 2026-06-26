@@ -299,9 +299,20 @@ class EmailConfigService
         $from = RuntimeEnv::get('MAIL_FROM_ADDRESS') ?: 'noreply@example.local';
         $name = RuntimeEnv::get('MAIL_FROM_NAME', config('app.name', 'Career Track'));
         $replyTo = RuntimeEnv::get('MAIL_REPLY_TO');
+        $endpoint = RuntimeEnv::get('UNISENDER_GO_ENDPOINT', 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json');
+        $timeout = (int) (RuntimeEnv::get('UNISENDER_GO_TIMEOUT', '15') ?: 15);
 
         Config::set('mail.default', $mailer);
         Config::set('mail.from', ['address' => $from, 'name' => $name]);
+
+        if ($mailer === 'unisender_go') {
+            Config::set('mail.mailers.unisender_go', [
+                'transport' => 'unisender_go',
+                'key' => RuntimeEnv::get('UNISENDER_GO_API_KEY'),
+                'endpoint' => $endpoint,
+                'timeout' => $timeout,
+            ]);
+        }
 
         if ($replyTo) {
             Config::set('mail.reply_to', ['address' => $replyTo, 'name' => $name]);
