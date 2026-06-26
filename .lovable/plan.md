@@ -1,107 +1,87 @@
-## Текущий вывод по диагностике
+## Причина падения деплоя
 
-База для Laravel сейчас работает:
+Два независимых дефекта в `.github/workflows/npm-publish.yml`, шаг **Setup on server**:
 
-```bash
-php artisan config:clear && php artisan migrate --force
-# INFO Nothing to migrate.
+### 1. Сломанные кавычки в inline PHP (главная причина)
+
+Сейчас на сервер по SSH отправляется одна большая строка в двойных кавычках:
+
+```
+"cd ... && php -r '
+  require __DIR__."/vendor/autoload.php";
+  ...
+  $host = $_ENV["DB_HOST"] ?? "localhost";
+  ...
+' && php artisan migrate --force && ..."
 ```
 
-Это означает, что Laravel смог подключиться к базе, прочитать таблицу миграций и проверить состояние схемы.
+Внутри этой внешней `"..."` стоят PHP-строки тоже в двойных кавычках (`"/vendor/autoload.php"`, `"DB_HOST"`, `"localhost"` и т.д.). Локальный bash на GitHub-раннере **закрывает** внешнюю `"` на первой же `"` внутри PHP — и одиночная кавычка `'` от `php -r '` остаётся незакрытой. Отсюда ошибки:
+- `bash: -c: line 0: unexpected EOF while looking for matching `''`
+- `bash: -c: line 15: syntax error: unexpected end of file`
 
-Ошибка в ручном PDO-тесте не доказывает проблему с БД, потому что команда была запущена с буквальным значением:
+Плюс локальный bash раскрывает `$_ENV`, `$host`, `$db` и т.п. в пустую строку ещё до отправки на сервер — PHP-код становится бессмысленным.
 
-```bash
-"ПАРОЛЬ"
+### 2. Шумная (но не фатальная) запись про SSH host key
+
+```
+client_global_hostkeys_prove_confirm: server gave bad signature for RSA key 0: incorrect signature
 ```
 
-а не с реальным паролем. Пароль сюда лучше не вставлять в чат.
+OpenSSH 9 на Ubuntu 24.04 пытается обновить host keys и ругается на ответ сервера nic.ru. На exit code это не влияет, но в логе мешает и пугает. Лечится `-o UpdateHostKeys=no`.
 
-## Что сделать сейчас
+## Что меняем
 
-### 1. Не трогать рабочий `.env` на сервере
+### Файл `backend-laravel/scripts/db-preflight.php` (новый)
 
-Если `php artisan migrate --force` отвечает `Nothing to migrate`, текущий серверный `.env` уже содержит рабочие `DB_*`.
+Выносим PHP-проверку БД в отдельный файл — никаких inline-кавычек:
 
-Нужно только убедиться, что в нём стоит правильный хост:
+```php
+<?php
+require __DIR__ . '/../vendor/autoload.php';
+Dotenv\Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
 
-```bash
-cd ~/growth-peak.pro/docs/backend
-php artisan tinker --execute='dump(config("database.connections.mysql.host"), config("database.connections.mysql.database"), config("database.connections.mysql.username"));'
+$host     = $_ENV['DB_HOST']     ?? 'localhost';
+$port     = $_ENV['DB_PORT']     ?? '3306';
+$db       = $_ENV['DB_DATABASE'] ?? '';
+$user     = $_ENV['DB_USERNAME'] ?? '';
+$password = $_ENV['DB_PASSWORD'] ?? '';
+
+echo "DB preflight: host={$host}, port={$port}, database={$db}, user={$user}\n";
+
+if ($db === '' || $user === '') {
+    fwrite(STDERR, "DB preflight failed: DB_DATABASE или DB_USERNAME пустые в backend/.env\n");
+    exit(1);
+}
+
+try {
+    new PDO(
+        "mysql:host={$host};port={$port};dbname={$db};charset=utf8mb4",
+        $user,
+        $password,
+        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+    );
+    echo "DB preflight: OK\n";
+} catch (Throwable $e) {
+    fwrite(STDERR, "DB preflight failed: " . $e->getMessage() . "\n");
+    fwrite(STDERR, "Проверь DB_HOST=gro7659365.mysql, DB_DATABASE, DB_USERNAME, DB_PASSWORD в backend/.env.\n");
+    exit(1);
+}
 ```
 
-Ожидаемо:
+Файл попадает на сервер обычным `rsync` вместе с остальным бэкендом.
 
-```text
-gro7659365.mysql
-gro7659365_grow
-gro7659365_grow
-```
+### Файл `.github/workflows/npm-publish.yml`
 
-Пароль эта команда не выводит.
+1. В шаге **Setup on server** заменить весь inline `php -r '...'` блок на одну строку:
+   ```
+   && php scripts/db-preflight.php \
+   ```
+2. Ко всем `ssh ...` и `rsync -e "ssh ..."` (4 места) добавить `-o UpdateHostKeys=no`, чтобы убрать предупреждение `client_global_hostkeys_prove_confirm`.
 
-### 2. Исправить GitHub Actions deploy workflow
+Изменений в логике мерджа `.env`, в приоритете серверных значений и в наборе секретов — **никаких**.
 
-В `.github/workflows/npm-publish.yml` нужно закрепить правильные дефолты для nic.ru, чтобы будущий деплой снова не откатывал `.env` к `localhost`:
+## Что произойдёт после мержа
 
-```env
-DB_HOST=gro7659365.mysql
-DB_PORT=3306
-DB_DATABASE=gro7659365_grow
-DB_USERNAME=gro7659365_grow
-```
-
-`DB_PASSWORD` не хардкодить — только брать из серверного `.env` или GitHub Secret.
-
-Также оставить приоритет:
-
-```text
-server .env > GitHub Secrets > safe defaults
-```
-
-### 3. Проверить GitHub Secrets
-
-В GitHub repository settings нужно обновить Actions secrets:
-
-```text
-DB_HOST=gro7659365.mysql
-DB_PORT=3306
-DB_DATABASE=gro7659365_grow
-DB_USERNAME=gro7659365_grow
-DB_PASSWORD=<реальный пароль из nic.ru, не присылать в чат>
-```
-
-Это страховка на случай, если `.env` на сервере когда-нибудь будет отсутствовать или повреждён.
-
-### 4. После правки workflow запустить деплой
-
-Ожидаемый результат в CI:
-
-```text
-php artisan optimize:clear OK
-php artisan config:clear OK
-DB preflight OK
-php artisan migrate --force OK
-php artisan config:cache OK
-php artisan route:cache OK
-```
-
-## Что я изменю после подтверждения
-
-Только `.github/workflows/npm-publish.yml`:
-
-"gro7659365.mysql" // vendor/psy/psysh/src/ExecutionClosure.php(41) : eval()'d code:1
-
-"gro7659365_d" // vendor/psy/psysh/src/ExecutionClosure.php(41) : eval()'d code:1
-
-"gro7659365_grow" // vendor/psy/psysh/src/ExecutionClosure.php(41) : eval()'d code:1
-
-ты опять перепутал значения корректно то, что я тебе присылаю
-
-&nbsp;
-
-- заменю дефолтный `DB_HOST=localhost` на `DB_HOST=gro7659365.mysql`;
-- закреплю `DB_PORT=3306`;
-- закреплю дефолтные `DB_DATABASE` и `DB_USERNAME` под `gro7659365_grow`;
-- не буду добавлять пароль в код;
-- сохраню приоритет серверного `.env`, чтобы ручные настройки VPS больше не затирались.
+- Деплой не падает на кавычках; preflight БД проходит как обычный PHP-скрипт.
+- Если креды БД на сервере неверные — preflight даст осмысленную ошибку с реальным сообщением от MySQL.
+- Лог чище: больше нет `client_global_hostkeys_prove_confirm`.
