@@ -46,7 +46,11 @@ class SmtpStatus extends Command
         }
 
         $emailConfig->apply();
-        $summary = $emailConfig->currentSmtpSummary();
+        try {
+            $summary = $emailConfig->currentSmtpSummary();
+        } catch (\Throwable $e) {
+            $summary = ['host' => '(ошибка)', 'port' => '(?)', 'encryption' => '', 'username' => ''];
+        }
 
         $this->line('');
         $this->info('=== EMAIL CHANNEL STATUS ===');
@@ -54,6 +58,9 @@ class SmtpStatus extends Command
         $this->line('env file (loaded) : ' . app()->environmentFilePath());
         $this->line('Активный канал    : ' . $emailConfig->activeChannel());
         $this->line('Активный источник : ' . $source);
+        if ($dbError) {
+            $this->warn('БД email_settings недоступна: ' . $dbError);
+        }
         $this->line('');
 
         if ($isHttpApi) {
