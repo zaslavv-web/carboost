@@ -296,7 +296,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             title={collapsed ? entry.label : undefined}
             className={`relative w-full flex items-center gap-3 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-colors ${
               hasActive
-                ? "text-sidebar-primary-foreground bg-sidebar-primary/10"
+                ? "text-sidebar-primary-foreground dark:text-white bg-sidebar-primary/10"
                 : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 dark:hover:text-white hover:text-sidebar-primary-foreground"
             } ${collapsed ? "justify-center" : ""}`}
           >
@@ -324,7 +324,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
                     }}
                     className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
                       childActive
-                        ? "text-sidebar-primary-foreground bg-sidebar-primary/15"
+                        ? "text-sidebar-primary-foreground dark:text-white bg-sidebar-primary/15"
                         : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 dark:hover:text-white hover:text-sidebar-primary-foreground"
                     }`}
                   >
@@ -351,7 +351,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         title={collapsed ? item.label : undefined}
         className={`relative w-full flex items-center gap-3 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-colors ${
           isActive
-            ? "text-sidebar-primary-foreground bg-sidebar-primary/10"
+            ? "text-sidebar-primary-foreground dark:text-white bg-sidebar-primary/10"
             : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 dark:hover:text-white hover:text-sidebar-primary-foreground"
         } ${collapsed ? "justify-center" : ""}`}
       >
