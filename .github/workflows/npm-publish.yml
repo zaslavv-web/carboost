@@ -3,6 +3,7 @@ name: Deploy to server
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
 
@@ -28,6 +29,16 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Write frontend deploy marker
+        run: |
+          {
+            echo "commit=${GITHUB_SHA}"
+            echo "short_commit=${GITHUB_SHA::7}"
+            echo "ref=${GITHUB_REF_NAME}"
+            echo "time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } > dist/deploy-version.txt
+          cat dist/deploy-version.txt
+
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -35,7 +46,8 @@ jobs:
 
       - name: Deploy frontend to root
         run: |
-          rsync -avz --delete \
+          echo "Deploying frontend commit ${GITHUB_SHA} to ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ secrets.TARGET_DIR }}/"
+          rsync -avz --delete --itemize-changes \
             --exclude='backend' \
             --exclude='.htaccess' \
             -e "ssh -o StrictHostKeyChecking=no \
@@ -44,6 +56,38 @@ jobs:
                     -o PubkeyAcceptedKeyTypes=+ssh-rsa" \
             dist/ \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ secrets.TARGET_DIR }}/
+
+      - name: Verify frontend deploy
+        env:
+          APP_URL_SECRET: ${{ secrets.APP_URL }}
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+              -o UpdateHostKeys=no \
+              -o HostKeyAlgorithms=+ssh-rsa \
+              -o PubkeyAcceptedKeyTypes=+ssh-rsa \
+              ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+              "set -e; \
+               test -f ${{ secrets.TARGET_DIR }}/index.html; \
+               test -f ${{ secrets.TARGET_DIR }}/deploy-version.txt; \
+               echo 'Remote deploy marker:'; \
+               cat ${{ secrets.TARGET_DIR }}/deploy-version.txt"
+
+          APP_URL="$APP_URL_SECRET"
+          if [[ -z "$APP_URL" ]]; then
+            echo "APP_URL secret is empty; skipped public URL verification."
+            exit 0
+          fi
+          if [[ "$APP_URL" != http://* && "$APP_URL" != https://* ]]; then
+            APP_URL="https://$APP_URL"
+          fi
+          APP_URL="${APP_URL%/}"
+          PUBLIC_MARKER="$(curl -fsSL "$APP_URL/deploy-version.txt?ts=$(date +%s)")"
+          echo "Public deploy marker:"
+          echo "$PUBLIC_MARKER"
+          if ! grep -q "commit=${GITHUB_SHA}" <<< "$PUBLIC_MARKER"; then
+            echo "::error::Production URL does not serve the deployed commit. Check TARGET_DIR/document root or caching/CDN."
+            exit 1
+          fi
 
   # ─── БЭКЕНД ─────────────────────────────────────────────
   build-backend:

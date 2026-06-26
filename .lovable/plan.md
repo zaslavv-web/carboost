@@ -1,87 +1,73 @@
-## Причина падения деплоя
+## Что на самом деле проверяем
 
-Два независимых дефекта в `.github/workflows/npm-publish.yml`, шаг **Setup on server**:
+GitHub обновился, но production не изменился — значит проблема в одном из трёх мест:
 
-### 1. Сломанные кавычки в inline PHP (главная причина)
+1. GitHub Actions не запустился или упал.
+2. `rsync` отработал, но отправил файлы не в реальный document root сайта.
+3. Файлы на сервере обновились, но сайт отдаёт старую директорию/кэш.
 
-Сейчас на сервер по SSH отправляется одна большая строка в двойных кавычках:
+## План действий
 
-```
-"cd ... && php -r '
-  require __DIR__."/vendor/autoload.php";
-  ...
-  $host = $_ENV["DB_HOST"] ?? "localhost";
-  ...
-' && php artisan migrate --force && ..."
-```
+### 1. Зафиксировать факт деплоя
 
-Внутри этой внешней `"..."` стоят PHP-строки тоже в двойных кавычках (`"/vendor/autoload.php"`, `"DB_HOST"`, `"localhost"` и т.д.). Локальный bash на GitHub-раннере **закрывает** внешнюю `"` на первой же `"` внутри PHP — и одиночная кавычка `'` от `php -r '` остаётся незакрытой. Отсюда ошибки:
-- `bash: -c: line 0: unexpected EOF while looking for matching `''`
-- `bash: -c: line 15: syntax error: unexpected end of file`
+Добавить в workflow после frontend `rsync` запись файла вида:
 
-Плюс локальный bash раскрывает `$_ENV`, `$host`, `$db` и т.п. в пустую строку ещё до отправки на сервер — PHP-код становится бессмысленным.
-
-### 2. Шумная (но не фатальная) запись про SSH host key
-
-```
-client_global_hostkeys_prove_confirm: server gave bad signature for RSA key 0: incorrect signature
+```text
+deploy-version.txt
+commit=<SHA>
+time=<UTC>
 ```
 
-OpenSSH 9 на Ubuntu 24.04 пытается обновить host keys и ругается на ответ сервера nic.ru. На exit code это не влияет, но в логе мешает и пугает. Лечится `-o UpdateHostKeys=no`.
+И сразу после деплоя проверять его через production URL. Так будет видно: GitHub реально доставил файлы на сайт или нет.
 
-## Что меняем
+### 2. Проверить правильность `TARGET_DIR`
 
-### Файл `backend-laravel/scripts/db-preflight.php` (новый)
+Сейчас workflow деплоит frontend сюда:
 
-Выносим PHP-проверку БД в отдельный файл — никаких inline-кавычек:
-
-```php
-<?php
-require __DIR__ . '/../vendor/autoload.php';
-Dotenv\Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
-
-$host     = $_ENV['DB_HOST']     ?? 'localhost';
-$port     = $_ENV['DB_PORT']     ?? '3306';
-$db       = $_ENV['DB_DATABASE'] ?? '';
-$user     = $_ENV['DB_USERNAME'] ?? '';
-$password = $_ENV['DB_PASSWORD'] ?? '';
-
-echo "DB preflight: host={$host}, port={$port}, database={$db}, user={$user}\n";
-
-if ($db === '' || $user === '') {
-    fwrite(STDERR, "DB preflight failed: DB_DATABASE или DB_USERNAME пустые в backend/.env\n");
-    exit(1);
-}
-
-try {
-    new PDO(
-        "mysql:host={$host};port={$port};dbname={$db};charset=utf8mb4",
-        $user,
-        $password,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-    );
-    echo "DB preflight: OK\n";
-} catch (Throwable $e) {
-    fwrite(STDERR, "DB preflight failed: " . $e->getMessage() . "\n");
-    fwrite(STDERR, "Проверь DB_HOST=gro7659365.mysql, DB_DATABASE, DB_USERNAME, DB_PASSWORD в backend/.env.\n");
-    exit(1);
-}
+```text
+${{ secrets.TARGET_DIR }}/
 ```
 
-Файл попадает на сервер обычным `rsync` вместе с остальным бэкендом.
+А backend сюда:
 
-### Файл `.github/workflows/npm-publish.yml`
+```text
+${{ secrets.TARGET_DIR }}/backend
+```
 
-1. В шаге **Setup on server** заменить весь inline `php -r '...'` блок на одну строку:
-   ```
-   && php scripts/db-preflight.php \
-   ```
-2. Ко всем `ssh ...` и `rsync -e "ssh ..."` (4 места) добавить `-o UpdateHostKeys=no`, чтобы убрать предупреждение `client_global_hostkeys_prove_confirm`.
+Нужно убедиться, что `${{ secrets.TARGET_DIR }}` — это именно корневая папка боевого сайта, которую отдаёт nginx/apache, а не соседняя/старая директория.
 
-Изменений в логике мерджа `.env`, в приоритете серверных значений и в наборе секретов — **никаких**.
+### 3. Разделить проблему frontend/backend
 
-## Что произойдёт после мержа
+Frontend-деплой уже отдельный job и не должен зависеть от backend. Если backend падает, frontend всё равно может обновиться. Поэтому проверяем отдельно:
 
-- Деплой не падает на кавычках; preflight БД проходит как обычный PHP-скрипт.
-- Если креды БД на сервере неверные — preflight даст осмысленную ошибку с реальным сообщением от MySQL.
-- Лог чище: больше нет `client_global_hostkeys_prove_confirm`.
+- был ли зелёным job `build-frontend`;
+- выполнялся ли шаг `Deploy frontend to root`;
+- были ли строки `sent ... bytes` / `deleting ...` / список файлов в `rsync`.
+
+### 4. Усилить workflow проверкой результата
+
+Добавить после `rsync`:
+
+- вывод текущего commit SHA;
+- проверку наличия `index.html` на сервере;
+- проверку `deploy-version.txt` через публичный URL;
+- понятную ошибку, если сайт отдаёт не тот commit.
+
+### 5. Добавить ручной запуск деплоя
+
+Добавить `workflow_dispatch`, чтобы можно было вручную нажать **Run workflow** в GitHub Actions без нового коммита.
+
+### 6. Если подтвердится неверная директория
+
+Обновить GitHub Secret `TARGET_DIR` на реальный document root production-сайта и повторить деплой.
+
+## Что нужно от тебя сейчас
+
+Пришли скрин/текст из последнего GitHub Actions run:
+
+- зелёный или красный `build-frontend`;  
+все зеленое
+- лог шага **Deploy frontend to root**;
+  Вот это откуда взять?
+- значение `TARGET_DIR` можно замаскировать, но важно понять, совпадает ли оно с папкой боевого сайта.  
+это откуда взять?
