@@ -1,125 +1,77 @@
-## Источники всех паролей и ключей для `.env` на VPS
+## Диагноз
 
-Ниже — полный перечень переменных из production-шаблона `.env` с указанием, **где именно взять каждое значение**. План не меняет код — это справочник, по которому вы заполните `.env` на VPS вручную.
+`.env` теперь читается — это уже хорошо. Но видно две ошибки:
 
----
+1. `**MAIL_MAILER=smtp**` — система продолжает слать через Yandex SMTP (тот самый, что даёт `535 auth failed`). Нужно `unisender_go`.
+2. `**MAIL_FROM_ADDRESS=growthpeak@yandex.ru**` — Unisender Go отвечает:
+  ```
+   Error in 'from_email' field. Denied 'from_email': growthpeak@yandex.ru - use address from a confirmed domain
+  ```
+   Отправлять можно только с **подтверждённого домена**. Подтверждён `mail.growth-peak.pro` (через DKIM/SPF/DMARC), значит `from` должен быть на этом домене, например `noreply@mail.growth-peak.pro`.
 
-### 1. Laravel core
-
-
-| Переменная     | Где взять                                                                                                                                                                                                                           |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `APP_KEY`      | Сгенерировать на VPS: `php artisan key:generate --show` (или просто `php artisan key:generate` — запишет в текущий `.env`). Формат: `base64:...`. Менять нельзя — иначе все зашифрованные данные (сессии, токены) станут невалидны. |
-| `APP_URL`      | Фиксировано: `https://growth-peak.pro`                                                                                                                                                                                              |
-| `FRONTEND_URL` | Фиксировано: `https://growth-peak.pro`                                                                                                                                                                                              |
-
-
----
-
-### 2. База данных (MySQL на Beget)
-
-
-| Переменная    | Где взять                                                                                                                                                                                                                                                                         |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DB_HOST`     | Фиксировано: `localhost`                                                                                                                                                                                                                                                          |
-| `DB_PORT`     | Фиксировано: `3306`                                                                                                                                                                                                                                                               |
-| `DB_DATABASE` | **Панель Beget → MySQL → список баз.** У вас имя вида `gro7659365_grow` (или похожее).                                                                                                                                                                                            |
-| `DB_USERNAME` | **Панель Beget → MySQL → пользователи БД.** Обычно совпадает с именем базы: `gro7659365_grow`.                                                                                                                                                                                    |
-| `DB_PASSWORD` | **Панель Beget → MySQL → выбрать пользователя → «Сменить пароль»** (старый пароль панель не показывает в открытом виде). Сгенерируйте новый, скопируйте, вставьте в `.env`. **Это сейчас ваш блокер** — ошибка `1045 Access denied` означает, что в `.env` лежит неверный пароль. |
-
-
----
-
-### 3. Почта — Unisender Go (основной канал)
-
-
-| Переменная              | Где взять                                                                                                                                                                                                                                                                                                                                              |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `MAIL_MAILER`           | Фиксировано: `unisender_go`                                                                                                                                                                                                                                                                                                                            |
-| `MAIL_FROM_ADDRESS`     | Фиксировано: `noreply@mail.growth-peak.pro` (должен быть на верифицированном поддомене).                                                                                                                                                                                                                                                               |
-| `MAIL_FROM_NAME`        | Любая строка, например `"Пик Роста"`.                                                                                                                                                                                                                                                                                                                  |
-| `UNISENDER_GO_API_KEY`  | **ЛК Unisender Go (go2.unisender.ru) → Настройки → API-ключи → создать ключ типа «Отправка»**. Аккаунт обязательно на шарде **go2** (если в URL ЛК `go1` — ключ не подойдёт, нужно либо мигрировать аккаунт, либо использовать go1-эндпоинт). Сохранён у вас в Lovable Secrets под именем `UNISENDER_GO_API_KEY` — оттуда же можно скопировать на VPS. |
-| `UNISENDER_GO_ENDPOINT` | Фиксировано для вашего шарда: `https://go2.unisender.ru/ru/transactional/api/v1/email/send.json`                                                                                                                                                                                                                                                       |
-
-
-Предусловие: домен `mail.growth-peak.pro` должен быть **верифицирован** в ЛК Unisender Go (SPF + DKIM + DMARC зелёные). Без этого будет ошибка 114 даже с правильным ключом.
-
----
-
-### 4. Почта — Яндекс SMTP (резервный канал, опционально)
-
-Нужен только если хотите оставить fallback на Яндекс. Если работает Unisender Go — можно вообще убрать.
-
-
-| Переменная        | Где взять                                                                                                                                                                                                                                                                           |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MAIL_HOST`       | Фиксировано: `smtp.yandex.ru`                                                                                                                                                                                                                                                       |
-| `MAIL_PORT`       | Фиксировано: `465`                                                                                                                                                                                                                                                                  |
-| `MAIL_ENCRYPTION` | Фиксировано: `ssl`                                                                                                                                                                                                                                                                  |
-| `MAIL_USERNAME`   | Ваш Яндекс-адрес: `growthpeak@yandex.ru`                                                                                                                                                                                                                                            |
-| `MAIL_PASSWORD`   | **НЕ обычный пароль от Яндекса.** Нужен **пароль приложения**: `id.yandex.ru → Безопасность → Пароли приложений → Создать пароль → Почта (IMAP/SMTP)`. Будет 16 символов без пробелов. Старый `cmfkgfphzbbliykr` даёт `535 auth failed` — значит, отозван или Яндекс требует новый. |
-
-
----
-
-### 5. Google OAuth
-
-
-| Переменная             | Где взять                                                                                                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GOOGLE_CLIENT_ID`     | **Google Cloud Console → APIs & Services → Credentials → ваш OAuth 2.0 Client ID (Web application)** → строка `Client ID` (формат `...apps.googleusercontent.com`). |
-| `GOOGLE_CLIENT_SECRET` | Там же → `Client secret`. Если потеряли — кнопка «Reset secret» сгенерирует новый (старый перестанет работать).                                                     |
-| `GOOGLE_REDIRECT_URI`  | Фиксировано: `https://growth-peak.pro/api/auth/google/callback`. Этот же URI должен быть прописан в Google Console → Authorized redirect URIs.                      |
-
-
-Сохранены у вас в Lovable Secrets как `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — оттуда можно скопировать на VPS.
-
----
-
-### 6. Yandex OAuth (если используется)
-
-
-| Переменная             | Где взять                                                       |
-| ---------------------- | --------------------------------------------------------------- |
-| `YANDEX_CLIENT_ID`     | **oauth.yandex.ru → ваше приложение → ID**                      |
-| `YANDEX_CLIENT_SECRET` | Там же → «Пароль приложения» (Client secret).                   |
-| `YANDEX_REDIRECT_URI`  | Фиксировано: `https://growth-peak.pro/api/auth/yandex/callback` |
-
-
----
-
-### 7. Что **не нужно** заполнять руками
-
-- `CACHE_DRIVER=file`, `QUEUE_CONNECTION=sync`, `SESSION_DRIVER=file` — фиксированные значения, без паролей (Redis на shared-хостинге нет).
-- `LOG_CHANNEL=stack`, `LOG_LEVEL=error` — фиксированные.
-
----
-
-### Порядок действий на VPS после заполнения
+## Что поправить в `.env` на VPS
 
 ```bash
 cd ~/growth-peak.pro/docs/backend
-php artisan key:generate            # только если APP_KEY ещё пустой
+nano .env
+```
+
+Изменить **три** строки:
+
+```env
+MAIL_MAILER=unisender_go
+MAIL_FROM_ADDRESS=noreply@mail.growth-peak.pro
+MAIL_FROM_NAME=Growth Peak
+```
+
+(Старые `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` для Yandex можно оставить как fallback или удалить — на работу Unisender они не влияют.)
+
+сейчас так и есть
+
+Заодно проверь, что задано:
+
+```env
+SALES_NOTIFICATION_EMAIL=zaslavv@gmail.com
+```
+
+где это указывать?
+
+— чтобы заявки с сайта приходили тебе на gmail (сейчас пусто).
+
+## Проверить, что домен реально подтверждён
+
+В кабинете Unisender Go → **Settings → Sending domains** домен `mail.growth-peak.pro` должен быть со статусом **Verified** (зелёная галка по SPF и DKIM). Если статус не verified — `from_email` на этом домене тоже не пропустит, надо сначала дождаться проверки DNS (до 24ч после добавления записей в nic.ru).  
+  
+вот что указано в свойствах домена отправки
+
+
+| Domain                                              | TTL  | Type  | Value                                                                                                                                                                                                                                      |
+| --------------------------------------------------- | ---- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| @                                                   | 1800 | TXT   | v=spf1 include:[spf.unisender.ru](http://spf.unisender.ru) ~all                                                                                                                                                                            |
+| us._domainkey                                       | 1800 | TXT   | v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCiZdqdi+dZWEInnUQ9ieoeKWopejXWhQSS0Jr0t9u+Tjf7Lii0b1qnGcfMySBNeNH71O571PBRhBuqSbKdSluPt31wvJphZupFd36wQ96MO2WvV5Dy3Y3kHzUtD/unvi7ey7hiBZS44ZwyiqBapqp2Kn/3B17yqR5cnWpxfepnmwIDAQAB |
+| @                                                   | 1800 | TXT   | unisender-go-validate-hash=adb533d5c7d4f14f21428b9528f09276                                                                                                                                                                                |
+| _dmarc                                              | 1800 | CNAME | [growth-peak.pro.dmarc.unisender.ru](http://growth-peak.pro.dmarc.unisender.ru).                                                                                                                                                           |
+| [mail.growth-peak.pro](http://mail.growth-peak.pro) | 3600 | NS    | [uns1.unisender.com](http://uns1.unisender.com).                                                                                                                                                                                           |
+| [mail.growth-peak.pro](http://mail.growth-peak.pro) | 3600 | NS    | [uns2.unisender.com](http://uns2.unisender.com).                                                                                                                                                                                           |
+| [mail.growth-peak.pro](http://mail.growth-peak.pro) | 3600 | NS    | [uns3.unisender.com](http://uns3.unisender.com).                                                                                                                                                                                           |
+
+
+## Применить и проверить
+
+```bash
 php artisan config:clear
 php artisan cache:clear
-php artisan smtp:status             # проверит .env + БД
+php artisan smtp:status
 php artisan unisender:test zaslavv@gmail.com
 ```
 
-Если `smtp:status` покажет `DB connection failed` — починить сначала `DB_PASSWORD` (пункт 2). Если `API key: НЕТ` — заполнить `UNISENDER_GO_API_KEY` (пункт 3).
+Ожидаемо:
 
----
+- `smtp:status` → `Активный канал: unisender_go`
+- `unisender:test` → `Письмо отправлено успешно` и оно реально придёт на [zaslavv@gmail.com](mailto:zaslavv@gmail.com).
 
-### Резюме «откуда что»
+## Если снова ошибка
 
-- **Beget панель**: `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`.
-- **Lovable Secrets / соответствующие ЛК**: `UNISENDER_GO_API_KEY`, `GOOGLE_CLIENT_ID/SECRET`, `YANDEX_CLIENT_ID/SECRET`.
-- **ЛК сервиса** (если в Secrets нет): Unisender Go → API-ключи; Google Cloud Console → Credentials; oauth.yandex.ru → приложение; id.yandex.ru → Пароли приложений.
-- **Генерируется на VPS**: `APP_KEY` (через `php artisan key:generate`).
-- **Фиксированные константы**: `APP_URL`, `FRONTEND_URL`, `DB_HOST`, `DB_PORT`, `MAIL_*` хосты/порты, `UNISENDER_GO_ENDPOINT`, все `*_REDIRECT_URI`.
-
-После одобрения этого плана я в build-режиме могу либо вытащить значения из ваших Lovable Secrets и подготовить готовый блок строк для вставки (там, где это безопасно), либо сгенерировать `smtp:doctor`-команду, которая по каждой переменной скажет «откуда брать» прямо в выводе.  
-  
-AI_API_URL=[https://functions.lovable.dev](https://functions.lovable.dev)  
-AI_API_KEY=YOUR_AI_API_KEY  
-а это откуда брать?
+- `[1574] use address from a confirmed domain` повторно → домен ещё не verified в Unisender, дожидаемся DNS.
+- `[114] User ... not found` → API-ключ не от того аккаунта, в котором подтверждён домен; берём ключ из того же кабинета, где добавлен `mail.growth-peak.pro`.
+- Любая другая — пришли вывод, разберём.
