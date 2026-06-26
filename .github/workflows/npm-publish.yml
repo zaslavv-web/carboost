@@ -39,6 +39,7 @@ jobs:
             --exclude='backend' \
             --exclude='.htaccess' \
             -e "ssh -o StrictHostKeyChecking=no \
+                    -o UpdateHostKeys=no \
                     -o HostKeyAlgorithms=+ssh-rsa \
                     -o PubkeyAcceptedKeyTypes=+ssh-rsa" \
             dist/ \
@@ -279,6 +280,7 @@ jobs:
 
           if [[ "$APP_KEY_VALUE" == "__PRESERVE_SERVER_APP_KEY__" ]]; then
             SERVER_APP_KEY="$(ssh -o StrictHostKeyChecking=no \
+                -o UpdateHostKeys=no \
                 -o HostKeyAlgorithms=+ssh-rsa \
                 -o PubkeyAcceptedKeyTypes=+ssh-rsa \
                 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
@@ -293,6 +295,7 @@ jobs:
           fi
 
           SERVER_MAIL_ENV="$(ssh -o StrictHostKeyChecking=no \
+              -o UpdateHostKeys=no \
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
@@ -422,6 +425,7 @@ jobs:
           PY
 
           ssh -o StrictHostKeyChecking=no \
+              -o UpdateHostKeys=no \
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
@@ -433,10 +437,12 @@ jobs:
             --exclude='storage/app/public' \
             --exclude='storage/logs' \
             -e "ssh -o StrictHostKeyChecking=no \
+                    -o UpdateHostKeys=no \
                     -o HostKeyAlgorithms=+ssh-rsa \
                     -o PubkeyAcceptedKeyTypes=+ssh-rsa" \
             app-src/ \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ secrets.TARGET_DIR }}/backend
+
 
       - name: Setup on server
         run: |
