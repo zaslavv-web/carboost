@@ -1,54 +1,107 @@
-## Диагноз
+## Текущий вывод по диагностике
 
-`PDO` напрямую с паролем `YjH+7ZSf` тоже даёт `Access denied` — значит проблема не в Laravel и не в `.env`, а в самих учётных данных MySQL на Beget. Один из трёх вариантов:
-
-1. Пароль в панели Beget отличается от `YjH+7ZSf` (был сменён или скопирован с лишним символом/пробелом).
-2. Имя пользователя/базы отличается от `gro7659365_grow` (Beget иногда выдаёт суффиксы вида `_db`, `_main`).
-3. Пользователь существует, но не имеет прав на эту конкретную базу.
-
-Без рабочего подключения к MySQL деплой будет падать всегда — это нужно починить руками в панели Beget, агент в неё не ходит.
-
-## Что сделать на стороне пользователя (Beget)
-
-1. Зайти в панель Beget → **MySQL**.
-2. Посмотреть точные значения:
-  - имя базы (полное, с префиксом `gro7659365_…`)
-  - имя пользователя
-  - к каким базам у пользователя есть доступ
-3. Сбросить пароль кнопкой «Сменить пароль» и **скопировать новый прямо из панели** (без ручного набора).
-4. На VPS проверить новые креды напрямую, минуя Laravel:
+База для Laravel сейчас работает:
 
 ```bash
-mysql -u <USER> -p'<NEW_PASS>' -h localhost <DB> -e "SELECT 1;"
--bash: USER: No such file or directory
-
+php artisan config:clear && php artisan migrate --force
+# INFO Nothing to migrate.
 ```
 
-Если `1` выводится — креды рабочие. Тогда:
+Это означает, что Laravel смог подключиться к базе, прочитать таблицу миграций и проверить состояние схемы.
 
-5. `nano ~/growth-peak.pro/docs/backend/.env` → обновить `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`.
-6. `php artisan config:clear && php artisan migrate --force`.
-7. Запушить любой коммит — новый workflow подхватит `DB_*` с сервера и больше не затрёт.
+Ошибка в ручном PDO-тесте не доказывает проблему с БД, потому что команда была запущена с буквальным значением:
 
-не трогай код пока  
-ты где-то допускаешь системную ошибку, ищи где
+```bash
+"ПАРОЛЬ"
+```
+
+а не с реальным паролем. Пароль сюда лучше не вставлять в чат.
+
+## Что сделать сейчас
+
+### 1. Не трогать рабочий `.env` на сервере
+
+Если `php artisan migrate --force` отвечает `Nothing to migrate`, текущий серверный `.env` уже содержит рабочие `DB_*`.
+
+Нужно только убедиться, что в нём стоит правильный хост:
+
+```bash
+cd ~/growth-peak.pro/docs/backend
+php artisan tinker --execute='dump(config("database.connections.mysql.host"), config("database.connections.mysql.database"), config("database.connections.mysql.username"));'
+```
+
+Ожидаемо:
+
+```text
+gro7659365.mysql
+gro7659365_grow
+gro7659365_grow
+```
+
+Пароль эта команда не выводит.
+
+### 2. Исправить GitHub Actions deploy workflow
+
+В `.github/workflows/npm-publish.yml` нужно закрепить правильные дефолты для nic.ru, чтобы будущий деплой снова не откатывал `.env` к `localhost`:
+
+```env
+DB_HOST=gro7659365.mysql
+DB_PORT=3306
+DB_DATABASE=gro7659365_grow
+DB_USERNAME=gro7659365_grow
+```
+
+`DB_PASSWORD` не хардкодить — только брать из серверного `.env` или GitHub Secret.
+
+Также оставить приоритет:
+
+```text
+server .env > GitHub Secrets > safe defaults
+```
+
+### 3. Проверить GitHub Secrets
+
+В GitHub repository settings нужно обновить Actions secrets:
+
+```text
+DB_HOST=gro7659365.mysql
+DB_PORT=3306
+DB_DATABASE=gro7659365_grow
+DB_USERNAME=gro7659365_grow
+DB_PASSWORD=<реальный пароль из nic.ru, не присылать в чат>
+```
+
+Это страховка на случай, если `.env` на сервере когда-нибудь будет отсутствовать или повреждён.
+
+### 4. После правки workflow запустить деплой
+
+Ожидаемый результат в CI:
+
+```text
+php artisan optimize:clear OK
+php artisan config:clear OK
+DB preflight OK
+php artisan migrate --force OK
+php artisan config:cache OK
+php artisan route:cache OK
+```
+
+## Что я изменю после подтверждения
+
+Только `.github/workflows/npm-publish.yml`:
+
+"gro7659365.mysql" // vendor/psy/psysh/src/ExecutionClosure.php(41) : eval()'d code:1
+
+"gro7659365_d" // vendor/psy/psysh/src/ExecutionClosure.php(41) : eval()'d code:1
+
+"gro7659365_grow" // vendor/psy/psysh/src/ExecutionClosure.php(41) : eval()'d code:1
+
+ты опять перепутал значения корректно то, что я тебе присылаю
 
 &nbsp;
 
-## Что могу сделать я (в коде)
-
-Чтобы дальше такие ситуации диагностировались за один шаг, добавлю отдельную artisan-команду `php artisan db:check`, которая:
-
-- читает `DB_*` напрямую из `.env` (без кэша конфига),
-- делает `PDO`-подключение,
-- печатает понятный результат: `OK` или конкретную причину (`unknown database`, `access denied`, `host unreachable`),
-- маскирует пароль в выводе.
-
-Также в `npm-publish.yml` после preflight-фейла добавлю подсказку «запустите `php artisan db:check` на VPS», чтобы в логах CI сразу был next step.
-
-## Файлы
-
-- `backend-laravel/app/Console/Commands/DbCheck.php` — новая команда.
-- `.github/workflows/npm-publish.yml` — улучшенное сообщение об ошибке preflight.
-
-Дальше — ждать от тебя подтверждения, что `mysql -u … -p …` в шаге 4 работает; после этого деплой пройдёт автоматически.
+- заменю дефолтный `DB_HOST=localhost` на `DB_HOST=gro7659365.mysql`;
+- закреплю `DB_PORT=3306`;
+- закреплю дефолтные `DB_DATABASE` и `DB_USERNAME` под `gro7659365_grow`;
+- не буду добавлять пароль в код;
+- сохраню приоритет серверного `.env`, чтобы ручные настройки VPS больше не затирались.
