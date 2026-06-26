@@ -299,6 +299,15 @@ jobs:
                   value = value.replace('\\n', '\n').replace('\\"', '"').replace('\\\\', '\\')
               return value
 
+          def parse_env_lines(text):
+              parsed = {}
+              for line in text.splitlines():
+                  if '=' not in line or line.lstrip().startswith('#'):
+                      continue
+                  key, value = line.split('=', 1)
+                  parsed[key.strip()] = parse_env_value(value)
+              return parsed
+
           server = {}
           for line in os.environ.get('SERVER_MAIL_ENV', '').splitlines():
               if '=' not in line or line.lstrip().startswith('#'):
@@ -319,16 +328,46 @@ jobs:
               'UNISENDER_GO_ENDPOINT': 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json',
               'UNISENDER_GO_TIMEOUT': '15',
           }
-          placeholders = {
-              f'__PRESERVE_SERVER_{key}__': server.get(key) or default
-              for key, default in defaults.items()
-          }
-
           path = Path('app-src/.env')
           content = path.read_text()
+          generated = parse_env_lines(content)
+
+          final_mail = {}
+          for key, default in defaults.items():
+              generated_value = generated.get(key, '')
+              if generated_value.startswith('__PRESERVE_SERVER_'):
+                  generated_value = ''
+
+              if key in server:
+                  server_value = server[key]
+                  if server_value or key in {'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_ENCRYPTION'}:
+                      final_mail[key] = server_value
+                      continue
+
+              final_mail[key] = generated_value or default
+
+          # Почтовые настройки на VPS имеют приоритет: деплой не должен
+          # откатывать рабочий .env к устаревшим GitHub Secrets.
+          replacements = {
+              f'__PRESERVE_SERVER_{key}__': value
+              for key, value in final_mail.items()
+          }
           for placeholder, value in placeholders.items():
               escaped = value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
               content = content.replace(placeholder, escaped)
+
+          lines = []
+          for line in content.splitlines():
+              if '=' not in line or line.lstrip().startswith('#'):
+                  lines.append(line)
+                  continue
+              key = line.split('=', 1)[0].strip()
+              if key in final_mail:
+                  escaped = final_mail[key].replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+                  lines.append(f'{key}="{escaped}"')
+              else:
+                  lines.append(line)
+          content = '\n'.join(lines) + '\n'
           path.write_text(content)
           PY
 
