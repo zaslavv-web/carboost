@@ -52,7 +52,7 @@ class SmtpStatus extends Command
 
         if ($isHttpApi) {
             $apiKey   = RuntimeEnv::get('UNISENDER_GO_API_KEY');
-            $endpoint = RuntimeEnv::get('UNISENDER_GO_ENDPOINT', 'https://go1.unisender.ru/ru/transactional/api/v1/email/send.json');
+            $endpoint = RuntimeEnv::get('UNISENDER_GO_ENDPOINT', 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json');
             $this->line('--- Unisender Go ---');
             $this->line('UNISENDER_GO_API_KEY  : ' . ($apiKey ? 'есть (' . strlen($apiKey) . ' симв.)' : 'НЕТ'));
             $this->line('UNISENDER_GO_ENDPOINT : ' . $endpoint);
