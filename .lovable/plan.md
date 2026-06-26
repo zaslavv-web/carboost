@@ -1,81 +1,69 @@
-## План перехода на Unisender Go
+## Проблема
 
-### Шаг 1. DNS-записи у регистратора growth-peak.pro
+На VPS Laravel пытается подключиться к Redis по hostname `redis:6379` (это имя из docker-compose сети). Но на growth-peak.pro нет Docker и нет сервиса Redis — отсюда `getaddrinfo for redis failed`.
 
-Внести **ровно то, что показал Unisender Go**, в панели регистратора домена:
+Ошибка вылезает потому, что в `backend-laravel/.env` стоит:
 
+```
+CACHE_STORE=redis
+QUEUE_CONNECTION=redis
+SESSION_DRIVER=redis
+REDIS_HOST=redis
+```
 
-| Имя             | Тип   | Значение                                                                         |
-| --------------- | ----- | -------------------------------------------------------------------------------- |
-| `@`             | TXT   | `v=spf1 include:spf.unisender.ru ~all`                                           |
-| `us._domainkey` | TXT   | `v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3...IDAQAB` (вся длинная строка одной записью) |
-| `@`             | TXT   | `unisender-go-validate-hash=adb533d5c7d4f14f21428b9528f09276`                    |
-| `_dmarc`        | CNAME | `growth-peak.pro.dmarc.unisender.ru.`                                            |
-| `mail`          | NS    | `uns1.unisender.com.`                                                            |
-| `mail`          | NS    | `uns2.unisender.com.`                                                            |
-| `mail`          | NS    | `uns3.unisender.com.`                                                            |
+И любой запрос (включая отправку письма через очередь / запись в кеш / сессию) валится.
 
+## Решение
 
-Важные нюансы:
+Перевести Laravel на драйверы, не требующие Redis. На shared-хостинге без Docker самый надёжный вариант — `database` + `file`.
 
-- Поддомен `mail.growth-peak.pro` **полностью делегируется** Unisender (3 NS-записи). Не добавляйте на нём никаких A/MX/TXT — Unisender управляет зоной сам.
-- Если у вас уже есть SPF на `@` (например, для Яндекс-почты на корне) — **нельзя** держать два TXT с `v=spf1`. Их нужно объединить в одну строку: `v=spf1 include:spf.unisender.ru include:_spf.yandex.net ~all`.
-- DKIM `us._domainkey` — значение в одну строку, без переносов. Если панель регистратора требует кавычки — обрамить значение кавычками.
-- DMARC через CNAME означает, что Unisender сам отдаст политику. Свой `_dmarc` TXT на корне держать одновременно с этим CNAME нельзя — оставляем только CNAME.
+### Шаг 1. Поправить `backend-laravel/.env` на сервере
 
-После внесения записей в кабинете Unisender Go нажать «Проверить домен». Распространение DNS — до нескольких часов.
+Заменить блок Redis на:
 
-### Шаг 2. Сохранить API-ключ
+```
+CACHE_STORE=file
+QUEUE_CONNECTION=sync
+SESSION_DRIVER=file
+# REDIS_* можно удалить или закомментировать
+```
 
-Когда DNS внесён — сохраняю API-ключ Unisender Go через защищённую форму (`UNISENDER_GO_API_KEY`). Ключ попадёт в окружение Laravel на VPS как переменная среды, в коде хранить не будем.  
-куда тебе его прислать?
+Почему так:
 
-### Шаг 3. Интеграция в Laravel (`backend-laravel`)
+- `SESSION_DRIVER=file` — сессии в `storage/framework/sessions/`, ничего не нужно.
+- `CACHE_STORE=file` — кеш в `storage/framework/cache/`.
+- `QUEUE_CONNECTION=sync` — письма (включая Unisender Go) отправляются прямо в HTTP-запросе, без воркера. Для текущего объёма (демо-заявки, pricing inquiries) этого достаточно.
 
-1. **Transport**: `app/Mail/Transport/UnisenderGoTransport.php` — Symfony Mailer transport, шлёт POST на `https://go1.unisender.ru/ru/transactional/api/v1/email/send.json` с заголовком `X-API-KEY`, телом `{message: {from_email, from_name, to_email, subject, body:{html,plaintext}, headers}}`.
-2. **Driver**: регистрация `unisender_go` в `config/mail.php` + `TransportFactory` через `AppServiceProvider::boot()` (Laravel 11 паттерн `Mail::extend('unisender_go', ...)`).
-3. **Config**: новые ENV-переменные:
-  ```
-   MAIL_MAILER=unisender_go
-   UNISENDER_GO_API_KEY=...        # из add_secret
-   UNISENDER_GO_ENDPOINT=https://go1.unisender.ru/ru/transactional/api/v1/email/send.json
-   MAIL_FROM_ADDRESS=noreply@mail.growth-peak.pro
-   MAIL_FROM_NAME="Growth Peak"
-   MAIL_REPLY_TO=growthpeak@yandex.ru
-  ```
-4. **EmailConfigService**: добавить ветку для `channel=unisender_go` — приоритет `.env` сохраняем, БД может только переопределять `from`/`reply_to`.
-5. **Mailables**: `DemoRequestSubmitted` и `PricingInquirySubmitted` уже работают через стандартный `Mail::send` — менять не нужно, они автоматически уйдут через новый transport. Reply-To проставим в Mailable, чтобы ответы летели на Яндекс.
-6. **Артизан-команды**:
-  - `unisender:test {email}` — отправляет тестовое письмо и печатает HTTP-ответ Unisender.
-  - `smtp:status` обновим: показывает активный канал (SMTP / Unisender Go), endpoint, длину API-ключа.
+Если позже захотим асинхронные очереди — переключим на `database` и поднимем `php artisan queue:work` через supervisor. Сейчас это не нужно.
 
-### Шаг 4. UI админки (`EmailSettingsManagement.tsx`)
+почему?
 
-- Добавить селектор «Канал отправки»: `SMTP (Яндекс)` / `Unisender Go (HTTP API)`.
-- Для Unisender показывать: статус домена (проверяется через `unisender:status`), from-адрес, reply-to, маскированный API-ключ (только индикация наличия — само значение из ENV, не редактируется через UI).
-- SMTP-секция остаётся как fallback на случай возврата.
+### Шаг 2. Сбросить кеш конфига
 
-### Шаг 5. Проверка на VPS
+```
+php artisan config:clear
+php artisan cache:clear
+php artisan config:cache
+```
 
-После деплоя:
+### Шаг 3. Обновить шаблоны, чтобы повторно не наступить
 
-1. `php artisan config:clear && php artisan optimize:clear`
-2. `php artisan smtp:status` — убедиться, что активный канал = `unisender_go`, ключ длиной 32+ символа.
-3. `php artisan unisender:test growthpeak@yandex.ru` — должен прийти HTTP 200 от Unisender и письмо в течение минуты.
-4. Тест с лендинга: форма «Заказать демо» → письмо приходит на `growthpeak@yandex.ru`.
+- `backend-laravel/.env.example` и `backend-laravel/.env.production.example` — поставить дефолты `file/sync/file` вместо `redis`, чтобы on-premise установки без Docker заводились из коробки. Docker-overlay (`docker-compose.yml`) при необходимости переопределяет на `redis` через свои env-переменные.
+- В `DEPLOYMENT.md` / `docs/ON-PREMISE.md` добавить короткую заметку: «Redis нужен только для docker-compose стека; на shared-хостинге используйте file/sync».
 
-### Что НЕ меняем
+### Шаг 4. Проверка
 
-- Старые SMTP-команды (`smtp:test`, `smtp:env-doctor`, `smtp:where`) оставляем для диагностики.
-- Шаблоны писем, RPC `submitDemoRequest`/`submitPricingInquiry`, фронтенд лендинга — без изменений.
+После правки `.env` и сброса кеша:
 
-### Открытые вопросы перед стартом реализации
+```
+php artisan unisender:test you@example.com
+```
 
-- Подтвердите, что регистратор у вас позволяет ставить **NS на поддомен** `mail` (большинство — да, но у некоторых бюджетных регистраторов есть ограничения). Если нет — Unisender предлагает альтернативу через CNAME, тогда DNS-таблица будет другой.  
-вроде бы все прошгло успешно - тестовое письмо ушло
-  &nbsp;
-- Готовы ли удалить/сливать существующий SPF на корне, если он уже стоит для Яндекса?  
-пока нет  
-вопрос: нужно ли мне брать платный тариф?  
-Чтобы отправлять письма на любые адреса, а не только на свой домен, [выберите и подключите один из платных тарифов](https://go2.unisender.ru/ru/user/billing/subscription/edit). Например тариф [StartUp 6K](https://go2.unisender.ru/ru/user/billing/subscription/edit#6k-trial) дает 2 месяца работы без оплаты.
-  &nbsp;
+должна вернуть `OK` без `getaddrinfo for redis failed`.
+
+## Что я НЕ трогаю
+
+- Docker-compose файлы и сетевую конфигурацию контейнеров — там Redis нужен и работает.
+- Код приложения — драйверы переключаются через env, исходники менять не надо.
+
+Подтвердите план — переключаюсь в build и применяю изменения к `.env.example` файлам и докам. Правку `.env` на самом VPS делаете вы (или я подскажу точные команды `sed`).
