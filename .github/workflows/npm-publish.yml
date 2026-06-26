@@ -39,6 +39,7 @@ jobs:
             --exclude='backend' \
             --exclude='.htaccess' \
             -e "ssh -o StrictHostKeyChecking=no \
+                    -o UpdateHostKeys=no \
                     -o HostKeyAlgorithms=+ssh-rsa \
                     -o PubkeyAcceptedKeyTypes=+ssh-rsa" \
             dist/ \
@@ -81,6 +82,7 @@ jobs:
           cp -r backend-laravel/config     app-src/
           cp -r backend-laravel/database   app-src/
           cp -r backend-laravel/routes     app-src/
+          cp -r backend-laravel/scripts    app-src/
 
       - name: Install extra Laravel packages
         run: |
@@ -279,6 +281,7 @@ jobs:
 
           if [[ "$APP_KEY_VALUE" == "__PRESERVE_SERVER_APP_KEY__" ]]; then
             SERVER_APP_KEY="$(ssh -o StrictHostKeyChecking=no \
+                -o UpdateHostKeys=no \
                 -o HostKeyAlgorithms=+ssh-rsa \
                 -o PubkeyAcceptedKeyTypes=+ssh-rsa \
                 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
@@ -293,6 +296,7 @@ jobs:
           fi
 
           SERVER_MAIL_ENV="$(ssh -o StrictHostKeyChecking=no \
+              -o UpdateHostKeys=no \
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
@@ -422,6 +426,7 @@ jobs:
           PY
 
           ssh -o StrictHostKeyChecking=no \
+              -o UpdateHostKeys=no \
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
@@ -433,14 +438,17 @@ jobs:
             --exclude='storage/app/public' \
             --exclude='storage/logs' \
             -e "ssh -o StrictHostKeyChecking=no \
+                    -o UpdateHostKeys=no \
                     -o HostKeyAlgorithms=+ssh-rsa \
                     -o PubkeyAcceptedKeyTypes=+ssh-rsa" \
             app-src/ \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ secrets.TARGET_DIR }}/backend
 
+
       - name: Setup on server
         run: |
           ssh -o StrictHostKeyChecking=no \
+              -o UpdateHostKeys=no \
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
@@ -449,28 +457,9 @@ jobs:
               && chmod -R 777 storage bootstrap/cache \
               && php artisan optimize:clear \
               && php artisan config:clear \
-              && php -r '
-              require __DIR__."/vendor/autoload.php";
-              Dotenv\Dotenv::createImmutable(__DIR__)->safeLoad();
-              $host = $_ENV["DB_HOST"] ?? "localhost";
-              $port = $_ENV["DB_PORT"] ?? "3306";
-              $db = $_ENV["DB_DATABASE"] ?? "";
-              $user = $_ENV["DB_USERNAME"] ?? "";
-              $password = $_ENV["DB_PASSWORD"] ?? "";
-              echo "DB preflight: host={$host}, port={$port}, database={$db}, user={$user}\n";
-              if ($db === "" || $user === "") {
-                  fwrite(STDERR, "DB preflight failed: DB_DATABASE or DB_USERNAME is empty in backend/.env\n");
-                  exit(1);
-              }
-              try {
-                  new PDO("mysql:host={$host};port={$port};dbname={$db};charset=utf8mb4", $user, $password, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-                  echo "DB preflight: OK\n";
-              } catch (Throwable $e) {
-                  fwrite(STDERR, "DB preflight failed: MySQL rejected credentials or database privileges. Check DB_HOST=gro7659365.mysql, DB_DATABASE=gro7659365_d, DB_USERNAME=gro7659365_grow, DB_PASSWORD in backend/.env and GitHub Secrets.\n");
-                  exit(1);
-              }
-              ' \
+              && php scripts/db-preflight.php \
               && php artisan migrate --force \
               && php artisan db:seed --class=RoleSeeder --force \
               && php artisan config:cache \
               && php artisan route:cache"
+
