@@ -23,7 +23,13 @@ class SmtpStatus extends Command
         $envUser = RuntimeEnv::get('MAIL_USERNAME');
         $envPass = RuntimeEnv::get('MAIL_PASSWORD') ?: RuntimeEnv::get('SMTP_PASSWORD');
 
-        $dbActive = EmailSetting::query()->where('is_active', true)->latest('updated_at')->first();
+        $dbActive = null;
+        $dbError = null;
+        try {
+            $dbActive = EmailSetting::query()->where('is_active', true)->latest('updated_at')->first();
+        } catch (\Throwable $e) {
+            $dbError = $e->getMessage();
+        }
 
         $envMailer = strtolower((string) RuntimeEnv::get('MAIL_MAILER', ''));
         $isHttpApi = $envMailer === 'unisender_go';
@@ -39,8 +45,13 @@ class SmtpStatus extends Command
             $source = 'файл / fallback';
         }
 
-        $emailConfig->apply();
-        $summary = $emailConfig->currentSmtpSummary();
+        try {
+            $emailConfig->apply();
+            $summary = $emailConfig->currentSmtpSummary();
+        } catch (\Throwable $e) {
+            $summary = ['host' => '(ошибка)', 'port' => '(?)', 'encryption' => '', 'username' => ''];
+            $dbError = $dbError ?: $e->getMessage();
+        }
 
         $this->line('');
         $this->info('=== EMAIL CHANNEL STATUS ===');
@@ -48,6 +59,9 @@ class SmtpStatus extends Command
         $this->line('env file (loaded) : ' . app()->environmentFilePath());
         $this->line('Активный канал    : ' . $emailConfig->activeChannel());
         $this->line('Активный источник : ' . $source);
+        if ($dbError) {
+            $this->warn('БД email_settings недоступна: ' . $dbError);
+        }
         $this->line('');
 
         if ($isHttpApi) {
