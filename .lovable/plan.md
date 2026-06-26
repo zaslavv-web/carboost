@@ -1,69 +1,66 @@
-## Проблема
+Отлично, `artisan` найден по пути `./growth-peak.pro/docs/backend/artisan`. Значит корень Laravel-бэкенда на VPS — `~/growth-peak.pro/docs/backend`.
 
-На VPS Laravel пытается подключиться к Redis по hostname `redis:6379` (это имя из docker-compose сети). Но на growth-peak.pro нет Docker и нет сервиса Redis — отсюда `getaddrinfo for redis failed`.
+## Что сделать на VPS
 
-Ошибка вылезает потому, что в `backend-laravel/.env` стоит:
+```bash
+cd ~/growth-peak.pro/docs/backend
 
-```
-CACHE_STORE=redis
-QUEUE_CONNECTION=redis
-SESSION_DRIVER=redis
-REDIS_HOST=redis
-```
-
-И любой запрос (включая отправку письма через очередь / запись в кеш / сессию) валится.
-
-## Решение
-
-Перевести Laravel на драйверы, не требующие Redis. На shared-хостинге без Docker самый надёжный вариант — `database` + `file`.
-
-### Шаг 1. Поправить `backend-laravel/.env` на сервере
-
-Заменить блок Redis на:
+# 1. Проверяем, что .env здесь есть
+ls -la artisan .env
+-rwxr-xr-x. 1 gro7659365 gro7659365  350 янв 24  2025 artisan
+-rw-r--r--. 1 gro7659365 gro7659365 1448 июн 26 18:32 .env
 
 ```
-CACHE_STORE=file
-QUEUE_CONNECTION=sync
-SESSION_DRIVER=file
-# REDIS_* можно удалить или закомментировать
+
+Если `.env` отсутствует — сначала создаём из шаблона:
+
+```bash
+cp .env.production.example .env
+# затем отредактируйте: APP_KEY, DB_*, MAIL_MAILER=unisender_go,
+# MAIL_FROM_ADDRESS=noreply@mail.growth-peak.pro, UNISENDER_GO_API_KEY=...
+php artisan key:generate
 ```
 
-Почему так:
+Если `.env` уже есть — переключаем кэш/очередь/сессии с Redis на файловые драйверы:
 
-- `SESSION_DRIVER=file` — сессии в `storage/framework/sessions/`, ничего не нужно.
-- `CACHE_STORE=file` — кеш в `storage/framework/cache/`.
-- `QUEUE_CONNECTION=sync` — письма (включая Unisender Go) отправляются прямо в HTTP-запросе, без воркера. Для текущего объёма (демо-заявки, pricing inquiries) этого достаточно.
+```bash
+sed -i 's/^CACHE_STORE=.*/CACHE_STORE=file/;s/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/;s/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
+ничего не произошло
 
-Если позже захотим асинхронные очереди — переключим на `database` и поднимем `php artisan queue:work` через supervisor. Сейчас это не нужно.
-
-почему?
-
-### Шаг 2. Сбросить кеш конфига
-
+# Если каких-то ключей в .env вовсе нет — добавим:
+grep -q '^CACHE_STORE='       .env || echo 'CACHE_STORE=file'       >> .env
+grep -q '^QUEUE_CONNECTION='  .env || echo 'QUEUE_CONNECTION=sync'  >> .env
+grep -q '^SESSION_DRIVER='    .env || echo 'SESSION_DRIVER=file'    >> .env
 ```
+
+ничего не произошло
+
+Сбрасываем кэш конфигурации и проверяем канал отправки:
+
+```bash
 php artisan config:clear
 php artisan cache:clear
 php artisan config:cache
-```
 
-### Шаг 3. Обновить шаблоны, чтобы повторно не наступить
-
-- `backend-laravel/.env.example` и `backend-laravel/.env.production.example` — поставить дефолты `file/sync/file` вместо `redis`, чтобы on-premise установки без Docker заводились из коробки. Docker-overlay (`docker-compose.yml`) при необходимости переопределяет на `redis` через свои env-переменные.
-- В `DEPLOYMENT.md` / `docs/ON-PREMISE.md` добавить короткую заметку: «Redis нужен только для docker-compose стека; на shared-хостинге используйте file/sync».
-
-### Шаг 4. Проверка
-
-После правки `.env` и сброса кеша:
+php artisan smtp:status
+php artisan unisender:test ваш-личный@email
+=== TEST EMAIL ===
+Канал       : smtp
+From        : growthpeak@yandex.ru
+To          : zaslavv@yandex.ru
+Ошибка отправки: Failed to authenticate on SMTP server with username "growthpeak@yandex.ru" using the following authenticators: "LOGIN", "PLAIN", "XOAUTH2". Authenticator "LOGIN" returned "Expected response code "235" but got code "535", with message "535 5.7.8 Error: authentication failed: Invalid user or password! 1782488295-Ecc7aPTeJW20".". Authenticator "PLAIN" returned "Expected response code "235" but got code "535", with message "535 5.7.8 Error: authentication failed: Invalid user or password! 1782488295-Ecc7aPTeJW20".". Authenticator "XOAUTH2" returned "Expected response code "235" but got code "535", with message "535 5.7.8 Error: authentication failed: Invalid user or password! 1782488295-Ecc7aPTeJW20".".
 
 ```
-php artisan unisender:test you@example.com
-```
 
-должна вернуть `OK` без `getaddrinfo for redis failed`.
+## Что должно получиться
 
-## Что я НЕ трогаю
+- `smtp:status` показывает `MAIL_MAILER=unisender_go` и длину API-ключа > 0.
+- `unisender:test` пишет `OK` и письмо приходит на указанный адрес (проверьте папку «Спам», т.к. DNS-записи ещё не добавлены — после добавления SPF/DKIM/DMARC доставляемость в инбокс будет нормальной).
 
-- Docker-compose файлы и сетевую конфигурацию контейнеров — там Redis нужен и работает.
-- Код приложения — драйверы переключаются через env, исходники менять не надо.
+## Если что-то пойдёт не так
 
-Подтвердите план — переключаюсь в build и применяю изменения к `.env.example` файлам и докам. Правку `.env` на самом VPS делаете вы (или я подскажу точные команды `sed`).
+- `Could not open input file: artisan` → вы не в той папке, вернитесь в `~/growth-peak.pro/docs/backend`.
+- `unisender:test` отвечает 401/403 → неверный `UNISENDER_GO_API_KEY` в `.env`, перепроверьте и снова `php artisan config:cache`.
+- Письмо не приходит и нет ошибки → пришлите вывод `tail -n 100 storage/logs/laravel.log`, разберу.
+
+Изменения в коде не требуются — это разовая операция на сервере. Подтвердите план, и я переключусь в build-режим, чтобы при необходимости донастроить .env.example/докуменацию под путь `docs/backend`.
