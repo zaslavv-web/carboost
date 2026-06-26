@@ -282,6 +282,56 @@ jobs:
             python3 -c "from pathlib import Path; import os; p=Path('app-src/.env'); p.write_text(p.read_text().replace('__PRESERVE_SERVER_APP_KEY__', os.environ['APP_KEY_VALUE']))"
           fi
 
+          SERVER_MAIL_ENV="$(ssh -o StrictHostKeyChecking=no \
+              -o HostKeyAlgorithms=+ssh-rsa \
+              -o PubkeyAcceptedKeyTypes=+ssh-rsa \
+              ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+              "if [ -f ${{ secrets.TARGET_DIR }}/backend/.env ]; then grep -E '^(MAIL_MAILER|MAIL_HOST|MAIL_PORT|MAIL_USERNAME|MAIL_PASSWORD|MAIL_ENCRYPTION|MAIL_FROM_ADDRESS|MAIL_FROM_NAME|UNISENDER_GO_API_KEY|UNISENDER_GO_ENDPOINT|UNISENDER_GO_TIMEOUT)=' ${{ secrets.TARGET_DIR }}/backend/.env || true; fi")"
+          export SERVER_MAIL_ENV
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          def parse_env_value(raw):
+              value = raw.strip()
+              if len(value) >= 2 and value[0] == value[-1] == '"':
+                  value = value[1:-1]
+                  value = value.replace('\\n', '\n').replace('\\"', '"').replace('\\\\', '\\')
+              return value
+
+          server = {}
+          for line in os.environ.get('SERVER_MAIL_ENV', '').splitlines():
+              if '=' not in line or line.lstrip().startswith('#'):
+                  continue
+              key, value = line.split('=', 1)
+              server[key.strip()] = parse_env_value(value)
+
+          defaults = {
+              'MAIL_MAILER': 'unisender_go',
+              'MAIL_HOST': 'localhost',
+              'MAIL_PORT': '587',
+              'MAIL_USERNAME': '',
+              'MAIL_PASSWORD': '',
+              'MAIL_ENCRYPTION': '',
+              'MAIL_FROM_ADDRESS': 'noreply@mail.growth-peak.pro',
+              'MAIL_FROM_NAME': 'Growth Peak',
+              'UNISENDER_GO_API_KEY': '',
+              'UNISENDER_GO_ENDPOINT': 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json',
+              'UNISENDER_GO_TIMEOUT': '15',
+          }
+          placeholders = {
+              f'__PRESERVE_SERVER_{key}__': server.get(key) or default
+              for key, default in defaults.items()
+          }
+
+          path = Path('app-src/.env')
+          content = path.read_text()
+          for placeholder, value in placeholders.items():
+              escaped = value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+              content = content.replace(placeholder, escaped)
+          path.write_text(content)
+          PY
+
           export APP_KEY_VALUE="${APP_KEY_VALUE:-}"
 
           python3 - <<'PY'
