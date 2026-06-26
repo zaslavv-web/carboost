@@ -449,6 +449,27 @@ jobs:
               && chmod -R 777 storage bootstrap/cache \
               && php artisan optimize:clear \
               && php artisan config:clear \
+              && php -r '
+              require __DIR__."/vendor/autoload.php";
+              Dotenv\Dotenv::createImmutable(__DIR__)->safeLoad();
+              $host = $_ENV["DB_HOST"] ?? "localhost";
+              $port = $_ENV["DB_PORT"] ?? "3306";
+              $db = $_ENV["DB_DATABASE"] ?? "";
+              $user = $_ENV["DB_USERNAME"] ?? "";
+              $password = $_ENV["DB_PASSWORD"] ?? "";
+              echo "DB preflight: host={$host}, port={$port}, database={$db}, user={$user}\n";
+              if ($db === "" || $user === "") {
+                  fwrite(STDERR, "DB preflight failed: DB_DATABASE or DB_USERNAME is empty in backend/.env\n");
+                  exit(1);
+              }
+              try {
+                  new PDO("mysql:host={$host};port={$port};dbname={$db};charset=utf8mb4", $user, $password, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+                  echo "DB preflight: OK\n";
+              } catch (Throwable $e) {
+                  fwrite(STDERR, "DB preflight failed: MySQL rejected credentials or database privileges. Check DB_DATABASE/DB_USERNAME/DB_PASSWORD in backend/.env and Beget database user binding.\n");
+                  exit(1);
+              }
+              ' \
               && php artisan migrate --force \
               && php artisan db:seed --class=RoleSeeder --force \
               && php artisan config:cache \

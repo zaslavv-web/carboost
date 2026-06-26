@@ -1,30 +1,42 @@
-## Проблема
+Прямой PDO-тест падает до Laravel, значит проблема не в коде и не в миграциях: MySQL на Beget отклоняет текущие данные доступа или пользователь не привязан к этой базе.
 
-В `.github/workflows/npm-publish.yml` шаг «Create backend .env» подставляет `DB_HOST`/`DB_PORT`/`DB_DATABASE`/`DB_USERNAME`/`DB_PASSWORD` напрямую из GitHub Secrets и записывает их в `app-src/.env`, который затем заливается на VPS поверх рабочего `backend/.env`. Реальный пароль MySQL на Beget вы меняли через панель хостинга и в GitHub Secrets он не обновлён → `php artisan migrate` валится с `SQLSTATE[HY000] [1045] Access denied for user '***'@'localhost'`.
+Важно: пароль был отправлен в чат, поэтому лучше сразу сбросить его в Beget и больше не использовать старый.
 
-Раньше та же проблема была с MAIL_*; мы её решили, считывая значения из существующего `/backend/.env` на сервере и подставляя их вместо плейсхолдеров. Сейчас нужно повторить ту же схему для DB_*.
+План действий:
 
-## Что меняю
+1. В Beget открыть раздел баз данных и проверить связку:
+  - база данных действительно называется `gro7659365_grow`;
+    `нет, правильно gro7659365_d и это везде указано`
+  - пользователь действительно называется `gro7659365_grow`;
+  - пользователь привязан именно к этой базе;
+  - у пользователя есть права на базу.
+2. Если есть сомнение — создать/сбросить пароль MySQL-пользователя в Beget и сохранить новый пароль только локально у себя.
+3. На VPS прописать актуальные значения в серверном `.env`:
+  ```env
+   DB_CONNECTION=mysql
+   DB_HOST=localhost
+   DB_PORT=3306
+   DB_DATABASE=ИМЯ_БАЗЫ_ИЗ_BEGET
+   DB_USERNAME=ИМЯ_ПОЛЬЗОВАТЕЛЯ_ИЗ_BEGET
+   DB_PASSWORD="НОВЫЙ_ПАРОЛЬ_ИЗ_BEGET"
+  ```
+4. Очистить кеш конфигурации:
+  ```bash
+   cd ~/growth-peak.pro/docs/backend
+   php artisan config:clear
+  ```
+5. Проверить подключение напрямую, не через Laravel:
+  ```bash
+   php -r 'new PDO("mysql:host=localhost;dbname=ИМЯ_БАЗЫ_ИЗ_BEGET;charset=utf8mb4", "ИМЯ_ПОЛЬЗОВАТЕЛЯ_ИЗ_BEGET", "НОВЫЙ_ПАРОЛЬ_ИЗ_BEGET"); echo "OK\n";'
+  ```
+6. Если снова `Access denied`, значит в Beget неверна одна из трех вещей: имя базы, имя пользователя или привязка/пароль пользователя. До `OK` деплой не пройдет.
+7. Если появился `OK`, выполнить:
+  ```bash
+   php artisan migrate --force
+   php artisan db:seed --class=RoleSeeder --force
+   php artisan config:cache
+   php artisan route:cache
+  ```
+8. После успешной ручной проверки повторить GitHub Actions deploy. Текущий workflow уже должен брать `DB_*` из серверного `.env`, поэтому корректные значения не должны откатываться.
 
-Файл: `.github/workflows/npm-publish.yml`
-
-1. В шаге «Create backend .env» вместо прямой подстановки `DB_*` из секретов писать плейсхолдеры `__PRESERVE_SERVER_DB_HOST__`, `__PRESERVE_SERVER_DB_PORT__`, `__PRESERVE_SERVER_DB_DATABASE__`, `__PRESERVE_SERVER_DB_USERNAME__`, `__PRESERVE_SERVER_DB_PASSWORD__`, `__PRESERVE_SERVER_DB_CONNECTION__`, если соответствующий GitHub Secret пуст. Если секрет задан — использовать его как fallback.
-
-2. В шаге «Deploy backend» расширить SSH-чтение серверного `.env`: добавить в `grep` ключи `DB_CONNECTION|DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME|DB_PASSWORD` и тот же python-блок, что обрабатывает MAIL_*, расширить, чтобы он:
-   - читал значения DB_* из серверного `.env`,
-   - подставлял их с приоритетом над сгенерированными,
-   - заменял плейсхолдеры `__PRESERVE_SERVER_DB_*__` финальными значениями.
-
-3. Логика приоритетов (как у MAIL_*): server `.env` > GitHub Secret > дефолт. Дефолт для `DB_CONNECTION` — `mysql`, для `DB_HOST` — `localhost`, для `DB_PORT` — `3306`. Для `DB_DATABASE/USERNAME/PASSWORD` дефолта нет — если ни на сервере, ни в секретах нет значения, деплой падает с понятной ошибкой.
-
-4. Сохранить совместимость: если сервер ещё не инициализирован (нет `backend/.env`), деплой использует GitHub Secrets как раньше.
-
-## Результат
-
-- При следующем деплое DB-блок в `backend/.env` на VPS останется тем, который вы прописали вручную (с правильным паролем Beget).
-- Миграции и сидеры пройдут.
-- Менять пароль БД через Beget можно будет, не трогая GitHub Secrets.
-
-## После внедрения
-
-Запустить деплой (push в `main`) и проверить, что шаг `php artisan migrate --force` отработал без `Access denied`.
+Дополнительно после восстановления можно доработать workflow: добавить перед миграциями короткую PDO-проверку с понятной ошибкой, чтобы деплой сразу писал `DB credentials invalid`, а не длинный Laravel stack trace.
