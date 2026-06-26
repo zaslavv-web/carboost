@@ -163,6 +163,16 @@ class EmailConfigService
     {
         $explicit = $setting !== null;
 
+        // Если в .env выбран HTTP API канал (например Unisender Go) — НЕ переопределяем mail.default
+        // на 'smtp'. Просто гарантируем from-адрес и выходим.
+        if (!$explicit) {
+            $mailer = strtolower((string) RuntimeEnv::get('MAIL_MAILER', ''));
+            if ($mailer === 'unisender_go') {
+                $this->applyHttpApiMailer($mailer);
+                return;
+            }
+        }
+
         // НОВЫЙ приоритет: .env — единственный источник правды по умолчанию.
         // Запись в БД учитывается ТОЛЬКО если передана явно (явный вызов apply($setting) из админки/теста).
         if (!$explicit) {
@@ -185,6 +195,7 @@ class EmailConfigService
                 return;
             }
         }
+
 
         // Явный режим: применяем переданные настройки из БД.
         try {
@@ -278,6 +289,40 @@ class EmailConfigService
 
         $this->forgetResolvedMailers();
     }
+
+    /**
+     * Применить HTTP API-канал (например Unisender Go).
+     * Не трогаем SMTP-конфиг, только default + from + reply_to.
+     */
+    public function applyHttpApiMailer(string $mailer): void
+    {
+        $from = RuntimeEnv::get('MAIL_FROM_ADDRESS') ?: 'noreply@example.local';
+        $name = RuntimeEnv::get('MAIL_FROM_NAME', config('app.name', 'Career Track'));
+        $replyTo = RuntimeEnv::get('MAIL_REPLY_TO');
+
+        Config::set('mail.default', $mailer);
+        Config::set('mail.from', ['address' => $from, 'name' => $name]);
+
+        if ($replyTo) {
+            Config::set('mail.reply_to', ['address' => $replyTo, 'name' => $name]);
+        }
+
+        $this->forgetResolvedMailers();
+    }
+
+    /**
+     * Активный канал отправки: 'unisender_go' | 'smtp' | другое из MAIL_MAILER.
+     */
+    public function activeChannel(): string
+    {
+        $envMailer = strtolower((string) RuntimeEnv::get('MAIL_MAILER', ''));
+        if ($envMailer === 'unisender_go') {
+            return 'unisender_go';
+        }
+        return (string) (Config::get('mail.default') ?: 'smtp');
+    }
+
+
 
     public function applyRuntimeEnv(): void
     {
