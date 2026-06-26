@@ -163,6 +163,16 @@ class EmailConfigService
     {
         $explicit = $setting !== null;
 
+        // Если в .env выбран HTTP API канал (например Unisender Go) — НЕ переопределяем mail.default
+        // на 'smtp'. Просто гарантируем from-адрес и выходим.
+        if (!$explicit) {
+            $mailer = strtolower((string) RuntimeEnv::get('MAIL_MAILER', ''));
+            if ($mailer === 'unisender_go') {
+                $this->applyHttpApiMailer($mailer);
+                return;
+            }
+        }
+
         // НОВЫЙ приоритет: .env — единственный источник правды по умолчанию.
         // Запись в БД учитывается ТОЛЬКО если передана явно (явный вызов apply($setting) из админки/теста).
         if (!$explicit) {
@@ -185,6 +195,7 @@ class EmailConfigService
                 return;
             }
         }
+
 
         // Явный режим: применяем переданные настройки из БД.
         try {
