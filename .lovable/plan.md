@@ -1,95 +1,81 @@
-SMTP-порты 465/587 у хостера закрыты, открыт только 443. Переходим на **Unisender Go** — российский сервис транзакционной почты с HTTP API. Бесплатно до 1500 писем/мес, хорошая доставляемость на yandex/mail.ru, российские IP, REST через HTTPS, никаких блокировок портов.
+## План перехода на Unisender Go
 
-## Что нужно от вас (предусловия)
+### Шаг 1. DNS-записи у регистратора growth-peak.pro
 
-1. Регистрация на `https://godocs.unisender.ru/` (Unisender **Go**, не путать с обычным Unisender для рассылок).
-2. В кабинете Unisender Go:
-  - Добавить и подтвердить домен-отправитель (например, `growth-peak.pro`) — нужно прописать **SPF, DKIM, DMARC** записи в DNS домена. Без подтверждения письма уходить не будут.
-  - Создать **API-ключ** для проекта.  
-  что указать в домене ссылок?  
+Внести **ровно то, что показал Unisender Go**, в панели регистратора домена:
 
-3. Адрес отправителя должен быть на подтверждённом домене, например `noreply@growth-peak.pro` или `growthpeak@growth-peak.pro`. Слать с `@yandex.ru` через сторонний сервис нельзя — попадёт в спам / отклонится.  
-где это взять?
 
-Получатель уведомлений (`growthpeak@yandex.ru`) остаётся прежним — меняется только канал доставки и `From`.
+| Имя             | Тип   | Значение                                                                         |
+| --------------- | ----- | -------------------------------------------------------------------------------- |
+| `@`             | TXT   | `v=spf1 include:spf.unisender.ru ~all`                                           |
+| `us._domainkey` | TXT   | `v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3...IDAQAB` (вся длинная строка одной записью) |
+| `@`             | TXT   | `unisender-go-validate-hash=adb533d5c7d4f14f21428b9528f09276`                    |
+| `_dmarc`        | CNAME | `growth-peak.pro.dmarc.unisender.ru.`                                            |
+| `mail`          | NS    | `uns1.unisender.com.`                                                            |
+| `mail`          | NS    | `uns2.unisender.com.`                                                            |
+| `mail`          | NS    | `uns3.unisender.com.`                                                            |
 
-## Что я сделаю в коде
 
-### 1. HTTP-транспорт Unisender Go
+Важные нюансы:
 
-- `app/Mail/Transport/UnisenderGoTransport.php` — кастомный Symfony Mailer transport. Сериализует `Symfony\Component\Mime\Email` в JSON формата Unisender Go (`message.recipients[].email`, `message.subject`, `message.body.html`, `message.from_email`, `message.from_name`) и шлёт POST через Guzzle на `https://go1.unisender.ru/ru/transactional/api/v1/email/send.json` с заголовком `X-API-KEY`.
-- Обрабатывает ответ: при `status: success` возвращает `SentMessage`, при ошибке кидает исключение с расшифровкой кода (`failures[].code`).
+- Поддомен `mail.growth-peak.pro` **полностью делегируется** Unisender (3 NS-записи). Не добавляйте на нём никаких A/MX/TXT — Unisender управляет зоной сам.
+- Если у вас уже есть SPF на `@` (например, для Яндекс-почты на корне) — **нельзя** держать два TXT с `v=spf1`. Их нужно объединить в одну строку: `v=spf1 include:spf.unisender.ru include:_spf.yandex.net ~all`.
+- DKIM `us._domainkey` — значение в одну строку, без переносов. Если панель регистратора требует кавычки — обрамить значение кавычками.
+- DMARC через CNAME означает, что Unisender сам отдаст политику. Свой `_dmarc` TXT на корне держать одновременно с этим CNAME нельзя — оставляем только CNAME.
 
-### 2. Регистрация драйвера
+После внесения записей в кабинете Unisender Go нажать «Проверить домен». Распространение DNS — до нескольких часов.
 
-- В `config/mail.php` добавлю секцию:
-  ```php
-  'unisender_go' => [
-      'transport' => 'unisender_go',
-      'api_key' => env('UNISENDER_GO_API_KEY'),
-      'endpoint' => env('UNISENDER_GO_ENDPOINT', 'https://go1.unisender.ru/ru/transactional/api/v1/email/send.json'),
-      'timeout' => 15,
-  ],
+### Шаг 2. Сохранить API-ключ
+
+Когда DNS внесён — сохраняю API-ключ Unisender Go через защищённую форму (`UNISENDER_GO_API_KEY`). Ключ попадёт в окружение Laravel на VPS как переменная среды, в коде хранить не будем.  
+куда тебе его прислать?
+
+### Шаг 3. Интеграция в Laravel (`backend-laravel`)
+
+1. **Transport**: `app/Mail/Transport/UnisenderGoTransport.php` — Symfony Mailer transport, шлёт POST на `https://go1.unisender.ru/ru/transactional/api/v1/email/send.json` с заголовком `X-API-KEY`, телом `{message: {from_email, from_name, to_email, subject, body:{html,plaintext}, headers}}`.
+2. **Driver**: регистрация `unisender_go` в `config/mail.php` + `TransportFactory` через `AppServiceProvider::boot()` (Laravel 11 паттерн `Mail::extend('unisender_go', ...)`).
+3. **Config**: новые ENV-переменные:
   ```
-- В `AppServiceProvider::boot()` вызову `Mail::extend('unisender_go', fn ($config) => new UnisenderGoTransport(...))`.
+   MAIL_MAILER=unisender_go
+   UNISENDER_GO_API_KEY=...        # из add_secret
+   UNISENDER_GO_ENDPOINT=https://go1.unisender.ru/ru/transactional/api/v1/email/send.json
+   MAIL_FROM_ADDRESS=noreply@mail.growth-peak.pro
+   MAIL_FROM_NAME="Growth Peak"
+   MAIL_REPLY_TO=growthpeak@yandex.ru
+  ```
+4. **EmailConfigService**: добавить ветку для `channel=unisender_go` — приоритет `.env` сохраняем, БД может только переопределять `from`/`reply_to`.
+5. **Mailables**: `DemoRequestSubmitted` и `PricingInquirySubmitted` уже работают через стандартный `Mail::send` — менять не нужно, они автоматически уйдут через новый transport. Reply-To проставим в Mailable, чтобы ответы летели на Яндекс.
+6. **Артизан-команды**:
+  - `unisender:test {email}` — отправляет тестовое письмо и печатает HTTP-ответ Unisender.
+  - `smtp:status` обновим: показывает активный канал (SMTP / Unisender Go), endpoint, длину API-ключа.
 
-### 3. `.env` на сервере (после моих правок)
+### Шаг 4. UI админки (`EmailSettingsManagement.tsx`)
 
-```
-MAIL_MAILER=unisender_go
-MAIL_FROM_ADDRESS=noreply@growth-peak.pro
-MAIL_FROM_NAME="Пик Роста"
-UNISENDER_GO_API_KEY=<ключ из кабинета>
-SALES_NOTIFICATION_EMAIL=growthpeak@yandex.ru
-```
+- Добавить селектор «Канал отправки»: `SMTP (Яндекс)` / `Unisender Go (HTTP API)`.
+- Для Unisender показывать: статус домена (проверяется через `unisender:status`), from-адрес, reply-to, маскированный API-ключ (только индикация наличия — само значение из ENV, не редактируется через UI).
+- SMTP-секция остаётся как fallback на случай возврата.
 
-Старые `MAIL_HOST/MAIL_PORT/MAIL_USERNAME/MAIL_PASSWORD/SMTP_PASSWORD` можно оставить — игнорируются при `MAIL_MAILER=unisender_go`.
+### Шаг 5. Проверка на VPS
 
-### 4. EmailConfigService / EmailSettingsController
+После деплоя:
 
-- Расширю `EmailConfigService`: при `MAIL_MAILER=unisender_go` пропускать всю SMTP-логику (host/port/auth/preflight). Конфигурация считается «здоровой», если есть `UNISENDER_GO_API_KEY` + `MAIL_FROM_ADDRESS`.
-- `effectiveSource()` будет возвращать `source: unisender_go` с явной меткой в UI: **«Активный канал: Unisender Go (HTTP API)»**.
-- `sendTest()` для `unisender_go` отправляет реальное короткое письмо через транспорт (без AUTH/preflight).
-- `preflight()` для `unisender_go` делает «лёгкий» GET на endpoint проверки ключа (если есть) либо просто валидирует наличие ключа и From.
+1. `php artisan config:clear && php artisan optimize:clear`
+2. `php artisan smtp:status` — убедиться, что активный канал = `unisender_go`, ключ длиной 32+ символа.
+3. `php artisan unisender:test growthpeak@yandex.ru` — должен прийти HTTP 200 от Unisender и письмо в течение минуты.
+4. Тест с лендинга: форма «Заказать демо» → письмо приходит на `growthpeak@yandex.ru`.
 
-### 5. UI `EmailSettingsManagement.tsx`
+### Что НЕ меняем
 
-- В верхней части — селектор «Канал отправки»: **SMTP** / **Unisender Go (HTTP API)**.
-- Для Unisender Go скрываю поля host/port/encryption/username/password. Показываю: `API Key` (write-only), `From address`, `From name`, `Reply-To`.
-- Кнопка «Отправить тест» — существующий endpoint `/api/admin/email/test`, работает одинаково для обоих каналов.
+- Старые SMTP-команды (`smtp:test`, `smtp:env-doctor`, `smtp:where`) оставляем для диагностики.
+- Шаблоны писем, RPC `submitDemoRequest`/`submitPricingInquiry`, фронтенд лендинга — без изменений.
 
-### 6. БД
+### Открытые вопросы перед стартом реализации
 
-- В таблицу `email_settings` добавлю миграцией поля `api_key_encrypted` и `transport` (значения: `smtp` | `unisender_go`). Старые SMTP-поля остаются для совместимости.
-
-### 7. Artisan-команды
-
-- `php artisan mail:channel` — покажет активный канал, источник конфигурации (.env / БД), наличие ключа/пароля.
-- `php artisan mail:test growthpeak@yandex.ru` — реальная отправка текущим каналом. Заменит/дополнит существующие `smtp:test`/`smtp:status` (старые оставлю как алиасы для обратной совместимости).
-
-### 8. Логирование и ретраи
-
-- Каждый POST в Unisender Go логируется в `storage/logs/laravel.log` с HTTP-статусом, `job_id` из ответа и временем.
-- При 5xx — авто-ретрай 3 раза с паузой 1с/3с/9с.
-- При 4xx (неверный ключ, неподтверждённый домен, плохой адрес) — понятное русское сообщение в UI: «Unisender Go отклонил запрос: <причина>».
-
-## Деплой на сервере (после моих правок)
-
-1. `cd /home/gro7659365/growth-peak.pro/docs/backend`
-2. `git pull`
-3. `composer install --no-dev --optimize-autoloader` (если добавится новая зависимость — Guzzle уже в Laravel)
-4. `php artisan migrate --force`
-5. Прописать в `.env`: `MAIL_MAILER=unisender_go`, `UNISENDER_GO_API_KEY=...`, `MAIL_FROM_ADDRESS=noreply@growth-peak.pro`
-6. `php artisan optimize:clear`
-7. `php artisan mail:channel` → должно показать **«Активный канал: Unisender Go»**
-8. `php artisan mail:test growthpeak@yandex.ru` → реальное письмо
-9. Демо-запрос с лендинга — письмо должно прийти в `growthpeak@yandex.ru`
-
-## Что нужно решить сейчас
-
-1. Какой адрес отправителя использовать: `noreply@growth-peak.pro`, `growthpeak@growth-peak.pro` или другой? (Должен быть на домене, который вы подтвердите в Unisender Go.)
-2. Готовы сами зарегистрироваться в Unisender Go, подтвердить домен (SPF/DKIM/DMARC) и получить API-ключ, или нужна пошаговая инструкция «куда нажать»?
-3. Оставлять ли в коде возможность переключаться обратно на SMTP через UI (на случай, если хостер всё-таки откроет порты), или удалить SMTP-ветку совсем?  
-  
-Пока ничего в код не вноси
+- Подтвердите, что регистратор у вас позволяет ставить **NS на поддомен** `mail` (большинство — да, но у некоторых бюджетных регистраторов есть ограничения). Если нет — Unisender предлагает альтернативу через CNAME, тогда DNS-таблица будет другой.  
+вроде бы все прошгло успешно - тестовое письмо ушло
+  &nbsp;
+- Готовы ли удалить/сливать существующий SPF на корне, если он уже стоит для Яндекса?  
+пока нет  
+вопрос: нужно ли мне брать платный тариф?  
+Чтобы отправлять письма на любые адреса, а не только на свой домен, [выберите и подключите один из платных тарифов](https://go2.unisender.ru/ru/user/billing/subscription/edit). Например тариф [StartUp 6K](https://go2.unisender.ru/ru/user/billing/subscription/edit#6k-trial) дает 2 месяца работы без оплаты.
   &nbsp;
