@@ -20,7 +20,7 @@ Browser → nginx (TLS) → SPA-бандл (React, Vite)
 | Frontend | React 18 + Vite 5 + Tailwind | этот репозиторий |
 | Backend API | Laravel 11 + Sanctum | `backend-laravel/` |
 | БД | PostgreSQL 14+ | self-hosted |
-| Кэш / очереди | Redis 7+ | self-hosted |
+| Кэш / очереди | Redis 7+ (опционально) | self-hosted; на shared-хостинге без Docker используйте `CACHE_STORE=file`, `QUEUE_CONNECTION=sync`, `SESSION_DRIVER=file` |
 | AI | OpenAI-совместимый endpoint | OpenRouter / vLLM / Ollama / внутренний шлюз |
 | Почта | SMTP (Yandex 360 / Mail.ru / корпоративный relay) | self-hosted |
 
