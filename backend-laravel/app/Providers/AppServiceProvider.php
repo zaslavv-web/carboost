@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Listeners\AttachMonitoringBcc;
 use App\Mail\Transport\UnisenderGoTransport;
 use App\Services\EmailConfigService;
+use App\Support\RuntimeEnv;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Event;
@@ -30,14 +31,14 @@ class AppServiceProvider extends ServiceProvider
 
         // Регистрируем кастомный HTTP-API драйвер Unisender Go как полноценный mailer.
         Mail::extend('unisender_go', function (array $config) {
-            $key = $config['key'] ?? env('UNISENDER_GO_API_KEY');
+            $key = RuntimeEnv::get('UNISENDER_GO_API_KEY') ?: ($config['key'] ?? env('UNISENDER_GO_API_KEY'));
             if (empty($key)) {
                 throw new \RuntimeException('Unisender Go: не задан UNISENDER_GO_API_KEY.');
             }
             return new UnisenderGoTransport(
                 apiKey:         $key,
-                endpoint:       $config['endpoint'] ?? 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json',
-                timeoutSeconds: (int) ($config['timeout'] ?? 15),
+                endpoint:       RuntimeEnv::get('UNISENDER_GO_ENDPOINT') ?: ($config['endpoint'] ?? 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json'),
+                timeoutSeconds: (int) (RuntimeEnv::get('UNISENDER_GO_TIMEOUT') ?: ($config['timeout'] ?? 15)),
             );
         });
 

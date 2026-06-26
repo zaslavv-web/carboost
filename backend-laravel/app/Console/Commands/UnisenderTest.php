@@ -26,20 +26,26 @@ class UnisenderTest extends Command
 
         $emailConfig->apply();
         $channel = $emailConfig->activeChannel();
+        $runtimeMailer = RuntimeEnv::get('MAIL_MAILER') ?: '(пусто)';
+        $endpoint = RuntimeEnv::get('UNISENDER_GO_ENDPOINT', 'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json');
         $from    = RuntimeEnv::get('MAIL_FROM_ADDRESS') ?: '(пусто)';
 
         $this->info('=== TEST EMAIL ===');
         $this->line('Канал       : ' . $channel);
+        $this->line('MAIL_MAILER : ' . $runtimeMailer);
         $this->line('From        : ' . $from);
         $this->line('To          : ' . $to);
 
         if ($channel === 'unisender_go') {
             $key = RuntimeEnv::get('UNISENDER_GO_API_KEY');
             $this->line('API key     : ' . ($key ? 'есть (' . strlen($key) . ' симв.)' : 'НЕТ'));
+            $this->line('Endpoint    : ' . $endpoint);
             if (!$key) {
                 $this->error('UNISENDER_GO_API_KEY не задан в .env / окружении.');
                 return self::FAILURE;
             }
+        } elseif (strtolower($runtimeMailer) === 'unisender_go') {
+            $this->warn('MAIL_MAILER=unisender_go найден, но активный канал не переключился. Выполните php artisan config:clear и повторите тест.');
         }
 
         try {

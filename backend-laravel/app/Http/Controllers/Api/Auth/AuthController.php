@@ -70,6 +70,10 @@ class AuthController extends Controller
                     'reason'  => $e->getMessage(),
                 ]);
             }
+        } elseif ($user && empty($user->password)) {
+            throw ValidationException::withMessages([
+                'email' => 'Этот аккаунт зарегистрирован через Google. Войдите через кнопку "Google" или задайте пароль через "Забыли пароль?".',
+            ])->status(422)->errorBag('oauth_only');
         }
 
         if (!$user || !$passwordMatches) {
