@@ -9,6 +9,8 @@ import ImpersonationBanner from "./ImpersonationBanner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import i18n, { SUPPORTED_LANGUAGES, LANGUAGE_STORAGE_KEY } from "@/i18n";
 import ThemeToggle from "./ThemeToggle";
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const MobileEmployeeLayout = () => {
   const { t } = useTranslation("employee");
