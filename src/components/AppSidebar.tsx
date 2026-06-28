@@ -324,8 +324,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
                     }}
                     className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
                       childActive
-                        ? "text-sidebar-primary-foreground dark:text-white bg-sidebar-primary/15"
-                        : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 dark:hover:text-white hover:text-sidebar-primary-foreground"
+                        ? "text-sidebar-primary font-semibold bg-sidebar-primary/15"
+                        : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     }`}
                   >
                     <child.icon className="w-4 h-4 flex-shrink-0" />
