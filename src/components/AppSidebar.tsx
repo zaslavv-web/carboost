@@ -424,13 +424,26 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       {/* Bottom: sign out */}
       <div className="p-2 border-t border-sidebar-border">
         <button
-          onClick={() => { signOut(); navigate("/login"); }}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-primary-foreground transition-colors ${collapsed ? "justify-center" : ""}`}
+          onClick={() => setLogoutOpen(true)}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors ${collapsed ? "justify-center" : ""}`}
         >
           <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
           {!collapsed && <span>{t("actions.signOut")}</span>}
         </button>
       </div>
+      <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Выйти из системы?</AlertDialogTitle>
+            <AlertDialogDescription>Вы будете перенаправлены на страницу входа.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Нет</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => { await signOut(); navigate("/login"); }}>Да, выйти</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       {/* Sidebar controls */}
       {isMobile ? (
