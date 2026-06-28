@@ -123,10 +123,10 @@ const MyProfile = () => {
     setAvatarBusy(true);
     try {
       const ext = file.name.split(".").pop() || "png";
-      const path = `avatars/${uid}/${Date.now()}.${ext}`;
-      const up = await laravelStorage.from("reward-images").upload(path, file, { upsert: false });
+      const path = `${uid}/${Date.now()}.${ext}`;
+      const up = await laravelStorage.from("avatars").upload(path, file, { upsert: true });
       if (up.error) throw new Error(up.error.message);
-      const { data: pub } = laravelStorage.from("reward-images").getPublicUrl(path);
+      const { data: pub } = laravelStorage.from("avatars").getPublicUrl(path);
       await updateAvatar.mutateAsync(pub.publicUrl);
     } catch (e: any) {
       toast.error(e.message || "Ошибка загрузки");
