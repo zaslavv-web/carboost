@@ -351,8 +351,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         title={collapsed ? item.label : undefined}
         className={`relative w-full flex items-center gap-3 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-colors ${
           isActive
-            ? "text-sidebar-primary-foreground dark:text-white bg-sidebar-primary/10"
-            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 dark:hover:text-white hover:text-sidebar-primary-foreground"
+            ? "text-sidebar-primary font-semibold bg-sidebar-primary/10"
+            : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         } ${collapsed ? "justify-center" : ""}`}
       >
         {isActive && !collapsed && (
