@@ -164,16 +164,19 @@ const Toaster = ({ className, toastOptions, ...props }: ToasterProps) => {
     <SonnerToaster
       {...props}
       theme={theme as ToasterProps["theme"]}
-      position="top-center"
-      visibleToasts={1}
-      expand={false}
+      position="bottom-right"
+      visibleToasts={4}
+      expand
+      closeButton
+      richColors
+      duration={4000}
       containerAriaLabel={userLanguage === "ru" ? "Уведомления" : "Notifications"}
-      className={cn("toaster group center-screen-alerts", className)}
+      className={cn("toaster group", className)}
       toastOptions={{
         ...toastOptions,
         classNames: {
           toast: cn(
-            "group toast w-[min(560px,calc(100vw-2rem))] rounded-2xl border border-border bg-background text-foreground shadow-elevated",
+            "group toast w-[min(420px,calc(100vw-2rem))] rounded-xl border border-border bg-background text-foreground shadow-elevated",
             toastOptions?.classNames?.toast,
           ),
           description: cn("group-[.toast]:text-muted-foreground", toastOptions?.classNames?.description),
