@@ -369,32 +369,189 @@ const UsersManagement = () => {
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
       ) : (
-        <div className="bg-card rounded-xl border border-border overflow-x-auto">
-          <table className="w-full text-sm min-w-[800px]">
-            <thead>
-              <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colUser")}</th>
-                {isSuperadmin && <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colCompany")}</th>}
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colDept")}</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colRole")}</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colStatus")}</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colActions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((u: any) => (
-                <tr key={u.id} className="border-b border-border last:border-0 hover:bg-secondary/20 transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-foreground">{u.full_name}</p>
-                    <p className="text-xs text-muted-foreground">{u.position || "—"}</p>
+        <>
+          <ResponsiveTable
+            items={filtered}
+            tableMinWidth={900}
+            table={
+              <>
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colUser")}</th>
+                    {isSuperadmin && <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colCompany")}</th>}
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colDept")}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colRole")}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colStatus")}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colActions")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((u: any) => (
+                    <tr key={u.id} className="border-b border-border last:border-0 hover:bg-secondary/20 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-foreground">{u.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{u.position || "—"}</p>
+                        {u.email && (
+                          <a href={`mailto:${u.email}`} className="text-xs text-primary hover:underline">
+                            {u.email}
+                          </a>
+                        )}
+                      </td>
+                      {isSuperadmin && (
+                        <td className="px-4 py-3">
+                          <select
+                            value={u.company_id || ""}
+                            onChange={(e) =>
+                              assignCompanyMutation.mutate({
+                                userId: u.user_id,
+                                companyId: e.target.value || null,
+                              })
+                            }
+                            disabled={assignCompanyMutation.isPending}
+                            className="px-2 py-1 rounded border border-input bg-background text-foreground text-xs max-w-[180px]"
+                          >
+                            <option value="">{t("users.noCompanyOption")}</option>
+                            {companies.map((c: any) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </td>
+                      )}
+                      <td className="px-4 py-3 text-foreground">{u.department || "—"}</td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={u.role}
+                          onChange={(e) => assignRoleMutation.mutate({ userId: u.user_id, role: e.target.value as AppRole })}
+                          className="px-2 py-1 rounded border border-input bg-background text-foreground text-xs"
+                        >
+                          {Object.entries(roleLabelMap).map(([val, label]) => (
+                            <option key={val} value={val}>{label}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        {u.is_verified ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                            {t("users.verified")}
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => verifyMutation.mutate(u.user_id)}
+                              disabled={verifyMutation.isPending}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-success/10 text-success text-xs font-medium hover:bg-success/20 transition-colors"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" /> {t("users.confirm")}
+                            </button>
+                            <button
+                              onClick={() => rejectMutation.mutate(u.user_id)}
+                              disabled={rejectMutation.isPending}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
+                            >
+                              <XCircle className="w-3.5 h-3.5" /> {t("users.reject")}
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Link
+                            to={`/users/${u.user_id}`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-medium hover:bg-accent/80 transition-colors"
+                          >
+                            <IdCard className="w-3.5 h-3.5" /> Карточка
+                          </Link>
+                          <button
+                            onClick={() => handleImpersonate(u)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> {t("users.impersonate")}
+                          </button>
+                          <button
+                            onClick={() => resetPasswordMutation.mutate(u.user_id)}
+                            disabled={resetPasswordMutation.isPending && resetPasswordMutation.variables === u.user_id}
+                            title={t("users.resetPasswordTitle")}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warning/10 text-warning text-xs font-medium hover:bg-warning/20 transition-colors disabled:opacity-50"
+                          >
+                            {resetPasswordMutation.isPending && resetPasswordMutation.variables === u.user_id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <KeyRound className="w-3.5 h-3.5" />
+                            )}
+                            {t("users.resetPassword")}
+                          </button>
+                        </div>
+                        {u.user_id !== currentUser?.id && (
+                          confirmDeleteId === u.user_id ? (
+                            <div className="flex items-center gap-1 mt-1.5">
+                              <button
+                                onClick={() => { deleteMutation.mutate(u.user_id); setConfirmDeleteId(null); }}
+                                disabled={deleteMutation.isPending}
+                                className="px-2 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors"
+                              >
+                                {t("users.deleteConfirmYes")}
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteId(null)}
+                                className="px-2 py-1 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 transition-colors"
+                              >
+                                {t("users.cancel")}
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDeleteId(u.user_id)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 mt-1.5 rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> {t("users.delete")}
+                            </button>
+                          )
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </>
+            }
+            renderCard={(u: any) => (
+              <div className="bg-card border border-border rounded-xl p-3 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate">{u.full_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{u.position || "—"}</p>
                     {u.email && (
-                      <a href={`mailto:${u.email}`} className="text-xs text-primary hover:underline">
+                      <a href={`mailto:${u.email}`} className="text-xs text-primary hover:underline break-all">
                         {u.email}
                       </a>
                     )}
-                  </td>
+                  </div>
+                  {u.is_verified ? (
+                    <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-success/10 text-success">
+                      {t("users.verified")}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p className="text-muted-foreground mb-1">{t("users.colDept")}</p>
+                    <p className="text-foreground">{u.department || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground mb-1">{t("users.colRole")}</p>
+                    <select
+                      value={u.role}
+                      onChange={(e) => assignRoleMutation.mutate({ userId: u.user_id, role: e.target.value as AppRole })}
+                      className="w-full px-2 py-1 rounded border border-input bg-background text-foreground text-xs"
+                    >
+                      {Object.entries(roleLabelMap).map(([val, label]) => (
+                        <option key={val} value={val}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
                   {isSuperadmin && (
-                    <td className="px-4 py-3">
+                    <div className="col-span-2">
+                      <p className="text-muted-foreground mb-1">{t("users.colCompany")}</p>
                       <select
                         value={u.company_id || ""}
                         onChange={(e) =>
@@ -404,114 +561,95 @@ const UsersManagement = () => {
                           })
                         }
                         disabled={assignCompanyMutation.isPending}
-                        className="px-2 py-1 rounded border border-input bg-background text-foreground text-xs max-w-[180px]"
+                        className="w-full px-2 py-1 rounded border border-input bg-background text-foreground text-xs"
                       >
                         <option value="">{t("users.noCompanyOption")}</option>
                         {companies.map((c: any) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
-                    </td>
+                    </div>
                   )}
-                  <td className="px-4 py-3 text-foreground">{u.department || "—"}</td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={u.role}
-                      onChange={(e) => assignRoleMutation.mutate({ userId: u.user_id, role: e.target.value as AppRole })}
-                      className="px-2 py-1 rounded border border-input bg-background text-foreground text-xs"
+                </div>
+
+                {!u.is_verified && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => verifyMutation.mutate(u.user_id)}
+                      disabled={verifyMutation.isPending}
+                      className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-success/10 text-success text-xs font-medium hover:bg-success/20 transition-colors"
                     >
-                      {Object.entries(roleLabelMap).map(([val, label]) => (
-                        <option key={val} value={val}>{label}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3">
-                    {u.is_verified ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
-                        {t("users.verified")}
-                      </span>
+                      <CheckCircle className="w-3.5 h-3.5" /> {t("users.confirm")}
+                    </button>
+                    <button
+                      onClick={() => rejectMutation.mutate(u.user_id)}
+                      disabled={rejectMutation.isPending}
+                      className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
+                    >
+                      <XCircle className="w-3.5 h-3.5" /> {t("users.reject")}
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border">
+                  <Link
+                    to={`/users/${u.user_id}`}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-medium hover:bg-accent/80 transition-colors"
+                  >
+                    <IdCard className="w-3.5 h-3.5" /> Карточка
+                  </Link>
+                  <button
+                    onClick={() => handleImpersonate(u)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5" /> {t("users.impersonate")}
+                  </button>
+                  <button
+                    onClick={() => resetPasswordMutation.mutate(u.user_id)}
+                    disabled={resetPasswordMutation.isPending && resetPasswordMutation.variables === u.user_id}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-warning/10 text-warning text-xs font-medium hover:bg-warning/20 transition-colors disabled:opacity-50"
+                  >
+                    {resetPasswordMutation.isPending && resetPasswordMutation.variables === u.user_id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
-                      <div className="flex items-center gap-1.5">
+                      <KeyRound className="w-3.5 h-3.5" />
+                    )}
+                    {t("users.resetPassword")}
+                  </button>
+                  {u.user_id !== currentUser?.id && (
+                    confirmDeleteId === u.user_id ? (
+                      <div className="flex items-center gap-1 ml-auto">
                         <button
-                          onClick={() => verifyMutation.mutate(u.user_id)}
-                          disabled={verifyMutation.isPending}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-success/10 text-success text-xs font-medium hover:bg-success/20 transition-colors"
+                          onClick={() => { deleteMutation.mutate(u.user_id); setConfirmDeleteId(null); }}
+                          disabled={deleteMutation.isPending}
+                          className="px-2 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors"
                         >
-                          <CheckCircle className="w-3.5 h-3.5" /> {t("users.confirm")}
+                          {t("users.deleteConfirmYes")}
                         </button>
                         <button
-                          onClick={() => rejectMutation.mutate(u.user_id)}
-                          disabled={rejectMutation.isPending}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="px-2 py-1 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 transition-colors"
                         >
-                          <XCircle className="w-3.5 h-3.5" /> {t("users.reject")}
+                          {t("users.cancel")}
                         </button>
                       </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Link
-                        to={`/users/${u.user_id}`}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-medium hover:bg-accent/80 transition-colors"
-                      >
-                        <IdCard className="w-3.5 h-3.5" /> Карточка
-                      </Link>
+                    ) : (
                       <button
-                        onClick={() => handleImpersonate(u)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                        onClick={() => setConfirmDeleteId(u.user_id)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 ml-auto rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
                       >
-                        <Eye className="w-3.5 h-3.5" /> {t("users.impersonate")}
+                        <Trash2 className="w-3.5 h-3.5" /> {t("users.delete")}
                       </button>
-                      <button
-                        onClick={() => resetPasswordMutation.mutate(u.user_id)}
-                        disabled={resetPasswordMutation.isPending && resetPasswordMutation.variables === u.user_id}
-                        title={t("users.resetPasswordTitle")}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warning/10 text-warning text-xs font-medium hover:bg-warning/20 transition-colors disabled:opacity-50"
-                      >
-                        {resetPasswordMutation.isPending && resetPasswordMutation.variables === u.user_id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <KeyRound className="w-3.5 h-3.5" />
-                        )}
-                        {t("users.resetPassword")}
-                      </button>
-                    </div>
-                    {u.user_id !== currentUser?.id && (
-                      confirmDeleteId === u.user_id ? (
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <button
-                            onClick={() => { deleteMutation.mutate(u.user_id); setConfirmDeleteId(null); }}
-                            disabled={deleteMutation.isPending}
-                            className="px-2 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors"
-                          >
-                            {t("users.deleteConfirmYes")}
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteId(null)}
-                            className="px-2 py-1 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 transition-colors"
-                          >
-                            {t("users.cancel")}
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmDeleteId(u.user_id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 mt-1.5 rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> {t("users.delete")}
-                        </button>
-                      )
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="p-4 text-sm text-muted-foreground border-t border-border">
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+          />
+          <div className="px-1 pt-3 text-sm text-muted-foreground">
             {t("users.shownOf", { filtered: filtered.length, total: users.length })}
           </div>
-        </div>
+        </>
       )}
 
       {createOpen && (
