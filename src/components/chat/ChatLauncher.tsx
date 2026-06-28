@@ -25,7 +25,7 @@ const ChatLauncher = () => {
       <button
         onClick={togglePanel}
         aria-label={t("launcher")}
-        className="fixed bottom-5 right-5 z-[60] h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center group"
+        className="fixed bottom-20 right-5 md:bottom-5 md:right-5 z-[60] h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center group"
       >
         <MessageCircle className="w-6 h-6" />
         {unreadTotal > 0 && (
