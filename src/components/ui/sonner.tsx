@@ -117,7 +117,6 @@ const normalizeToastData = (data?: ExternalToast): ExternalToast | undefined => 
   return {
     ...data,
     description: localizeContent(data.description as LocalizableContent),
-    position: "top-center",
   };
 };
 
