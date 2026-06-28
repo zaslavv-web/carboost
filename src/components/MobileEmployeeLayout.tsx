@@ -19,6 +19,10 @@ const MobileEmployeeLayout = () => {
   const { data: profile } = useUserProfile();
   const { signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const unreadCount = useUnreadNotifications();
+
+  // placeholder to keep next line numbering
 
   const tabs = [
     { icon: LayoutDashboard, label: t("mobileNav.home"), path: "/dashboard" },
