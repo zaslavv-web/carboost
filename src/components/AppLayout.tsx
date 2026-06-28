@@ -22,6 +22,7 @@ const AppLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  const unreadCount = useUnreadNotifications();
   const roleLabels: Record<string, string> = {
     employee: t("roles.employee"),
     manager: t("roles.manager"),
