@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import type { AppRole } from "@/hooks/useUserProfile";
 import { useRealPrimaryRole } from "@/hooks/useUserProfile";
 import { useTranslation } from "react-i18next";
+import { ResponsiveTable } from "@/components/ui/responsive-table";
 
 type StatusFilter = "all" | "verified" | "pending";
 
