@@ -22,12 +22,22 @@ const MEETING_STATUS_OPTIONS: { value: MeetingStatus; label: string }[] = [
 const CreateDialog = () => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ employee_id: "", scheduled_at: "", duration_minutes: 30 });
+  const [error, setError] = useState<string | null>(null);
   const create = useCreateOneOnOne();
+  const minDateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
   const save = async () => {
+    setError(null);
     if (!form.employee_id.trim() || !form.scheduled_at) return;
+    const scheduled = new Date(form.scheduled_at);
+    if (scheduled.getTime() < Date.now()) {
+      setError("Нельзя планировать встречу в прошлом");
+      return;
+    }
     await create.mutateAsync({
       employee_id: form.employee_id.trim(),
-      scheduled_at: new Date(form.scheduled_at).toISOString(),
+      scheduled_at: scheduled.toISOString(),
       duration_minutes: form.duration_minutes,
       status: "planned",
     });
@@ -39,16 +49,17 @@ const CreateDialog = () => {
       <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-1.5" />Новая встреча</Button></DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>Запланировать 1:1</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div>
+        <div className="space-y-4">
+          <div className="space-y-2">
             <Label>ID сотрудника</Label>
             <Input value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })} placeholder="UUID сотрудника" />
-            <p className="text-xs text-muted-foreground mt-1">В следующей итерации заменим на селектор.</p>
+            <p className="text-xs text-muted-foreground">В следующей итерации заменим на селектор.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Дата и время</Label><Input type="datetime-local" value={form.scheduled_at} onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })} /></div>
-            <div><Label>Длительность, мин</Label><Input type="number" value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })} /></div>
+            <div className="space-y-2"><Label>Дата и время</Label><Input type="datetime-local" min={minDateTime} value={form.scheduled_at} onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Длительность, мин</Label><Input type="number" min={5} value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })} /></div>
           </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Отмена</Button>
