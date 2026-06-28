@@ -223,19 +223,6 @@ section[id] { scroll-margin-top: 80px; }
 }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.6); }
 
-[data-sonner-toaster].center-screen-alerts[data-x-position="center"][data-y-position="top"] {
-  top: 50% !important;
-  bottom: auto !important;
-  left: 50% !important;
-  right: auto !important;
-  transform: translate(-50%, -50%) !important;
-}
-
-@media (max-width: 640px) {
-  [data-sonner-toaster].center-screen-alerts[data-x-position="center"][data-y-position="top"] {
-    width: calc(100vw - 1.5rem) !important;
-  }
-}
 
 /* React Flow: ensure cursor stays contrasted against the canvas background.
    The canvas uses a light/dark adaptive background, so we render a custom
