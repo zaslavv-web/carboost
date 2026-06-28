@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -85,6 +86,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
   const { data: profile } = useUserProfile();
   const { t } = useTranslation();
   const { activeLogoUrl } = useBranding();
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const getSections = (): NavSection[] => {
     const S = (key: string) => t(`nav.sections.${key}`);
@@ -296,8 +298,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             title={collapsed ? entry.label : undefined}
             className={`relative w-full flex items-center gap-3 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-colors ${
               hasActive
-                ? "text-sidebar-primary-foreground dark:text-white bg-sidebar-primary/10"
-                : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 dark:hover:text-white hover:text-sidebar-primary-foreground"
+                ? "text-sidebar-primary font-semibold bg-sidebar-primary/10"
+                : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             } ${collapsed ? "justify-center" : ""}`}
           >
             {hasActive && !collapsed && (
@@ -324,8 +326,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
                     }}
                     className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
                       childActive
-                        ? "text-sidebar-primary-foreground dark:text-white bg-sidebar-primary/15"
-                        : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 dark:hover:text-white hover:text-sidebar-primary-foreground"
+                        ? "text-sidebar-primary font-semibold bg-sidebar-primary/15"
+                        : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     }`}
                   >
                     <child.icon className="w-4 h-4 flex-shrink-0" />
@@ -351,8 +353,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         title={collapsed ? item.label : undefined}
         className={`relative w-full flex items-center gap-3 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-colors ${
           isActive
-            ? "text-sidebar-primary-foreground dark:text-white bg-sidebar-primary/10"
-            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 dark:hover:text-white hover:text-sidebar-primary-foreground"
+            ? "text-sidebar-primary font-semibold bg-sidebar-primary/10"
+            : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         } ${collapsed ? "justify-center" : ""}`}
       >
         {isActive && !collapsed && (
@@ -423,13 +425,26 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       {/* Bottom: sign out */}
       <div className="p-2 border-t border-sidebar-border">
         <button
-          onClick={() => { signOut(); navigate("/login"); }}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-primary-foreground transition-colors ${collapsed ? "justify-center" : ""}`}
+          onClick={() => setLogoutOpen(true)}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors ${collapsed ? "justify-center" : ""}`}
         >
           <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
           {!collapsed && <span>{t("actions.signOut")}</span>}
         </button>
       </div>
+      <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Выйти из системы?</AlertDialogTitle>
+            <AlertDialogDescription>Вы будете перенаправлены на страницу входа.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Нет</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => { await signOut(); navigate("/login"); }}>Да, выйти</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       {/* Sidebar controls */}
       {isMobile ? (

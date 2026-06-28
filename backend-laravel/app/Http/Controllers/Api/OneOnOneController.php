@@ -41,7 +41,7 @@ class OneOnOneController extends Controller
         $user = $request->user();
         $data = $request->validate([
             'employee_id'  => 'required|uuid',
-            'scheduled_at' => 'required|date',
+            'scheduled_at' => 'required|date|after:now',
             'duration_min' => 'sometimes|integer|min:5|max:480',
             'agenda'       => 'nullable|string|max:2000',
             'related_type' => 'nullable|in:probation,disciplinary,performance',

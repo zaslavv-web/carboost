@@ -9,6 +9,8 @@ import ImpersonationBanner from "./ImpersonationBanner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import i18n, { SUPPORTED_LANGUAGES, LANGUAGE_STORAGE_KEY } from "@/i18n";
 import ThemeToggle from "./ThemeToggle";
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const MobileEmployeeLayout = () => {
   const { t } = useTranslation("employee");
@@ -17,6 +19,10 @@ const MobileEmployeeLayout = () => {
   const { data: profile } = useUserProfile();
   const { signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const unreadCount = useUnreadNotifications();
+
+  // placeholder to keep next line numbering
 
   const tabs = [
     { icon: LayoutDashboard, label: t("mobileNav.home"), path: "/dashboard" },
@@ -56,7 +62,9 @@ const MobileEmployeeLayout = () => {
             aria-label={t("mobileNav.notifications")}
           >
             <Bell className="w-5 h-5 text-muted-foreground" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive" />
+            )}
           </button>
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
@@ -73,10 +81,22 @@ const MobileEmployeeLayout = () => {
                 <MenuItem icon={Settings} label={t("mobileNav.settings")} onClick={() => { navigate("/settings"); setMenuOpen(false); }} />
                 <MenuItem icon={Globe} label={(i18n.language?.startsWith("en") ? "Русский" : "English")} onClick={() => { toggleLang(); setMenuOpen(false); }} />
                 <div className="h-px bg-border my-3" />
-                <MenuItem icon={LogOut} label={t("mobileNav.logout")} onClick={async () => { await signOut(); navigate("/login"); }} />
+                <MenuItem icon={LogOut} label={t("mobileNav.logout")} onClick={() => { setMenuOpen(false); setLogoutOpen(true); }} />
               </div>
             </SheetContent>
           </Sheet>
+          <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Выйти из системы?</AlertDialogTitle>
+                <AlertDialogDescription>Вы будете перенаправлены на страницу входа.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Нет</AlertDialogCancel>
+                <AlertDialogAction onClick={async () => { await signOut(); navigate("/login"); }}>Да, выйти</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </header>
 

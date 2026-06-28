@@ -9,6 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import ThemeToggle from "./ThemeToggle";
 import LanguageSwitcher from "./LanguageSwitcher";
 import ChatLauncher from "./chat/ChatLauncher";
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 
 const SIDEBAR_FULL = 240;
 const SIDEBAR_COLLAPSED = 64;
@@ -21,6 +22,7 @@ const AppLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  const unreadCount = useUnreadNotifications();
   const roleLabels: Record<string, string> = {
     employee: t("roles.employee"),
     manager: t("roles.manager"),
@@ -131,9 +133,11 @@ const AppLayout = () => {
           <div className="flex items-center gap-1 md:gap-3">
             <LanguageSwitcher />
             <ThemeToggle />
-            <button onClick={() => navigate("/notifications")} className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
+            <button onClick={() => navigate("/notifications")} className="relative p-2 rounded-lg hover:bg-secondary transition-colors" aria-label={t("actions.notifications", "Уведомления")}>
               <Bell className="w-5 h-5 text-muted-foreground" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive animate-glow-pulse" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive animate-glow-pulse" />
+              )}
             </button>
             <div className="flex items-center gap-2 md:gap-3">
               <div className="w-8 h-8 md:w-9 md:h-9 rounded-full gradient-primary flex items-center justify-center text-primary-foreground text-xs md:text-sm font-semibold">
