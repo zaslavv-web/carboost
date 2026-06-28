@@ -69,7 +69,12 @@ export default function University() {
   const createMut = useMutation({
     mutationFn: async () =>
       (await laravel.post<{ id: string }>("/university/courses", { title: "Новый курс" })).data!,
-    onSuccess: (d) => navigate(`/university/${d.id}/edit`),
+    onSuccess: (d) => {
+      toast.success("Курс создан");
+      qc.invalidateQueries({ queryKey: ["uni-catalog"] });
+      navigate(`/university/${d.id}/edit`);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Не удалось создать курс"),
   });
 
   const courses = (catalog?.courses ?? []).filter((c) =>
