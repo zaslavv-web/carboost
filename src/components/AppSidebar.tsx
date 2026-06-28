@@ -86,6 +86,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
   const { data: profile } = useUserProfile();
   const { t } = useTranslation();
   const { activeLogoUrl } = useBranding();
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const getSections = (): NavSection[] => {
     const S = (key: string) => t(`nav.sections.${key}`);
