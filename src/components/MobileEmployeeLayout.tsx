@@ -81,7 +81,22 @@ const MobileEmployeeLayout = () => {
                 <MenuItem icon={Settings} label={t("mobileNav.settings")} onClick={() => { navigate("/settings"); setMenuOpen(false); }} />
                 <MenuItem icon={Globe} label={(i18n.language?.startsWith("en") ? "Русский" : "English")} onClick={() => { toggleLang(); setMenuOpen(false); }} />
                 <div className="h-px bg-border my-3" />
-                <MenuItem icon={LogOut} label={t("mobileNav.logout")} onClick={async () => { await signOut(); navigate("/login"); }} />
+                <MenuItem icon={LogOut} label={t("mobileNav.logout")} onClick={() => { setMenuOpen(false); setLogoutOpen(true); }} />
+              </div>
+            </SheetContent>
+          </Sheet>
+          <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Выйти из системы?</AlertDialogTitle>
+                <AlertDialogDescription>Вы будете перенаправлены на страницу входа.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Нет</AlertDialogCancel>
+                <AlertDialogAction onClick={async () => { await signOut(); navigate("/login"); }}>Да, выйти</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
               </div>
             </SheetContent>
           </Sheet>
