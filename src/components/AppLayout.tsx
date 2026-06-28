@@ -9,6 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import ThemeToggle from "./ThemeToggle";
 import LanguageSwitcher from "./LanguageSwitcher";
 import ChatLauncher from "./chat/ChatLauncher";
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 
 const SIDEBAR_FULL = 240;
 const SIDEBAR_COLLAPSED = 64;
