@@ -97,9 +97,6 @@ const MobileEmployeeLayout = () => {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-              </div>
-            </SheetContent>
-          </Sheet>
         </div>
       </header>
 
