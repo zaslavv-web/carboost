@@ -156,7 +156,17 @@ class EnrollmentController extends Controller
                 'certificate_id' => $certId,
                 'updated_at' => now(),
             ]);
+            // Авто-награда за завершение курса
+            try {
+                app(\App\Services\Automation\AutomationService::class)->triggerReward(
+                    'course.completed',
+                    (string) $enr->user_id,
+                    null,
+                    ['reference_id' => (string) $enr->course_id, 'description' => 'Завершение курса']
+                );
+            } catch (\Throwable $e) { /* silent */ }
         }
+
 
         return response()->json([
             'progress_total' => $total, 'progress_done' => $done,

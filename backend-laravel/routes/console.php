@@ -8,3 +8,10 @@ Schedule::command('mail:heartbeat')
     ->timezone(ServiceInfra::heartbeatTimezone())
     ->withoutOverlapping()
     ->onOneServer();
+
+// Ежедневный пересчёт рисков сотрудников и алерты при переходе в high.
+Schedule::command('risks:compute')
+    ->dailyAt('03:30')
+    ->withoutOverlapping()
+    ->onOneServer();
+

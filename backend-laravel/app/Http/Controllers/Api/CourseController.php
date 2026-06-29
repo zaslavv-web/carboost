@@ -71,6 +71,8 @@ class CourseController extends Controller
             'tags' => 'nullable|array',
             'competencies' => 'nullable|array',
             'mandatory' => 'nullable|boolean',
+            'position_ids' => 'nullable|array',
+            'position_ids.*' => 'uuid',
         ]);
 
         $id = (string) Str::uuid();
@@ -85,6 +87,7 @@ class CourseController extends Controller
             'duration_min' => $data['duration_min'] ?? 0,
             'tags' => json_encode($data['tags'] ?? []),
             'competencies' => json_encode($data['competencies'] ?? []),
+            'position_ids' => isset($data['position_ids']) ? json_encode($data['position_ids']) : null,
             'status' => 'draft',
             'mandatory' => $data['mandatory'] ?? false,
             'author_id' => Auth::id(),
@@ -93,6 +96,7 @@ class CourseController extends Controller
         ]);
         return response()->json(['id' => $id]);
     }
+
 
     public function update(Request $r, string $id)
     {
@@ -107,13 +111,17 @@ class CourseController extends Controller
             'competencies' => 'nullable|array',
             'mandatory' => 'nullable|boolean',
             'status' => 'nullable|in:draft,published,archived',
+            'position_ids' => 'nullable|array',
+            'position_ids.*' => 'uuid',
         ]);
         if (isset($data['tags'])) $data['tags'] = json_encode($data['tags']);
         if (isset($data['competencies'])) $data['competencies'] = json_encode($data['competencies']);
+        if (array_key_exists('position_ids', $data)) $data['position_ids'] = $data['position_ids'] ? json_encode($data['position_ids']) : null;
         $data['updated_at'] = now();
         DB::table('courses')->where('id', $id)->update($data);
         return response()->json(['ok' => true]);
     }
+
 
     public function destroy(string $id)
     {
