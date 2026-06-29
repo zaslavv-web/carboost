@@ -334,6 +334,11 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::get   ('/university/blockers',                [\App\Http\Controllers\Api\EnrollmentController::class, 'blockers']);
         Route::get   ('/university/certificate/{serial}',    [\App\Http\Controllers\Api\EnrollmentController::class, 'certificate']);
 
+        // ---- Risk analytics (predictive HRD alerts) ----
+        Route::post  ('/risks/recompute', [\App\Http\Controllers\Api\RiskController::class, 'recompute']);
+
+
+
 
         // ---- Generic CRUD bridge (Phase 10, replaces legacy.from(...)) ----
         Route::get   ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'index']);
