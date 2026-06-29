@@ -34,9 +34,19 @@ const resources = {
   en: { common: enCommon, auth: enAuth, landing: enLanding, employee: enEmployee, manager: enManager, admin: enAdmin, errors: enErrors, chat: enChat, leaves: enLeaves, performance: enPerformance },
 } as const;
 
+// Global typography post-processor: убирает висячие предлоги/союзы во всех переводах
+const nbspPostProcessor = {
+  type: "postProcessor" as const,
+  name: "nbspify",
+  process(value: unknown) {
+    return typeof value === "string" ? nbspify(value) : (value as any);
+  },
+};
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
+  .use(nbspPostProcessor)
   .init({
     resources,
     fallbackLng: "ru",
@@ -44,6 +54,7 @@ i18n
     ns: ["common", "auth", "landing", "employee", "manager", "admin", "errors", "chat", "leaves", "performance"],
     defaultNS: "common",
     interpolation: { escapeValue: false },
+    postProcess: ["nbspify"],
     detection: {
       order: ["localStorage", "navigator", "htmlTag"],
       lookupLocalStorage: LANGUAGE_STORAGE_KEY,
