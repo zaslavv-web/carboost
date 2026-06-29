@@ -8,6 +8,61 @@
     "requestDemo": "Request a demo",
     "signIn": "Sign in"
   },
+  "hero2": {
+    "kicker": "HR-tech OS",
+    "title1": "One product.",
+    "title2": "Every career.",
+    "subtitle": "16 modules. 5 roles. Launch in 2 weeks.",
+    "primary": "Request demo",
+    "secondary": "Sign in"
+  },
+  "modules": {
+    "kicker": "16 modules",
+    "title": "Everything for people. In one place.",
+    "cta": "Open",
+    "tiles": {
+      "ai-assessment": "AI Assessment",
+      "career-tracks": "Career Tracks",
+      "performance": "Performance",
+      "university": "Learning",
+      "analytics": "Analytics",
+      "digital-passport": "Passport",
+      "leaves": "Leaves",
+      "recognition": "Recognition",
+      "gamification": "Gamification",
+      "shop": "Shop",
+      "onboarding": "Onboarding",
+      "hr-policies": "Policies",
+      "internal-chat": "Chats",
+      "rag-ai": "AI Helper",
+      "scenarios": "Scenarios",
+      "org-structure": "Org Chart"
+    }
+  },
+  "audience": {
+    "kicker": "Made for",
+    "title": "Every role gets its own screen.",
+    "hrd": { "label": "HRD", "caption": "Risk dashboard, analytics, recognition. Decide in minutes, not weeks." },
+    "manager": { "label": "Manager", "caption": "Team, goals and progress on one screen. No spreadsheets." },
+    "employee": { "label": "Employee", "caption": "Career track, levels and rewards. You always know what's next." }
+  },
+  "stats2": {
+    "kicker": "By the numbers",
+    "title": "Fewer tools — more outcomes.",
+    "items": {
+      "modules": "modules in one system",
+      "tools": "tools instead of 5+",
+      "russia": "% RU infrastructure",
+      "weeks": "weeks to launch"
+    }
+  },
+  "marquee2": { "kicker": "Trusted by" },
+  "finalCta2": {
+    "title": "Ready to see it live?",
+    "subtitle": "30 minutes — and you'll see how we replace your five HR tools.",
+    "primary": "Request a demo",
+    "secondary": "Sign in"
+  },
   "hero": {
     "eyebrow": "Career Track OS · v2.0",
     "titleLine1": "An operating",

@@ -215,6 +215,37 @@ section[id] { scroll-margin-top: 80px; }
     outline: none;
     box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--primary) / 0.6);
   }
+
+  /* Landing — floating mosaic tiles */
+  @keyframes float-soft {
+    0%, 100% { transform: translateY(0px); }
+    50%      { transform: translateY(-8px); }
+  }
+  .animate-float-soft { animation: float-soft 6s ease-in-out infinite; }
+
+  /* Landing — infinite horizontal marquee */
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  .animate-marquee { animation: marquee 40s linear infinite; }
+
+  /* Landing — subtle radial glow that follows mouse on hero */
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 0.7; }
+  }
+  .animate-pulse-glow { animation: pulse-glow 5s ease-in-out infinite; }
+
+  /* Stagger helper — combine with animate-fade-in */
+  .stagger-1 { animation-delay: 80ms;  animation-fill-mode: both; }
+  .stagger-2 { animation-delay: 160ms; animation-fill-mode: both; }
+  .stagger-3 { animation-delay: 240ms; animation-fill-mode: both; }
+  .stagger-4 { animation-delay: 320ms; animation-fill-mode: both; }
+  .stagger-5 { animation-delay: 400ms; animation-fill-mode: both; }
+  .stagger-6 { animation-delay: 480ms; animation-fill-mode: both; }
+  .stagger-7 { animation-delay: 560ms; animation-fill-mode: both; }
+  .stagger-8 { animation-delay: 640ms; animation-fill-mode: both; }
 }
 
 /* Custom scrollbar that adapts to the theme */
