@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { ArrowUpRight } from "lucide-react";
-import { MODULE_CATEGORIES, featureBySlug, type FeatureSlug } from "@/data/features";
+import { MODULE_CATEGORIES, type FeatureSlug } from "@/data/features";
+import ModuleIcon, { MODULE_ICON_STYLES } from "./ModuleIcons";
 
 interface Props {
   onModuleClick: (slug: FeatureSlug) => void;
@@ -10,8 +11,8 @@ const serif = { fontFamily: "'Instrument Serif', Georgia, serif" };
 
 /**
  * 4 categories × 4 modules — designed to fit a single viewport (100svh) on
- * laptop screens without scrolling. Tile sizes are clamped to viewport height
- * so the whole grid + header collapses gracefully on shorter screens.
+ * laptop screens without scrolling. Tiles use authored animated SVG icons
+ * (see ModuleIcons.tsx) that play a "rise to peak" motion on hover.
  */
 const ModulesGrouped = ({ onModuleClick }: Props) => {
   const { t } = useTranslation("landing");
