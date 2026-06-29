@@ -1,57 +1,35 @@
-## Что показывает лог
+## Проблема
 
-```
-[2026-06-29 17:27:25] production.ERROR: admin password reset failed
-{"email":"my.opprt@yandex.ru","err":"...localhost:587 (Connection refused)"}
-```
+На `/tracker/*` рендерится `ContextRail` (44px колонка с иконками Dashboard/Inbox/Board/Projects/Workflows/Goals/Tasks/1:1s). Это визуально читается как «второй сайдбар» рядом с AppSidebar и не зависит от свёртывания основного меню — он живёт в `WorkspaceShell`, который тренируется внутри `<main>`.
 
-В этой строке **нет поля `channel`**. А в текущем коде репозитория (`UsersController.php:172`) лог пишется так:
+Прошлый фикс (авто-скрытие AppSidebar на `/tracker`) маскировал симптом, но как только пользователь открывает основное меню — снова два столбца. Плюс ContextRail дублирует то, что и так должно быть в AppSidebar.
 
-```php
-\Log::error('admin password reset failed', ['email' => $email, 'channel' => $channel, 'err' => ...]);
-```
+## Решение
 
-Значит на проде крутится **старая версия файла** — мой прошлый фикс с ветвлением по `activeChannel()` туда не доехал. Параллельно надо убедиться, что `Password::sendResetLink` реально уходит через Unisender Go, а не через дефолтный mailer (иначе фикс ветвления ничего не даст — Notification возьмёт `config('mail.default') = smtp` и снова полезет на `localhost:587`).
+Убрать ContextRail из воркспейса трекера и заменить его горизонтальным таб-баром поверх канваса. Один сайдбар (AppSidebar), один уровень контекстной навигации (вкладки сверху) — без вертикальных дублей.
 
-И отдельно: токен `my.opprt@yandex.ru` действительно протух (486 мин > 180 мин лимита) — пользователю в любом случае нужна новая ссылка.
+и кнопка сворачивания тоже одна должна быть
 
-## План
+### Что меняется
 
-### 1. Проверить, что фикс UsersController задеплоен на prod
-На сервере:
-```bash
-cd /home/gro7659365/backend
-grep -n "channel" app/Http/Controllers/Api/Admin/UsersController.php | head
-git log -1 --format='%h %s %ci' app/Http/Controllers/Api/Admin/UsersController.php
-```
-Если `channel` в файле нет — автодеплой не прошёл. Тогда:
-```bash
-git pull --ff-only
-php artisan optimize:clear
-```
+1. `**src/pages/tracker/TrackerLayout.tsx**`
+  - Удалить рендер `rail={...}` и `ProjectRailPicker` из колонки.
+  - Собрать `toolbar` для `WorkspaceShell`: горизонтальная полоса с табами `Dashboard · Backlog · Board · Projects · Workflows · Goals · Tasks · 1:1s` (NavLink + active-стиль), слева — `ProjectRailPicker` (компактный селектор проекта), справа — кнопка «Новый проект» (то, что было в `bottomSlot`).
+  - Убрать импорт `ContextRail`, `RailItem`.
+2. `**src/components/workspace/WorkspaceShell.tsx**`
+  - Сделать `rail` опциональным (`rail?: ReactNode`). Если не передан — не рендерим колонку.
+  - Логика и стили остальных слотов (Inspector, StatusBar, Toolbar) без изменений.
+3. `**src/components/AppLayout.tsx**`
+  - Откатить хак авто-скрытия AppSidebar на `/tracker` — больше не нужен, нет дубля.
+4. `**src/components/workspace/ContextRail.tsx**` — оставить файл (используется ли где-то ещё, проверю; если только трекер — пометить как unused, удалять не буду в рамках этой правки).
 
-### 2. Убедиться, что Password::sendResetLink идёт через Unisender Go
-Сейчас `EmailConfigService::apply()` для unisender_go должен переключать `config(['mail.default' => 'unisender_go'])` в рантайме. Проверю в `EmailConfigService::apply()`, что для канала `unisender_go`:
-- ставится `mail.default = unisender_go`
-- транспорт зарегистрирован в `AppServiceProvider`/`MailServiceProvider` через `Mail::extend('unisender_go', ...)`
-- `mail.mailers.unisender_go` определён в `config/mail.php`
+### Что НЕ трогаем
 
-Если чего-то нет — починю в коде репо (стадия build).
+- AppSidebar, его секции и пункт «Трекер задач».
+- InspectorStack, StatusBar, хоткеи `[` / `]`.
+- Сами вьюхи трекера и роуты.
 
-### 3. Дать пользователю новую ссылку
-- Сообщить: текущий токен `my.opprt@yandex.ru` истёк (486 мин). После шагов 1–2 нажать «Сбросить пароль» из суперадмина ещё раз — придёт свежее письмо через Unisender Go.
-- Альтернативно — временный workaround: `php artisan superadmin:reset-password my.opprt@yandex.ru <newPass>` (если нужна разовая разблокировка без email).
+### Результат
 
-### 4. Подтвердить фикс
-```bash
-php artisan password:reset-status my.opprt@yandex.ru
-tail -f storage/logs/laravel.log | grep -i "password reset"
-```
-Ожидаемый success-лог должен исчезнуть с ошибкой `localhost:587`; новый токен должен быть `ACTIVE`.
-
-## Что мне нужно от вас
-
-1. Вывод `grep -n "channel" app/Http/Controllers/Api/Admin/UsersController.php` с прода — подтвердит/опровергнет, что фикс задеплоен.
-2. Подтверждение, что в `.env` на проде стоит `MAIL_MAILER=unisender_go` (или хотя бы `UNISENDER_GO_API_KEY` задан и `email_settings` в БД активирует канал unisender_go).
-
-После этого либо триггерну редеплой (если ветвление не доехало), либо добавлю недостающую часть переключения mailer в `EmailConfigService::apply()`.
+- На любой ширине: один сайдбар слева (AppSidebar) + сверху канваса горизонтальные вкладки трекера. Никакой второй вертикальной колонки.
+- Свёртывание / скрытие AppSidebar работает естественно и не оставляет «висящих» иконок.
