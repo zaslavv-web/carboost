@@ -19,7 +19,25 @@
   "modules": {
     "kicker": "16 модулей",
     "title": "Всё для людей. В одном окне.",
-    "cta": "Открыть"
+    "cta": "Открыть",
+    "tiles": {
+      "ai-assessment": "AI-оценка",
+      "career-tracks": "Карьерные треки",
+      "performance": "Перфоманс",
+      "university": "Обучение",
+      "analytics": "Аналитика",
+      "digital-passport": "Паспорт",
+      "leaves": "Отпуска",
+      "recognition": "Признание",
+      "gamification": "Геймификация",
+      "shop": "Магазин",
+      "onboarding": "Онбординг",
+      "hr-policies": "Политики",
+      "internal-chat": "Чаты",
+      "rag-ai": "AI-помощник",
+      "scenarios": "Сценарии",
+      "org-structure": "Оргструктура"
+    }
   },
   "audience": {
     "kicker": "Для кого",
