@@ -33,8 +33,9 @@ export const laravelAuth = {
 
 export interface LaravelInvokeResult<T = any> {
   data: T | null;
-  error: { message: string; status?: number } | null;
+  error: { message: string; status?: number; code?: string } | null;
 }
+
 
 async function request<T>(
   path: string,

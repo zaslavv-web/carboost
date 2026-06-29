@@ -30,11 +30,16 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Расширяем срок жизни password reset-токена: дефолт 60 мин слишком короткий
+        // для писем, открываемых из мобильной почты (Yandex/Mail.ru делают предпросмотр позже).
+        config(['auth.passwords.users.expire' => 180]);
+
         // API-only backend: route('login') отсутствует, поэтому гостевые API-запросы
         // должны получать JSON 401, а не падать на попытке построить redirect URL.
         Authenticate::redirectUsing(fn ($request) => null);
 
         Event::listen(MessageSending::class, [AttachMonitoringBcc::class, 'handle']);
+
 
         // Регистрируем кастомный HTTP-API драйвер Unisender Go как полноценный mailer.
         Mail::extend('unisender_go', function (array $config) {
