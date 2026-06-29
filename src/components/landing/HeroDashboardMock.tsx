@@ -29,12 +29,13 @@ const Spark = ({ values, color = "primary" }: { values: number[]; color?: "prima
 
 const HeroDashboardMock = () => {
   return (
-    <div className="relative w-full max-w-[560px] mx-auto animate-fade-in">
+    <div className="relative w-full max-w-[560px] mx-auto animate-fade-in overflow-hidden">
       {/* Glow */}
       <div
         className="absolute -inset-10 rounded-full blur-3xl opacity-40 pointer-events-none"
         style={{ background: "radial-gradient(circle at center, hsl(var(--primary) / 0.35), transparent 65%)" }}
       />
+
 
       {/* Window frame */}
       <div className="relative rounded-2xl border border-border bg-card shadow-elevated overflow-hidden">
