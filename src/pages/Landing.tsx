@@ -9,7 +9,7 @@ import HeroMetricsStrip from "@/components/landing/HeroMetricsStrip";
 import ModulesGrouped from "@/components/landing/ModulesGrouped";
 import ModuleDetailDialog from "@/components/landing/ModuleDetailDialog";
 import RolePreview from "@/components/landing/RolePreview";
-import LogoMarquee from "@/components/landing/LogoMarquee";
+
 import CountUp from "@/components/landing/CountUp";
 import { useAuth } from "@/contexts/AuthContext";
 import type { FeatureSlug } from "@/data/features";

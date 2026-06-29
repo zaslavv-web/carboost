@@ -1,5 +1,6 @@
 import { laravelDb } from "@/integrations/laravel/db";
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Card } from "@/components/ui/card";
@@ -51,7 +52,9 @@ const RiskAnalytics = () => {
   const { t } = useTranslation("manager");
   const { data: profile } = useUserProfile();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [selected, setSelected] = useState<string | null>(null);
+  const [levelFilter, setLevelFilter] = useState<"all" | "low" | "medium" | "high">("all");
 
   const { data: employees = [] } = useQuery({
     queryKey: ["company-employees", profile?.company_id],
@@ -198,35 +201,60 @@ const RiskAnalytics = () => {
         </div>
       </div>
 
-      {/* KPI cards */}
+      {/* KPI cards — clickable, filter the table below */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="glass p-4 hover-lift">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wide">
-            <Users className="w-4 h-4" /> {t("riskAnalytics.kpi.employees")}
-          </div>
-          <div className="mt-2 text-3xl font-bold text-foreground">{summary.total}</div>
-          <div className="text-xs text-muted-foreground mt-1">{t("riskAnalytics.kpi.covered", { count: summary.covered })}</div>
-        </Card>
-        <Card className="glass p-4 hover-lift border-destructive/30">
-          <div className="flex items-center gap-2 text-destructive text-xs uppercase tracking-wide">
-            <AlertTriangle className="w-4 h-4" /> {t("riskAnalytics.kpi.highRisk")}
-          </div>
-          <div className="mt-2 text-3xl font-bold text-destructive">{summary.high}</div>
-          <div className="text-xs text-muted-foreground mt-1">{t("riskAnalytics.kpi.actionRequired")}</div>
-        </Card>
-        <Card className="glass p-4 hover-lift border-warning/30">
-          <div className="flex items-center gap-2 text-warning text-xs uppercase tracking-wide">
-            <TrendingDown className="w-4 h-4" /> {t("riskAnalytics.kpi.mediumRisk")}
-          </div>
-          <div className="mt-2 text-3xl font-bold text-warning">{summary.medium}</div>
-        </Card>
-        <Card className="glass p-4 hover-lift border-success/30">
-          <div className="flex items-center gap-2 text-success text-xs uppercase tracking-wide">
-            <TrendingUp className="w-4 h-4" /> {t("riskAnalytics.kpi.engagement")}
-          </div>
-          <div className="mt-2 text-3xl font-bold text-success">{summary.avgEngagement}%</div>
-        </Card>
+        <button
+          type="button"
+          onClick={() => setLevelFilter("all")}
+          className={`text-left transition-all ${levelFilter === "all" ? "ring-2 ring-primary/40 rounded-xl" : ""}`}
+        >
+          <Card className="glass p-4 hover-lift cursor-pointer h-full">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wide">
+              <Users className="w-4 h-4" /> {t("riskAnalytics.kpi.employees")}
+            </div>
+            <div className="mt-2 text-3xl font-bold text-foreground">{summary.total}</div>
+            <div className="text-xs text-muted-foreground mt-1">{t("riskAnalytics.kpi.covered", { count: summary.covered })}</div>
+          </Card>
+        </button>
+        <button
+          type="button"
+          onClick={() => setLevelFilter("high")}
+          className={`text-left transition-all ${levelFilter === "high" ? "ring-2 ring-destructive/50 rounded-xl" : ""}`}
+        >
+          <Card className="glass p-4 hover-lift cursor-pointer border-destructive/30 h-full">
+            <div className="flex items-center gap-2 text-destructive text-xs uppercase tracking-wide">
+              <AlertTriangle className="w-4 h-4" /> {t("riskAnalytics.kpi.highRisk")}
+            </div>
+            <div className="mt-2 text-3xl font-bold text-destructive">{summary.high}</div>
+            <div className="text-xs text-muted-foreground mt-1">{t("riskAnalytics.kpi.actionRequired")}</div>
+          </Card>
+        </button>
+        <button
+          type="button"
+          onClick={() => setLevelFilter("medium")}
+          className={`text-left transition-all ${levelFilter === "medium" ? "ring-2 ring-warning/50 rounded-xl" : ""}`}
+        >
+          <Card className="glass p-4 hover-lift cursor-pointer border-warning/30 h-full">
+            <div className="flex items-center gap-2 text-warning text-xs uppercase tracking-wide">
+              <TrendingDown className="w-4 h-4" /> {t("riskAnalytics.kpi.mediumRisk")}
+            </div>
+            <div className="mt-2 text-3xl font-bold text-warning">{summary.medium}</div>
+          </Card>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard")}
+          className="text-left transition-all"
+        >
+          <Card className="glass p-4 hover-lift cursor-pointer border-success/30 h-full">
+            <div className="flex items-center gap-2 text-success text-xs uppercase tracking-wide">
+              <TrendingUp className="w-4 h-4" /> {t("riskAnalytics.kpi.engagement")}
+            </div>
+            <div className="mt-2 text-3xl font-bold text-success">{summary.avgEngagement}%</div>
+          </Card>
+        </button>
       </div>
+
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Heatmap by department */}
