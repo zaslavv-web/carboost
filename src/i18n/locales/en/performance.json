@@ -1,47 +1,45 @@
 {
-  "performance": {
-    "title": "Performance Reviews",
-    "subtitle": "Review cycles, self-assessment, manager rating and final scores",
-    "tabs": { "mine": "My reviews", "team": "My team", "cycles": "Cycles" },
-    "status": {
-      "draft": "Draft",
-      "self_done": "Self done",
-      "manager_done": "Manager done",
-      "finalized": "Finalized",
-      "open": "Open",
-      "closed": "Closed"
-    },
-    "actions": {
-      "open": "Open cycle",
-      "close": "Close cycle",
-      "createCycle": "New cycle",
-      "submitSelf": "Submit self-assessment",
-      "submitManager": "Submit rating",
-      "finalize": "Finalize",
-      "save": "Save",
-      "cancel": "Cancel"
-    },
-    "fields": {
-      "cycleTitle": "Cycle title",
-      "periodStart": "Period start",
-      "periodEnd": "Period end",
-      "deadline": "Deadline",
-      "weightSelf": "Self weight",
-      "weightManager": "Manager weight",
-      "weightPeer": "Peer weight",
-      "overallScore": "Overall score (0-5)",
-      "strengths": "Strengths",
-      "improvements": "Areas to improve",
-      "comments": "Comments",
-      "summary": "Summary"
-    },
-    "empty": { "cycles": "No cycles yet", "reviews": "No reviews yet" },
-    "messages": {
-      "feedbackSaved": "Feedback saved",
-      "cycleOpened": "Cycle opened — reviews created for employees",
-      "cycleClosed": "Cycle closed",
-      "finalized": "Review finalized"
-    }
+  "title": "Performance Reviews",
+  "subtitle": "Review cycles, self-assessment, manager rating and final scores",
+  "tabs": { "mine": "My reviews", "team": "My team", "cycles": "Cycles" },
+  "status": {
+    "draft": "Draft",
+    "self_done": "Self done",
+    "manager_done": "Manager done",
+    "finalized": "Finalized",
+    "open": "Open",
+    "closed": "Closed"
+  },
+  "actions": {
+    "open": "Open cycle",
+    "close": "Close cycle",
+    "createCycle": "New cycle",
+    "submitSelf": "Submit self-assessment",
+    "submitManager": "Submit rating",
+    "finalize": "Finalize",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "fields": {
+    "cycleTitle": "Cycle title",
+    "periodStart": "Period start",
+    "periodEnd": "Period end",
+    "deadline": "Deadline",
+    "weightSelf": "Self weight",
+    "weightManager": "Manager weight",
+    "weightPeer": "Peer weight",
+    "overallScore": "Overall score (0-5)",
+    "strengths": "Strengths",
+    "improvements": "Areas to improve",
+    "comments": "Comments",
+    "summary": "Summary"
+  },
+  "empty": { "cycles": "No cycles yet", "reviews": "No reviews yet" },
+  "messages": {
+    "feedbackSaved": "Feedback saved",
+    "cycleOpened": "Cycle opened — reviews created for employees",
+    "cycleClosed": "Cycle closed",
+    "finalized": "Review finalized"
   },
   "probation": {
     "title": "Probation period",

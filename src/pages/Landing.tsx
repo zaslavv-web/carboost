@@ -9,7 +9,7 @@ import HeroMetricsStrip from "@/components/landing/HeroMetricsStrip";
 import ModulesGrouped from "@/components/landing/ModulesGrouped";
 import ModuleDetailDialog from "@/components/landing/ModuleDetailDialog";
 import RolePreview from "@/components/landing/RolePreview";
-import LogoMarquee from "@/components/landing/LogoMarquee";
+
 import CountUp from "@/components/landing/CountUp";
 import { useAuth } from "@/contexts/AuthContext";
 import type { FeatureSlug } from "@/data/features";
@@ -168,45 +168,6 @@ const Landing = () => {
                 <div className="mt-3 text-sm md:text-base text-muted-foreground max-w-[16ch]">{s.label}</div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─────────── 5. CLIENTS MARQUEE ─────────── */}
-      <section className="border-t border-border">
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10 pt-16 pb-6 text-center">
-          <Kicker>{t("marquee2.kicker")}</Kicker>
-        </div>
-        <LogoMarquee />
-      </section>
-
-      {/* ─────────── 6. FINAL CTA ─────────── */}
-      <section className="border-t border-border gradient-hero relative overflow-hidden">
-        <div className="absolute inset-0 gradient-glow opacity-60 pointer-events-none" />
-        <div className="relative max-w-[1400px] mx-auto px-6 md:px-10 py-24 md:py-36 text-center">
-          <h2
-            style={serif}
-            className="text-[clamp(2.5rem,7vw,6rem)] leading-[1.02] font-normal max-w-4xl mx-auto text-foreground"
-          >
-            {t("finalCta2.title")}
-          </h2>
-          <p className="mt-6 text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-            {t("finalCta2.subtitle")}
-          </p>
-          <div className="mt-10 flex flex-wrap gap-3 justify-center">
-            <button
-              onClick={() => openDemo(null)}
-              className="group inline-flex items-center gap-3 px-8 py-4 rounded-full bg-primary text-primary-foreground font-semibold text-lg shadow-glow hover:scale-105 transition-transform"
-            >
-              {t("finalCta2.primary")}
-              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-            </button>
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-full border border-border text-foreground font-semibold text-lg hover:bg-secondary transition-colors"
-            >
-              {t("finalCta2.secondary")}
-            </Link>
           </div>
         </div>
       </section>
