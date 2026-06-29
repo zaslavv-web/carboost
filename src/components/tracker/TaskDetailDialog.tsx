@@ -309,56 +309,63 @@ interface TaskDetailDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export const TaskDetailDialog = ({ task, open, onOpenChange }: TaskDetailDialogProps) => {
+/** Inner body — reusable both inside the dialog (mobile fallback) and the right inspector. */
+export const TaskDetailBody = ({ task }: { task: TrackerTask }) => {
   const [tab, setTab] = useState<"comments" | "attachments" | "activity">("comments");
-  const { data: attachments = [] } = useTaskAttachments(task?.id ?? null);
-  const { data: comments = [] } = useTaskComments(task?.id ?? null);
+  const { data: attachments = [] } = useTaskAttachments(task.id);
+  const { data: comments = [] } = useTaskComments(task.id);
 
-  useEffect(() => { if (open) setTab("comments"); }, [open, task?.id]);
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <TaskStatusBadge status={task.status} />
+        <UrgencyBadge urgency={task.urgency} />
+        {task.story_points != null && <Badge variant="outline" className="font-mono">{task.story_points} SP</Badge>}
+        {task.due_at && (
+          <span className="text-xs text-muted-foreground">
+            Срок: {format(new Date(task.due_at), "dd.MM.yyyy HH:mm")}
+          </span>
+        )}
+      </div>
 
+      {task.description && (
+        <div className="text-sm text-muted-foreground whitespace-pre-wrap border rounded-md p-3 bg-muted/30">
+          {task.description}
+        </div>
+      )}
+
+      <Tabs value={tab} onValueChange={(v: any) => setTab(v)}>
+        <TabsList className="w-full justify-start">
+          <TabsTrigger value="comments" className="gap-1.5">
+            <MessageSquare className="w-3.5 h-3.5" />Комментарии
+            {comments.length > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{comments.length}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="attachments" className="gap-1.5">
+            <Paperclip className="w-3.5 h-3.5" />Вложения
+            {attachments.length > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{attachments.length}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="gap-1.5">
+            <ActivityIcon className="w-3.5 h-3.5" />Активность
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="comments" className="mt-4"><CommentsPanel taskId={task.id} /></TabsContent>
+        <TabsContent value="attachments" className="mt-4"><AttachmentsPanel taskId={task.id} /></TabsContent>
+        <TabsContent value="activity" className="mt-4"><ActivityPanel taskId={task.id} /></TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export const TaskDetailDialog = ({ task, open, onOpenChange }: TaskDetailDialogProps) => {
+  useEffect(() => { /* reserved for future side-effects */ }, [open, task?.id]);
   if (!task) return null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="pr-8">{task.title}</DialogTitle>
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <TaskStatusBadge status={task.status} />
-            <UrgencyBadge urgency={task.urgency} />
-            {task.story_points != null && <Badge variant="outline" className="font-mono">{task.story_points} SP</Badge>}
-            {task.due_at && (
-              <span className="text-xs text-muted-foreground">
-                Срок: {format(new Date(task.due_at), "dd.MM.yyyy HH:mm")}
-              </span>
-            )}
-          </div>
         </DialogHeader>
-
-        {task.description && (
-          <div className="text-sm text-muted-foreground whitespace-pre-wrap border rounded-md p-3 bg-muted/30">
-            {task.description}
-          </div>
-        )}
-
-        <Tabs value={tab} onValueChange={(v: any) => setTab(v)}>
-          <TabsList className="w-full justify-start">
-            <TabsTrigger value="comments" className="gap-1.5">
-              <MessageSquare className="w-3.5 h-3.5" />Комментарии
-              {comments.length > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{comments.length}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="attachments" className="gap-1.5">
-              <Paperclip className="w-3.5 h-3.5" />Вложения
-              {attachments.length > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{attachments.length}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="gap-1.5">
-              <ActivityIcon className="w-3.5 h-3.5" />Активность
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="comments" className="mt-4"><CommentsPanel taskId={task.id} /></TabsContent>
-          <TabsContent value="attachments" className="mt-4"><AttachmentsPanel taskId={task.id} /></TabsContent>
-          <TabsContent value="activity" className="mt-4"><ActivityPanel taskId={task.id} /></TabsContent>
-        </Tabs>
+        <TaskDetailBody task={task} />
       </DialogContent>
     </Dialog>
   );
