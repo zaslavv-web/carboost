@@ -19,7 +19,25 @@
   "modules": {
     "kicker": "16 modules",
     "title": "Everything for people. In one place.",
-    "cta": "Open"
+    "cta": "Open",
+    "tiles": {
+      "ai-assessment": "AI Assessment",
+      "career-tracks": "Career Tracks",
+      "performance": "Performance",
+      "university": "Learning",
+      "analytics": "Analytics",
+      "digital-passport": "Passport",
+      "leaves": "Leaves",
+      "recognition": "Recognition",
+      "gamification": "Gamification",
+      "shop": "Shop",
+      "onboarding": "Onboarding",
+      "hr-policies": "Policies",
+      "internal-chat": "Chats",
+      "rag-ai": "AI Helper",
+      "scenarios": "Scenarios",
+      "org-structure": "Org Chart"
+    }
   },
   "audience": {
     "kicker": "Made for",
