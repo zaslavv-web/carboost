@@ -9,35 +9,145 @@
     "signIn": "Sign in"
   },
   "hero2": {
-    "kicker": "HR-tech OS",
-    "title1": "One product.",
-    "title2": "Every career.",
-    "subtitle": "16 modules. 5 roles. Launch in 2 weeks.",
+    "kicker": "Built for HRDs and HRBPs",
+    "title1": "Strong people —",
+    "title2": "strong company.",
+    "subtitle": "16 modules in one platform: from hiring and onboarding to career tracks, risk prediction and board-level analytics. A tool worthy of the HR mission.",
     "primary": "Request demo",
-    "secondary": "Sign in"
+    "secondary": "Sign in",
+    "note": "Launch in 2 weeks · Cloud or on-premise · 100% RU infrastructure"
+  },
+  "heroMetrics": {
+    "turnover": { "label": "first-year attrition reduction" },
+    "routine": { "label": "hours of HR routine freed per week" },
+    "engagement": { "label": "team engagement uplift" }
   },
   "modules": {
     "kicker": "16 modules",
-    "title": "Everything for people. In one place.",
+    "title": "Everything an HRD needs. In one window.",
+    "subtitle": "Click any module to see what it does and what's inside.",
     "cta": "Open",
     "tiles": {
       "ai-assessment": "AI Assessment",
       "career-tracks": "Career Tracks",
       "performance": "Performance",
       "university": "Learning",
-      "analytics": "Analytics",
-      "digital-passport": "Passport",
+      "analytics": "HR Analytics",
+      "digital-passport": "Digital Passport",
       "leaves": "Leaves",
       "recognition": "Recognition",
       "gamification": "Gamification",
-      "shop": "Shop",
+      "shop": "Points Shop",
       "onboarding": "Onboarding",
-      "hr-policies": "Policies",
-      "internal-chat": "Chats",
+      "hr-policies": "HR Policies",
+      "internal-chat": "Internal Chats",
       "rag-ai": "AI Helper",
-      "scenarios": "Scenarios",
-      "org-structure": "Org Chart"
+      "scenarios": "Assessment Scenarios",
+      "org-structure": "Org Structure"
+    },
+    "short": {
+      "ai-assessment": "Competency interview in 25 minutes",
+      "career-tracks": "A clear growth path for everyone",
+      "performance": "Goals, OKRs, check-ins and reviews",
+      "university": "Courses, tests, certificates",
+      "analytics": "Live dashboards for the board",
+      "digital-passport": "All employee history in one profile",
+      "leaves": "Requests and calendar without chaos",
+      "recognition": "Kudos and recognition points",
+      "gamification": "Levels, badges, progress",
+      "shop": "Internal currency instead of bonuses",
+      "onboarding": "Bulk import and auto-assignment",
+      "hr-policies": "Policies and rules in one base",
+      "internal-chat": "1:1 and groups without Telegram",
+      "rag-ai": "AI answers from your documents",
+      "scenarios": "Interview and test scenarios",
+      "org-structure": "Company tree with import"
+    },
+    "detail": {
+      "ai-assessment": {
+        "summary": "An AI assistant runs a structured interview against your competencies and produces a comparable profile in 25 minutes. HRDs get an objective signal without burning out hiring managers.",
+        "bullets": ["Interviews from your scenarios", "Comparable candidate profile", "Auto-summary and recommendations", "Supports GigaChat / YandexGPT / Gemini"]
+      },
+      "career-tracks": {
+        "summary": "Career tracks with stages, tests and check-points — from intern to leader. Employees see what's next, HRDs see where growth stalls.",
+        "bullets": ["Track templates per role", "Stages with check-points", "Auto-assignment by position", "Competency progress"]
+      },
+      "performance": {
+        "summary": "Goals, OKRs, check-ins, 1:1s and reviews in a single feed. Managers see who's carrying the team and who's stuck — without spreadsheet wars.",
+        "bullets": ["OKRs linked to strategy", "Regular 1:1s", "360° reviews", "Disciplinary workflows"]
+      },
+      "university": {
+        "summary": "A corporate university: courses, tests, certificates. Tied to career-track stages so learning serves the business — not a checkbox.",
+        "bullets": ["Course builder", "Tests and certification", "Linked to tracks and competencies", "Per-employee progress"]
+      },
+      "analytics": {
+        "summary": "Live analytics across the employee lifecycle: attrition, engagement, role readiness, people ROI. Dashboards a CEO actually reads.",
+        "bullets": ["Custom dashboards", "Predictive risk analytics", "Board-ready exports", "Segmentation by org unit"]
+      },
+      "digital-passport": {
+        "summary": "A unified employee profile with full history: roles, skills, assessments, learning, awards. One source of truth instead of five spreadsheets.",
+        "bullets": ["Role and transition history", "Skill and competency map", "All assessments and feedback", "Achievements and certificates"]
+      },
+      "leaves": {
+        "summary": "Leave requests, day balance, overtime and approvals — one calendar, no email or chat ping-pong.",
+        "bullets": ["Requests and approvals", "Balance and overtime", "Team calendar", "Manager notifications"]
+      },
+      "recognition": {
+        "summary": "Kudos feed and recognition points from peers and managers. Recognition becomes a daily habit, not a quarterly campaign.",
+        "bullets": ["Public kudos", "Points from peers and managers", "Tied to company values", "Activity feed"]
+      },
+      "gamification": {
+        "summary": "Levels, badges and progress for platform activity. Turns growth into a game people actually want to play.",
+        "bullets": ["Levels and XP", "Achievement badges", "Team leaderboards", "Rewards for activity"]
+      },
+      "shop": {
+        "summary": "A corporate shop on internal currency: merch, days off, learning. Motivation without growing payroll.",
+        "bullets": ["Catalog of goods and services", "Orders and delivery", "Balance management", "Demand analytics"]
+      },
+      "onboarding": {
+        "summary": "XLSX bulk import, auto-assigning roles by email domain and tracks by position. New hires productive from day one.",
+        "bullets": ["XLSX/CSV import", "Email-domain routing", "Onboarding checklists", "Probation control"]
+      },
+      "hr-policies": {
+        "summary": "All HR policies, rules and guides in one versioned base. Employees find answers themselves — HR doesn't get pinged.",
+        "bullets": ["Structured base", "Versioning", "Search and bookmarks", "Wired to the RAG assistant"]
+      },
+      "internal-chat": {
+        "summary": "1:1 and group chats inside the platform. HR comms don't dissolve into Telegram and stay in the employee's context.",
+        "bullets": ["1:1 and groups", "Linked to workflows", "Realtime over WebSocket", "Russian-jurisdiction hosting"]
+      },
+      "rag-ai": {
+        "summary": "A RAG-powered AI assistant over your documents: policies, rules, knowledge bases. Answers employees with source links.",
+        "bullets": ["Parses your documents", "Answers with citations", "Multiple LLM support", "On-premise deployment"]
+      },
+      "scenarios": {
+        "summary": "A builder for interview scenarios, assessment tests and cases. HRDs define the logic — the system runs it and collects results.",
+        "bullets": ["Visual editor", "Branching logic", "Auto-scoring", "Role-based templates"]
+      },
+      "org-structure": {
+        "summary": "Company tree with file import and AI parsing. Structure changes in one click, no email thread with IT.",
+        "bullets": ["XLSX import", "AI document parsing", "Drag & drop editor", "Change history"]
+      }
     }
+  },
+  "modulesGrouped": {
+    "categoryKicker": {
+      "growth": "01",
+      "culture": "02",
+      "ops": "03",
+      "data": "04"
+    },
+    "categories": {
+      "growth": "Growth & careers",
+      "culture": "People & culture",
+      "ops": "HR operations",
+      "data": "Data & AI"
+    }
+  },
+  "moduleDialog": {
+    "inside": "What's inside",
+    "primaryCta": "Request demo of this module",
+    "secondaryCta": "Learn more"
   },
   "audience": {
     "kicker": "Made for",
