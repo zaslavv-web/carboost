@@ -67,6 +67,12 @@ export default function AiSettingsPage() {
   const [form, setForm] = useState<AiSettings | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [testResult, setTestResult] = useState<null | { ok: boolean; message: string; latency?: number }>(null);
+  const [advancedMode, setAdvancedMode] = useState<boolean>(() => {
+    try { return localStorage.getItem("ai_advanced_mode") === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("ai_advanced_mode", advancedMode ? "1" : "0"); } catch {}
+  }, [advancedMode]);
 
   useEffect(() => {
     if (loaded) setForm(loaded);
