@@ -476,22 +476,85 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       )}
 
       {/* Nav */}
-      <nav className="flex-1 py-2 px-2 overflow-y-auto">
-        {sections.map((section, idx) => (
-          <div key={section.key} className={idx === 0 ? "" : "mt-1"}>
-            {collapsed ? (
-              idx > 0 && <div className="mx-2 my-2 h-px bg-sidebar-border/60" />
-            ) : (
-              <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/40">
-                {section.label}
+      <nav className="flex-1 py-2 px-2 overflow-y-auto overflow-x-visible">
+        {sections.map((section) => {
+          const SectionIcon = sectionIconMap[section.key] || section.entries[0] && !isGroup(section.entries[0])
+            ? sectionIconMap[section.key] || (section.entries[0] as NavItem).icon
+            : Settings;
+          const hasActive = sectionContainsActive(section);
+          const isOpen = !collapsed && (!!openSections[section.key] || hasActive);
+
+          if (collapsed && !isMobile) {
+            const isFlyoutOpen = flyoutKey === section.key;
+            return (
+              <div
+                key={section.key}
+                className="relative my-0.5"
+                onMouseEnter={(e) => openFlyout(section.key, e.currentTarget)}
+                onMouseLeave={scheduleCloseFlyout}
+              >
+                <button
+                  className={`relative w-full flex items-center justify-center py-2 rounded-md transition-colors ${
+                    hasActive
+                      ? "text-sidebar-primary bg-sidebar-primary/10"
+                      : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  }`}
+                  title={section.label}
+                  aria-label={section.label}
+                >
+                  {hasActive && (
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-sidebar-primary" />
+                  )}
+                  <SectionIcon className="w-[18px] h-[18px]" />
+                </button>
+                {isFlyoutOpen && (
+                  <div
+                    className="fixed left-[64px] z-[60] w-[252px] pl-2"
+                    style={{ top: Math.max(8, flyoutTop) }}
+                    onMouseEnter={cancelCloseFlyout}
+                    onMouseLeave={scheduleCloseFlyout}
+                  >
+                    <div className="rounded-lg border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl p-2">
+                      <div className="px-2 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45 flex items-center gap-2">
+                        <SectionIcon className="w-3.5 h-3.5" />
+                        <span>{section.label}</span>
+                      </div>
+                      <div className="space-y-0.5">
+                        {section.entries.map((e) => renderEntry(e, section.key))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-            <div className="space-y-0.5">
-              {section.entries.map((e) => renderEntry(e, section.key))}
+            );
+          }
+
+          return (
+            <div key={section.key} className="mt-0.5">
+              <button
+                onClick={() => toggleSection(section.key)}
+                className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md transition-colors ${
+                  hasActive
+                    ? "text-sidebar-primary"
+                    : "text-sidebar-foreground/55 hover:text-sidebar-foreground"
+                }`}
+              >
+                <SectionIcon className="w-3.5 h-3.5 opacity-70" />
+                <span className="flex-1 text-left text-[10px] font-semibold uppercase tracking-[0.14em]">
+                  {section.label}
+                </span>
+                <ChevronDown className={`w-3 h-3 opacity-60 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+              </button>
+              {isOpen && (
+                <div className="space-y-0.5 mt-0.5">
+                  {section.entries.map((e) => renderEntry(e, section.key))}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
+
 
       {/* Bottom: sign out */}
       <div className="p-2 border-t border-sidebar-border">
