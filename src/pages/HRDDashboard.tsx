@@ -55,20 +55,29 @@ const useRoleBadge = () => {
 
 type RoleFilter = "all" | AppRole;
 
-const useEmployeesWithRoles = () =>
+const useEmployeesWithRoles = (companyId: string | null | undefined) =>
   useQuery({
-    queryKey: ["hrd_employees"],
+    queryKey: ["hrd_employees", companyId],
     queryFn: async () => {
+      if (!companyId) return [] as EmployeeWithRole[];
       const [profilesRes, rolesRes, emailsRes] = await Promise.all([
-        laravelDb.from("profiles").select("user_id, full_name, position, position_id, pending_position_id, department, overall_score, role_readiness"),
+        laravelDb
+          .from("profiles")
+          .select("user_id, full_name, position, position_id, pending_position_id, department, overall_score, role_readiness")
+          .eq("company_id", companyId),
         laravelDb.from("user_roles").select("user_id, role"),
-        laravel.get<{ data: any[] } | any[]>("/profiles?per_page=500"),
+        laravel.get<{ data: any[] } | any[]>(`/profiles?per_page=500&company_id=${encodeURIComponent(companyId)}`),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (rolesRes.error) throw rolesRes.error;
 
+      // Confine role/email lookups to profile.user_id set — defense in depth
+      // in case any of the underlying queries ever escapes the company scope.
+      const companyUserIds = new Set((profilesRes.data || []).map((p: any) => p.user_id));
+
       const roleMap = new Map<string, AppRole>();
       for (const r of rolesRes.data) {
+        if (!companyUserIds.has(r.user_id)) continue;
         const current = roleMap.get(r.user_id);
         const priority: Record<string, number> = { hrd: 3, manager: 2, employee: 1 };
         if (!current || priority[r.role as string] > (priority[current] || 0)) {
@@ -81,7 +90,9 @@ const useEmployeesWithRoles = () =>
         ? (emailsRes.data as any[])
         : (((emailsRes.data as any)?.data) || []);
       for (const p of emailItems) {
-        if (p?.user_id && p?.email) emailMap.set(p.user_id, p.email);
+        if (p?.user_id && p?.email && companyUserIds.has(p.user_id)) {
+          emailMap.set(p.user_id, p.email);
+        }
       }
 
       return (profilesRes.data || []).map((p: any) => ({
@@ -90,7 +101,9 @@ const useEmployeesWithRoles = () =>
         email: emailMap.get(p.user_id) || null,
       })) as EmployeeWithRole[];
     },
+    enabled: !!companyId,
   });
+
 
 const usePositions = () =>
   useQuery({
