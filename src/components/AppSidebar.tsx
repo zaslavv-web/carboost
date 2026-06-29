@@ -520,7 +520,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
                         <span>{section.label}</span>
                       </div>
                       <div className="space-y-0.5">
-                        {section.entries.map((e) => renderEntry(e, section.key))}
+                        {section.entries.map((e) => renderEntry(e, section.key, true))}
                       </div>
                     </div>
                   </div>
