@@ -1,55 +1,57 @@
-# Проблема
+## Что показывает лог
 
-`my.opprt@yandex.ru` на `/reset-password` получает «This password reset token is invalid». Это дословный ответ Laravel password broker, возвращается при: токен просрочен (дефолт 60 мин), уже использован, или email не совпадает с записью в `users`.
-
-Прямого доступа к prod-логам у меня нет — нужна ваша помощь на шаге 1.
-
-# Шаг 1. Диагностика на проде (вы или я по SSH)
-
-```bash
-php artisan tinker
->>> DB::table('password_reset_tokens')->where('email','my.opprt@yandex.ru')->get();
->>> DB::table('users')->whereRaw("LOWER(email)='my.opprt@yandex.ru'")->select('id','email','updated_at')->get();
+```
+[2026-06-29 17:27:25] production.ERROR: admin password reset failed
+{"email":"my.opprt@yandex.ru","err":"...localhost:587 (Connection refused)"}
 ```
 
-- Нет строки в `password_reset_tokens` → токен уже использован или удалён.
-- `created_at` старше 60 мин → просрочен.
-- В `users.email` другой регистр → broker не находит строку.  
-  
-[gro7659365@gro7659365 backend]$ php artisan tinker
-  Psy Shell v0.12.23 (PHP 8.2.31 — cli) by Justin Hileman
-  New PHP manual is available (latest: 3.1.0). Update with `doc --update-manual`
-  >
-     PARSE ERROR  PHP Parse error: Syntax error, unexpected T_SR in vendor/psy/psysh/src/Exception/ParseErrorException.php on line 44.
-  >
-     PARSE ERROR  PHP Parse error: Syntax error, unexpected T_SR in vendor/psy/psysh/src/Exception/ParseErrorException.php on line 44.
-  &nbsp;
+В этой строке **нет поля `channel`**. А в текущем коде репозитория (`UsersController.php:172`) лог пишется так:
 
-# Шаг 2. Код-правки (делаю независимо от шага 1)
+```php
+\Log::error('admin password reset failed', ['email' => $email, 'channel' => $channel, 'err' => ...]);
+```
 
-### Backend
+Значит на проде крутится **старая версия файла** — мой прошлый фикс с ветвлением по `activeChannel()` туда не доехал. Параллельно надо убедиться, что `Password::sendResetLink` реально уходит через Unisender Go, а не через дефолтный mailer (иначе фикс ветвления ничего не даст — Notification возьмёт `config('mail.default') = smtp` и снова полезет на `localhost:587`).
 
-1. `backend-laravel/config/auth.php` — `passwords.users.expire`: 60 → 180 (3 часа).
-2. `PasswordResetController::reset`:
-  - Различать `Password::INVALID_TOKEN` / `INVALID_USER` / `PASSWORD_RESET_THROTTLED`.
-  - Возвращать `{ error_code, message }` со статусами 410/404/429 вместо общего 422.
-  - `Log::warning('password reset failed', [...])` с email, причиной, IP — чтобы в `storage/logs/laravel.log` была история.
-3. Новая artisan-команда `password:reset-status {email}` — печатает наличие записи, возраст, лимит. Для будущей диагностики без tinker.
+И отдельно: токен `my.opprt@yandex.ru` действительно протух (486 мин > 180 мин лимита) — пользователю в любом случае нужна новая ссылка.
 
-### Frontend
+## План
 
-4. `src/pages/ResetPassword.tsx`: на `error_code = token_invalid_or_expired` вместо toast показывать экран:
-  - «Ссылка устарела или уже использована»
-  - Кнопка «Запросить новую ссылку» → `/forgot-password?email=<prefill>`.
-  - Сейчас пользователь видит только тост и зацикливается на той же форме.
-5. `src/i18n/locales/{ru,en}/auth.json`: ключи `reset.expired`, `reset.alreadyUsed`, `reset.requestNew`, `reset.requestNewCta`.
+### 1. Проверить, что фикс UsersController задеплоен на prod
+На сервере:
+```bash
+cd /home/gro7659365/backend
+grep -n "channel" app/Http/Controllers/Api/Admin/UsersController.php | head
+git log -1 --format='%h %s %ci' app/Http/Controllers/Api/Admin/UsersController.php
+```
+Если `channel` в файле нет — автодеплой не прошёл. Тогда:
+```bash
+git pull --ff-only
+php artisan optimize:clear
+```
 
-# Что не меняю
+### 2. Убедиться, что Password::sendResetLink идёт через Unisender Go
+Сейчас `EmailConfigService::apply()` для unisender_go должен переключать `config(['mail.default' => 'unisender_go'])` в рантайме. Проверю в `EmailConfigService::apply()`, что для канала `unisender_go`:
+- ставится `mail.default = unisender_go`
+- транспорт зарегистрирован в `AppServiceProvider`/`MailServiceProvider` через `Mail::extend('unisender_go', ...)`
+- `mail.mailers.unisender_go` определён в `config/mail.php`
 
-- `forgot` flow и письмо (`ResetPasswordNotification`) — там лоуэркейс и URL уже корректные.
-- Email-транспорт (Unisender Go) — письмо дошло, проблема не в доставке.
-- Sanctum/sessions — не связаны с broker-токеном.
+Если чего-то нет — починю в коде репо (стадия build).
 
-# Деливерабл
+### 3. Дать пользователю новую ссылку
+- Сообщить: текущий токен `my.opprt@yandex.ru` истёк (486 мин). После шагов 1–2 нажать «Сбросить пароль» из суперадмина ещё раз — придёт свежее письмо через Unisender Go.
+- Альтернативно — временный workaround: `php artisan superadmin:reset-password my.opprt@yandex.ru <newPass>` (если нужна разовая разблокировка без email).
 
-После шага 1 будет известна причина. Шаг 2 в любом случае убирает тупик: даже если пользователь снова кликнет старую ссылку, он получит понятный экран с кнопкой «запросить новую», а не красный тост.
+### 4. Подтвердить фикс
+```bash
+php artisan password:reset-status my.opprt@yandex.ru
+tail -f storage/logs/laravel.log | grep -i "password reset"
+```
+Ожидаемый success-лог должен исчезнуть с ошибкой `localhost:587`; новый токен должен быть `ACTIVE`.
+
+## Что мне нужно от вас
+
+1. Вывод `grep -n "channel" app/Http/Controllers/Api/Admin/UsersController.php` с прода — подтвердит/опровергнет, что фикс задеплоен.
+2. Подтверждение, что в `.env` на проде стоит `MAIL_MAILER=unisender_go` (или хотя бы `UNISENDER_GO_API_KEY` задан и `email_settings` в БД активирует канал unisender_go).
+
+После этого либо триггерну редеплой (если ветвление не доехало), либо добавлю недостающую часть переключения mailer в `EmailConfigService::apply()`.
