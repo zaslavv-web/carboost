@@ -79,9 +79,23 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
-        // Enrollment: завершение курса → авто-награда по событию course.completed.
-        // Используем модельные события через DB::afterCommit невозможно без модели,
-        // поэтому листенер вызывается прямо из EnrollmentController::progress (см. ниже).
+        // Enrollment: завершение курса → авто-награда вызывается из EnrollmentController::progress.
+
+        // Career step submission: одобрен → авто-награда по событию track.step.approved.
+        CareerStepSubmission::updated(function (CareerStepSubmission $s) {
+            if (! $s->wasChanged('status') || $s->status !== 'approved' || empty($s->user_id)) return;
+            try {
+                app(AutomationService::class)->triggerReward(
+                    'track.step.approved',
+                    (string) $s->user_id,
+                    $s->company_id ? (string) $s->company_id : null,
+                    ['reference_id' => (string) $s->id, 'description' => 'Шаг карьерного трека одобрен']
+                );
+            } catch (\Throwable $e) {
+                Log::warning('track.step reward failed', ['err' => $e->getMessage()]);
+            }
+        });
     }
 }
+
 
