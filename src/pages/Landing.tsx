@@ -104,17 +104,17 @@ const Landing = () => {
         id="modules"
         className="border-t border-border bg-muted/30 flex items-center min-h-[100svh]"
       >
-        <div className="max-w-[1400px] w-full mx-auto px-6 md:px-10 py-10 md:py-14">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 md:mb-10">
+        <div className="max-w-[1400px] w-full mx-auto px-6 md:px-10 py-8 md:py-10">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 mb-5 md:mb-7">
             <div>
               <Kicker>{t("modules.kicker")}</Kicker>
               <h2
                 style={serif}
-                className="mt-3 text-[clamp(1.875rem,4vw,3.25rem)] leading-[1.05] font-normal max-w-3xl"
+                className="mt-2 text-[clamp(1.5rem,2.6vw,2.5rem)] leading-[1.05] font-normal max-w-3xl"
               >
                 {t("modules.title")}
               </h2>
-              <p className="mt-2 text-sm md:text-base text-muted-foreground max-w-2xl">
+              <p className="mt-1.5 text-xs md:text-sm text-muted-foreground max-w-2xl">
                 {t("modules.subtitle")}
               </p>
             </div>
