@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { toast } from "sonner";
@@ -12,6 +12,8 @@ const ResetPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [expiredError, setExpiredError] = useState<string | null>(null);
+
   const [params] = useSearchParams();
   const navigate = useNavigate();
 
@@ -40,11 +42,43 @@ const ResetPassword = () => {
       toast.success(t("auth:toast.passwordUpdated"));
       navigate("/login");
     } catch (error: any) {
-      toast.error(error.message || t("auth:errors.updateFailed"));
+      const code: string | undefined = error?.code;
+      if (code === "token_invalid_or_expired") {
+        setExpiredError(t("auth:reset.expiredText"));
+      } else if (code === "throttled") {
+        toast.error(t("auth:reset.throttledText"));
+      } else {
+        toast.error(error?.message || t("auth:errors.updateFailed"));
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  if (expiredError) {
+    const forgotHref = `/login?forgot=1${email ? `&email=${encodeURIComponent(email)}` : ""}`;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-8">
+        <div className="w-full max-w-sm text-center">
+          <div className="w-12 h-12 mx-auto mb-6 rounded-full bg-destructive/10 flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6 text-destructive" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground mb-2">{t("auth:reset.expiredTitle")}</h2>
+          <p className="text-muted-foreground text-sm mb-6">{expiredError}</p>
+          <button
+            onClick={() => navigate(forgotHref)}
+            className="w-full py-2.5 rounded-lg gradient-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
+          >
+            {t("auth:reset.requestNewCta")}
+          </button>
+          <button onClick={() => navigate("/login")} className="mt-4 text-primary hover:underline text-sm">
+            {t("auth:buttons.backToLogin")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
 
   if (!isRecovery) {
     return (

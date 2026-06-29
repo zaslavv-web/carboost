@@ -123,9 +123,11 @@ class PasswordResetController extends Controller
             'password' => ['required', 'string', 'min:8'],
         ]);
 
+        $email = strtolower($data['email']);
+
         $status = Password::reset(
             [
-                'email'                 => strtolower($data['email']),
+                'email'                 => $email,
                 'password'              => $data['password'],
                 'password_confirmation' => $data['password'],
                 'token'                 => $data['token'],
@@ -140,12 +142,31 @@ class PasswordResetController extends Controller
             }
         );
 
-        if ($status !== Password::PASSWORD_RESET) {
-            throw ValidationException::withMessages([
-                'email' => __($status),
-            ]);
+        if ($status === Password::PASSWORD_RESET) {
+            Log::info('password reset success', ['email' => $email, 'ip' => $request->ip()]);
+            return response()->json(['ok' => true]);
         }
 
-        return response()->json(['ok' => true]);
+        // Различаем причины, чтобы фронт показал понятный экран
+        $map = [
+            Password::INVALID_TOKEN       => ['code' => 'token_invalid_or_expired', 'http' => 410, 'msg' => 'Ссылка для сброса пароля устарела или уже была использована. Запросите новую.'],
+            Password::INVALID_USER        => ['code' => 'user_not_found',           'http' => 404, 'msg' => 'Пользователь с таким email не найден.'],
+            Password::PASSWORD_RESET_THROTTLED => ['code' => 'throttled',           'http' => 429, 'msg' => 'Слишком много попыток. Подождите немного и повторите.'],
+        ];
+        $info = $map[$status] ?? ['code' => 'reset_failed', 'http' => 422, 'msg' => __($status)];
+
+        Log::warning('password reset failed', [
+            'email'  => $email,
+            'reason' => $status,
+            'code'   => $info['code'],
+            'ip'     => $request->ip(),
+            'ua'     => substr((string) $request->userAgent(), 0, 200),
+        ]);
+
+        return response()->json([
+            'error'      => $info['msg'],
+            'error_code' => $info['code'],
+        ], $info['http']);
     }
+
 }

@@ -1,54 +1,55 @@
-## Что чиню
+# Проблема
 
-### 1. Дубль «Сотрудники / Пользователи» в сайдбаре HRD
-`src/components/AppSidebar.tsx`, ветка `role === "hrd"`, группа `employeesGroup`. Сейчас:
+`my.opprt@yandex.ru` на `/reset-password` получает «This password reset token is invalid». Это дословный ответ Laravel password broker, возвращается при: токен просрочен (дефолт 60 мин), уже использован, или email не совпадает с записью в `users`.
 
+Прямого доступа к prod-логам у меня нет — нужна ваша помощь на шаге 1.
+
+# Шаг 1. Диагностика на проде (вы или я по SSH)
+
+```bash
+php artisan tinker
+>>> DB::table('password_reset_tokens')->where('email','my.opprt@yandex.ru')->get();
+>>> DB::table('users')->whereRaw("LOWER(email)='my.opprt@yandex.ru'")->select('id','email','updated_at')->get();
 ```
-Сотрудники (группа)
-├── Сотрудники   ← /employees
-├── Пользователи ← /users   ← дубль + HRD сюда нельзя
-└── Онбординг   ← /onboarding
-```
 
-`/users` для HRD уже редиректится на `/dashboard` через `RoleAwareLayout` (admin-only). Удаляю строку `{ icon: UserCog, label: t("nav.users"), path: "/users" }` из children HRD. У `company_admin` / `superadmin` пункт остаётся.
+- Нет строки в `password_reset_tokens` → токен уже использован или удалён.
+- `created_at` старше 60 мин → просрочен.
+- В `users.email` другой регистр → broker не находит строку.  
+  
+[gro7659365@gro7659365 backend]$ php artisan tinker
+  Psy Shell v0.12.23 (PHP 8.2.31 — cli) by Justin Hileman
+  New PHP manual is available (latest: 3.1.0). Update with `doc --update-manual`
+  >
+     PARSE ERROR  PHP Parse error: Syntax error, unexpected T_SR in vendor/psy/psysh/src/Exception/ParseErrorException.php on line 44.
+  >
+     PARSE ERROR  PHP Parse error: Syntax error, unexpected T_SR in vendor/psy/psysh/src/Exception/ParseErrorException.php on line 44.
+  &nbsp;
 
-### 2. HRD видит чужих на карте сотрудников (`HRDEmployeeMap`)
-`src/components/HRDEmployeeMap.tsx` дергает `laravelDb.from("profiles").select(...)` без фильтра по компании. На бэке `Profile` уже под `BelongsToCompany`, но запрос идёт через `DbController` — где-то скоуп снимается, иначе утечки бы не было.
+# Шаг 2. Код-правки (делаю независимо от шага 1)
 
-Двойная защита:
+### Backend
 
-**Фронт (видно сразу):**
-- Подтянуть `companyId` через `useUserProfile()` (`profile.company_id`).
-- Добавить `.eq("company_id", companyId)` ко всем запросам в `HRDEmployeeMap.tsx`, тянущим списки: `profiles`, `team_members`, `hr_tasks`, `currency_balances`, `employee_career_assignments`, `employee_rewards`.
-- Все `useQuery` обернуть в `enabled: !!companyId`, чтобы не было «нулевого» прогона без фильтра.
+1. `backend-laravel/config/auth.php` — `passwords.users.expire`: 60 → 180 (3 часа).
+2. `PasswordResetController::reset`:
+  - Различать `Password::INVALID_TOKEN` / `INVALID_USER` / `PASSWORD_RESET_THROTTLED`.
+  - Возвращать `{ error_code, message }` со статусами 410/404/429 вместо общего 422.
+  - `Log::warning('password reset failed', [...])` с email, причиной, IP — чтобы в `storage/logs/laravel.log` была история.
+3. Новая artisan-команда `password:reset-status {email}` — печатает наличие записи, возраст, лимит. Для будущей диагностики без tinker.
 
-**Бэк (закрываю дыру в принципе):**
-- В `backend-laravel/app/Http/Controllers/Api/DbController.php` проверить, что для моделей с `BelongsToCompany` НЕ применяется `withoutGlobalScopes()` для не-superadmin. Если применяется — обернуть в `if ($user->hasRole('superadmin'))`.
-- Тест в `DbControllerTest`: `actingAs(hrd) → GET /api/db/profiles` возвращает только записи своей компании.
+### Frontend
 
-### 3. Лендинг на мобиле
-По скрину видно: герой ок, но 16 модулей превращаются в 4 крошечных столбца с нечитаемым текстом (~10px), категория «01 Развитие и карьера» сжата сбоку и тоже мелкая. На 360-420px такая плотность нечитаема.
+4. `src/pages/ResetPassword.tsx`: на `error_code = token_invalid_or_expired` вместо toast показывать экран:
+  - «Ссылка устарела или уже использована»
+  - Кнопка «Запросить новую ссылку» → `/forgot-password?email=<prefill>`.
+  - Сейчас пользователь видит только тост и зацикливается на той же форме.
+5. `src/i18n/locales/{ru,en}/auth.json`: ключи `reset.expired`, `reset.alreadyUsed`, `reset.requestNew`, `reset.requestNewCta`.
 
-`src/components/landing/ModulesGrouped.tsx`:
-- Mobile (`< md`): сетка тайлов **1 столбец** с горизонтальным layout (иконка слева 40×40, текст справа) — `flex` карточки, `min-h-[64px]`, кегль 14/12. Tablet (`md`): 2 столбца. Desktop (`lg`): 4 столбца. Сейчас mobile `grid-cols-2` + 92px высота — отсюда «спички».
-- Категория-заголовок: на мобиле выводить горизонтальной плашкой над списком (`text-base` + kicker), а не сжатой колонкой 180px. Текущий `md:grid-cols-[180px_1fr]` уже даёт 1 колонку на мобиле, но визуально съезжает — выровнять `mb-2`, убрать `items-center`.
-- Hero: блок метрик `-34% / -12ч / +27%` сейчас в 3 колонки и режется по краям → на мобиле в 1 колонку (`grid-cols-1 sm:grid-cols-3`), цифры крупнее (`text-3xl`).
-- `HeroDashboardMock`: проверить, что не вылезает за `100vw` (max-width: `calc(100vw - 32px)`, `overflow-hidden` на контейнере).
+# Что не меняю
 
-### Не трогаю
-- Структуру меню других ролей.
-- Лендинг кроме модулей/метрик/мок-дашборда.
-- Серверные политики (PeerRecognition/Shop/Tracker) — вне скоупа.
+- `forgot` flow и письмо (`ResetPasswordNotification`) — там лоуэркейс и URL уже корректные.
+- Email-транспорт (Unisender Go) — письмо дошло, проблема не в доставке.
+- Sanctum/sessions — не связаны с broker-токеном.
 
-## Технические детали
+# Деливерабл
 
-Файлы:
-- `src/components/AppSidebar.tsx`
-- `src/components/HRDEmployeeMap.tsx`
-- `src/components/landing/ModulesGrouped.tsx`
-- `src/components/landing/HeroMetricsStrip.tsx`
-- `src/components/landing/HeroDashboardMock.tsx`
-- `backend-laravel/app/Http/Controllers/Api/DbController.php`
-- `backend-laravel/tests/Feature/DbControllerTest.php`
-
-Без миграций и i18n. Проверка: Playwright под HRD `muxtar2005@gmail.com` → `/dashboard` (счётчик карты сотрудников = 13), сайдбар без «Пользователи», лендинг `https://growth-peak.pro` на 390×844.
+После шага 1 будет известна причина. Шаг 2 в любом случае убирает тупик: даже если пользователь снова кликнет старую ссылку, он получит понятный экран с кнопкой «запросить новую», а не красный тост.
