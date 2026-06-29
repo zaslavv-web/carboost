@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
@@ -259,7 +259,22 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 
   const sections = getSections().filter((s) => s.entries.length > 0);
 
-  // initially open groups whose child path is active
+  const sectionIconMap: Record<string, any> = {
+    myWork: Briefcase,
+    communication: MessageCircle,
+    analytics: BarChart3,
+    hr: Users,
+    motivation: Trophy,
+    knowledge: GraduationCap,
+    system: Settings,
+  };
+
+  // Determine which section/group contains the active route
+  const entryContainsActive = (e: NavEntry): boolean =>
+    isGroup(e) ? e.children.some((c) => c.path === location.pathname) : e.path === location.pathname;
+  const sectionContainsActive = (s: NavSection) => s.entries.some(entryContainsActive);
+
+  // Open groups (level-2) whose child is active
   const initialOpen: Record<string, boolean> = {};
   sections.forEach((s) =>
     s.entries.forEach((e) => {
@@ -272,6 +287,62 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
   const toggleGroup = (label: string) =>
     setOpenGroups((p) => ({ ...p, [label]: !p[label] }));
 
+  // Open sections — persisted in localStorage; defaults: only the section with active route is open
+  const SECTION_STORAGE_KEY = "sidebar.openSections.v1";
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? window.localStorage.getItem(SECTION_STORAGE_KEY) : null;
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    const init: Record<string, boolean> = {};
+    sections.forEach((s) => {
+      if (sectionContainsActive(s)) init[s.key] = true;
+    });
+    return init;
+  });
+  useEffect(() => {
+    // Ensure section with active route is open after navigation
+    setOpenSections((prev) => {
+      const next = { ...prev };
+      sections.forEach((s) => {
+        if (sectionContainsActive(s)) next[s.key] = true;
+      });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SECTION_STORAGE_KEY, JSON.stringify(openSections));
+    } catch {}
+  }, [openSections]);
+  const toggleSection = (key: string) =>
+    setOpenSections((p) => ({ ...p, [key]: !p[key] }));
+
+  // Flyout state for collapsed mode
+  const [flyoutKey, setFlyoutKey] = useState<string | null>(null);
+  const [flyoutTop, setFlyoutTop] = useState<number>(0);
+  const flyoutTimer = useRef<number | null>(null);
+  const openFlyout = (key: string, el: HTMLElement) => {
+    if (flyoutTimer.current) {
+      window.clearTimeout(flyoutTimer.current);
+      flyoutTimer.current = null;
+    }
+    const rect = el.getBoundingClientRect();
+    setFlyoutTop(rect.top);
+    setFlyoutKey(key);
+  };
+  const scheduleCloseFlyout = () => {
+    if (flyoutTimer.current) window.clearTimeout(flyoutTimer.current);
+    flyoutTimer.current = window.setTimeout(() => setFlyoutKey(null), 140);
+  };
+  const cancelCloseFlyout = () => {
+    if (flyoutTimer.current) {
+      window.clearTimeout(flyoutTimer.current);
+      flyoutTimer.current = null;
+    }
+  };
+
   const roleLabels: Record<string, string> = {
     employee: t("roles.employee"),
     manager: t("roles.manager"),
@@ -280,40 +351,41 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     superadmin: t("roles.superadmin"),
   };
 
-  const renderEntry = (entry: NavEntry, sectionKey: string) => {
+  const renderEntry = (entry: NavEntry, sectionKey: string, forceExpanded = false) => {
+    const isCompact = collapsed && !forceExpanded;
     if (isGroup(entry)) {
       const hasActive = entry.children.some((c) => c.path === location.pathname);
-      const isOpen = collapsed ? false : (hasActive || !!openGroups[entry.label]);
+      const isOpen = isCompact ? false : (hasActive || !!openGroups[entry.label]);
       return (
         <div key={`group:${sectionKey}:${entry.label}`}>
           <button
             onClick={() => {
-              if (collapsed) {
+              if (isCompact) {
                 navigate(entry.children[0].path);
                 if (isMobile) onHide?.();
               } else {
                 toggleGroup(entry.label);
               }
             }}
-            title={collapsed ? entry.label : undefined}
+            title={isCompact ? entry.label : undefined}
             className={`relative w-full flex items-center gap-3 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-colors ${
               hasActive
                 ? "text-sidebar-primary font-semibold bg-sidebar-primary/10"
                 : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            } ${collapsed ? "justify-center" : ""}`}
+            } ${isCompact ? "justify-center" : ""}`}
           >
-            {hasActive && !collapsed && (
+            {hasActive && !isCompact && (
               <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-sidebar-primary" />
             )}
             <entry.icon className="w-[18px] h-[18px] flex-shrink-0" />
-            {!collapsed && (
+            {!isCompact && (
               <>
                 <span className="flex-1 text-left">{entry.label}</span>
                 <ChevronDown className={`w-3 h-3 opacity-60 transition-transform ${isOpen ? "rotate-180" : ""}`} />
               </>
             )}
           </button>
-          {!collapsed && isOpen && (
+          {!isCompact && isOpen && (
             <div className="mt-0.5 ml-[26px] space-y-0.5">
               {entry.children.map((child) => {
                 const childActive = location.pathname === child.path;
@@ -350,26 +422,27 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           navigate(item.path);
           if (isMobile) onHide?.();
         }}
-        title={collapsed ? item.label : undefined}
+        title={isCompact ? item.label : undefined}
         className={`relative w-full flex items-center gap-3 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-colors ${
           isActive
             ? "text-sidebar-primary font-semibold bg-sidebar-primary/10"
             : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        } ${collapsed ? "justify-center" : ""}`}
+        } ${isCompact ? "justify-center" : ""}`}
       >
-        {isActive && !collapsed && (
+        {isActive && !isCompact && (
           <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-sidebar-primary" />
         )}
         <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
-        {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
+        {!isCompact && <span className="flex-1 text-left">{item.label}</span>}
         {item.badge ? (
-          <span className={`${collapsed ? "absolute top-1 right-1" : ""} min-w-[18px] h-[18px] px-1 rounded-full bg-destructive/90 text-destructive-foreground text-[10px] font-semibold flex items-center justify-center`}>
+          <span className={`${isCompact ? "absolute top-1 right-1" : ""} min-w-[18px] h-[18px] px-1 rounded-full bg-destructive/90 text-destructive-foreground text-[10px] font-semibold flex items-center justify-center`}>
             {item.badge}
           </span>
         ) : null}
       </button>
     );
   };
+
 
   return (
     <aside
@@ -405,22 +478,83 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       )}
 
       {/* Nav */}
-      <nav className="flex-1 py-2 px-2 overflow-y-auto">
-        {sections.map((section, idx) => (
-          <div key={section.key} className={idx === 0 ? "" : "mt-1"}>
-            {collapsed ? (
-              idx > 0 && <div className="mx-2 my-2 h-px bg-sidebar-border/60" />
-            ) : (
-              <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/40">
-                {section.label}
+      <nav className="flex-1 py-2 px-2 overflow-y-auto overflow-x-visible">
+        {sections.map((section) => {
+          const SectionIcon = sectionIconMap[section.key] || Settings;
+          const hasActive = sectionContainsActive(section);
+          const isOpen = !collapsed && (!!openSections[section.key] || hasActive);
+
+          if (collapsed && !isMobile) {
+            const isFlyoutOpen = flyoutKey === section.key;
+            return (
+              <div
+                key={section.key}
+                className="relative my-0.5"
+                onMouseEnter={(e) => openFlyout(section.key, e.currentTarget)}
+                onMouseLeave={scheduleCloseFlyout}
+              >
+                <button
+                  className={`relative w-full flex items-center justify-center py-2 rounded-md transition-colors ${
+                    hasActive
+                      ? "text-sidebar-primary bg-sidebar-primary/10"
+                      : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  }`}
+                  title={section.label}
+                  aria-label={section.label}
+                >
+                  {hasActive && (
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-sidebar-primary" />
+                  )}
+                  <SectionIcon className="w-[18px] h-[18px]" />
+                </button>
+                {isFlyoutOpen && (
+                  <div
+                    className="fixed left-[64px] z-[60] w-[252px] pl-2"
+                    style={{ top: Math.max(8, flyoutTop) }}
+                    onMouseEnter={cancelCloseFlyout}
+                    onMouseLeave={scheduleCloseFlyout}
+                  >
+                    <div className="rounded-lg border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl p-2">
+                      <div className="px-2 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45 flex items-center gap-2">
+                        <SectionIcon className="w-3.5 h-3.5" />
+                        <span>{section.label}</span>
+                      </div>
+                      <div className="space-y-0.5">
+                        {section.entries.map((e) => renderEntry(e, section.key, true))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-            <div className="space-y-0.5">
-              {section.entries.map((e) => renderEntry(e, section.key))}
+            );
+          }
+
+          return (
+            <div key={section.key} className="mt-0.5">
+              <button
+                onClick={() => toggleSection(section.key)}
+                className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md transition-colors ${
+                  hasActive
+                    ? "text-sidebar-primary"
+                    : "text-sidebar-foreground/55 hover:text-sidebar-foreground"
+                }`}
+              >
+                <SectionIcon className="w-3.5 h-3.5 opacity-70" />
+                <span className="flex-1 text-left text-[10px] font-semibold uppercase tracking-[0.14em]">
+                  {section.label}
+                </span>
+                <ChevronDown className={`w-3 h-3 opacity-60 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+              </button>
+              {isOpen && (
+                <div className="space-y-0.5 mt-0.5">
+                  {section.entries.map((e) => renderEntry(e, section.key))}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
+
 
       {/* Bottom: sign out */}
       <div className="p-2 border-t border-sidebar-border">
