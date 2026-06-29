@@ -26,10 +26,16 @@ export interface LaravelLoginResponse {
 }
 
 function unwrap<T>({ data, error }: LaravelInvokeResult<T>): T {
-  if (error) throw new Error(error.message);
+  if (error) {
+    const err: Error & { code?: string; status?: number } = new Error(error.message);
+    if (error.code) err.code = error.code;
+    if (error.status) err.status = error.status;
+    throw err;
+  }
   if (data == null) throw new Error("Пустой ответ сервера");
   return data;
 }
+
 
 export const laravelAuthApi = {
   async login(email: string, password: string): Promise<LaravelUser> {

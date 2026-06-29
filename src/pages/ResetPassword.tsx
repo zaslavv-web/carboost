@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { toast } from "sonner";
@@ -12,6 +12,8 @@ const ResetPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [expiredError, setExpiredError] = useState<string | null>(null);
+
   const [params] = useSearchParams();
   const navigate = useNavigate();
 
