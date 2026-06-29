@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Calendar, User, Hash, FolderKanban } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
-import { TaskDetailDialog } from "@/components/tracker/TaskDetailDialog";
+
 
 /* ============ Унифицированное описание колонки ============ */
 type ColumnDef = {
@@ -157,7 +157,7 @@ function buildWorkflowColumns(statuses: TrackerWorkflowStatus[]): ColumnDef[] {
 
 /* ============ Доска ============ */
 const TrackerBoard = () => {
-  const { projectId } = useTrackerProject();
+  const { projectId, openInspector } = useTrackerProject();
   const { data: project } = useProject(projectId ?? undefined);
   const { data: workflowStatuses = [] } = useWorkflowStatuses(project?.workflow_id ?? null);
   const { data: tasks = [], isLoading } = useBoardTasks(projectId);
@@ -185,7 +185,6 @@ const TrackerBoard = () => {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const [activeTask, setActiveTask] = useState<TrackerTask | null>(null);
-  const [openTask, setOpenTask] = useState<TrackerTask | null>(null);
 
   const onDragStart = (e: DragStartEvent) => {
     setActiveTask(tasks.find((x) => x.id === e.active.id) ?? null);
@@ -285,7 +284,7 @@ const TrackerBoard = () => {
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-3 -mx-2 px-2">
           {columnDefs.map((c) => (
-            <Column key={c.id} column={c} tasks={columns[c.id] ?? []} nameMap={nameMap} onQuickAdd={handleQuickAdd} onOpenTask={setOpenTask} />
+            <Column key={c.id} column={c} tasks={columns[c.id] ?? []} nameMap={nameMap} onQuickAdd={handleQuickAdd} onOpenTask={openInspector} />
           ))}
         </div>
         <DragOverlay>
@@ -298,7 +297,6 @@ const TrackerBoard = () => {
           )}
         </DragOverlay>
       </DndContext>
-      <TaskDetailDialog task={openTask} open={!!openTask} onOpenChange={(v) => !v && setOpenTask(null)} />
     </div>
   );
 };
