@@ -21,7 +21,9 @@ export const MODULE_ICON_STYLES = `
 @keyframes mi-float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
 @keyframes mi-arc { 0% { transform: translate(-12px,10px) rotate(-25deg); opacity:0 } 60% { opacity: 1 } 100% { transform: translate(0,0) rotate(0); opacity: 1 } }
 
-.module-icon { width: 44px; height: 44px; display:block; color: hsl(var(--primary)); }
+.module-icon { width: 36px; height: 36px; display:block; color: hsl(var(--primary)); }
+@media (min-width: 768px) { .module-icon { width: 44px; height: 44px; } }
+
 .module-icon .bg { fill: hsl(var(--primary) / 0.08); }
 .module-icon .accent { fill: hsl(var(--primary)); }
 .module-icon .ink { stroke: hsl(var(--primary)); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
