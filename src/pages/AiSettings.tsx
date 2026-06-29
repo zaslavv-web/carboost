@@ -273,7 +273,7 @@ export default function AiSettingsPage() {
             </>
           )}
 
-          {provider === "disabled" && (
+          {advancedMode && provider === "disabled" && (
             <div className="space-y-4">
               <div>
                 <Label>Сообщение пользователям</Label>
