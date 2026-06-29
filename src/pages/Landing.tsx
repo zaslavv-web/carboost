@@ -63,12 +63,12 @@ const Landing = () => {
               <Kicker>{t("hero2.kicker")}</Kicker>
               <h1
                 style={serif}
-                className="mt-5 text-[clamp(2.5rem,6.2vw,5.5rem)] leading-[0.98] font-normal tracking-tight"
+                className="mt-4 text-[clamp(2rem,4.4vw,4rem)] leading-[1.02] font-normal tracking-tight"
               >
                 <span className="block">{t("hero2.title1")}</span>
                 <span className="block text-primary italic">{t("hero2.title2")}</span>
               </h1>
-              <p className="mt-5 text-base md:text-lg text-muted-foreground max-w-xl leading-relaxed">
+              <p className="mt-4 text-sm md:text-base text-muted-foreground max-w-xl leading-relaxed">
                 {t("hero2.subtitle")}
               </p>
 
