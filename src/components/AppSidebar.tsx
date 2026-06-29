@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
@@ -259,7 +259,22 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 
   const sections = getSections().filter((s) => s.entries.length > 0);
 
-  // initially open groups whose child path is active
+  const sectionIconMap: Record<string, any> = {
+    myWork: Briefcase,
+    communication: MessageCircle,
+    analytics: BarChart3,
+    hr: Users,
+    motivation: Trophy,
+    knowledge: GraduationCap,
+    system: Settings,
+  };
+
+  // Determine which section/group contains the active route
+  const entryContainsActive = (e: NavEntry): boolean =>
+    isGroup(e) ? e.children.some((c) => c.path === location.pathname) : e.path === location.pathname;
+  const sectionContainsActive = (s: NavSection) => s.entries.some(entryContainsActive);
+
+  // Open groups (level-2) whose child is active
   const initialOpen: Record<string, boolean> = {};
   sections.forEach((s) =>
     s.entries.forEach((e) => {
@@ -271,6 +286,62 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initialOpen);
   const toggleGroup = (label: string) =>
     setOpenGroups((p) => ({ ...p, [label]: !p[label] }));
+
+  // Open sections — persisted in localStorage; defaults: only the section with active route is open
+  const SECTION_STORAGE_KEY = "sidebar.openSections.v1";
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? window.localStorage.getItem(SECTION_STORAGE_KEY) : null;
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    const init: Record<string, boolean> = {};
+    sections.forEach((s) => {
+      if (sectionContainsActive(s)) init[s.key] = true;
+    });
+    return init;
+  });
+  useEffect(() => {
+    // Ensure section with active route is open after navigation
+    setOpenSections((prev) => {
+      const next = { ...prev };
+      sections.forEach((s) => {
+        if (sectionContainsActive(s)) next[s.key] = true;
+      });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SECTION_STORAGE_KEY, JSON.stringify(openSections));
+    } catch {}
+  }, [openSections]);
+  const toggleSection = (key: string) =>
+    setOpenSections((p) => ({ ...p, [key]: !p[key] }));
+
+  // Flyout state for collapsed mode
+  const [flyoutKey, setFlyoutKey] = useState<string | null>(null);
+  const [flyoutTop, setFlyoutTop] = useState<number>(0);
+  const flyoutTimer = useRef<number | null>(null);
+  const openFlyout = (key: string, el: HTMLElement) => {
+    if (flyoutTimer.current) {
+      window.clearTimeout(flyoutTimer.current);
+      flyoutTimer.current = null;
+    }
+    const rect = el.getBoundingClientRect();
+    setFlyoutTop(rect.top);
+    setFlyoutKey(key);
+  };
+  const scheduleCloseFlyout = () => {
+    if (flyoutTimer.current) window.clearTimeout(flyoutTimer.current);
+    flyoutTimer.current = window.setTimeout(() => setFlyoutKey(null), 140);
+  };
+  const cancelCloseFlyout = () => {
+    if (flyoutTimer.current) {
+      window.clearTimeout(flyoutTimer.current);
+      flyoutTimer.current = null;
+    }
+  };
 
   const roleLabels: Record<string, string> = {
     employee: t("roles.employee"),
