@@ -84,6 +84,21 @@ class DbController extends Controller
         'tracker_sprints'                => \App\Models\TrackerSprint::class,
         'tracker_comments'               => \App\Models\TrackerComment::class,
         'tracker_attachments'            => \App\Models\TrackerAttachment::class,
+
+        // Gamification
+        'gamification_levels'         => \App\Models\GamificationLevel::class,
+        // Публичное "view" наград — алиас на ту же таблицу (без серверных полей)
+        'gamification_rewards_public' => \App\Models\GamificationRewardType::class,
+
+        // Peer recognition
+        'peer_recognitions'           => \App\Models\PeerRecognition::class,
+        'peer_recognition_reactions'  => \App\Models\PeerRecognitionReaction::class,
+
+        // Shop
+        'shop_products'    => \App\Models\ShopProduct::class,
+        'shop_orders'      => \App\Models\ShopOrder::class,
+        'shop_order_items' => \App\Models\ShopOrderItem::class,
+        'shop_cart_items'  => \App\Models\ShopCartItem::class,
     ];
 
 
@@ -99,39 +114,56 @@ class DbController extends Controller
         $model = self::resolve($table);
         $this->authorizeAny('viewAny', $model);
 
-        $query = $model::query();
-        $this->applyFilters($query, $request);
-        $this->applySelect($query, $request);
-        $this->applyOrder($query, $request);
+        try {
+            $query = $model::query();
+            $this->applyFilters($query, $request);
+            $this->applySelect($query, $request);
+            $this->applyOrder($query, $request);
 
-        // count + head (legacy: .select('id', { count: 'exact', head: true }))
-        $countMode = $request->query('count');
-        $head = $request->boolean('head');
-        $count = null;
-        if ($countMode) {
-            $count = (clone $query)->toBase()->getCountForPagination();
-        }
-        if ($head) {
-            return response()->json(['data' => [], 'count' => $count]);
-        }
-
-        if ($request->filled('range')) {
-            [$from, $to] = array_map('intval', explode('-', $request->query('range')));
-            $query->skip($from)->take(max(1, $to - $from + 1));
-        } elseif ($request->filled('limit')) {
-            $query->take(min(1000, (int) $request->query('limit')));
-        }
-
-        if ($request->boolean('single') || $request->boolean('maybeSingle')) {
-            $row = $query->first();
-            if (! $row && $request->boolean('single')) {
-                return response()->json(['error' => 'Запись не найдена'], 404);
+            // count + head (legacy: .select('id', { count: 'exact', head: true }))
+            $countMode = $request->query('count');
+            $head = $request->boolean('head');
+            $count = null;
+            if ($countMode) {
+                $count = (clone $query)->toBase()->getCountForPagination();
             }
-            return response()->json(['data' => $row, 'count' => $count]);
-        }
+            if ($head) {
+                return response()->json(['data' => [], 'count' => $count]);
+            }
 
-        return response()->json(['data' => $query->get(), 'count' => $count]);
+            if ($request->filled('range')) {
+                [$from, $to] = array_map('intval', explode('-', $request->query('range')));
+                $query->skip($from)->take(max(1, $to - $from + 1));
+            } elseif ($request->filled('limit')) {
+                $query->take(min(1000, (int) $request->query('limit')));
+            }
+
+            if ($request->boolean('single') || $request->boolean('maybeSingle')) {
+                $row = $query->first();
+                if (! $row && $request->boolean('single')) {
+                    return response()->json(['error' => 'Запись не найдена'], 404);
+                }
+                return response()->json(['data' => $row, 'count' => $count]);
+            }
+
+            return response()->json(['data' => $query->get(), 'count' => $count]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Постгрес может бросить, например, на невалидном UUID в eq.<uuid_col>=NaN.
+            // Возвращаем структурированный 400 вместо общего 500 — фронт у нас в таких
+            // случаях ожидает graceful fallback (`if (error) return null;`).
+            \Illuminate\Support\Facades\Log::warning('DbController query failed', [
+                'table' => $table,
+                'query' => $request->getQueryString(),
+                'sql'   => $e->getMessage(),
+            ]);
+            return response()->json([
+                'data'  => null,
+                'error' => 'Неверные параметры запроса к таблице',
+                'code'  => 'invalid_query',
+            ], 400);
+        }
     }
+
 
     public function store(Request $request, string $table)
     {

@@ -185,7 +185,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           },
           {
             icon: Star,
-            label: t("performance:title", { defaultValue: "Performance" }),
+            label: t("nav.performance", { defaultValue: "Performance" }),
             children: [
               { icon: Star, label: t("performance:title", { defaultValue: "Performance Reviews" }), path: "/performance" },
               { icon: TimerReset, label: t("performance:probation.title", { defaultValue: "Испытательный срок" }), path: "/probation" },

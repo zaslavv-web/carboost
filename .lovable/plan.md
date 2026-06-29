@@ -1,55 +1,47 @@
-## Цель
+## План аудита под HRD-аккаунтом
 
-Сделать так, чтобы Lovable preview (`*.lovableproject.com` / `id-preview--*.lovable.app`) логинился и работал с реальным Laravel-API на `https://growth-peak.pro`.
+**Креды получены:** `muxtar2005@gmail.com` / `I14081983u`
 
-Сейчас фронт в preview бьёт в `/api/*` относительно `lovableproject.com`, где нет Laravel → Lovable отдаёт HTML 404 → клиент пишет «Backend недоступен: сервер вернул HTML вместо JSON».
+### Шаг 0. Подготовка доступа
 
-## Что сделаю
+- Деплоить ничего не нужно для самого аудита — захожу напрямую на прод `https://growth-peak.pro` через Playwright. CORS не нужен, т.к. фронт и API на одном домене.
+- Lovable-сессия инжектится только для preview-домена, поэтому войду явно через форму логина теми кредами, что вы дали. Креды использую один раз и не логирую (по правилам секретов).
 
-### 1. Frontend: `.env` для preview
+### Шаг 1. Прогон проблемных мест из вашего прошлого списка
 
-Добавлю в корневой `.env` (и `.env.example`):
+Под HRD пройду по маршрутам и сниму скриншоты + console/network:
 
-```
-VITE_LARAVEL_API_URL=https://growth-peak.pro/api
-```
+1. `/career-tracks` и `/career-track/:id` — «страница перестала отображаться».
+2. `/risk-analytics` — дашборд с хайлайтами «не кликабелен», проверю кликабельность KPI-карточек и переход к фильтрованному списку сотрудников.
+3. `/dashboard` vs `/employees` — убедиться, что после редиректа HRD не видит пользователей чужих компаний (multi-tenant утечка).
+4. `/performance` — «куски кода» вместо лейблов (после flatten `performance.json` проверить остатки).
+5. `/tracker/*` — Board / Backlog / Goals / 1:1s под HRD: что доступно, что падает.
+6. Mobile viewport (375×812): белый экран на входе + ключевые страницы.
 
-`src/integrations/laravel/client.ts` и `auth.ts` уже читают `VITE_LARAVEL_API_URL` — переключение прозрачное.
+### Шаг 2. Фиксация багов
 
-После этого все вызовы из preview (`/auth/login`, `/auth/me`, `/rpc/*`, `/geo`, `/analytics/ingest`, OAuth redirect на Google/Yandex) пойдут на прод.
+По каждой найденной проблеме — `route → симптом → причина → файл/правка`. Скриншот «до». Без починки на этом шаге.
 
-### 2. Backend (на VPS, инструкция, не код)
+### Шаг 3. Согласование
 
-Чтобы браузер не получил CORS-ошибку с preview-домена, на проде надо разрешить два origin:
+Присылаю вам единый список багов с приоритетами (P0 — белый экран/утечка данных; P1 — нерабочие экраны; P2 — UI). Вы говорите «фикси всё» или вычёркиваете лишнее.
 
-- `https://id-preview--ab323b5c-25ac-417c-ba3d-2939937a2a0d.lovable.app`
-- `https://ab323b5c-25ac-417c-ba3d-2939937a2a0d.lovableproject.com`
+### Шаг 4. Починка и верификация
 
-Открою `backend-laravel/config/cors.php` (если нет — создам) и добавлю эти origin в `allowed_origins` рядом с боевым. Для Sanctum-токенов (Bearer в localStorage) cookies не нужны, `supports_credentials` оставляем как есть.
+Правлю по согласованному списку, повторяю прогон Playwright под тем же HRD, прикладываю «после».
 
-Это правка кода в репо → задеплоится автоматически через `npm-publish.yml`.
+### Шаг 5. CORS на прод (отдельно, опционально)
 
-### 3. Google/Yandex OAuth
+Конфиг `backend-laravel/config/cors.php` уже в репо, но не задеплоен. Если хотите дебажить из Lovable preview в будущем — задеплоим отдельно; для текущего аудита это не блокер.
 
-В Google Cloud Console (и Yandex ID) нужно добавить authorized redirect URI:
+---
 
-- `https://growth-peak.pro/api/auth/google/callback` (уже должен быть)
-- НО return_to из preview будет `https://...lovableproject.com/...` — это передаётся как query-параметр, провайдеру не важно. Достаточно того, что callback на growth-peak.pro и `APP_FRONTEND_URL` поддерживает редирект обратно.
+### Что мне нужно подтвердить перед стартом
 
-В `GoogleAuthController` проверю, что `return_to` whitelist пропускает `*.lovableproject.com` / `*.lovable.app` — иначе после Google вас выкинет на прод-фронт вместо preview. При необходимости расширю whitelist.
-
-## Файлы
-
-- `.env` — добавить `VITE_LARAVEL_API_URL=https://growth-peak.pro/api`
-- `.env.example` — то же, для документации
-- `backend-laravel/config/cors.php` — разрешить preview-домены
-- `backend-laravel/app/Http/Controllers/Api/GoogleAuthController.php` (и Yandex) — whitelist preview-доменов в return_to (если есть проверка)
-
-## Проверка
-
-1. Перезагрузить preview → `/api/auth/me` уходит на `https://growth-peak.pro/api/auth/me` (видно в Network)
-2. Логин под `zaslavv@gmail.com` → 200 + токен
-3. Если CORS-ошибка — после деплоя бэка повторить  
-  
-а не проще дать тебе учетку чтобы ты сам залогинился на боевой сервер?
+1. **Аудит сразу на проде под живым HRD-аккаунтом.** Я буду читать реальные данные его компании (имена сотрудников, риски, 1:1). Ничего не меняю, только смотрю. Окей?  
+ok
+2. **Только роль HRD,** или после неё нужен ещё прогон под Manager / Employee / Admin (нужны их креды)?  
+второе - можешь сам создать пользователей с меткой тест - заодно протестируешь функционал
+3. **Порядок:** сначала прислать список багов на согласование (Шаг 3), или сразу чинить всё, что найду?  
+второе
   &nbsp;
