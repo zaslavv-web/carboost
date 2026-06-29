@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  rail: ReactNode;
+  rail?: ReactNode;
   inspector?: ReactNode;
   statusBar?: ReactNode;
   toolbar?: ReactNode;
@@ -12,9 +12,8 @@ interface Props {
 
 /**
  * App-shell for Figma/Photoshop-style modules:
- *   [rail | canvas-toolbar over canvas | inspector] + status bar
- * Height fills the parent (`AppLayout`'s <main>) without page scroll —
- * the canvas itself owns scrolling for its content.
+ *   [rail? | toolbar over canvas | inspector] + status bar
+ * `rail` is optional — omit it to use a top toolbar instead of a side rail.
  */
 const WorkspaceShell = ({ rail, inspector, statusBar, toolbar, children, className }: Props) => (
   <div
@@ -36,3 +35,4 @@ const WorkspaceShell = ({ rail, inspector, statusBar, toolbar, children, classNa
 );
 
 export default WorkspaceShell;
+
