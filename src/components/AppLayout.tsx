@@ -41,12 +41,6 @@ const AppLayout = () => {
     if (isMobile) setHidden(true);
   }, [location.pathname, isMobile]);
 
-  // Workspace-shell routes (Tracker) have their own ContextRail — auto-hide the global
-  // AppSidebar to avoid duplicate navigation columns. User can reopen it via the header.
-  const isWorkspaceRoute = location.pathname.startsWith("/tracker");
-  useEffect(() => {
-    if (isWorkspaceRoute) setHidden(true);
-  }, [isWorkspaceRoute]);
 
   // Lock body scroll while sidebar is open over content on mobile.
   useEffect(() => {
