@@ -1,47 +1,45 @@
 {
-  "performance": {
-    "title": "Performance Reviews",
-    "subtitle": "Циклы оценки, самооценка, оценка руководителя и итоги",
-    "tabs": { "mine": "Мои оценки", "team": "Моя команда", "cycles": "Циклы" },
-    "status": {
-      "draft": "Черновик",
-      "self_done": "Самооценка готова",
-      "manager_done": "Оценка руководителя",
-      "finalized": "Закрыта",
-      "open": "Открыт",
-      "closed": "Закрыт"
-    },
-    "actions": {
-      "open": "Открыть цикл",
-      "close": "Закрыть цикл",
-      "createCycle": "Новый цикл",
-      "submitSelf": "Отправить самооценку",
-      "submitManager": "Отправить оценку",
-      "finalize": "Финализировать",
-      "save": "Сохранить",
-      "cancel": "Отмена"
-    },
-    "fields": {
-      "cycleTitle": "Название цикла",
-      "periodStart": "Начало периода",
-      "periodEnd": "Конец периода",
-      "deadline": "Дедлайн",
-      "weightSelf": "Вес: самооценка",
-      "weightManager": "Вес: руководитель",
-      "weightPeer": "Вес: коллеги",
-      "overallScore": "Общая оценка (0-5)",
-      "strengths": "Сильные стороны",
-      "improvements": "Зоны развития",
-      "comments": "Комментарии",
-      "summary": "Резюме"
-    },
-    "empty": { "cycles": "Циклы оценки ещё не созданы", "reviews": "Оценок пока нет" },
-    "messages": {
-      "feedbackSaved": "Фидбек сохранён",
-      "cycleOpened": "Цикл открыт — оценки созданы для сотрудников",
-      "cycleClosed": "Цикл закрыт",
-      "finalized": "Performance review закрыт"
-    }
+  "title": "Performance Reviews",
+  "subtitle": "Циклы оценки, самооценка, оценка руководителя и итоги",
+  "tabs": { "mine": "Мои оценки", "team": "Моя команда", "cycles": "Циклы" },
+  "status": {
+    "draft": "Черновик",
+    "self_done": "Самооценка готова",
+    "manager_done": "Оценка руководителя",
+    "finalized": "Закрыта",
+    "open": "Открыт",
+    "closed": "Закрыт"
+  },
+  "actions": {
+    "open": "Открыть цикл",
+    "close": "Закрыть цикл",
+    "createCycle": "Новый цикл",
+    "submitSelf": "Отправить самооценку",
+    "submitManager": "Отправить оценку",
+    "finalize": "Финализировать",
+    "save": "Сохранить",
+    "cancel": "Отмена"
+  },
+  "fields": {
+    "cycleTitle": "Название цикла",
+    "periodStart": "Начало периода",
+    "periodEnd": "Конец периода",
+    "deadline": "Дедлайн",
+    "weightSelf": "Вес: самооценка",
+    "weightManager": "Вес: руководитель",
+    "weightPeer": "Вес: коллеги",
+    "overallScore": "Общая оценка (0-5)",
+    "strengths": "Сильные стороны",
+    "improvements": "Зоны развития",
+    "comments": "Комментарии",
+    "summary": "Резюме"
+  },
+  "empty": { "cycles": "Циклы оценки ещё не созданы", "reviews": "Оценок пока нет" },
+  "messages": {
+    "feedbackSaved": "Фидбек сохранён",
+    "cycleOpened": "Цикл открыт — оценки созданы для сотрудников",
+    "cycleClosed": "Цикл закрыт",
+    "finalized": "Performance review закрыт"
   },
   "probation": {
     "title": "Испытательный срок",

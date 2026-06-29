@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
 class Profile extends Model
 {
-    use HasUuids;
+    use HasUuids, BelongsToCompany;
 
     protected $table = 'profiles';
     public $timestamps = true;
