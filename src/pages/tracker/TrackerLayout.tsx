@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Inbox, Columns3, Layers, FolderKanban, Workflow, Target, ListChecks, CalendarClock,
-  FolderOpen, Check, Plus, Command,
+  FolderOpen, Check, Plus, Command, ChevronDown,
 } from "lucide-react";
 import { TrackerProjectProvider, useTrackerProject } from "@/contexts/TrackerProjectContext";
 import { useBoardTasks, useProjects } from "@/hooks/tracker";
@@ -44,17 +44,29 @@ const ProjectPicker = () => {
   const label = current ? current.key : "INBOX";
   const name = current ? current.name : "Inbox (без проекта)";
 
+  const TriggerIcon = current ? FolderOpen : Inbox;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="h-8 inline-flex items-center gap-2 rounded-md bg-primary/10 text-primary px-2 hover:bg-primary/20 transition-colors"
+          className={cn(
+            "h-8 inline-flex items-center gap-1.5 rounded-md px-2.5 text-[12.5px] whitespace-nowrap transition-colors",
+            open
+              ? "bg-secondary text-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+          )}
         >
-          <span className="font-mono text-[10px] font-bold">{label.slice(0, 6)}</span>
-          <span className="text-[12px] text-foreground/80 max-w-[180px] truncate hidden sm:inline">{name}</span>
+          <TriggerIcon className="w-3.5 h-3.5" />
+          {current && (
+            <span className="font-mono text-[10.5px] text-muted-foreground/80">{current.key}</span>
+          )}
+          <span className="max-w-[160px] truncate">{name}</span>
+          <ChevronDown className="w-3 h-3 opacity-60" />
         </button>
       </PopoverTrigger>
+
       <PopoverContent side="bottom" align="start" className="p-0 w-72">
         <CmdRoot>
           <CommandInput placeholder="Найти проект…" />
