@@ -67,6 +67,12 @@ export default function AiSettingsPage() {
   const [form, setForm] = useState<AiSettings | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [testResult, setTestResult] = useState<null | { ok: boolean; message: string; latency?: number }>(null);
+  const [advancedMode, setAdvancedMode] = useState<boolean>(() => {
+    try { return localStorage.getItem("ai_advanced_mode") === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("ai_advanced_mode", advancedMode ? "1" : "0"); } catch {}
+  }, [advancedMode]);
 
   useEffect(() => {
     if (loaded) setForm(loaded);
@@ -137,17 +143,40 @@ export default function AiSettingsPage() {
         <div>
           <h1 className="text-2xl font-bold">AI-провайдер</h1>
           <p className="text-sm text-muted-foreground">
-            Настройка нейросети для работы в закрытом контуре или с внешним провайдером.
+            По умолчанию используется протестированная нами модель. Менять провайдера и ключ нужно только для закрытого контура.
           </p>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Провайдер</CardTitle>
-          <CardDescription>Выберите, какая модель будет обслуживать AI-функции продукта.</CardDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle>Конфигурация</CardTitle>
+              <CardDescription>
+                {advancedMode
+                  ? "Расширенный режим: вы видите все параметры провайдера."
+                  : "Базовый режим: всё работает на наших настройках. Включите расширенный режим, чтобы подключить свою модель."}
+              </CardDescription>
+            </div>
+            <label className="flex items-center gap-2 text-sm shrink-0">
+              <Switch checked={advancedMode} onCheckedChange={setAdvancedMode} />
+              <span className="text-muted-foreground">Расширенный режим</span>
+            </label>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!advancedMode && (
+            <Alert>
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>Всё уже настроено</AlertTitle>
+              <AlertDescription>
+                AI-функции работают с моделью по умолчанию. Если нужно подключить YandexGPT, GigaChat или локальную модель — включите расширенный режим.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {advancedMode && (
           <div>
             <Label>Провайдер</Label>
             <Select value={provider} onValueChange={(v) => {
@@ -164,8 +193,9 @@ export default function AiSettingsPage() {
             </Select>
             <p className="text-xs text-muted-foreground mt-2">{preset.description}</p>
           </div>
+          )}
 
-          {provider !== "disabled" && (
+          {advancedMode && provider !== "disabled" && (
             <>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
@@ -243,7 +273,7 @@ export default function AiSettingsPage() {
             </>
           )}
 
-          {provider === "disabled" && (
+          {advancedMode && provider === "disabled" && (
             <div className="space-y-4">
               <div>
                 <Label>Сообщение пользователям</Label>

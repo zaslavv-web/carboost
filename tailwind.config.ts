@@ -14,8 +14,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Golos Text', 'Inter', 'system-ui', 'sans-serif'],
-        display: ['Golos Text', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'Golos Text', 'system-ui', 'sans-serif'],
+        display: ['Inter', 'Golos Text', 'system-ui', 'sans-serif'],
+        // Серифа для крупных editorial-заголовков (premium feel).
+        serif: ['"Instrument Serif"', 'Georgia', 'serif'],
       },
       colors: {
         border: "hsl(var(--border))",

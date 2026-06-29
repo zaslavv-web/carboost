@@ -17,6 +17,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@fontsource/epilogue": "^5.2.8",
     "@fontsource/golos-text": "^5.2.8",
+    "@fontsource/instrument-serif": "^5.2.8",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/urbanist": "^5.2.7",
     "@hookform/resolvers": "^3.10.0",
