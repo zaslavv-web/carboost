@@ -3,12 +3,10 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import AppSidebar from "./AppSidebar";
 import ImpersonationBanner from "./ImpersonationBanner";
-import { Bell, Search, PanelLeftOpen } from "lucide-react";
+import { Bell, PanelLeftOpen } from "lucide-react";
 import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ThemeToggle from "./ThemeToggle";
-import LanguageSwitcher from "./LanguageSwitcher";
-import ChatLauncher from "./chat/ChatLauncher";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 
 const SIDEBAR_FULL = 240;
@@ -110,8 +108,10 @@ const AppLayout = () => {
 
       <div className="transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
         <ImpersonationBanner />
-        <header className="sticky top-0 z-40 h-14 md:h-16 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-3 md:px-8">
-          <div className="flex items-center gap-2 md:gap-3">
+        {/* Минимальная шапка: только триггер сайдбара (если скрыт), тема и уведомления.
+            Поиск/язык/профиль перенесены в сайдбар. */}
+        <header className="sticky top-0 z-40 h-12 bg-background/70 backdrop-blur-md border-b border-border/60 flex items-center justify-between px-3 md:px-6">
+          <div className="flex items-center gap-2">
             {hidden && (
               <button
                 onClick={() => setHidden(false)}
@@ -121,40 +121,25 @@ const AppLayout = () => {
                 <PanelLeftOpen className="w-5 h-5 text-muted-foreground" />
               </button>
             )}
-            <div className="relative hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder={t("actions.search")}
-                className="pl-10 pr-4 py-2 w-48 md:w-72 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-              />
-            </div>
           </div>
-          <div className="flex items-center gap-1 md:gap-3">
-            <LanguageSwitcher />
+          <div className="flex items-center gap-1">
             <ThemeToggle />
-            <button onClick={() => navigate("/notifications")} className="relative p-2 rounded-lg hover:bg-secondary transition-colors" aria-label={t("actions.notifications", "Уведомления")}>
+            <button
+              onClick={() => navigate("/notifications")}
+              className="relative p-2 rounded-lg hover:bg-secondary transition-colors"
+              aria-label={t("actions.notifications", "Уведомления")}
+            >
               <Bell className="w-5 h-5 text-muted-foreground" />
               {unreadCount > 0 && (
                 <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive animate-glow-pulse" />
               )}
             </button>
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="w-8 h-8 md:w-9 md:h-9 rounded-full gradient-primary flex items-center justify-center text-primary-foreground text-xs md:text-sm font-semibold">
-                {initials}
-              </div>
-              <div className="text-sm hidden md:block">
-                <p className="font-medium text-foreground">{profile?.full_name || t("layout.loading")}</p>
-                <p className="text-muted-foreground text-xs">{profile?.position || roleLabels[role]}</p>
-              </div>
-            </div>
           </div>
         </header>
         <main className="p-3 md:p-8">
           <Outlet />
         </main>
       </div>
-      <ChatLauncher />
     </div>
   );
 };
