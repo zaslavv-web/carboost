@@ -426,7 +426,13 @@ const RiskAnalytics = () => {
                 </tr>
               </thead>
               <tbody>
-                {employees.map((emp: any) => {
+                {employees
+                  .filter((emp: any) => {
+                    if (levelFilter === "all") return true;
+                    const s = scoreMap.get(emp.user_id);
+                    return s?.risk_level === levelFilter;
+                  })
+                  .map((emp: any) => {
                   const s = scoreMap.get(emp.user_id);
                   return (
                     <tr
