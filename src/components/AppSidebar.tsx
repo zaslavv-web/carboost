@@ -351,40 +351,41 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     superadmin: t("roles.superadmin"),
   };
 
-  const renderEntry = (entry: NavEntry, sectionKey: string) => {
+  const renderEntry = (entry: NavEntry, sectionKey: string, forceExpanded = false) => {
+    const isCompact = collapsed && !forceExpanded;
     if (isGroup(entry)) {
       const hasActive = entry.children.some((c) => c.path === location.pathname);
-      const isOpen = collapsed ? false : (hasActive || !!openGroups[entry.label]);
+      const isOpen = isCompact ? false : (hasActive || !!openGroups[entry.label]);
       return (
         <div key={`group:${sectionKey}:${entry.label}`}>
           <button
             onClick={() => {
-              if (collapsed) {
+              if (isCompact) {
                 navigate(entry.children[0].path);
                 if (isMobile) onHide?.();
               } else {
                 toggleGroup(entry.label);
               }
             }}
-            title={collapsed ? entry.label : undefined}
+            title={isCompact ? entry.label : undefined}
             className={`relative w-full flex items-center gap-3 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-colors ${
               hasActive
                 ? "text-sidebar-primary font-semibold bg-sidebar-primary/10"
                 : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            } ${collapsed ? "justify-center" : ""}`}
+            } ${isCompact ? "justify-center" : ""}`}
           >
-            {hasActive && !collapsed && (
+            {hasActive && !isCompact && (
               <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-sidebar-primary" />
             )}
             <entry.icon className="w-[18px] h-[18px] flex-shrink-0" />
-            {!collapsed && (
+            {!isCompact && (
               <>
                 <span className="flex-1 text-left">{entry.label}</span>
                 <ChevronDown className={`w-3 h-3 opacity-60 transition-transform ${isOpen ? "rotate-180" : ""}`} />
               </>
             )}
           </button>
-          {!collapsed && isOpen && (
+          {!isCompact && isOpen && (
             <div className="mt-0.5 ml-[26px] space-y-0.5">
               {entry.children.map((child) => {
                 const childActive = location.pathname === child.path;
@@ -421,26 +422,27 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           navigate(item.path);
           if (isMobile) onHide?.();
         }}
-        title={collapsed ? item.label : undefined}
+        title={isCompact ? item.label : undefined}
         className={`relative w-full flex items-center gap-3 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-colors ${
           isActive
             ? "text-sidebar-primary font-semibold bg-sidebar-primary/10"
             : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        } ${collapsed ? "justify-center" : ""}`}
+        } ${isCompact ? "justify-center" : ""}`}
       >
-        {isActive && !collapsed && (
+        {isActive && !isCompact && (
           <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-sidebar-primary" />
         )}
         <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
-        {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
+        {!isCompact && <span className="flex-1 text-left">{item.label}</span>}
         {item.badge ? (
-          <span className={`${collapsed ? "absolute top-1 right-1" : ""} min-w-[18px] h-[18px] px-1 rounded-full bg-destructive/90 text-destructive-foreground text-[10px] font-semibold flex items-center justify-center`}>
+          <span className={`${isCompact ? "absolute top-1 right-1" : ""} min-w-[18px] h-[18px] px-1 rounded-full bg-destructive/90 text-destructive-foreground text-[10px] font-semibold flex items-center justify-center`}>
             {item.badge}
           </span>
         ) : null}
       </button>
     );
   };
+
 
   return (
     <aside
