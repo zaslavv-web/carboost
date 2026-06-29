@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import AppSidebar from "./AppSidebar";
 import ImpersonationBanner from "./ImpersonationBanner";
 import { Bell, PanelLeftOpen } from "lucide-react";
-import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ThemeToggle from "./ThemeToggle";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -14,23 +13,12 @@ const SIDEBAR_COLLAPSED = 64;
 const COLLAPSE_BREAKPOINT = 1024;
 
 const AppLayout = () => {
-  const { data: profile } = useUserProfile();
-  const role = usePrimaryRole();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
   const unreadCount = useUnreadNotifications();
-  const roleLabels: Record<string, string> = {
-    employee: t("roles.employee"),
-    manager: t("roles.manager"),
-    hrd: t("roles.hrdLong"),
-    superadmin: t("roles.superadmin"),
-    company_admin: t("roles.company_admin"),
-  };
-  const initials = profile?.full_name
-    ? profile.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
-    : "??";
+
 
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < COLLAPSE_BREAKPOINT);
   // Sidebar fully hidden (off-canvas). Defaults to hidden on mobile.
