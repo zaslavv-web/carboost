@@ -55,9 +55,10 @@ const Landing = () => {
       <LandingHeader onOpenDemo={() => openDemo(null)} showAnchors={false} />
 
       {/* ─────────── 1. HERO ─────────── */}
-      <section className="relative overflow-hidden flex items-center min-h-[calc(100svh-64px)]">
+      <section className="relative overflow-hidden lg:flex lg:items-center lg:min-h-[calc(100svh-64px)]">
         <div className="absolute inset-0 -z-10 gradient-glow opacity-50" />
         <div className="max-w-[1400px] w-full mx-auto px-6 md:px-10 py-8 md:py-12">
+
           <div className="grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-14 items-center">
             <div className="animate-fade-in">
               <Kicker>{t("hero2.kicker")}</Kicker>
@@ -102,9 +103,10 @@ const Landing = () => {
       {/* ─────────── 2. MODULES — 4 categories × 4 ─────────── */}
       <section
         id="modules"
-        className="border-t border-border bg-muted/30 flex items-center min-h-[100svh]"
+        className="border-t border-border bg-muted/30 lg:flex lg:items-center lg:min-h-[100svh]"
       >
-        <div className="max-w-[1400px] w-full mx-auto px-6 md:px-10 py-8 md:py-10">
+        <div className="max-w-[1400px] w-full mx-auto px-6 md:px-10 py-10 md:py-12">
+
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 mb-5 md:mb-7">
             <div>
               <Kicker>{t("modules.kicker")}</Kicker>

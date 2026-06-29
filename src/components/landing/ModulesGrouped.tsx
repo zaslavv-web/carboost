@@ -42,7 +42,7 @@ const ModulesGrouped = ({ onModuleClick }: Props) => {
                 <button
                   key={slug}
                   onClick={() => onModuleClick(slug)}
-                  className="group relative text-left rounded-2xl border border-border bg-card hover:border-primary/60 hover:-translate-y-0.5 hover:shadow-elevated transition-all duration-300 p-3 md:p-3.5 flex flex-col gap-2 min-h-[112px] md:min-h-[124px] animate-fade-in overflow-hidden"
+                  className="group relative text-left rounded-2xl border border-border bg-card hover:border-primary/60 hover:-translate-y-0.5 hover:shadow-elevated transition-all duration-300 p-2.5 md:p-3.5 flex flex-col gap-1.5 md:gap-2 min-h-[92px] md:min-h-[124px] animate-fade-in overflow-hidden"
                   style={{ animationDelay: `${i * 40}ms` }}
                   aria-label={t(`modules.tiles.${slug}` as any)}
                 >
