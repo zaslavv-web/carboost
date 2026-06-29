@@ -1,50 +1,55 @@
-## Что не так сейчас (по скриншотам)
+## Цель
 
-1. **Hero** — пустая верхняя половина экрана. Причина: `min-h-[calc(100svh-64px)]` + `flex items-center` на мобиле центрируют короткий контент.
-2. **Секция модулей** — то же самое: `min-h-[100svh] flex items-center` → ~50% экрана пусто, прежде чем виден заголовок «Всё, что нужно HRD».
-3. **«Каждой роли — свой экран»** — мок руководителя на мобиле выглядит как пустые карточки: декоративные bars (`h-2 bg-foreground/70 w-20`) рендерятся как полосы без текста, аватары пустые. На мобиле нужен **реальный текст**, а не плейсхолдеры.
-4. **JTBD-колонка (боль → решение)** на мобиле уезжает под мок и теряется — порядок надо явно задать.
-5. Иконки модулей (`.module-icon` 44px) на узких плитках 2-в-ряд выглядят слишком крупно — плитка распухает.
+Сделать так, чтобы Lovable preview (`*.lovableproject.com` / `id-preview--*.lovable.app`) логинился и работал с реальным Laravel-API на `https://growth-peak.pro`.
 
-## План правок (только presentation, без бизнес-логики)
+Сейчас фронт в preview бьёт в `/api/*` относительно `lovableproject.com`, где нет Laravel → Lovable отдаёт HTML 404 → клиент пишет «Backend недоступен: сервер вернул HTML вместо JSON».
 
-### 1. Landing.tsx — снять принудительную высоту на мобиле
+## Что сделаю
 
-- Hero: заменить `min-h-[calc(100svh-64px)] flex items-center` → `lg:min-h-[calc(100svh-64px)] lg:flex lg:items-center`. На мобиле — естественная высота с `py-10`.
-- Секция модулей: `min-h-[100svh] flex items-center` → `lg:min-h-[100svh] lg:flex lg:items-center`. Мобайл получает обычный `py-12`.
-- Аналогично пройтись по секциям audience / stats2 — убедиться, что нет лишних `min-h`.
+### 1. Frontend: `.env` для preview
 
-### 2. ModulesGrouped.tsx — иконка компактнее на мобиле
+Добавлю в корневой `.env` (и `.env.example`):
 
-- В `ModuleIcons.tsx`: `.module-icon { width: 36px; height: 36px }` на мобиле, `40px` на md+ (через медиа-запрос внутри `<style>` блока).
-- Уменьшить `min-h-[112px]` плитки → `min-h-[96px]` на мобиле.
+```
+VITE_LARAVEL_API_URL=https://growth-peak.pro/api
+```
 
-### 3. RolePreview.tsx — починить моки и порядок
+`src/integrations/laravel/client.ts` и `auth.ts` уже читают `VITE_LARAVEL_API_URL` — переключение прозрачное.
 
-- **Порядок на мобиле**: сначала JTBD «было → стало» (текст, главное сообщение), потом мок. Сейчас grid auto-row кладёт мок снизу, но визуально на узком экране воспринимается обратное. Явно задать `order-1` тексту, `order-2` моку, и оставить grid только на `lg:`.
-- **ManagerMock**: заменить декоративные `<div className="h-2 bg-foreground/70 w-20" />` плейсхолдеры на реальный текст имён/ролей (имена уже есть в данных мока, просто отрендерить их вместо bars). Аватар-кружок: добавить инициалы. Это убирает «пустые карточки» на скрине.
-- **HRDMock / EmployeeMock**: проверить, что на узком экране (375px) ничего не схлопывается в полосы. Если карточка по 16:10 становится слишком мелкой — добавить `min-h-[260px]` и уменьшить внутренние gap.
-- На мобиле моки скрыть либо упростить: показывать одну ключевую карточку «после» вместо полного дашборда, чтобы экран не растягивался и читался текст JTBD. Решение: на `< lg` показывать **только** боль/решение + одну компактную «карточку результата» (KPI-строка для HRD, одна team-карточка для руководителя, профиль+трек для сотрудника).
+После этого все вызовы из preview (`/auth/login`, `/auth/me`, `/rpc/*`, `/geo`, `/analytics/ingest`, OAuth redirect на Google/Yandex) пойдут на прод.
 
-### 4. Stats2 — не трогаем (на скрине ок).
+### 2. Backend (на VPS, инструкция, не код)
 
-### 5. Проверка
+Чтобы браузер не получил CORS-ошибку с preview-домена, на проде надо разрешить два origin:
 
-- После правок снять скриншот мобильного вьюпорта (375×800) через Playwright, убедиться что:
-  - Hero виден целиком без скролла-в-пустоту.
-  - Секция модулей начинается сразу после hero, заголовок виден в первом экране после скролла.
-  - Моки ролей содержат **читаемый текст**, а не плейсхолдеры.
+- `https://id-preview--ab323b5c-25ac-417c-ba3d-2939937a2a0d.lovable.app`
+- `https://ab323b5c-25ac-417c-ba3d-2939937a2a0d.lovableproject.com`
+
+Открою `backend-laravel/config/cors.php` (если нет — создам) и добавлю эти origin в `allowed_origins` рядом с боевым. Для Sanctum-токенов (Bearer в localStorage) cookies не нужны, `supports_credentials` оставляем как есть.
+
+Это правка кода в репо → задеплоится автоматически через `npm-publish.yml`.
+
+### 3. Google/Yandex OAuth
+
+В Google Cloud Console (и Yandex ID) нужно добавить authorized redirect URI:
+
+- `https://growth-peak.pro/api/auth/google/callback` (уже должен быть)
+- НО return_to из preview будет `https://...lovableproject.com/...` — это передаётся как query-параметр, провайдеру не важно. Достаточно того, что callback на growth-peak.pro и `APP_FRONTEND_URL` поддерживает редирект обратно.
+
+В `GoogleAuthController` проверю, что `return_to` whitelist пропускает `*.lovableproject.com` / `*.lovable.app` — иначе после Google вас выкинет на прод-фронт вместо preview. При необходимости расширю whitelist.
 
 ## Файлы
 
-- `src/pages/Landing.tsx` — снять принудительные `min-h-[100svh]` на мобиле.
-- `src/components/landing/ModulesGrouped.tsx` — компактнее плитки на мобиле.
-- `src/components/landing/ModuleIcons.tsx` — адаптивный размер иконки.
-- `src/components/landing/RolePreview.tsx` — порядок text→mock на мобиле, заменить плейсхолдеры на текст, упрощённая «карточка результата» вместо полного дашборда на мобиле.
+- `.env` — добавить `VITE_LARAVEL_API_URL=https://growth-peak.pro/api`
+- `.env.example` — то же, для документации
+- `backend-laravel/config/cors.php` — разрешить preview-домены
+- `backend-laravel/app/Http/Controllers/Api/GoogleAuthController.php` (и Yandex) — whitelist preview-доменов в return_to (если есть проверка)
 
-Подтвердите план — пойду чинить.  
-Внутри продукта тоже ВСЕ проверь и ВСЕ исправь  
-покажи мне план общих правок  
-прекрати раскидывать на кучу сесий один запрос
+## Проверка
 
-&nbsp;
+1. Перезагрузить preview → `/api/auth/me` уходит на `https://growth-peak.pro/api/auth/me` (видно в Network)
+2. Логин под `zaslavv@gmail.com` → 200 + токен
+3. Если CORS-ошибка — после деплоя бэка повторить  
+  
+а не проще дать тебе учетку чтобы ты сам залогинился на боевой сервер?
+  &nbsp;
