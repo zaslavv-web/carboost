@@ -96,6 +96,15 @@ class AuthServiceProvider extends ServiceProvider
         Models\TrackerSprint::class                => CompanyScopedPolicy::class,
         Models\TrackerComment::class               => TrackerChildPolicy::class,
         Models\TrackerAttachment::class            => TrackerChildPolicy::class,
+
+        // Gamification / Shop / Recognition
+        Models\GamificationLevel::class    => CompanyScopedPolicy::class,
+        Models\PeerRecognition::class      => \App\Policies\PeerRecognitionPolicy::class,
+        Models\PeerRecognitionReaction::class => OwnedRecordPolicy::class,
+        Models\ShopProduct::class          => CompanyScopedPolicy::class,
+        Models\ShopOrder::class            => \App\Policies\ShopOwnedPolicy::class,
+        Models\ShopCartItem::class         => \App\Policies\ShopOwnedPolicy::class,
+        Models\ShopOrderItem::class        => OwnedRecordPolicy::class,
     ];
 
 

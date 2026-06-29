@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
 class GamificationLevel extends Model
 {
-    use HasUuids;
+    use HasUuids, BelongsToCompany;
 
     protected $table = 'gamification_levels';
 
