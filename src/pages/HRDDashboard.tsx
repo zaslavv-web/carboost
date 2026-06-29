@@ -282,8 +282,11 @@ const HRDDashboard = () => {
   const [newMapDomain, setNewMapDomain] = useState("");
   const [newMapPositionId, setNewMapPositionId] = useState("");
   const queryClient = useQueryClient();
-  const { data: employees = [], isLoading } = useEmployeesWithRoles();
+  const { data: myProfileFull } = useUserProfile();
+  const myCompanyId = myProfileFull?.company_id ?? null;
+  const { data: employees = [], isLoading } = useEmployeesWithRoles(myCompanyId);
   const { data: positions = [] } = usePositions();
+
 
   // User's company id (for domain mapping inserts)
   const { data: myProfile } = useQuery({
