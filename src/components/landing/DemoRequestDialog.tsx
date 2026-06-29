@@ -9,9 +9,11 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   source?: string;
+  preselectedModule?: string | null;
+  preselectedModuleLabel?: string | null;
 }
 
-const DemoRequestDialog = ({ open, onOpenChange, source }: Props) => {
+const DemoRequestDialog = ({ open, onOpenChange, source, preselectedModule, preselectedModuleLabel }: Props) => {
   const { t } = useTranslation("landing");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -28,7 +30,7 @@ const DemoRequestDialog = ({ open, onOpenChange, source }: Props) => {
         _email: email.trim(),
         _company: company.trim() || null,
         _headcount: headcount ? Number(headcount) : null,
-        _source: source || "landing",
+        _source: preselectedModule ? `landing:module:${preselectedModule}` : source || "landing",
       });
       if (error) throw error;
       toast.success(t("demoDialog.success"));
@@ -48,6 +50,11 @@ const DemoRequestDialog = ({ open, onOpenChange, source }: Props) => {
           <DialogTitle>{t("demoDialog.title")}</DialogTitle>
           <DialogDescription>{t("demoDialog.description")}</DialogDescription>
         </DialogHeader>
+        {preselectedModuleLabel && (
+          <div className="mt-2 px-3 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium">
+            {t("demoDialog.preselected", { module: preselectedModuleLabel })}
+          </div>
+        )}
         <form onSubmit={submit} className="space-y-4 mt-2">
           <input
             value={name}
