@@ -244,7 +244,8 @@
     "submit": "Send request",
     "consent": "By clicking, you agree to the processing of personal data.",
     "success": "Thanks! We'll get back to you within one business day.",
-    "errorFallback": "Failed to submit the request"
+    "errorFallback": "Failed to submit the request",
+    "preselected": "Interested module: {{module}}"
   },
   "pricing": {
     "title": "Pricing",
