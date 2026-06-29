@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Inbox, Columns3, Layers, FolderKanban, Workflow, Target, ListChecks, CalendarClock,
   FolderOpen, Check, Plus, Command,
@@ -7,7 +7,6 @@ import {
 import { TrackerProjectProvider, useTrackerProject } from "@/contexts/TrackerProjectContext";
 import { useBoardTasks, useProjects } from "@/hooks/tracker";
 import WorkspaceShell from "@/components/workspace/WorkspaceShell";
-import ContextRail, { type RailItem } from "@/components/workspace/ContextRail";
 import InspectorStack from "@/components/workspace/InspectorStack";
 import InspectorSection from "@/components/workspace/InspectorSection";
 import StatusBar from "@/components/workspace/StatusBar";
@@ -16,9 +15,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command as CmdRoot, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TaskDetailBody } from "@/components/tracker/TaskDetailDialog";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-const VIEWS: { to: string; label: string; icon: RailItem["icon"] }[] = [
+type ViewDef = { to: string; label: string; icon: typeof LayoutDashboard };
+
+const VIEWS: ViewDef[] = [
   { to: "/tracker/dashboard", label: "Дашборд", icon: LayoutDashboard },
   { to: "/tracker/my-backlog", label: "Мой бэклог", icon: Inbox },
   { to: "/tracker/board", label: "Доска", icon: Columns3 },
@@ -27,73 +28,117 @@ const VIEWS: { to: string; label: string; icon: RailItem["icon"] }[] = [
   { to: "/tracker/workflows", label: "Воркфлоу", icon: Workflow },
 ];
 
-const SECONDARY: { to: string; label: string; icon: RailItem["icon"] }[] = [
+const SECONDARY: ViewDef[] = [
   { to: "/tracker/goals", label: "Цели (OKR)", icon: Target },
   { to: "/tracker/tasks", label: "Поручения", icon: ListChecks },
   { to: "/tracker/one-on-ones", label: "Встречи 1:1", icon: CalendarClock },
 ];
 
-/** Project picker that lives on top of the rail (Figma-style "file" badge). */
-const ProjectRailPicker = () => {
+/** Compact project picker for the top toolbar. */
+const ProjectPicker = () => {
   const { projectId, setProjectId } = useTrackerProject();
   const { data: projects = [] } = useProjects({ status: "active" });
   const [open, setOpen] = useState(false);
 
   const current = projects.find((p) => p.id === projectId);
   const label = current ? current.key : "INBOX";
+  const name = current ? current.name : "Inbox (без проекта)";
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <Popover open={open} onOpenChange={setOpen}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="w-9 h-9 mx-auto rounded-md bg-primary/10 text-primary font-mono text-[10px] font-bold flex items-center justify-center hover:bg-primary/20 transition-colors"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="h-8 inline-flex items-center gap-2 rounded-md bg-primary/10 text-primary px-2 hover:bg-primary/20 transition-colors"
+        >
+          <span className="font-mono text-[10px] font-bold">{label.slice(0, 6)}</span>
+          <span className="text-[12px] text-foreground/80 max-w-[180px] truncate hidden sm:inline">{name}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="start" className="p-0 w-72">
+        <CmdRoot>
+          <CommandInput placeholder="Найти проект…" />
+          <CommandList>
+            <CommandEmpty>Проекты не найдены.</CommandEmpty>
+            <CommandGroup heading="Контекст">
+              <CommandItem
+                value="__inbox__ inbox без проекта"
+                onSelect={() => { setProjectId(null); setOpen(false); }}
               >
-                {label.slice(0, 4)}
-              </button>
-            </PopoverTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={6}>
-            {current ? current.name : "Inbox (без проекта)"}
-          </TooltipContent>
-        </Tooltip>
-        <PopoverContent side="right" align="start" className="p-0 w-72">
-          <CmdRoot>
-            <CommandInput placeholder="Найти проект…" />
-            <CommandList>
-              <CommandEmpty>Проекты не найдены.</CommandEmpty>
-              <CommandGroup heading="Контекст">
+                <Inbox className="w-4 h-4 mr-2 text-muted-foreground" />
+                <span className="flex-1">Inbox (без проекта)</span>
+                {!projectId && <Check className="w-4 h-4 text-primary" />}
+              </CommandItem>
+            </CommandGroup>
+            <CommandGroup heading="Проекты">
+              {projects.map((p) => (
                 <CommandItem
-                  value="__inbox__ inbox без проекта"
-                  onSelect={() => { setProjectId(null); setOpen(false); }}
+                  key={p.id}
+                  value={`${p.key} ${p.name}`}
+                  onSelect={() => { setProjectId(p.id); setOpen(false); }}
                 >
-                  <Inbox className="w-4 h-4 mr-2 text-muted-foreground" />
-                  <span className="flex-1">Inbox (без проекта)</span>
-                  {!projectId && <Check className="w-4 h-4 text-primary" />}
+                  <FolderOpen className="w-4 h-4 mr-2 text-muted-foreground" />
+                  <span className="font-mono text-[11px] text-muted-foreground mr-2">{p.key}</span>
+                  <span className="flex-1 truncate">{p.name}</span>
+                  {projectId === p.id && <Check className="w-4 h-4 text-primary" />}
                 </CommandItem>
-              </CommandGroup>
-              <CommandGroup heading="Проекты">
-                {projects.map((p) => (
-                  <CommandItem
-                    key={p.id}
-                    value={`${p.key} ${p.name}`}
-                    onSelect={() => { setProjectId(p.id); setOpen(false); }}
-                  >
-                    <FolderOpen className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <span className="font-mono text-[11px] text-muted-foreground mr-2">{p.key}</span>
-                    <span className="flex-1 truncate">{p.name}</span>
-                    {projectId === p.id && <Check className="w-4 h-4 text-primary" />}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </CmdRoot>
-        </PopoverContent>
-      </Popover>
-    </TooltipProvider>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </CmdRoot>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+const TabLink = ({ to, label, icon: Icon, active }: ViewDef & { active: boolean }) => (
+  <NavLink
+    to={to}
+    className={cn(
+      "h-8 inline-flex items-center gap-1.5 rounded-md px-2.5 text-[12.5px] whitespace-nowrap transition-colors",
+      active
+        ? "bg-primary/15 text-primary"
+        : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+    )}
+  >
+    <Icon className="w-3.5 h-3.5" />
+    <span>{label}</span>
+  </NavLink>
+);
+
+const TrackerToolbar = () => {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  return (
+    <div className="h-12 border-b border-border/60 bg-card/40 backdrop-blur-sm flex items-center gap-2 px-3 overflow-x-auto">
+      <ProjectPicker />
+      <div className="w-px h-5 bg-border/60 mx-1" />
+      <nav className="flex items-center gap-1">
+        {VIEWS.map((v) => (
+          <TabLink key={v.to} {...v} active={pathname.startsWith(v.to)} />
+        ))}
+      </nav>
+      <div className="w-px h-5 bg-border/60 mx-1" />
+      <nav className="flex items-center gap-1">
+        {SECONDARY.map((v) => (
+          <TabLink key={v.to} {...v} active={pathname.startsWith(v.to)} />
+        ))}
+      </nav>
+      <div className="flex-1" />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={() => navigate("/tracker/projects")}
+            className="h-8 inline-flex items-center gap-1.5 rounded-md px-2.5 text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Новый проект</span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" sideOffset={6}>Новый проект</TooltipContent>
+      </Tooltip>
+    </div>
   );
 };
 
@@ -156,8 +201,6 @@ const TrackerStatusBar = () => {
 };
 
 const TrackerShell = () => {
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
   const { inspectorTask, closeInspector } = useTrackerProject();
   const dock = useDockPanel("tracker.inspector", { defaultWidth: 360, minWidth: 280, maxWidth: 520 });
 
@@ -178,38 +221,6 @@ const TrackerShell = () => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [dock, inspectorTask, closeInspector]);
-
-  const primary: RailItem[] = VIEWS.map((v) => ({
-    to: v.to,
-    label: v.label,
-    icon: v.icon,
-    active: pathname.startsWith(v.to),
-  }));
-  const secondary: RailItem[] = SECONDARY.map((v) => ({
-    to: v.to, label: v.label, icon: v.icon, active: pathname.startsWith(v.to),
-  }));
-
-  const rail = (
-    <ContextRail
-      topSlot={<ProjectRailPicker />}
-      primary={primary}
-      secondary={secondary}
-      bottomSlot={
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => navigate("/tracker/projects")}
-              className="w-9 h-9 mx-auto rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center justify-center"
-            >
-              <Plus className="w-[18px] h-[18px]" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={6}>Новый проект</TooltipContent>
-        </Tooltip>
-      }
-    />
-  );
 
   const inspector = (
     <InspectorStack
@@ -232,15 +243,17 @@ const TrackerShell = () => {
   );
 
   return (
-    <WorkspaceShell
-      rail={rail}
-      inspector={<TooltipProvider delayDuration={200}>{inspector}</TooltipProvider>}
-      statusBar={<TrackerStatusBar />}
-    >
-      <div className="p-4 md:p-6 max-w-[1600px] mx-auto">
-        <Outlet />
-      </div>
-    </WorkspaceShell>
+    <TooltipProvider delayDuration={200}>
+      <WorkspaceShell
+        toolbar={<TrackerToolbar />}
+        inspector={inspector}
+        statusBar={<TrackerStatusBar />}
+      >
+        <div className="p-4 md:p-6 max-w-[1600px] mx-auto">
+          <Outlet />
+        </div>
+      </WorkspaceShell>
+    </TooltipProvider>
   );
 };
 
