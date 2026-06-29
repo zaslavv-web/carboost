@@ -257,7 +257,7 @@ const RolePreview = () => {
 
       <div key={role} className="grid lg:grid-cols-[1fr_1.4fr] gap-6 lg:gap-10 items-stretch animate-fade-in">
         {/* JTBD pain → solution column */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 order-1">
           <div className="text-[11px] uppercase tracking-[0.25em] font-semibold text-muted-foreground">
             {t(`stories.items.${storiesRole}.persona`)}
           </div>
@@ -287,8 +287,8 @@ const RolePreview = () => {
           </div>
         </div>
 
-        {/* Solution mock */}
-        <div className="self-center">
+        {/* Solution mock — desktop only; on mobile the JTBD text is the hero */}
+        <div className="hidden lg:flex order-2 self-center">
           <Mock />
         </div>
       </div>
