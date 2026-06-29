@@ -89,8 +89,13 @@ async function request<T>(
         (body && typeof body === "object" && (body.error || body.message)) ||
         res.statusText ||
         "Ошибка запроса";
-      return { data: null, error: { message: String(message), status: res.status } };
+      const code =
+        body && typeof body === "object" && typeof body.error_code === "string"
+          ? body.error_code
+          : undefined;
+      return { data: null, error: { message: String(message), status: res.status, code } };
     }
+
     return { data: body as T, error: null };
   } catch (e: any) {
     const rawMessage = String(e?.message || "Network error");
