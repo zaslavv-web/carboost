@@ -1,19 +1,23 @@
 import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import LandingHeader from "@/components/landing/LandingHeader";
 import DemoRequestDialog from "@/components/landing/DemoRequestDialog";
-import ModuleMosaic from "@/components/landing/ModuleMosaic";
+import HeroDashboardMock from "@/components/landing/HeroDashboardMock";
+import HeroMetricsStrip from "@/components/landing/HeroMetricsStrip";
+import ModulesGrouped from "@/components/landing/ModulesGrouped";
+import ModuleDetailDialog from "@/components/landing/ModuleDetailDialog";
 import RolePreview from "@/components/landing/RolePreview";
 import LogoMarquee from "@/components/landing/LogoMarquee";
 import CountUp from "@/components/landing/CountUp";
-import { FEATURES } from "@/data/features";
 import { useAuth } from "@/contexts/AuthContext";
+import type { FeatureSlug } from "@/data/features";
 
 /* ----------------------------------------------------------------
- * Landing — Kontur-style: minimum text, maximum visuals + motion.
- * Uses semantic design tokens; no hardcoded colors.
+ * Landing — HRD-first positioning:
+ *  1) Hero with mission statement + KPI strip + live HRD dashboard mock
+ *  2) 16 modules grouped by 4 categories, fits in 100svh, opens detail modal
  * ---------------------------------------------------------------- */
 
 const serif = { fontFamily: "'Instrument Serif', Georgia, serif" };
@@ -29,6 +33,8 @@ const Landing = () => {
   const { t } = useTranslation("landing");
   const { session, loading } = useAuth();
   const [demoOpen, setDemoOpen] = useState(false);
+  const [activeModule, setActiveModule] = useState<FeatureSlug | null>(null);
+  const [preselectedModule, setPreselectedModule] = useState<FeatureSlug | null>(null);
 
   if (loading) {
     return (
@@ -39,112 +45,82 @@ const Landing = () => {
   }
   if (session) return <Navigate to="/" replace />;
 
+  const openDemo = (mod?: FeatureSlug | null) => {
+    setPreselectedModule(mod ?? null);
+    setDemoOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <LandingHeader onOpenDemo={() => setDemoOpen(true)} showAnchors={false} />
+      <LandingHeader onOpenDemo={() => openDemo(null)} showAnchors={false} />
 
       {/* ─────────── 1. HERO ─────────── */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden flex items-center min-h-[calc(100svh-64px)]">
         <div className="absolute inset-0 -z-10 gradient-glow opacity-50" />
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10 pt-10 md:pt-20 pb-16 md:pb-28">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <div className="max-w-[1400px] w-full mx-auto px-6 md:px-10 py-8 md:py-12">
+          <div className="grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-14 items-center">
             <div className="animate-fade-in">
               <Kicker>{t("hero2.kicker")}</Kicker>
               <h1
                 style={serif}
-                className="mt-6 text-[clamp(3rem,8vw,7rem)] leading-[0.95] font-normal tracking-tight"
+                className="mt-4 text-[clamp(2rem,4.4vw,4rem)] leading-[1.02] font-normal tracking-tight"
               >
                 <span className="block">{t("hero2.title1")}</span>
                 <span className="block text-primary italic">{t("hero2.title2")}</span>
               </h1>
-              <p className="mt-8 text-xl md:text-2xl text-muted-foreground max-w-md">
+              <p className="mt-4 text-sm md:text-base text-muted-foreground max-w-xl leading-relaxed">
                 {t("hero2.subtitle")}
               </p>
-              <div className="mt-10 flex flex-wrap gap-3">
+
+              <HeroMetricsStrip />
+
+              <div className="mt-8 flex flex-wrap gap-3">
                 <button
-                  onClick={() => setDemoOpen(true)}
-                  className="group inline-flex items-center gap-3 px-7 py-4 rounded-full bg-primary text-primary-foreground font-semibold text-base shadow-glow hover:scale-105 transition-transform"
+                  onClick={() => openDemo(null)}
+                  className="group inline-flex items-center gap-2.5 px-6 py-3.5 rounded-full bg-primary text-primary-foreground font-semibold text-sm md:text-base shadow-glow hover:scale-105 transition-transform"
                 >
                   {t("hero2.primary")}
-                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </button>
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-2 px-7 py-4 rounded-full border border-border text-foreground font-semibold text-base hover:bg-secondary transition-colors"
+                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full border border-border text-foreground font-semibold text-sm md:text-base hover:bg-secondary transition-colors"
                 >
                   {t("hero2.secondary")}
                 </Link>
               </div>
+              <div className="mt-4 text-xs text-muted-foreground">{t("hero2.note")}</div>
             </div>
+
             <div className="animate-scale-in">
-              <ModuleMosaic />
+              <HeroDashboardMock />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ─────────── 2. MODULES — bento grid ─────────── */}
-      <section id="modules" className="border-t border-border bg-muted/30">
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-20 md:py-28">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 md:mb-16">
+      {/* ─────────── 2. MODULES — 4 categories × 4 ─────────── */}
+      <section
+        id="modules"
+        className="border-t border-border bg-muted/30 flex items-center min-h-[100svh]"
+      >
+        <div className="max-w-[1400px] w-full mx-auto px-6 md:px-10 py-8 md:py-10">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 mb-5 md:mb-7">
             <div>
               <Kicker>{t("modules.kicker")}</Kicker>
               <h2
                 style={serif}
-                className="mt-4 text-[clamp(2.25rem,5vw,4.5rem)] leading-[1.02] font-normal max-w-3xl"
+                className="mt-2 text-[clamp(1.5rem,2.6vw,2.5rem)] leading-[1.05] font-normal max-w-3xl"
               >
                 {t("modules.title")}
               </h2>
+              <p className="mt-1.5 text-xs md:text-sm text-muted-foreground max-w-2xl">
+                {t("modules.subtitle")}
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-            {FEATURES.map((f, i) => {
-              const Icon = f.icon;
-              // bento accents: tiles 0, 5, 10 are bigger / gold
-              const isAccent = i === 0 || i === 7 || i === 10;
-              const span = i === 0 ? "md:col-span-2 md:row-span-2" : i === 7 ? "lg:col-span-2" : "";
-              return (
-                <Link
-                  key={f.slug}
-                  to={`/feature/${f.slug}`}
-                  className={[
-                    "group relative overflow-hidden rounded-2xl border p-5 md:p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated min-h-[140px] md:min-h-[180px] flex flex-col justify-between animate-fade-in",
-                    isAccent
-                      ? "bg-primary text-primary-foreground border-primary/60"
-                      : "bg-card border-border hover:border-primary/40",
-                    span,
-                  ].join(" ")}
-                  style={{ animationDelay: `${(i % 8) * 40}ms` }}
-                >
-                  <Icon
-                    className={[
-                      "transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6",
-                      i === 0 ? "w-12 h-12 md:w-16 md:h-16" : "w-8 h-8 md:w-10 md:h-10",
-                    ].join(" ")}
-                    strokeWidth={1.5}
-                  />
-                  <div className="flex items-end justify-between gap-2">
-                    <div
-                      style={serif}
-                      className={[
-                        "leading-tight",
-                        i === 0 ? "text-3xl md:text-5xl" : "text-xl md:text-2xl",
-                      ].join(" ")}
-                    >
-                      {t(`modules.tiles.${f.slug}` as any)}
-                    </div>
-                    <ArrowUpRight
-                      className={[
-                        "shrink-0 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1 group-hover:-translate-y-1",
-                        i === 0 ? "w-6 h-6" : "w-5 h-5",
-                      ].join(" ")}
-                    />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <ModulesGrouped onModuleClick={setActiveModule} />
         </div>
       </section>
 
@@ -219,7 +195,7 @@ const Landing = () => {
           </p>
           <div className="mt-10 flex flex-wrap gap-3 justify-center">
             <button
-              onClick={() => setDemoOpen(true)}
+              onClick={() => openDemo(null)}
               className="group inline-flex items-center gap-3 px-8 py-4 rounded-full bg-primary text-primary-foreground font-semibold text-lg shadow-glow hover:scale-105 transition-transform"
             >
               {t("finalCta2.primary")}
@@ -242,14 +218,32 @@ const Landing = () => {
           <div className="flex gap-6">
             <Link to="/pricing" className="hover:text-foreground transition-colors">{t("header.pricing")}</Link>
             <Link to="/login" className="hover:text-foreground transition-colors">{t("header.signIn")}</Link>
-            <button onClick={() => setDemoOpen(true)} className="hover:text-foreground transition-colors">
+            <button onClick={() => openDemo(null)} className="hover:text-foreground transition-colors">
               {t("header.requestDemo")}
             </button>
           </div>
         </div>
       </footer>
 
-      <DemoRequestDialog open={demoOpen} onOpenChange={setDemoOpen} />
+      <ModuleDetailDialog
+        slug={activeModule}
+        onClose={() => setActiveModule(null)}
+        onRequestDemo={(slug) => {
+          setActiveModule(null);
+          openDemo(slug);
+        }}
+      />
+      <DemoRequestDialog
+        open={demoOpen}
+        onOpenChange={(o) => {
+          setDemoOpen(o);
+          if (!o) setPreselectedModule(null);
+        }}
+        preselectedModule={preselectedModule}
+        preselectedModuleLabel={
+          preselectedModule ? (t(`modules.tiles.${preselectedModule}` as any) as string) : null
+        }
+      />
     </div>
   );
 };
