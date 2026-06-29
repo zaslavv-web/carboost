@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { UrgencyBadge, TaskStatusBadge, URGENCY_OPTIONS } from "@/components/tracker/Badges";
 import { useEmployeeNameMap } from "@/components/tracker/EmployeePicker";
-import { TaskDetailDialog } from "@/components/tracker/TaskDetailDialog";
+import { useTrackerProject } from "@/contexts/TrackerProjectContext";
 import { TaskFilters, applyTaskFilters, DEFAULT_TASK_FILTERS, type TaskFilterState } from "@/components/tracker/TaskFilters";
 import { Calendar, User, ListChecks, AlertOctagon } from "lucide-react";
 import { format } from "date-fns";
@@ -68,11 +68,12 @@ const TaskLine = ({ task, onOpen }: { task: TrackerTask; onOpen: (t: TrackerTask
 
 const MyBacklog = () => {
   const uid = useEffectiveUserId();
+  const { openInspector } = useTrackerProject();
   const [scope, setScope] = useState<Scope>("assigned");
   const [grouping, setGrouping] = useState<Grouping>("urgency");
   const [hideClosed, setHideClosed] = useState(true);
   const [filters, setFilters] = useState<TaskFilterState>(DEFAULT_TASK_FILTERS);
-  const [openTask, setOpenTask] = useState<TrackerTask | null>(null);
+  const setOpenTask = openInspector;
 
   // assigned vs authored — серверный фильтр только для assigned (по существующему хуку)
   const { data: assignedTasks = [], isLoading: aLoading } = useTasks({
@@ -176,7 +177,7 @@ const MyBacklog = () => {
         </div>
       )}
 
-      <TaskDetailDialog task={openTask} open={!!openTask} onOpenChange={(v) => !v && setOpenTask(null)} />
+      
     </div>
   );
 };

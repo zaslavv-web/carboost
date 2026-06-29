@@ -22,7 +22,7 @@ import {
 import { Plus, Play, CheckCircle2, Trash2, FolderKanban, Hash, Calendar, User, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
-import { TaskDetailDialog } from "@/components/tracker/TaskDetailDialog";
+
 
 /* ============ Карточка задачи (компактная) ============ */
 const TaskRow = ({
@@ -341,10 +341,10 @@ const CreateSprintDialog = ({ projectId }: { projectId: string }) => {
 
 /* ============ Page ============ */
 const TrackerBacklog = () => {
-  const { projectId } = useTrackerProject();
+  const { projectId, openInspector } = useTrackerProject();
   const { data: sprints = [], isLoading } = useSprints(projectId);
   const nameMap = useEmployeeNameMap();
-  const [openTask, setOpenTask] = useState<TrackerTask | null>(null);
+  const setOpenTask = openInspector;
 
   if (!projectId) {
     return (
@@ -398,7 +398,7 @@ const TrackerBacklog = () => {
         </details>
       )}
 
-      <TaskDetailDialog task={openTask} open={!!openTask} onOpenChange={(v) => !v && setOpenTask(null)} />
+      
     </div>
   );
 };
