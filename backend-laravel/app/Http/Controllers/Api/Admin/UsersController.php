@@ -144,30 +144,39 @@ class UsersController extends Controller
 
         $email = strtolower((string) $target->email);
         $mail = app(\App\Services\EmailConfigService::class);
+        $channel = $mail->activeChannel();
+        $isSmtp = $channel === 'smtp';
 
         try {
-            $mail->autoRepairActiveSettings();
-            $mail->apply();
-            $mail->preflight();
+            if ($isSmtp) {
+                // SMTP-канал: чиним поля БД и делаем TCP/AUTH handshake.
+                $mail->autoRepairActiveSettings();
+                $mail->apply();
+                $mail->preflight();
+            } else {
+                // HTTP API канал (unisender_go и пр.) — preflight неприменим.
+                $mail->apply();
+            }
             \Illuminate\Support\Facades\Password::sendResetLink(['email' => $email]);
         } catch (\Throwable $e) {
-            if (\App\Services\EmailConfigService::shouldFallbackToRuntimeEnv($e)) {
+            if ($isSmtp && \App\Services\EmailConfigService::shouldFallbackToRuntimeEnv($e)) {
                 try {
                     $mail->applyRuntimeEnv();
                     $mail->preflight();
                     \Illuminate\Support\Facades\Password::sendResetLink(['email' => $email]);
                 } catch (\Throwable $retry) {
-                    \Log::error('admin password reset retry failed', ['email' => $email, 'err' => $retry->getMessage()]);
+                    \Log::error('admin password reset retry failed', ['email' => $email, 'channel' => $channel, 'err' => $retry->getMessage()]);
                     return response()->json(['error' => 'Не удалось отправить письмо: ' . $retry->getMessage()], 422);
                 }
             } else {
-                \Log::error('admin password reset failed', ['email' => $email, 'err' => $e->getMessage()]);
+                \Log::error('admin password reset failed', ['email' => $email, 'channel' => $channel, 'err' => $e->getMessage()]);
                 return response()->json(['error' => 'Не удалось отправить письмо: ' . $e->getMessage()], 422);
             }
         }
 
         return response()->json(['ok' => true, 'email' => $email]);
     }
+
 
     /**
      * Назначить/изменить компанию пользователя. Доступно только суперадмину.
