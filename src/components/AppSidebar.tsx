@@ -478,9 +478,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       {/* Nav */}
       <nav className="flex-1 py-2 px-2 overflow-y-auto overflow-x-visible">
         {sections.map((section) => {
-          const SectionIcon = sectionIconMap[section.key] || section.entries[0] && !isGroup(section.entries[0])
-            ? sectionIconMap[section.key] || (section.entries[0] as NavItem).icon
-            : Settings;
+          const SectionIcon = sectionIconMap[section.key] || Settings;
           const hasActive = sectionContainsActive(section);
           const isOpen = !collapsed && (!!openSections[section.key] || hasActive);
 
