@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- Запрет кеширования самого index.html (страховка для CDN/прокси,
+         которые игнорируют ответные заголовки). Хешированные ассеты под
+         /assets/* остаются immutable. -->
+    <meta http-equiv="Cache-Control" content="no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
     <title>Career Track OS — единая HR-tech платформа полного цикла</title>
     <meta name="description" content="Career Track OS — операционная система карьеры и людей: найм, адаптация, треки, AI-оценка, перфоманс, обучение, отпуска, признание и магазин баллов в одной системе.">
     <meta name="mobile-web-app-capable" content="yes">
