@@ -74,6 +74,20 @@ export const clearStoredAuthState = (options: {
   }
 };
 
+export const clearStoredImpersonationState = (reason = "impersonation_reset") => {
+  if (typeof window === "undefined") return;
+
+  try {
+    SESSION_AUTH_KEYS.forEach((key) => safeRemove(window.sessionStorage, key));
+  } catch {
+    /* ignore */
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(AUTH_STORAGE_CLEARED_EVENT, { detail: { reason } }),
+  );
+};
+
 export const notifyAuthSessionExpired = (reason: string, status?: number) => {
   if (typeof window === "undefined") return;
   window.dispatchEvent(

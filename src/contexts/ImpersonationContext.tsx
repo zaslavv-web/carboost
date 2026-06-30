@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { laravelAuth } from "@/integrations/laravel/client";
 import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { useAuth } from "@/contexts/AuthContext";
+import { AUTH_STORAGE_CLEARED_EVENT } from "@/lib/authStorage";
 import { toast } from "sonner";
 
 const IMPERSONATION_USER_ID_KEY = "impersonatedUserId";
@@ -75,6 +76,20 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
   const queryClient = useQueryClient();
   const { refresh, user } = useAuth();
 
+  const resetLocalState = useCallback(() => {
+    setUserId(null);
+    setName(null);
+    setRoles([]);
+    setProfile(null);
+    setOriginalUser(null);
+  }, []);
+
+  useEffect(() => {
+    const onCleared = () => resetLocalState();
+    window.addEventListener(AUTH_STORAGE_CLEARED_EVENT, onCleared);
+    return () => window.removeEventListener(AUTH_STORAGE_CLEARED_EVENT, onCleared);
+  }, [resetLocalState]);
+
   const startImpersonation = useCallback(async (userId: string, name: string, targetSnapshot?: { roles?: string[]; profile?: Record<string, unknown> | null }) => {
     try {
       // Save current (superadmin) token so we can restore it on stop.
@@ -114,15 +129,11 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
       safeSessionRemove(IMPERSONATION_NAME_KEY);
       safeSessionRemove(IMPERSONATION_ROLES_KEY);
       safeSessionRemove(IMPERSONATION_PROFILE_KEY);
-      setUserId(null);
-      setName(null);
-      setRoles([]);
-      setProfile(null);
-      setOriginalUser(null);
+      resetLocalState();
       toast.error(e?.message || "Не удалось войти под пользователем");
       throw e;
     }
-  }, [queryClient, refresh, user]);
+  }, [queryClient, resetLocalState, refresh, user]);
 
   const stopImpersonation = useCallback(async () => {
     try {
@@ -136,14 +147,10 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
       safeSessionRemove(IMPERSONATION_NAME_KEY);
       safeSessionRemove(IMPERSONATION_ROLES_KEY);
       safeSessionRemove(IMPERSONATION_PROFILE_KEY);
-      setUserId(null);
-      setName(null);
-      setRoles([]);
-      setProfile(null);
-      setOriginalUser(null);
+      resetLocalState();
       await queryClient.invalidateQueries();
     }
-  }, [queryClient, refresh]);
+  }, [queryClient, resetLocalState, refresh]);
 
   return (
     <ImpersonationContext.Provider

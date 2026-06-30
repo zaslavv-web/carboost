@@ -43,7 +43,7 @@ const Landing = () => {
       </div>
     );
   }
-  if (session) return <Navigate to="/" replace />;
+  if (session) return <Navigate to="/dashboard" replace />;
 
   const openDemo = (mod?: FeatureSlug | null) => {
     setPreselectedModule(mod ?? null);
