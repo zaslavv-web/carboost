@@ -7,10 +7,10 @@ import { useAuth } from "@/contexts/AuthContext";
  * Используется индикатором (красная точка) в шапке.
  */
 export function useUnreadNotifications() {
-  const { user, loading } = useAuth();
+  const { user, authReady } = useAuth();
   const { data = 0 } = useQuery({
     queryKey: ["notifications", "unread-count", user?.id],
-    enabled: !loading && !!user,
+    enabled: authReady && !!user,
     refetchInterval: 60_000,
     queryFn: async () => {
       const { data, error } = await laravelDb

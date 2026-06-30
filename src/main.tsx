@@ -3,7 +3,6 @@ import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { clearStoredAuthState } from "@/lib/authStorage";
 
 // ─── Unregister service workers in preview/iframe contexts ──────────────────
 const isInIframe = (() => {
@@ -28,9 +27,7 @@ if (isPreviewHost || isInIframe) {
 // Симптом «чёрный экран при повторном входе» обычно вызывает одно из двух:
 // 1) Браузер закэшировал старый index.html → ссылается на удалённые
 //    /assets/*-HASH.js → dynamic import падает с ChunkLoadError.
-// 2) В localStorage остался токен/legacy-ключ от прошлой версии БД → при
-//    рендере провайдеры падают на неожиданном payload-е.
-// Делаем одноразовую авто-перезагрузку (с очисткой кэша/токенов), чтобы
+// Делаем одноразовую авто-перезагрузку с очисткой кэша ассетов, чтобы
 // пользователь не видел пустую страницу.
 const RELOAD_GUARD = "lp:chunk-reload-attempted";
 
@@ -59,13 +56,6 @@ function attemptRecovery(reason: unknown) {
   } catch {
     /* ignore */
   }
-
-  // Чистим всё, что может «зафиксировать» сломанное состояние между деплоями.
-  try {
-    // Снимаем потенциально протухшую сессию — после reload пользователь
-    // увидит логин-форму вместо пустого экрана.
-    clearStoredAuthState({ includeToken: true, reason: "stale_chunk_recovery" });
-  } catch { /* ignore */ }
 
   try {
     if ("caches" in window) {

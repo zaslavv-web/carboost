@@ -111,7 +111,7 @@ function applyBrandingVars(b: CompanyBranding, theme: "light" | "dark") {
 }
 
 export const BrandingProvider = ({ children }: { children: ReactNode }) => {
-  const { loading: authLoading } = useAuth();
+  const { authReady, user } = useAuth();
   const { data: profile } = useUserProfile();
   const { theme } = useTheme();
   const qc = useQueryClient();
@@ -130,7 +130,7 @@ export const BrandingProvider = ({ children }: { children: ReactNode }) => {
       }
       return data;
     },
-    enabled: !authLoading && !!companyId,
+    enabled: authReady && !!user && !!companyId,
     staleTime: 5 * 60 * 1000,
   });
 

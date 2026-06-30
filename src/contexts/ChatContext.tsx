@@ -28,10 +28,10 @@ export const useChat = () => {
 };
 
 export const ChatProvider = ({ children }: { children: ReactNode }) => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, authReady } = useAuth();
   const { impersonatedUserId } = useImpersonation();
   const queryClient = useQueryClient();
-  const enabled = !authLoading && !!user && !impersonatedUserId;
+  const enabled = authReady && !!user && !impersonatedUserId;
 
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);

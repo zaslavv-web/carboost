@@ -6,7 +6,7 @@ import { useUserProfile, useRealPrimaryRole } from "@/hooks/useUserProfile";
 import { ShieldAlert } from "lucide-react";
 
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-  const { session, loading } = useAuth();
+  const { session, loading, authStatus, authError, clearSession } = useAuth();
   const { data: profile, isLoading: profileLoading } = useUserProfile();
   const realRole = useRealPrimaryRole();
   const location = useLocation();
@@ -17,7 +17,33 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 text-center px-6">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground">Проверяем сессию…</p>
+          <p className="text-sm text-muted-foreground">Восстанавливаем сессию…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (authStatus === "failed") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="max-w-md w-full bg-card border border-border rounded-2xl p-6 text-center space-y-4 shadow-elevated">
+          <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
+            <ShieldAlert className="w-7 h-7 text-destructive" />
+          </div>
+          <h1 className="text-lg font-semibold text-foreground">Сессия не восстановилась</h1>
+          <p className="text-sm text-muted-foreground break-words">
+            {authError || "Сохранённые данные входа повреждены или устарели."}
+          </p>
+          <button
+            onClick={() => {
+              void clearSession("manual_session_recovery").finally(() => {
+                window.location.assign("/login");
+              });
+            }}
+            className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            Очистить сессию и войти заново
+          </button>
         </div>
       </div>
     );

@@ -20,6 +20,7 @@ import { laravelAuthApi, type LaravelUser } from "@/integrations/laravel/auth";
 import { laravelAuth } from "@/integrations/laravel/client";
 import {
   AUTH_SESSION_EXPIRED_EVENT,
+  clearStoredImpersonationState,
   clearStoredAuthState,
   isProbablyLaravelToken,
 } from "@/lib/authStorage";
@@ -29,11 +30,15 @@ export interface LaravelSessionLike {
   user: LaravelUser;
 }
 
+export type LaravelAuthStatus = "checking" | "authenticated" | "guest" | "failed";
+
 interface LaravelAuthContextType {
   session: LaravelSessionLike | null;
   user: LaravelUser | null;
   loading: boolean;
   authReady: boolean;
+  authStatus: LaravelAuthStatus;
+  authError: string | null;
   signOut: () => Promise<void>;
   signInWithPassword: (email: string, password: string) => Promise<LaravelUser>;
   signUp: (payload: Parameters<typeof laravelAuthApi.register>[0]) => Promise<LaravelUser>;
@@ -53,6 +58,8 @@ const LaravelAuthContext = createContext<LaravelAuthContextType>({
   user: null,
   loading: true,
   authReady: false,
+  authStatus: "checking",
+  authError: null,
   signOut: async () => {},
   signInWithPassword: stub as never,
   signUp: stub as never,
@@ -68,11 +75,25 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<LaravelUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [authReady, setAuthReady] = useState(false);
+  const [authStatus, setAuthStatus] = useState<LaravelAuthStatus>("checking");
+  const [authError, setAuthError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const clearSession = useCallback(async (reason = "auth_reset") => {
     clearStoredAuthState({ includeToken: true, reason });
     setUser(null);
+    setAuthStatus("guest");
+    setAuthError(null);
+    setAuthReady(true);
+    setLoading(false);
+    queryClient.clear();
+  }, [queryClient]);
+
+  const failSession = useCallback((reason: string, message: string) => {
+    clearStoredAuthState({ includeToken: true, reason });
+    setUser(null);
+    setAuthStatus("failed");
+    setAuthError(message);
     setAuthReady(true);
     setLoading(false);
     queryClient.clear();
@@ -80,29 +101,39 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setAuthReady(false);
+    setAuthStatus("checking");
+    setAuthError(null);
     try {
       const token = laravelAuth.getToken();
       if (!token) {
+        clearStoredImpersonationState("no_token_on_boot");
         setUser(null);
+        setAuthStatus("guest");
         return;
       }
       if (!isProbablyLaravelToken(token)) {
-        await clearSession("malformed_token");
+        failSession("malformed_token", "Сохранённая сессия повреждена.");
         return;
       }
       const me = await laravelAuthApi.me();
+      if (!me) {
+        clearStoredAuthState({ includeToken: true, reason: "auth_me_empty" });
+        setUser(null);
+        setAuthStatus("guest");
+        return;
+      }
       setUser(me);
+      setAuthStatus("authenticated");
     } catch (e) {
-      // Сбрасываем потенциально протухший токен — иначе при каждом ребуте
-      // приложение будет падать на /auth/me и зависать в loading=true, что
-      // визуально выглядит как «чёрный экран при повторном входе».
       console.error("Laravel auth refresh failed", e);
-      await clearSession("auth_refresh_failed");
+      const message = e instanceof Error ? e.message : "Не удалось восстановить сохранённую сессию.";
+      failSession("auth_refresh_failed", message);
     } finally {
       setAuthReady(true);
       setLoading(false);
     }
-  }, [clearSession]);
+  }, [failSession]);
 
   useEffect(() => {
     // Pick up a fresh token from Google OAuth callback (#access_token=...)
@@ -144,10 +175,13 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithPassword = useCallback(async (email: string, password: string) => {
     setLoading(true);
+    setAuthStatus("checking");
+    setAuthError(null);
     try {
       const u = await laravelAuthApi.login(email, password);
       queryClient.clear();
       setUser(u);
+      setAuthStatus("authenticated");
       setAuthReady(true);
       return u;
     } finally {
@@ -158,10 +192,13 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = useCallback(
     async (payload: Parameters<typeof laravelAuthApi.register>[0]) => {
       setLoading(true);
+      setAuthStatus("checking");
+      setAuthError(null);
       try {
         const u = await laravelAuthApi.register(payload);
         queryClient.clear();
         setUser(u);
+        setAuthStatus("authenticated");
         setAuthReady(true);
         return u;
       } finally {
@@ -178,6 +215,8 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
       session: user && token ? { access_token: token, user } : null,
       loading,
       authReady,
+      authStatus,
+      authError,
       signOut,
       signInWithPassword,
       signUp,
@@ -186,7 +225,7 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
       refresh,
       clearSession,
     };
-  }, [user, loading, authReady, signOut, signInWithPassword, signUp, refresh, clearSession]);
+  }, [user, loading, authReady, authStatus, authError, signOut, signInWithPassword, signUp, refresh, clearSession]);
 
   return <LaravelAuthContext.Provider value={value}>{children}</LaravelAuthContext.Provider>;
 };
