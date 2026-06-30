@@ -25,6 +25,7 @@ const safeRemove = (storage: Storage | undefined, key: string) => {
 };
 
 export const getStoredLaravelToken = (): string | null => {
+  if (typeof window === "undefined") return null;
   try {
     return window.localStorage.getItem(LARAVEL_TOKEN_KEY);
   } catch {
@@ -33,6 +34,7 @@ export const getStoredLaravelToken = (): string | null => {
 };
 
 export const setStoredLaravelToken = (token: string | null) => {
+  if (typeof window === "undefined") return;
   try {
     if (token) window.localStorage.setItem(LARAVEL_TOKEN_KEY, token);
     else window.localStorage.removeItem(LARAVEL_TOKEN_KEY);
@@ -47,6 +49,8 @@ export const clearStoredAuthState = (options: {
   notify?: boolean;
 } = {}) => {
   const { includeToken = true, reason = "auth_reset", notify = true } = options;
+
+  if (typeof window === "undefined") return;
 
   try {
     LOCAL_AUTH_KEYS.forEach((key) => {

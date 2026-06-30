@@ -144,23 +144,29 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithPassword = useCallback(async (email: string, password: string) => {
     setLoading(true);
-    const u = await laravelAuthApi.login(email, password);
-    queryClient.clear();
-    setUser(u);
-    setAuthReady(true);
-    setLoading(false);
-    return u;
+    try {
+      const u = await laravelAuthApi.login(email, password);
+      queryClient.clear();
+      setUser(u);
+      setAuthReady(true);
+      return u;
+    } finally {
+      setLoading(false);
+    }
   }, [queryClient]);
 
   const signUp = useCallback(
     async (payload: Parameters<typeof laravelAuthApi.register>[0]) => {
       setLoading(true);
-      const u = await laravelAuthApi.register(payload);
-      queryClient.clear();
-      setUser(u);
-      setAuthReady(true);
-      setLoading(false);
-      return u;
+      try {
+        const u = await laravelAuthApi.register(payload);
+        queryClient.clear();
+        setUser(u);
+        setAuthReady(true);
+        return u;
+      } finally {
+        setLoading(false);
+      }
     },
     [queryClient],
   );
