@@ -15,6 +15,7 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { laravel } from "@/integrations/laravel/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -110,6 +111,7 @@ function applyBrandingVars(b: CompanyBranding, theme: "light" | "dark") {
 }
 
 export const BrandingProvider = ({ children }: { children: ReactNode }) => {
+  const { loading: authLoading } = useAuth();
   const { data: profile } = useUserProfile();
   const { theme } = useTheme();
   const qc = useQueryClient();
@@ -128,7 +130,7 @@ export const BrandingProvider = ({ children }: { children: ReactNode }) => {
       }
       return data;
     },
-    enabled: !!companyId,
+    enabled: !authLoading && !!companyId,
     staleTime: 5 * 60 * 1000,
   });
 

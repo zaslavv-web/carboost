@@ -8,26 +8,21 @@
  * bearer token is read from `localStorage.laravel_token` (set by AuthContext).
  */
 
+import {
+  getStoredLaravelToken,
+  notifyAuthSessionExpired,
+  setStoredLaravelToken,
+} from "@/lib/authStorage";
+
 const BASE_URL =
   (import.meta.env.VITE_LARAVEL_API_URL as string | undefined)?.replace(/\/+$/, "") || "/api";
 
-const TOKEN_KEY = "laravel_token";
-
 export const laravelAuth = {
   getToken(): string | null {
-    try {
-      return localStorage.getItem(TOKEN_KEY);
-    } catch {
-      return null;
-    }
+    return getStoredLaravelToken();
   },
   setToken(token: string | null) {
-    try {
-      if (token) localStorage.setItem(TOKEN_KEY, token);
-      else localStorage.removeItem(TOKEN_KEY);
-    } catch {
-      /* ignore */
-    }
+    setStoredLaravelToken(token);
   },
 };
 
@@ -49,8 +44,19 @@ async function request<T>(
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
+  const timeoutMs = path === "/auth/me" ? 8000 : 30000;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
+    const apiUrl = new URL(`${BASE_URL}${path}`, window.location.origin);
+    const sameOrigin = apiUrl.origin === window.location.origin;
+    const res = await fetch(apiUrl.toString(), {
+      ...init,
+      headers,
+      credentials: init.credentials ?? (sameOrigin ? "same-origin" : "omit"),
+      signal: init.signal ?? controller.signal,
+    });
     const ctype = res.headers.get("content-type") || "";
     const text = await res.text();
     let body: any = null;
@@ -93,21 +99,29 @@ async function request<T>(
         body && typeof body === "object" && typeof body.error_code === "string"
           ? body.error_code
           : undefined;
+      if (token && (res.status === 401 || res.status === 419)) {
+        notifyAuthSessionExpired(String(message), res.status);
+      }
       return { data: null, error: { message: String(message), status: res.status, code } };
     }
 
     return { data: body as T, error: null };
   } catch (e: any) {
     const rawMessage = String(e?.message || "Network error");
+    const isAbort = e?.name === "AbortError";
     const isClosedConnection = /ERR_CONNECTION_CLOSED|Failed to fetch|NetworkError|Load failed/i.test(rawMessage);
     return {
       data: null,
       error: {
-        message: isClosedConnection
+        message: isAbort
+          ? "Backend не ответил вовремя. Сессия будет сброшена, чтобы не показывать чёрный экран."
+          : isClosedConnection
           ? "Backend разорвал соединение. Проверьте, что Laravel/PHP-FPM запущен, миграции применены, а nginx корректно проксирует /api."
           : rawMessage,
       },
     };
+  } finally {
+    window.clearTimeout(timeout);
   }
 }
 

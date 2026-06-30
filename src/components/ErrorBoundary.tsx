@@ -1,4 +1,5 @@
 import { Component, ReactNode } from "react";
+import { clearStoredAuthState } from "@/lib/authStorage";
 
 interface State {
   error: Error | null;
@@ -27,6 +28,11 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
     try { window.location.assign("/"); } catch { /* noop */ }
   };
 
+  clearSession = () => {
+    clearStoredAuthState({ includeToken: true, reason: "error_boundary" });
+    try { window.location.assign("/login"); } catch { /* noop */ }
+  };
+
   render() {
     if (!this.state.error) return this.props.children;
     return (
@@ -37,12 +43,20 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
           <p className="text-sm text-muted-foreground break-words">
             {this.state.error.message || "Произошла непредвиденная ошибка."}
           </p>
-          <button
-            onClick={this.reset}
-            className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            Перезагрузить
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <button
+              onClick={this.reset}
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              Перезагрузить
+            </button>
+            <button
+              onClick={this.clearSession}
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg border border-border bg-card text-foreground text-sm font-medium hover:bg-secondary transition-colors"
+            >
+              Выйти и очистить сессию
+            </button>
+          </div>
         </div>
       </div>
     );
