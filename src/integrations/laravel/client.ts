@@ -8,26 +8,21 @@
  * bearer token is read from `localStorage.laravel_token` (set by AuthContext).
  */
 
+import {
+  getStoredLaravelToken,
+  notifyAuthSessionExpired,
+  setStoredLaravelToken,
+} from "@/lib/authStorage";
+
 const BASE_URL =
   (import.meta.env.VITE_LARAVEL_API_URL as string | undefined)?.replace(/\/+$/, "") || "/api";
 
-const TOKEN_KEY = "laravel_token";
-
 export const laravelAuth = {
   getToken(): string | null {
-    try {
-      return localStorage.getItem(TOKEN_KEY);
-    } catch {
-      return null;
-    }
+    return getStoredLaravelToken();
   },
   setToken(token: string | null) {
-    try {
-      if (token) localStorage.setItem(TOKEN_KEY, token);
-      else localStorage.removeItem(TOKEN_KEY);
-    } catch {
-      /* ignore */
-    }
+    setStoredLaravelToken(token);
   },
 };
 
@@ -50,7 +45,13 @@ async function request<T>(
   if (token) headers.Authorization = `Bearer ${token}`;
 
   try {
-    const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
+    const apiUrl = new URL(`${BASE_URL}${path}`, window.location.origin);
+    const sameOrigin = apiUrl.origin === window.location.origin;
+    const res = await fetch(apiUrl.toString(), {
+      ...init,
+      headers,
+      credentials: init.credentials ?? (sameOrigin ? "same-origin" : "omit"),
+    });
     const ctype = res.headers.get("content-type") || "";
     const text = await res.text();
     let body: any = null;
@@ -93,6 +94,9 @@ async function request<T>(
         body && typeof body === "object" && typeof body.error_code === "string"
           ? body.error_code
           : undefined;
+      if (token && (res.status === 401 || res.status === 419)) {
+        notifyAuthSessionExpired(String(message), res.status);
+      }
       return { data: null, error: { message: String(message), status: res.status, code } };
     }
 

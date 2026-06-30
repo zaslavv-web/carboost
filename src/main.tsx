@@ -3,6 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { clearStoredAuthState } from "@/lib/authStorage";
 
 // ─── Unregister service workers in preview/iframe contexts ──────────────────
 const isInIframe = (() => {
@@ -63,7 +64,7 @@ function attemptRecovery(reason: unknown) {
   try {
     // Снимаем потенциально протухшую сессию — после reload пользователь
     // увидит логин-форму вместо пустого экрана.
-    localStorage.removeItem("laravel_token");
+    clearStoredAuthState({ includeToken: true, reason: "stale_chunk_recovery" });
   } catch { /* ignore */ }
 
   try {

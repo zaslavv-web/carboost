@@ -34,7 +34,7 @@ export const useEffectiveUserId = (): string | null => {
 const useEffectiveId = useEffectiveUserId;
 
 export const useUserProfile = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { impersonatedUserId, impersonatedProfile } = useImpersonation();
   const effectiveId = impersonatedUserId || user?.id || null;
 
@@ -61,13 +61,13 @@ export const useUserProfile = () => {
       if (error) throw error;
       return data as UserProfile | null;
     },
-    enabled: !!effectiveId,
+    enabled: !loading && !!effectiveId,
   });
 };
 
 export const useUserRoles = () => {
   const effectiveId = useEffectiveId();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { impersonatedUserId, impersonatedRoles } = useImpersonation();
 
   return useQuery({
@@ -90,7 +90,7 @@ export const useUserRoles = () => {
       if (error) throw error;
       return (data || []).map((r) => r.role as AppRole);
     },
-    enabled: !!effectiveId,
+    enabled: !loading && !!effectiveId,
   });
 };
 

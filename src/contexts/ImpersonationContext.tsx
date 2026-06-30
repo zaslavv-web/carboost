@@ -12,6 +12,18 @@ const IMPERSONATION_PROFILE_KEY = "impersonatedProfile";
 const ORIGINAL_TOKEN_KEY = "impersonationOriginalToken";
 const ORIGINAL_USER_KEY = "impersonationOriginalUser";
 
+const safeSessionGet = (key: string): string | null => {
+  try { return sessionStorage.getItem(key); } catch { return null; }
+};
+
+const safeSessionSet = (key: string, value: string) => {
+  try { sessionStorage.setItem(key, value); } catch { /* ignore */ }
+};
+
+const safeSessionRemove = (key: string) => {
+  try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+};
+
 export interface OriginalUserSnapshot {
   id: string;
   roles: string[];
@@ -43,7 +55,7 @@ export const useImpersonation = () => useContext(ImpersonationContext);
 
 const readJson = <T,>(key: string, fallback: T): T => {
   try {
-    const raw = sessionStorage.getItem(key);
+    const raw = safeSessionGet(key);
     return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
     return fallback;
@@ -55,8 +67,8 @@ const readOriginalUser = (): OriginalUserSnapshot | null => {
 };
 
 export const ImpersonationProvider = ({ children }: { children: ReactNode }) => {
-  const [impersonatedUserId, setUserId] = useState<string | null>(() => sessionStorage.getItem(IMPERSONATION_USER_ID_KEY));
-  const [impersonatedName, setName] = useState<string | null>(() => sessionStorage.getItem(IMPERSONATION_NAME_KEY));
+  const [impersonatedUserId, setUserId] = useState<string | null>(() => safeSessionGet(IMPERSONATION_USER_ID_KEY));
+  const [impersonatedName, setName] = useState<string | null>(() => safeSessionGet(IMPERSONATION_NAME_KEY));
   const [impersonatedRoles, setRoles] = useState<string[]>(() => readJson<string[]>(IMPERSONATION_ROLES_KEY, []));
   const [impersonatedProfile, setProfile] = useState<Record<string, unknown> | null>(() => readJson<Record<string, unknown> | null>(IMPERSONATION_PROFILE_KEY, null));
   const [originalUser, setOriginalUser] = useState<OriginalUserSnapshot | null>(() => readOriginalUser());
@@ -75,16 +87,16 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
             email: user.email ?? null,
           }
         : null;
-      if (originalToken) sessionStorage.setItem(ORIGINAL_TOKEN_KEY, originalToken);
-      if (originalSnapshot) sessionStorage.setItem(ORIGINAL_USER_KEY, JSON.stringify(originalSnapshot));
+      if (originalToken) safeSessionSet(ORIGINAL_TOKEN_KEY, originalToken);
+      if (originalSnapshot) safeSessionSet(ORIGINAL_USER_KEY, JSON.stringify(originalSnapshot));
 
       await laravelAuthApi.startImpersonation(userId);
 
-      sessionStorage.setItem(IMPERSONATION_USER_ID_KEY, userId);
-      sessionStorage.setItem(IMPERSONATION_NAME_KEY, name);
-      sessionStorage.setItem(IMPERSONATION_ROLES_KEY, JSON.stringify(targetSnapshot?.roles ?? []));
-      if (targetSnapshot?.profile) sessionStorage.setItem(IMPERSONATION_PROFILE_KEY, JSON.stringify(targetSnapshot.profile));
-      else sessionStorage.removeItem(IMPERSONATION_PROFILE_KEY);
+      safeSessionSet(IMPERSONATION_USER_ID_KEY, userId);
+      safeSessionSet(IMPERSONATION_NAME_KEY, name);
+      safeSessionSet(IMPERSONATION_ROLES_KEY, JSON.stringify(targetSnapshot?.roles ?? []));
+      if (targetSnapshot?.profile) safeSessionSet(IMPERSONATION_PROFILE_KEY, JSON.stringify(targetSnapshot.profile));
+      else safeSessionRemove(IMPERSONATION_PROFILE_KEY);
       setUserId(userId);
       setName(name);
       setRoles(targetSnapshot?.roles ?? []);
@@ -94,14 +106,14 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
       await queryClient.invalidateQueries();
     } catch (e: any) {
       // Roll back partial state.
-      const original = sessionStorage.getItem(ORIGINAL_TOKEN_KEY);
+      const original = safeSessionGet(ORIGINAL_TOKEN_KEY);
       if (original) laravelAuth.setToken(original);
-      sessionStorage.removeItem(ORIGINAL_TOKEN_KEY);
-      sessionStorage.removeItem(ORIGINAL_USER_KEY);
-      sessionStorage.removeItem(IMPERSONATION_USER_ID_KEY);
-      sessionStorage.removeItem(IMPERSONATION_NAME_KEY);
-      sessionStorage.removeItem(IMPERSONATION_ROLES_KEY);
-      sessionStorage.removeItem(IMPERSONATION_PROFILE_KEY);
+      safeSessionRemove(ORIGINAL_TOKEN_KEY);
+      safeSessionRemove(ORIGINAL_USER_KEY);
+      safeSessionRemove(IMPERSONATION_USER_ID_KEY);
+      safeSessionRemove(IMPERSONATION_NAME_KEY);
+      safeSessionRemove(IMPERSONATION_ROLES_KEY);
+      safeSessionRemove(IMPERSONATION_PROFILE_KEY);
       setUserId(null);
       setName(null);
       setRoles([]);
@@ -116,14 +128,14 @@ export const ImpersonationProvider = ({ children }: { children: ReactNode }) => 
     try {
       await laravelAuthApi.stopImpersonation();
     } finally {
-      const original = sessionStorage.getItem(ORIGINAL_TOKEN_KEY);
+      const original = safeSessionGet(ORIGINAL_TOKEN_KEY);
       laravelAuth.setToken(original);
-      sessionStorage.removeItem(ORIGINAL_TOKEN_KEY);
-      sessionStorage.removeItem(ORIGINAL_USER_KEY);
-      sessionStorage.removeItem(IMPERSONATION_USER_ID_KEY);
-      sessionStorage.removeItem(IMPERSONATION_NAME_KEY);
-      sessionStorage.removeItem(IMPERSONATION_ROLES_KEY);
-      sessionStorage.removeItem(IMPERSONATION_PROFILE_KEY);
+      safeSessionRemove(ORIGINAL_TOKEN_KEY);
+      safeSessionRemove(ORIGINAL_USER_KEY);
+      safeSessionRemove(IMPERSONATION_USER_ID_KEY);
+      safeSessionRemove(IMPERSONATION_NAME_KEY);
+      safeSessionRemove(IMPERSONATION_ROLES_KEY);
+      safeSessionRemove(IMPERSONATION_PROFILE_KEY);
       setUserId(null);
       setName(null);
       setRoles([]);

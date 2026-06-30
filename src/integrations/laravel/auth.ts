@@ -8,6 +8,7 @@
  */
 
 import { laravel, laravelAuth, type LaravelInvokeResult } from "./client";
+import { clearStoredAuthState } from "@/lib/authStorage";
 
 export interface LaravelUser {
   id: string;
@@ -39,6 +40,7 @@ function unwrap<T>({ data, error }: LaravelInvokeResult<T>): T {
 
 export const laravelAuthApi = {
   async login(email: string, password: string): Promise<LaravelUser> {
+    clearStoredAuthState({ includeToken: true, reason: "login_start", notify: false });
     const res = unwrap(await laravel.post<LaravelLoginResponse>("/auth/login", { email, password }));
     laravelAuth.setToken(res.token);
     return res.user;
@@ -51,6 +53,7 @@ export const laravelAuthApi = {
     company_id?: string | null;
     requested_role?: string | null;
   }): Promise<LaravelUser> {
+    clearStoredAuthState({ includeToken: true, reason: "register_start", notify: false });
     const res = unwrap(await laravel.post<LaravelLoginResponse>("/auth/register", payload));
     if (res.token) laravelAuth.setToken(res.token);
     return res.user;
@@ -60,11 +63,14 @@ export const laravelAuthApi = {
     if (!laravelAuth.getToken()) return null;
     const { data, error } = await laravel.get<LaravelUser>("/auth/me");
     if (error) {
-      if (error.status === 401) {
-        laravelAuth.setToken(null);
+      if (error.status === 401 || error.status === 419) {
+        clearStoredAuthState({ includeToken: true, reason: `auth_me_${error.status}` });
         return null;
       }
-      throw new Error(error.message);
+      const err: Error & { status?: number; code?: string } = new Error(error.message);
+      err.status = error.status;
+      err.code = error.code;
+      throw err;
     }
     return data;
   },
@@ -73,7 +79,7 @@ export const laravelAuthApi = {
     if (laravelAuth.getToken()) {
       await laravel.post("/auth/logout").catch(() => undefined);
     }
-    laravelAuth.setToken(null);
+    clearStoredAuthState({ includeToken: true, reason: "logout" });
   },
 
   /** Redirects the browser to the Laravel-hosted Google OAuth endpoint. */
