@@ -83,15 +83,15 @@ import { Navigate } from "react-router-dom";
 const queryClient = new QueryClient();
 
 const ProtectedAppShell = () => (
-  <ProtectedRoute>
-    <ImpersonationProvider>
+  <ImpersonationProvider>
+    <ProtectedRoute>
       <BrandingProvider>
         <ChatProvider>
           <RoleAwareLayout />
         </ChatProvider>
       </BrandingProvider>
-    </ImpersonationProvider>
-  </ProtectedRoute>
+    </ProtectedRoute>
+  </ImpersonationProvider>
 );
 
 const App = () => (
