@@ -82,6 +82,18 @@ import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
+const ProtectedAppShell = () => (
+  <ProtectedRoute>
+    <ImpersonationProvider>
+      <BrandingProvider>
+        <ChatProvider>
+          <RoleAwareLayout />
+        </ChatProvider>
+      </BrandingProvider>
+    </ImpersonationProvider>
+  </ProtectedRoute>
+);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -89,10 +101,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <ImpersonationProvider>
-          <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
-            <BrandingProvider>
-            <ChatProvider>
+        <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
             <ScrollToTop />
             <AnalyticsBootstrap />
             <Routes>
@@ -101,7 +110,7 @@ const App = () => (
               <Route path="/feature/:slug" element={<FeaturePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route element={<ProtectedRoute><RoleAwareLayout /></ProtectedRoute>}>
+              <Route element={<ProtectedAppShell />}>
                 <Route path="/dashboard" element={<RoleDashboard />} />
                 <Route path="/complete-registration" element={<CompleteRegistration />} />
                 <Route path="/assessment" element={<Assessment />} />
@@ -166,10 +175,7 @@ const App = () => (
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
-            </ChatProvider>
-            </BrandingProvider>
           </BrowserRouter>
-        </ImpersonationProvider>
       </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
