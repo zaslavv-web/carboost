@@ -5,3 +5,14 @@ RewriteRule ^(.*)$ frontend/$1 [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ frontend/index.html [L]
+
+# index.html НЕ кешируется — после деплоя браузер должен подтянуть свежий
+# html с новыми хешами /assets/*, иначе будет «чёрный экран» из-за 404 на
+# старые чанки.
+<IfModule mod_headers.c>
+  <FilesMatch "index\.html$">
+    Header set Cache-Control "no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
