@@ -44,6 +44,10 @@ async function request<T>(
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
+  const timeoutMs = path === "/auth/me" ? 8000 : 30000;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const apiUrl = new URL(`${BASE_URL}${path}`, window.location.origin);
     const sameOrigin = apiUrl.origin === window.location.origin;
@@ -51,6 +55,7 @@ async function request<T>(
       ...init,
       headers,
       credentials: init.credentials ?? (sameOrigin ? "same-origin" : "omit"),
+      signal: init.signal ?? controller.signal,
     });
     const ctype = res.headers.get("content-type") || "";
     const text = await res.text();
@@ -103,15 +108,20 @@ async function request<T>(
     return { data: body as T, error: null };
   } catch (e: any) {
     const rawMessage = String(e?.message || "Network error");
+    const isAbort = e?.name === "AbortError";
     const isClosedConnection = /ERR_CONNECTION_CLOSED|Failed to fetch|NetworkError|Load failed/i.test(rawMessage);
     return {
       data: null,
       error: {
-        message: isClosedConnection
+        message: isAbort
+          ? "Backend не ответил вовремя. Сессия будет сброшена, чтобы не показывать чёрный экран."
+          : isClosedConnection
           ? "Backend разорвал соединение. Проверьте, что Laravel/PHP-FPM запущен, миграции применены, а nginx корректно проксирует /api."
           : rawMessage,
       },
     };
+  } finally {
+    window.clearTimeout(timeout);
   }
 }
 
