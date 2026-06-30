@@ -63,7 +63,11 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
       const me = await laravelAuthApi.me();
       setUser(me);
     } catch (e) {
+      // Сбрасываем потенциально протухший токен — иначе при каждом ребуте
+      // приложение будет падать на /auth/me и зависать в loading=true, что
+      // визуально выглядит как «чёрный экран при повторном входе».
       console.error("Laravel auth refresh failed", e);
+      try { localStorage.removeItem("laravel_token"); } catch { /* ignore */ }
       setUser(null);
     } finally {
       setLoading(false);
