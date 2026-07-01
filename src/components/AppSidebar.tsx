@@ -139,7 +139,11 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Users, label: t("nav.employees"), path: "/employees" },
           { icon: Briefcase, label: t("nav.positions"), path: "/positions" },
         ]},
-        { key: "knowledge", label: S("knowledge"), entries: [university, ragDocs] },
+        { key: "knowledge", label: S("knowledge"), entries: [
+          university, ragDocs,
+          { icon: BookOpen, label: t("nav.knowledgeBase", { defaultValue: "База знаний" }), path: "/knowledge-base" },
+          { icon: Target, label: t("nav.idp", { defaultValue: "Планы развития (ИПР)" }), path: "/idp" },
+        ] },
         { key: "system", label: S("system"), entries: [branding, aiSettings, settings] },
       ];
     }
