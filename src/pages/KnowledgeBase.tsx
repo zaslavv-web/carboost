@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
-import { useUserProfile } from "@/hooks/useUserProfile";
+import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
 import { BookOpen, Plus, Search, FolderTree, FileText, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
@@ -29,8 +29,9 @@ type Article = {
 
 export default function KnowledgeBase() {
   const { data: profile } = useUserProfile();
+  const role = usePrimaryRole();
   const companyId = profile?.company_id ?? null;
-  const canEdit = !!profile?.role && ["hrd", "company_admin", "superadmin"].includes(profile.role);
+  const canEdit = ["hrd", "company_admin", "superadmin"].includes(role);
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
