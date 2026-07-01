@@ -87,6 +87,10 @@ Route::post('/rpc/submit_pricing_inquiry', fn (\Illuminate\Http\Request $r) =>
 // например, с лендинга). Запросы данных закрыты ниже под auth:sanctum.
 Route::post('/analytics/ingest', [\App\Http\Controllers\Api\AnalyticsController::class, 'ingest']);
 
+// Wave 6: публичный iCal (HMAC-подпись в query) — для подписки Google/Outlook/Apple.
+Route::get('/ical/leaves/{companyId}.ics', [\App\Http\Controllers\Api\IcalController::class, 'leaves']);
+
+
 // /auth/me публичный: если sanctum-токен есть и валиден — контроллер прочитает его
 // через Auth::guard('sanctum')->user(); если нет — отдаст чистый 401 JSON.
 // До этого роут стоял в auth:sanctum-группе и при любом сбое Sanctum (легаси-схема
