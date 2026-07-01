@@ -166,6 +166,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { key: "analytics", label: S("analytics"), entries: [
           dashboard,
           { icon: BarChart3, label: t("nav.analyticsOverview"), path: "/analytics" },
+          { icon: BarChart3, label: "People Analytics", path: "/people-analytics" },
           { icon: Activity, label: t("nav.riskAnalytics"), path: "/risk-analytics" },
           { icon: Activity, label: t("nav.pulseSurveys", { defaultValue: "Pulse-опросы" }), path: "/pulse-surveys" },
           {
@@ -178,6 +179,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             ],
           },
         ]},
+
         { key: "hr", label: S("hr"), entries: [
           {
             icon: Users,
