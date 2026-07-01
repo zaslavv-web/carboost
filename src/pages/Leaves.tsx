@@ -66,6 +66,11 @@ const Leaves = () => {
     queryFn: () => leavesApi.listRequests("inbox"),
     enabled: isManagerOrHr,
   });
+  const { data: teamAll = [], isLoading: loadingTeam } = useQuery({
+    queryKey: ["leaves", "requests", "team"],
+    queryFn: () => leavesApi.listRequests("all"),
+    enabled: isManagerOrHr,
+  });
 
   const approve = useMutation({
     mutationFn: ({ id, comment }: { id: string; comment?: string }) =>
@@ -169,6 +174,7 @@ const Leaves = () => {
           <TabsTrigger value="mine">{t("tabs.mine")}</TabsTrigger>
           {isManagerOrHr && <TabsTrigger value="inbox">{t("tabs.inbox")}</TabsTrigger>}
           <TabsTrigger value="balances">{t("tabs.balances")}</TabsTrigger>
+          {isManagerOrHr && <TabsTrigger value="calendar">Календарь команды</TabsTrigger>}
           {isHr && <TabsTrigger value="types">{t("tabs.types")}</TabsTrigger>}
         </TabsList>
 
