@@ -47,6 +47,8 @@ import {
   BookOpen,
   Sparkles,
   Newspaper,
+  Webhook,
+
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { useBranding } from "@/contexts/BrandingContext";
@@ -101,6 +103,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const branding: NavItem = { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" };
     const aiSettings: NavItem = { icon: Brain, label: t("nav.aiSettings", { defaultValue: "AI-провайдер" }), path: "/ai-settings" };
     const settings: NavItem = { icon: Settings, label: t("nav.settings"), path: "/settings" };
+    const integrations: NavItem = { icon: Webhook, label: "Интеграции", path: "/integrations" };
+
 
     if (role === "superadmin") {
       return [
