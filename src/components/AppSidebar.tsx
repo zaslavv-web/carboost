@@ -225,6 +225,9 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { key: "myWork", label: S("myWork"), entries: [myProfile, tracker] },
         { key: "communication", label: S("communication"), entries: [
           { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" },
+          { icon: Newspaper, label: t("nav.feed", { defaultValue: "Лента компании" }), path: "/feed" },
+          { icon: Users, label: t("nav.communities", { defaultValue: "Сообщества" }), path: "/communities" },
+          { icon: Activity, label: t("nav.pulseSurveys", { defaultValue: "Pulse-опросы" }), path: "/pulse-surveys" },
         ]},
         { key: "analytics", label: S("analytics"), entries: [
           dashboard,
