@@ -209,7 +209,11 @@ class LeaveRequestController extends Controller
             'hr_id'               => $isHr ? $user->getAuthIdentifier() : $req->hr_id,
         ]);
         $this->notifyEmployee($req, '⚠️ Заявка отклонена. Причина: ' . $data['comment']);
+        app(\App\Services\WebhookDispatcher::class)->dispatch('leave.rejected', [
+            'request_id' => $req->id, 'user_id' => $req->user_id, 'reason' => $data['comment'],
+        ], $req->company_id);
         return response()->json($req->fresh(['leaveType', 'files']));
+
     }
 
     public function cancel(string $id, Request $request): JsonResponse
