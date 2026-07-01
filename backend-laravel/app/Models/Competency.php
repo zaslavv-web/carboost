@@ -11,6 +11,6 @@ class Competency extends Model
     use HasUuids, BelongsToCompany;
 
     protected $table = 'competencies';
-    protected $fillable = ['user_id', 'company_id', 'skill_name', 'skill_value'];
-    protected $casts = ['skill_value' => 'integer'];
+    protected $fillable = ['user_id', 'company_id', 'skill_name', 'skill_value', 'category', 'target_value'];
+    protected $casts = ['skill_value' => 'integer', 'target_value' => 'integer'];
 }
