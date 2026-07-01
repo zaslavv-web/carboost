@@ -46,6 +46,7 @@ import {
   Crosshair,
   BookOpen,
   Sparkles,
+  Newspaper,
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { useBranding } from "@/contexts/BrandingContext";
