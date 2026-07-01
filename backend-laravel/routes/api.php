@@ -62,8 +62,15 @@ Route::get('/health', function () {
     return response()->json(['status' => $ok ? 'ok' : 'degraded', 'checks' => $checks], $ok ? 200 : 503);
 });
 
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/login',    [AuthController::class, 'login']);
+// Аудит 2026-07-01: добавлен throttle на все публичные endpoint'ы (брутфорс/спам).
+// 10/min на auth-эндпоинты — с учётом IP и логина; 30/min на публичные RPC и ingest.
+Route::middleware('throttle:10,1')->group(function () {
+    Route::post('/auth/register', [AuthController::class, 'register']);
+    Route::post('/auth/login',    [AuthController::class, 'login']);
+    Route::post('/auth/forgot-password', [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'forgot']);
+    Route::post('/auth/reset-password',  [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'reset']);
+});
+
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 Route::get('/auth/yandex/redirect', [\App\Http\Controllers\Api\Auth\YandexAuthController::class, 'redirect']);
@@ -72,20 +79,18 @@ Route::get('/auth/yandex/callback', [\App\Http\Controllers\Api\Auth\YandexAuthCo
 // GeoIP + список доступных способов входа для текущего IP (используется на /login).
 Route::get('/geo', \App\Http\Controllers\Api\GeoController::class);
 
-// Phase 13: password reset (заменяет legacy.auth.resetPasswordForEmail/updateUser)
-Route::post('/auth/forgot-password', [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'forgot']);
-Route::post('/auth/reset-password',  [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'reset']);
-
 // Public RPCs used from landing/pricing forms (declared BEFORE the auth group
 // so they take precedence over the generic /rpc/{name} below).
-Route::post('/rpc/submit_demo_request',    fn (\Illuminate\Http\Request $r) =>
-    app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'submit_demo_request'));
-Route::post('/rpc/submit_pricing_inquiry', fn (\Illuminate\Http\Request $r) =>
-    app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'submit_pricing_inquiry'));
+Route::middleware('throttle:30,1')->group(function () {
+    Route::post('/rpc/submit_demo_request',    fn (\Illuminate\Http\Request $r) =>
+        app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'submit_demo_request'));
+    Route::post('/rpc/submit_pricing_inquiry', fn (\Illuminate\Http\Request $r) =>
+        app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'submit_pricing_inquiry'));
 
-// Продуктовая аналитика: ingest публичный (события можно слать и без логина —
-// например, с лендинга). Запросы данных закрыты ниже под auth:sanctum.
-Route::post('/analytics/ingest', [\App\Http\Controllers\Api\AnalyticsController::class, 'ingest']);
+    // Продуктовая аналитика: ingest публичный (события можно слать и без логина —
+    // например, с лендинга). Запросы данных закрыты ниже под auth:sanctum.
+    Route::post('/analytics/ingest', [\App\Http\Controllers\Api\AnalyticsController::class, 'ingest']);
+});
 
 // Wave 6: публичный iCal (HMAC-подпись в query) — для подписки Google/Outlook/Apple.
 Route::get('/ical/leaves/{companyId}.ics', [\App\Http\Controllers\Api\IcalController::class, 'leaves']);

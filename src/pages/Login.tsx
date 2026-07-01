@@ -166,7 +166,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-dvh flex flex-col bg-background">
       <LandingHeader />
       <div className="flex-1 flex">
       <div className="hidden lg:flex lg:w-1/2 gradient-hero items-center justify-center p-12">

@@ -36,7 +36,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+      <div className="min-h-dvh flex items-center justify-center p-6 bg-background">
         <div className="max-w-md w-full bg-card border border-border rounded-2xl p-6 shadow-elevated text-center space-y-4">
           <div className="text-3xl">⚠️</div>
           <h1 className="text-lg font-semibold text-foreground">Что-то пошло не так</h1>

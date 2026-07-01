@@ -58,7 +58,7 @@ const ResetPassword = () => {
   if (expiredError) {
     const forgotHref = `/login?forgot=1${email ? `&email=${encodeURIComponent(email)}` : ""}`;
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-8">
+      <div className="min-h-dvh flex items-center justify-center bg-background p-8">
         <div className="w-full max-w-sm text-center">
           <div className="w-12 h-12 mx-auto mb-6 rounded-full bg-destructive/10 flex items-center justify-center">
             <AlertTriangle className="w-6 h-6 text-destructive" />
@@ -82,7 +82,7 @@ const ResetPassword = () => {
 
   if (!isRecovery) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-8">
+      <div className="min-h-dvh flex items-center justify-center bg-background p-8">
         <div className="w-full max-w-sm text-center">
           <img src={brandLogo} alt={t("common:brand.logoAlt")} width={48} height={48} className="w-12 h-12 mx-auto mb-6 object-contain" />
           <h2 className="text-xl font-bold text-foreground mb-2">{t("auth:reset.invalidLinkTitle")}</h2>
@@ -96,7 +96,7 @@ const ResetPassword = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-8">
+    <div className="min-h-dvh flex items-center justify-center bg-background p-8">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-3 mb-8">
           <img src={brandLogo} alt={t("common:brand.logoAlt")} width={40} height={40} className="w-10 h-10 object-contain" />

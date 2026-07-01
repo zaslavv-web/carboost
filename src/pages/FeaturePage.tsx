@@ -21,7 +21,7 @@ const FeaturePage = () => {
 
   if (!feature) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-dvh bg-background">
         <LandingHeader onOpenDemo={() => setDemoOpen(true)} />
         <div className="max-w-3xl mx-auto px-4 py-24 text-center">
           <h1 className="text-2xl font-bold mb-4">{t("feature.notFound")}</h1>
@@ -38,7 +38,7 @@ const FeaturePage = () => {
   const hrdValue = t(`${base}.hrdValue`, { returnObjects: true }) as string[];
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-dvh bg-background text-foreground">
       <LandingHeader onOpenDemo={() => setDemoOpen(true)} />
 
       <section className="relative overflow-hidden border-b border-border">
