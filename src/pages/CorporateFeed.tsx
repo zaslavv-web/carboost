@@ -96,7 +96,6 @@ export default function CorporateFeed() {
         emoji: "👍",
       });
       if (error) throw error;
-      await laravelDb.rpc("portal_bump_reaction" as any, { post_id: postId }).catch(() => null);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["portal-posts"] }),
     onError: () => toast.error("Уже отреагировали"),
