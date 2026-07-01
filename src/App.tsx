@@ -60,6 +60,8 @@ import Leaves from "@/pages/Leaves";
 import Performance from "@/pages/Performance";
 import Probation from "@/pages/Probation";
 import Disciplinary from "@/pages/Disciplinary";
+import SkillsMatrix from "@/pages/SkillsMatrix";
+import PerformanceReview360 from "@/pages/PerformanceReview360";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { BrandingProvider } from "@/contexts/BrandingContext";
 import CompanyBranding from "@/pages/CompanyBranding";
@@ -159,6 +161,8 @@ const App = () => (
                 <Route path="/performance" element={<Performance />} />
                 <Route path="/probation" element={<Probation />} />
                 <Route path="/disciplinary" element={<Disciplinary />} />
+                <Route path="/skills-matrix" element={<SkillsMatrix />} />
+                <Route path="/performance-360" element={<PerformanceReview360 />} />
                 <Route path="/company-branding" element={<CompanyBranding />} />
                 <Route path="/ai-settings" element={<AiSettings />} />
                 <Route path="/rag-documents" element={<RagDocuments />} />

@@ -45,6 +45,7 @@ import {
   GraduationCap,
   Crosshair,
   BookOpen,
+  Sparkles,
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { useBranding } from "@/contexts/BrandingContext";
@@ -195,6 +196,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             label: t("nav.performance", { defaultValue: "Performance" }),
             children: [
               { icon: Star, label: t("performance:title", { defaultValue: "Performance Reviews" }), path: "/performance" },
+              { icon: Users, label: t("nav.perf360", { defaultValue: "360° ревью" }), path: "/performance-360" },
+              { icon: Sparkles, label: t("nav.skillsMatrix", { defaultValue: "Матрица компетенций" }), path: "/skills-matrix" },
               { icon: TimerReset, label: t("performance:probation.title", { defaultValue: "Испытательный срок" }), path: "/probation" },
               { icon: AlertOctagon, label: t("performance:disciplinary.title", { defaultValue: "Дисциплинарные" }), path: "/disciplinary" },
             ],
