@@ -407,4 +407,143 @@ const TypesManager = ({ types, onChange }: { types: LeaveType[]; onChange: () =>
   );
 };
 
+// ----- Team leave calendar -----
+
+const MONTH_NAMES = [
+  "Январь","Февраль","Март","Апрель","Май","Июнь",
+  "Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь",
+];
+
+const TeamLeaveCalendar = ({
+  requests, types, loading,
+}: { requests: LeaveRequest[]; types: LeaveType[]; loading: boolean }) => {
+  const [monthOffset, setMonthOffset] = useState(0);
+  const base = new Date();
+  base.setDate(1);
+  base.setMonth(base.getMonth() + monthOffset);
+  const year = base.getFullYear();
+  const month = base.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month, daysInMonth);
+
+  const approvedInMonth = requests.filter((r) => {
+    if (r.status !== "approved" && r.status !== "pending_hr") return false;
+    const s = new Date(r.start_date);
+    const e = new Date(r.end_date);
+    return e >= monthStart && s <= monthEnd;
+  });
+
+  // group by user_id
+  const byUser = new Map<string, LeaveRequest[]>();
+  approvedInMonth.forEach((r) => {
+    const arr = byUser.get(r.user_id) ?? [];
+    arr.push(r);
+    byUser.set(r.user_id, arr);
+  });
+
+  if (loading) {
+    return <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto my-12" />;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <Button size="sm" variant="outline" onClick={() => setMonthOffset((v) => v - 1)}>← Пред</Button>
+        <div className="font-semibold">{MONTH_NAMES[month]} {year}</div>
+        <Button size="sm" variant="outline" onClick={() => setMonthOffset((v) => v + 1)}>След →</Button>
+      </div>
+
+      {byUser.size === 0 ? (
+        <p className="text-center text-muted-foreground py-8">
+          Отсутствий сотрудников в этом месяце нет
+        </p>
+      ) : (
+        <div className="border border-border rounded-lg overflow-x-auto">
+          <div className="min-w-[900px]">
+            <div className="grid" style={{ gridTemplateColumns: `220px repeat(${daysInMonth}, 1fr)` }}>
+              <div className="bg-muted/50 px-3 py-2 text-xs font-semibold border-b border-border">
+                Сотрудник
+              </div>
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const d = new Date(year, month, i + 1);
+                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                return (
+                  <div
+                    key={i}
+                    className={`text-center text-[10px] py-2 border-b border-border ${
+                      isWeekend ? "bg-muted/60 text-muted-foreground" : "bg-muted/50"
+                    }`}
+                  >
+                    {i + 1}
+                  </div>
+                );
+              })}
+
+              {Array.from(byUser.entries()).map(([uid, reqs]) => (
+                <FragmentRow
+                  key={uid}
+                  userId={uid}
+                  reqs={reqs}
+                  types={types}
+                  year={year}
+                  month={month}
+                  daysInMonth={daysInMonth}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-3 flex-wrap text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded bg-primary/70 inline-block" /> Согласовано
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded bg-yellow-500/60 inline-block" /> На согласовании
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const FragmentRow = ({
+  userId, reqs, types, year, month, daysInMonth,
+}: {
+  userId: string; reqs: LeaveRequest[]; types: LeaveType[];
+  year: number; month: number; daysInMonth: number;
+}) => {
+  const cells: (LeaveRequest | null)[] = Array(daysInMonth).fill(null);
+  reqs.forEach((r) => {
+    const s = new Date(r.start_date);
+    const e = new Date(r.end_date);
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(year, month, day);
+      if (d >= s && d <= e) cells[day - 1] = r;
+    }
+  });
+
+  return (
+    <>
+      <div className="px-3 py-2 text-xs border-b border-border bg-card font-mono truncate" title={userId}>
+        {userId.slice(0, 8)}…
+      </div>
+      {cells.map((r, i) => {
+        if (!r) return <div key={i} className="border-b border-border bg-card h-8" />;
+        const isApproved = r.status === "approved";
+        const type = r.leaveType?.title || types.find((t) => t.id === r.leave_type_id)?.title || "";
+        return (
+          <div
+            key={i}
+            className={`border-b border-border h-8 ${isApproved ? "bg-primary/70" : "bg-yellow-500/60"}`}
+            title={`${type} · ${r.start_date} – ${r.end_date}`}
+          />
+        );
+      })}
+    </>
+  );
+};
+
+
 export default Leaves;
