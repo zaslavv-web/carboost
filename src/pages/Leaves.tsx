@@ -225,6 +225,16 @@ const Leaves = () => {
           )}
         </TabsContent>
 
+        {isManagerOrHr && (
+          <TabsContent value="calendar" className="mt-4">
+            <TeamLeaveCalendar
+              requests={teamAll}
+              types={types}
+              loading={loadingTeam}
+            />
+          </TabsContent>
+        )}
+
         {isHr && (
           <TabsContent value="types" className="mt-4">
             <TypesManager types={types} onChange={() => qc.invalidateQueries({ queryKey: ["leaves", "types"] })} />
