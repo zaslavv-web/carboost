@@ -38,6 +38,8 @@ import MyOrders from "@/pages/MyOrders";
 import ShopAdmin from "@/pages/ShopAdmin";
 import Onboarding from "@/pages/Onboarding";
 import AdaptationPlans from "@/pages/AdaptationPlans";
+import IndividualDevelopmentPlans from "@/pages/IndividualDevelopmentPlans";
+import KnowledgeBase from "@/pages/KnowledgeBase";
 import Invitations from "@/pages/Invitations";
 import Landing from "@/pages/Landing";
 import Pricing from "@/pages/Pricing";
@@ -143,6 +145,8 @@ const App = () => (
                 <Route path="/shop-admin" element={<ShopAdmin />} />
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/adaptation-plans" element={<AdaptationPlans />} />
+                <Route path="/idp" element={<IndividualDevelopmentPlans />} />
+                <Route path="/knowledge-base" element={<KnowledgeBase />} />
                 <Route path="/invitations" element={<Invitations />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/recognition" element={<Recognition />} />
