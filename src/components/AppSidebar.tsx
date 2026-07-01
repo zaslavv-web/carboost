@@ -47,6 +47,8 @@ import {
   BookOpen,
   Sparkles,
   Newspaper,
+  Webhook,
+
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { useBranding } from "@/contexts/BrandingContext";
@@ -101,6 +103,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const branding: NavItem = { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" };
     const aiSettings: NavItem = { icon: Brain, label: t("nav.aiSettings", { defaultValue: "AI-провайдер" }), path: "/ai-settings" };
     const settings: NavItem = { icon: Settings, label: t("nav.settings"), path: "/settings" };
+    const integrations: NavItem = { icon: Webhook, label: "Интеграции", path: "/integrations" };
+
 
     if (role === "superadmin") {
       return [
@@ -119,7 +123,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Banknote, label: t("nav.pricingInquiries"), path: "/pricing-inquiries" },
         ]},
         { key: "knowledge", label: S("knowledge"), entries: [university, ragDocs] },
-        { key: "system", label: S("system"), entries: [branding, aiSettings, settings] },
+        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, settings] },
       ];
     }
 
@@ -149,7 +153,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: BookOpen, label: t("nav.knowledgeBase", { defaultValue: "База знаний" }), path: "/knowledge-base" },
           { icon: Target, label: t("nav.idp", { defaultValue: "Планы развития (ИПР)" }), path: "/idp" },
         ] },
-        { key: "system", label: S("system"), entries: [branding, aiSettings, settings] },
+        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, settings] },
       ];
     }
 
@@ -166,6 +170,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { key: "analytics", label: S("analytics"), entries: [
           dashboard,
           { icon: BarChart3, label: t("nav.analyticsOverview"), path: "/analytics" },
+          { icon: BarChart3, label: "People Analytics", path: "/people-analytics" },
           { icon: Activity, label: t("nav.riskAnalytics"), path: "/risk-analytics" },
           { icon: Activity, label: t("nav.pulseSurveys", { defaultValue: "Pulse-опросы" }), path: "/pulse-surveys" },
           {
@@ -178,6 +183,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             ],
           },
         ]},
+
         { key: "hr", label: S("hr"), entries: [
           {
             icon: Users,
@@ -217,7 +223,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Store, label: t("nav.shopAdmin"), path: "/shop-admin" },
         ]},
         { key: "knowledge", label: S("knowledge"), entries: [university, ragDocs] },
-        { key: "system", label: S("system"), entries: [branding, aiSettings, settings] },
+        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, settings] },
       ];
     }
 

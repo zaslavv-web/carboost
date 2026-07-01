@@ -121,8 +121,19 @@ class LeaveRequestController extends Controller
             return $req;
         });
 
+        app(\App\Services\WebhookDispatcher::class)->dispatch('leave.requested', [
+            'request_id' => $req->id,
+            'user_id'    => $req->user_id,
+            'days'       => $req->days_count,
+            'start_date' => (string) $req->start_date,
+            'end_date'   => (string) $req->end_date,
+            'type'       => $type->code,
+        ], $req->company_id);
+
+
         return response()->json($req->fresh(['leaveType', 'files']), 201);
     }
+
 
     public function show(string $id, Request $request): JsonResponse
     {
@@ -162,6 +173,9 @@ class LeaveRequestController extends Controller
                 ]);
                 $this->applyApprovalSideEffects($req);
                 $this->notifyEmployee($req, '🎉 HR подтвердил заявку. Отсутствие согласовано.');
+                app(\App\Services\WebhookDispatcher::class)->dispatch('leave.approved', [
+                    'request_id' => $req->id, 'user_id' => $req->user_id, 'days' => $req->days_count,
+                ], $req->company_id);
             } else {
                 return response()->json(['error' => 'Заявка уже обработана'], 422);
             }
@@ -178,6 +192,7 @@ class LeaveRequestController extends Controller
         if (!in_array($req->status, ['pending_manager', 'pending_hr'], true)) {
             return response()->json(['error' => 'Заявка уже обработана'], 422);
         }
+
         $isManager = $this->isManagerOf($user, $req->user_id);
         $isHr = $this->isHr($user);
         if (!$isManager && !$isHr) {
@@ -194,7 +209,11 @@ class LeaveRequestController extends Controller
             'hr_id'               => $isHr ? $user->getAuthIdentifier() : $req->hr_id,
         ]);
         $this->notifyEmployee($req, '⚠️ Заявка отклонена. Причина: ' . $data['comment']);
+        app(\App\Services\WebhookDispatcher::class)->dispatch('leave.rejected', [
+            'request_id' => $req->id, 'user_id' => $req->user_id, 'reason' => $data['comment'],
+        ], $req->company_id);
         return response()->json($req->fresh(['leaveType', 'files']));
+
     }
 
     public function cancel(string $id, Request $request): JsonResponse
