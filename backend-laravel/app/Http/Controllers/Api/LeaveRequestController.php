@@ -121,8 +121,18 @@ class LeaveRequestController extends Controller
             return $req;
         });
 
+        app(\App\Services\WebhookDispatcher::class)->dispatch('leave.requested', [
+            'request_id' => $req->id,
+            'user_id'    => $req->user_id,
+            'days'       => $req->days_count,
+            'start_date' => $req->start_date?->toDateString?: (string) $req->start_date,
+            'end_date'   => $req->end_date?->toDateString?: (string) $req->end_date,
+            'type'       => $type->code,
+        ], $req->company_id);
+
         return response()->json($req->fresh(['leaveType', 'files']), 201);
     }
+
 
     public function show(string $id, Request $request): JsonResponse
     {
