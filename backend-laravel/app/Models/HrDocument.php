@@ -12,8 +12,14 @@ class HrDocument extends Model
 
     protected $table = 'hr_documents';
     protected $fillable = [
-        'company_id', 'created_by', 'title', 'description', 'document_type',
+        'company_id', 'created_by', 'owner_user_id', 'title', 'description', 'document_type',
         'file_url', 'file_name', 'scenario_id', 'extracted_data', 'processing_status',
+        'valid_from', 'valid_until', 'is_confidential',
     ];
-    protected $casts = ['extracted_data' => 'array'];
+    protected $casts = [
+        'extracted_data'  => 'array',
+        'valid_from'      => 'date',
+        'valid_until'     => 'date',
+        'is_confidential' => 'boolean',
+    ];
 }
