@@ -37,6 +37,7 @@ import Cart from "@/pages/Cart";
 import MyOrders from "@/pages/MyOrders";
 import ShopAdmin from "@/pages/ShopAdmin";
 import Onboarding from "@/pages/Onboarding";
+import AdaptationPlans from "@/pages/AdaptationPlans";
 import Invitations from "@/pages/Invitations";
 import Landing from "@/pages/Landing";
 import Pricing from "@/pages/Pricing";
@@ -141,6 +142,7 @@ const App = () => (
                 <Route path="/my-orders" element={<MyOrders />} />
                 <Route path="/shop-admin" element={<ShopAdmin />} />
                 <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/adaptation-plans" element={<AdaptationPlans />} />
                 <Route path="/invitations" element={<Invitations />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/recognition" element={<Recognition />} />

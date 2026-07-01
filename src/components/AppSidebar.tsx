@@ -134,6 +134,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         ]},
         { key: "hr", label: S("hr"), entries: [
           { icon: Rocket, label: t("nav.onboarding"), path: "/onboarding" },
+          { icon: Rocket, label: t("nav.adaptationPlans", { defaultValue: "Планы адаптации" }), path: "/adaptation-plans" },
           { icon: UserCog, label: t("nav.users"), path: "/users" },
           { icon: Users, label: t("nav.employees"), path: "/employees" },
           { icon: Briefcase, label: t("nav.positions"), path: "/positions" },
@@ -172,6 +173,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             children: [
               { icon: Users, label: t("nav.employeesList"), path: "/employees" },
               { icon: Rocket, label: t("nav.onboarding"), path: "/onboarding" },
+              { icon: Rocket, label: t("nav.adaptationPlans", { defaultValue: "Планы адаптации" }), path: "/adaptation-plans" },
             ],
           },
 
