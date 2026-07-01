@@ -105,6 +105,12 @@ class DbController extends Controller
         'onboarding_plan_steps'    => \App\Models\OnboardingPlanStep::class,
         'onboarding_assignments'   => \App\Models\OnboardingAssignment::class,
         'onboarding_step_progress' => \App\Models\OnboardingStepProgress::class,
+
+        // L&D (Волна 2): ИПР + База знаний
+        'individual_development_plans' => \App\Models\IndividualDevelopmentPlan::class,
+        'idp_items'                    => \App\Models\IdpItem::class,
+        'knowledge_categories'         => \App\Models\KnowledgeCategory::class,
+        'knowledge_articles'           => \App\Models\KnowledgeArticle::class,
     ];
 
 

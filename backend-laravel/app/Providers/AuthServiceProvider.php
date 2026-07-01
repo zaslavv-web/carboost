@@ -111,6 +111,12 @@ class AuthServiceProvider extends ServiceProvider
         Models\OnboardingPlanStep::class     => CompanyScopedPolicy::class,
         Models\OnboardingAssignment::class   => CompanyScopedPolicy::class,
         Models\OnboardingStepProgress::class => CompanyScopedPolicy::class,
+
+        // L&D (Волна 2)
+        Models\IndividualDevelopmentPlan::class => OwnedRecordPolicy::class,
+        Models\IdpItem::class                   => CompanyScopedPolicy::class,
+        Models\KnowledgeCategory::class         => CompanyScopedPolicy::class,
+        Models\KnowledgeArticle::class          => CompanyScopedPolicy::class,
     ];
 
 
