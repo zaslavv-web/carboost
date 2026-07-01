@@ -48,7 +48,7 @@ const Pricing = () => {
   const plans: Plan[] = ["cloud", "on_premise"];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       <LandingHeader showAnchors={false} />
       <main className="max-w-6xl mx-auto px-4 md:px-8 py-16">
         <div className="text-center mb-12 space-y-4">

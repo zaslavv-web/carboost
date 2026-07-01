@@ -66,7 +66,7 @@ const AppLayout = () => {
   const isSandbox = import.meta.env.VITE_APP_ENV === "sandstorm";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       {isSandbox && (
         <div className="sticky top-0 z-[80] bg-warning text-warning-foreground text-xs md:text-sm font-medium text-center py-1.5 px-3">
           {t("layout.sandboxBanner")}

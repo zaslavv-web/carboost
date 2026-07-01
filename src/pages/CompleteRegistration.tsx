@@ -156,7 +156,7 @@ const CompleteRegistration = () => {
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-dvh flex items-center justify-center bg-background">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -165,7 +165,7 @@ const CompleteRegistration = () => {
   const showPositionPicker = selectedRole === "employee" && !!selectedCompanyId && !autoMatchedPosition;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-6 py-10">
+    <div className="min-h-dvh flex items-center justify-center bg-background px-6 py-10">
       <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-sm">
         <div className="text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl gradient-primary">

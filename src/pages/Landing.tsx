@@ -38,7 +38,7 @@ const Landing = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-dvh flex items-center justify-center bg-background">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -51,7 +51,7 @@ const Landing = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-dvh bg-background text-foreground">
       <LandingHeader onOpenDemo={() => openDemo(null)} showAnchors={false} />
 
       {/* ─────────── 1. HERO ─────────── */}

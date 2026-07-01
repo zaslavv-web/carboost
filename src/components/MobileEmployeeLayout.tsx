@@ -42,7 +42,7 @@ const MobileEmployeeLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-dvh bg-background flex flex-col">
       <ImpersonationBanner />
       <header className="sticky top-0 z-40 h-14 bg-card/90 backdrop-blur-md border-b border-border flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
