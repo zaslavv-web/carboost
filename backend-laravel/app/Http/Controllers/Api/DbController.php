@@ -111,6 +111,9 @@ class DbController extends Controller
         'idp_items'                    => \App\Models\IdpItem::class,
         'knowledge_categories'         => \App\Models\KnowledgeCategory::class,
         'knowledge_articles'           => \App\Models\KnowledgeArticle::class,
+
+        // Performance (Волна 3): 360° reviewers
+        'performance_review_reviewers' => \App\Models\PerformanceReviewReviewer::class,
     ];
 
 
