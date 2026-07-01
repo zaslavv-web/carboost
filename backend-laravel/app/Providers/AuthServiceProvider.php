@@ -105,6 +105,12 @@ class AuthServiceProvider extends ServiceProvider
         Models\ShopOrder::class            => \App\Policies\ShopOwnedPolicy::class,
         Models\ShopCartItem::class         => \App\Policies\ShopOwnedPolicy::class,
         Models\ShopOrderItem::class        => OwnedRecordPolicy::class,
+
+        // Onboarding (Волна 1): планы/шаги — справочник HRD; назначения/прогресс — по сотруднику
+        Models\OnboardingPlan::class         => CompanyScopedPolicy::class,
+        Models\OnboardingPlanStep::class     => CompanyScopedPolicy::class,
+        Models\OnboardingAssignment::class   => OwnedRecordPolicy::class,
+        Models\OnboardingStepProgress::class => OwnedRecordPolicy::class,
     ];
 
 

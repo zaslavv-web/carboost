@@ -99,6 +99,12 @@ class DbController extends Controller
         'shop_orders'      => \App\Models\ShopOrder::class,
         'shop_order_items' => \App\Models\ShopOrderItem::class,
         'shop_cart_items'  => \App\Models\ShopCartItem::class,
+
+        // Onboarding (Волна 1)
+        'onboarding_plans'         => \App\Models\OnboardingPlan::class,
+        'onboarding_plan_steps'    => \App\Models\OnboardingPlanStep::class,
+        'onboarding_assignments'   => \App\Models\OnboardingAssignment::class,
+        'onboarding_step_progress' => \App\Models\OnboardingStepProgress::class,
     ];
 
 
