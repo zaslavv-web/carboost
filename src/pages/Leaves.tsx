@@ -45,7 +45,7 @@ const Leaves = () => {
   const isHr = role === "hrd" || role === "company_admin" || role === "superadmin";
   const isManagerOrHr = isHr || role === "manager";
 
-  const [tab, setTab] = useState<"mine" | "inbox" | "balances" | "types">("mine");
+  const [tab, setTab] = useState<"mine" | "inbox" | "balances" | "calendar" | "types">("mine");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: types = [] } = useQuery({
