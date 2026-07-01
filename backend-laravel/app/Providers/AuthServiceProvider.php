@@ -117,6 +117,9 @@ class AuthServiceProvider extends ServiceProvider
         Models\IdpItem::class                   => CompanyScopedPolicy::class,
         Models\KnowledgeCategory::class         => CompanyScopedPolicy::class,
         Models\KnowledgeArticle::class          => CompanyScopedPolicy::class,
+
+        // Performance (Волна 3)
+        Models\PerformanceReviewReviewer::class => CompanyScopedPolicy::class,
     ];
 
 
