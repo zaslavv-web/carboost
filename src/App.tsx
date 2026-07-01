@@ -65,6 +65,7 @@ import PerformanceReview360 from "@/pages/PerformanceReview360";
 import CorporateFeed from "@/pages/CorporateFeed";
 import Communities from "@/pages/Communities";
 import PulseSurveys from "@/pages/PulseSurveys";
+import HrDocumentsPersonal from "@/pages/HrDocumentsPersonal";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { BrandingProvider } from "@/contexts/BrandingContext";
 import CompanyBranding from "@/pages/CompanyBranding";
@@ -161,6 +162,8 @@ const App = () => (
                 <Route path="/chats" element={<Chats />} />
                 <Route path="/chats/:conversationId" element={<Chats />} />
                 <Route path="/leaves" element={<Leaves />} />
+                <Route path="/hr-documents-personal" element={<HrDocumentsPersonal />} />
+
                 <Route path="/performance" element={<Performance />} />
                 <Route path="/probation" element={<Probation />} />
                 <Route path="/disciplinary" element={<Disciplinary />} />
