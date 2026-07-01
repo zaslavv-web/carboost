@@ -173,6 +173,9 @@ class LeaveRequestController extends Controller
                 ]);
                 $this->applyApprovalSideEffects($req);
                 $this->notifyEmployee($req, '🎉 HR подтвердил заявку. Отсутствие согласовано.');
+                app(\App\Services\WebhookDispatcher::class)->dispatch('leave.approved', [
+                    'request_id' => $req->id, 'user_id' => $req->user_id, 'days' => $req->days_count,
+                ], $req->company_id);
             } else {
                 return response()->json(['error' => 'Заявка уже обработана'], 422);
             }
@@ -189,6 +192,7 @@ class LeaveRequestController extends Controller
         if (!in_array($req->status, ['pending_manager', 'pending_hr'], true)) {
             return response()->json(['error' => 'Заявка уже обработана'], 422);
         }
+
         $isManager = $this->isManagerOf($user, $req->user_id);
         $isHr = $this->isHr($user);
         if (!$isManager && !$isHr) {
