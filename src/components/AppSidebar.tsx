@@ -44,6 +44,7 @@ import {
   BookText,
   GraduationCap,
   Crosshair,
+  BookOpen,
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { useBranding } from "@/contexts/BrandingContext";
