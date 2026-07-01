@@ -209,6 +209,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             ],
           },
           { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
+          { icon: FileJson, label: "Персональные HR-документы", path: "/hr-documents-personal" },
           { icon: Shield, label: t("nav.hrPolicies"), path: "/hr-policies" },
         ]},
         { key: "motivation", label: S("motivation"), entries: [
@@ -236,6 +237,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { key: "hr", label: S("hr"), entries: [
           { icon: Users, label: t("nav.myTeam"), path: "/team" },
           { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
+          { icon: FileJson, label: "HR-документы", path: "/hr-documents-personal" },
           { icon: Star, label: t("performance:title", { defaultValue: "Performance" }), path: "/performance" },
           { icon: TimerReset, label: t("performance:probation.title", { defaultValue: "Испытательный" }), path: "/probation" },
           { icon: AlertOctagon, label: t("performance:disciplinary.title", { defaultValue: "PIP / Взыскания" }), path: "/disciplinary" },
@@ -263,6 +265,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       { key: "analytics", label: S("analytics"), entries: [dashboard] },
       { key: "hr", label: S("hr"), entries: [
         { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" },
+        { icon: FileJson, label: "Мои HR-документы", path: "/hr-documents-personal" },
         { icon: Star, label: t("performance:title", { defaultValue: "Performance" }), path: "/performance" },
         { icon: TimerReset, label: t("performance:probation.title", { defaultValue: "Испытательный" }), path: "/probation" },
       ]},
