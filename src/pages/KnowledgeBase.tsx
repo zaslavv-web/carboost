@@ -28,7 +28,7 @@ type Article = {
 };
 
 export default function KnowledgeBase() {
-  const { profile } = useUserProfile();
+  const { data: profile } = useUserProfile();
   const companyId = profile?.company_id ?? null;
   const canEdit = !!profile?.role && ["hrd", "company_admin", "superadmin"].includes(profile.role);
   const qc = useQueryClient();

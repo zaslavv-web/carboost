@@ -53,7 +53,7 @@ const STATUS_LABEL: Record<IdpItem["status"], string> = {
 };
 
 export default function IndividualDevelopmentPlans() {
-  const { profile } = useUserProfile();
+  const { data: profile } = useUserProfile();
   const companyId = profile?.company_id ?? null;
   const userId = profile?.user_id ?? null;
   const qc = useQueryClient();
