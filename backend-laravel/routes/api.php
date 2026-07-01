@@ -103,7 +103,12 @@ Route::get('/ical/leaves/{companyId}.ics', [\App\Http\Controllers\Api\IcalContro
 Route::get('/auth/me', [AuthController::class, 'me']);
 
 // Диагностика прод-окружения (без секретов): git-коммит, миграции, конфиг почты, OAuth.
-Route::get('/diag', function () {
+// Доступ только superadmin/company_admin (через auth:sanctum + role check).
+Route::middleware(['auth:sanctum'])->get('/diag', function () {
+    $user = auth()->user();
+    if (!$user || !($user->hasRole('superadmin') || $user->hasRole('company_admin'))) {
+        return response()->json(['error' => 'Forbidden'], 403);
+    }
     $hasAssignCompanyRoute = collect(\Illuminate\Support\Facades\Route::getRoutes())->contains(
         fn ($r) => $r->uri() === 'api/admin/users/{userId}/company'
             && in_array('PATCH', $r->methods(), true),
