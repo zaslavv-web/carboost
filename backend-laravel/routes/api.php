@@ -337,6 +337,26 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         // ---- Risk analytics (predictive HRD alerts) ----
         Route::post  ('/risks/recompute', [\App\Http\Controllers\Api\RiskController::class, 'recompute']);
 
+        // ---- Wave 6: People Analytics ----
+        Route::get('/people-analytics/headcount', [\App\Http\Controllers\Api\PeopleAnalyticsController::class, 'headcount']);
+        Route::get('/people-analytics/tenure',    [\App\Http\Controllers\Api\PeopleAnalyticsController::class, 'tenure']);
+        Route::get('/people-analytics/hiring',    [\App\Http\Controllers\Api\PeopleAnalyticsController::class, 'hiring']);
+        Route::get('/people-analytics/absence',   [\App\Http\Controllers\Api\PeopleAnalyticsController::class, 'absence']);
+        Route::get('/people-analytics/risk',      [\App\Http\Controllers\Api\PeopleAnalyticsController::class, 'risk']);
+
+        // ---- Wave 6: Integrations (webhooks + iCal) ----
+        Route::get   ('/webhooks/events',              [\App\Http\Controllers\Api\WebhookController::class, 'events']);
+        Route::get   ('/webhooks',                     [\App\Http\Controllers\Api\WebhookController::class, 'index']);
+        Route::post  ('/webhooks',                     [\App\Http\Controllers\Api\WebhookController::class, 'store']);
+        Route::patch ('/webhooks/{id}',                [\App\Http\Controllers\Api\WebhookController::class, 'update']);
+        Route::delete('/webhooks/{id}',                [\App\Http\Controllers\Api\WebhookController::class, 'destroy']);
+        Route::post  ('/webhooks/{id}/test',           [\App\Http\Controllers\Api\WebhookController::class, 'test']);
+        Route::get   ('/webhooks/{id}/deliveries',     [\App\Http\Controllers\Api\WebhookController::class, 'deliveries']);
+        Route::get   ('/integrations/ical/leaves-url', [\App\Http\Controllers\Api\IcalController::class, 'leavesUrl']);
+
+
+
+
 
 
 
