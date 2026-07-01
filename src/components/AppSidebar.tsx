@@ -46,6 +46,7 @@ import {
   Crosshair,
   BookOpen,
   Sparkles,
+  Newspaper,
 } from "lucide-react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { useBranding } from "@/contexts/BrandingContext";
@@ -127,6 +128,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { key: "myWork", label: S("myWork"), entries: [myProfile, tracker] },
         { key: "communication", label: S("communication"), entries: [
           { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" },
+          { icon: Newspaper, label: t("nav.feed", { defaultValue: "Лента компании" }), path: "/feed" },
+          { icon: Users, label: t("nav.communities", { defaultValue: "Сообщества" }), path: "/communities" },
           { icon: LifeBuoy, label: t("nav.support"), path: "/support" },
           { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
         ]},
@@ -155,6 +158,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { key: "myWork", label: S("myWork"), entries: [myProfile, tracker] },
         { key: "communication", label: S("communication"), entries: [
           { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" },
+          { icon: Newspaper, label: t("nav.feed", { defaultValue: "Лента компании" }), path: "/feed" },
+          { icon: Users, label: t("nav.communities", { defaultValue: "Сообщества" }), path: "/communities" },
           { icon: Heart, label: t("nav.recognitionFeed"), path: "/recognition" },
           { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
         ]},
@@ -162,6 +167,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           dashboard,
           { icon: BarChart3, label: t("nav.analyticsOverview"), path: "/analytics" },
           { icon: Activity, label: t("nav.riskAnalytics"), path: "/risk-analytics" },
+          { icon: Activity, label: t("nav.pulseSurveys", { defaultValue: "Pulse-опросы" }), path: "/pulse-surveys" },
           {
             icon: ClipboardList,
             label: t("nav.assessmentGroup"),
@@ -219,6 +225,9 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { key: "myWork", label: S("myWork"), entries: [myProfile, tracker] },
         { key: "communication", label: S("communication"), entries: [
           { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" },
+          { icon: Newspaper, label: t("nav.feed", { defaultValue: "Лента компании" }), path: "/feed" },
+          { icon: Users, label: t("nav.communities", { defaultValue: "Сообщества" }), path: "/communities" },
+          { icon: Activity, label: t("nav.pulseSurveys", { defaultValue: "Pulse-опросы" }), path: "/pulse-surveys" },
         ]},
         { key: "analytics", label: S("analytics"), entries: [
           dashboard,
@@ -245,6 +254,9 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       ]},
       { key: "communication", label: S("communication"), entries: [
         { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" },
+        { icon: Newspaper, label: t("nav.feed", { defaultValue: "Лента компании" }), path: "/feed" },
+        { icon: Users, label: t("nav.communities", { defaultValue: "Сообщества" }), path: "/communities" },
+        { icon: Activity, label: t("nav.pulseSurveys", { defaultValue: "Pulse-опросы" }), path: "/pulse-surveys" },
         { icon: Heart, label: t("nav.recognition"), path: "/recognition" },
         { icon: Bell, label: t("nav.notifications"), path: "/notifications" },
       ]},

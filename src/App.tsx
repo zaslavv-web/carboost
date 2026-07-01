@@ -62,6 +62,9 @@ import Probation from "@/pages/Probation";
 import Disciplinary from "@/pages/Disciplinary";
 import SkillsMatrix from "@/pages/SkillsMatrix";
 import PerformanceReview360 from "@/pages/PerformanceReview360";
+import CorporateFeed from "@/pages/CorporateFeed";
+import Communities from "@/pages/Communities";
+import PulseSurveys from "@/pages/PulseSurveys";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { BrandingProvider } from "@/contexts/BrandingContext";
 import CompanyBranding from "@/pages/CompanyBranding";
@@ -163,6 +166,9 @@ const App = () => (
                 <Route path="/disciplinary" element={<Disciplinary />} />
                 <Route path="/skills-matrix" element={<SkillsMatrix />} />
                 <Route path="/performance-360" element={<PerformanceReview360 />} />
+                <Route path="/feed" element={<CorporateFeed />} />
+                <Route path="/communities" element={<Communities />} />
+                <Route path="/pulse-surveys" element={<PulseSurveys />} />
                 <Route path="/company-branding" element={<CompanyBranding />} />
                 <Route path="/ai-settings" element={<AiSettings />} />
                 <Route path="/rag-documents" element={<RagDocuments />} />
