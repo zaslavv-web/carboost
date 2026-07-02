@@ -1,90 +1,40 @@
+Извиняюсь за задержку — режим переключился обратно в plan. План тот же, что был одобрен, повторяю без изменений, чтобы вы могли снова нажать «Approve» и я сразу приступил.
 
-# План: полный аудит кода Growth Peak
+## 1. Краш при переходе в «Карьерные треки»
 
-## Скоуп
-Frontend (`src/**`), Backend Laravel (`backend-laravel/**`), инфраструктура (Docker, nginx, GitHub Actions, deploy/), тесты и документация. Фокус: безопасность, производительность, архитектура/качество, UX/a11y/i18n.
+- Обернуть маршруты `/career-track`, `/career-tracks-mgmt`, `/career-reviews` в `ErrorBoundary`, чтобы вместо белого экрана видеть стек.
+- Воспроизвести через Playwright (сессия сейчас `signed_out` — сначала логин под HRD/employee), снять console + stack.
+- Точечный фикс по результату (guard/optional chaining), без переписывания страниц.
 
-## Формат вывода
-1. Единый структурированный отчёт `docs/AUDIT.md` с ссылками `file:line`, приоритетами P0–P3, разделами по 4 фокусам.
-2. Отдельно `docs/AUDIT-FIX-LOG.md` — что автоматически поправлено в рамках этой итерации.
-3. В чате — краткое резюме (топ-10 находок + список применённых фиксов).
+## 2. Сайдбар: выравнивание
 
-## Этапы
+Единая сетка отступов в `AppSidebar.tsx`:
+- Общие константы `pl-3`, `w-5 h-5` (единый бокс иконки), `gap-2.5` для section header / item / group child.
+- Убрать `ml-[26px]` у детей группы; вместо сдвига — тонкий `border-l` в контейнере группы + `pl-3`.
+- Активный маркер `w-[3px]` в `absolute left-0` для всех уровней.
+- Выровнять flyout collapsed-режима под ту же сетку.
 
-### Этап 1. Сбор объективных сигналов (read-only)
-- `code--dependency_scan` — npm уязвимости.
-- `supabase--linter` + `security--get_scan_results` + `security--run_security_scan` — RLS/политики/секреты.
-- `supabase--slow_queries` — топ медленных запросов.
-- `rg` по кодовой базе:
-  - секреты и подозрительные литералы (`API_KEY`, `SECRET`, `password`, `Bearer `, `.env` дампы, hardcoded токены);
-  - опасные паттерны (`dangerouslySetInnerHTML`, `eval(`, `Function(`, `innerHTML`, `document.write`, `target="_blank"` без `rel="noopener"`);
-  - Laravel: `DB::raw` с интерполяцией, `Route::any`, отсутствие `authorize()` в контроллерах, прямые `where('company_id', ...)` в обход `BelongsToCompany`, публичные роуты без throttle, `withoutGlobalScopes` без обоснования;
-  - N+1: контроллеры без `$with`/`load()`, `foreach` с ленивыми relations;
-  - миграции без `GRANT` для новых public-таблиц, без RLS/policy.
-- Обзор `.github/workflows/*.yml`, `Dockerfile`, `deploy/nginx.conf`, `docker-compose*.yml` — секреты в логах, права рута, устаревшие базовые образы, отсутствующие security-headers, CORS, CSP.
-- Обзор `src/**`: 
-  - лишние `console.log`, `any`, `@ts-ignore`;
-  - утечки токенов в localStorage/логи;
-  - тяжёлые импорты (recharts, xlsx, react-flow) без `lazy()`;
-  - обработка ошибок API (`translateBackendError`, ErrorBoundary покрытие);
-  - i18n: недостающие ключи ru/en (сверка ключей между локалями);
-  - a11y-паттерны из встроенного skill (icon-only кнопки без `aria-label`, `<div onClick>`, `h-screen` вместо `h-dvh`, повторы `id`).
+## 3. Консолидация меню (сокращение до 1 экрана)
 
-### Этап 2. Классификация находок
-Каждой находке присваивается:
-- **Severity**: P0 (critical/security) · P1 (high) · P2 (medium) · P3 (nice-to-have)
-- **Категория**: Security · Performance · Architecture · UX/a11y/i18n · Infra
-- **Ссылка**: `path/to/file.ts:LN`
-- **Fix effort**: XS/S/M/L
+- **Communication**: только Сообщения, Лента, Сообщества. Recognition → таб в Ленте; Pulse-опросы → в Аналитику; Приглашения → в Настройки; Уведомления — колокольчик в топбаре (уже есть).
+- **Analytics (HRD)**: Дашборд, People Analytics (сливает `/analytics` + `/risk-analytics` вкладками), Pulse-опросы. Группа «Оценка» без изменений.
+- **HR (HRD)**: Онбординг + Планы адаптации → один пункт «Онбординг» с табами. HR-политики + Персональные HR-документы → группа «Документы».
+- **Employee/Manager**: AI-ассессмент и Опросник → табы в «Мой профиль». Probation у employee — только при активной пробации.
+- **Knowledge**: `rag-documents` + `knowledge-base` → один пункт «База знаний» (страницы остаются).
+- **System**: Branding + AI + Integrations → вкладки внутри `/settings`. В сайдбаре один пункт «Настройки».
 
-### Этап 3. Сборка отчёта `docs/AUDIT.md`
-Структура:
-```text
-1. Executive summary (счётчики P0/P1/P2/P3 по категориям)
-2. Топ-10 приоритетных проблем
-3. Security
-   3.1 Backend (политики, RLS, GRANT, CSRF, CORS, secrets)
-   3.2 Frontend (XSS, токены, target=_blank, валидация форм)
-   3.3 Infra (workflows, Dockerfile, nginx, .env)
-4. Performance
-   4.1 Backend (N+1, индексы, slow queries)
-   4.2 Frontend (bundle, lazy, memo, tanstack cache keys)
-5. Architecture & Code Quality
-   5.1 Backend (нарушения BelongsToCompany/BasePolicy, дубли контроллеров, мёртвый код)
-   5.2 Frontend (дублирующиеся компоненты, устаревшие модули, legacy Supabase)
-6. UX / a11y / i18n
-   7. Tests & Documentation gaps
-8. Приложение: команды для воспроизведения аудита
-```
+Ожидаемо: HRD 20+ пунктов → ~10–12; employee/manager помещаются без скролла.
 
-### Этап 4. Автофиксы (P0/P1, не ломающие поведение)
-Применяю только очевидные и безопасные правки. Каждая — с одной атомарной причиной. Кандидаты (уточняются по итогам этапа 1):
-- Добавить недостающие `GRANT` и `enable RLS` в миграциях, где их нет.
-- Убрать `withoutGlobalScopes` без обоснования либо задокументировать.
-- Добавить `rel="noopener noreferrer"` ко всем `target="_blank"`.
-- Заменить `h-screen` → `h-dvh` на верхнеуровневых обёртках мобильных экранов.
-- Добавить `aria-label` icon-only кнопкам (shadcn `Button size="icon"`).
-- Убрать оставшиеся `console.log` с потенциальными PII (email, token).
-- Добавить `lazy()` для тяжёлых редко используемых страниц (Recharts-only, xlsx, react-flow) если не сделано.
-- Проставить недостающие индексы БД, где slow_queries покажет очевидный кандидат (только через миграцию, без `CONCURRENTLY`).
-- Синхронизировать ключи i18n между ru/en (добавить недостающие, помеченные как TODO).
-- Обновить уязвимые npm-пакеты, если фикс minor/patch.
+## Файлы
 
-Все нетривиальные правки (рефакторинги, изменения политик, удаление модулей) — **только в отчёте как рекомендации**, без применения.
+`src/components/AppSidebar.tsx`, `src/components/RoleAwareLayout.tsx` (career ErrorBoundary — точечно), `src/pages/CareerTrack.tsx` / `CareerTracksManagement.tsx` (фикс краша), `src/pages/Settings.tsx`, `PeopleAnalytics.tsx`, `CorporateFeed.tsx`, `MyProfile.tsx`, `Onboarding.tsx` — добавить вкладки-обёртки. `src/App.tsx` — маршруты сохраняются.
 
-### Этап 5. Верификация
-- `tsgo` (типы) и `bunx vitest run` (быстрые тесты) после автофиксов.
-- Прогон `supabase--linter` повторно, чтобы подтвердить закрытие P0.
-- Обновление `security-memory` через `security--update_memory` — фиксирую что закрыто, чтобы сканер не поднимал повторно.
+Backend/данные не меняются.
 
-## Что НЕ делаю в этой итерации
-- Не переписываю крупные модули (LMS, Tracker, Analytics) — только помечаю замечания.
-- Не меняю бизнес-логику политик доступа без явного согласования.
-- Не удаляю «мёртвый» код — только помечаю кандидатов на удаление.
-- Не трогаю `src/integrations/supabase/client.ts` (заглушка, авто-генерится).
+## Открытые вопросы (по умолчанию — «да»)
 
-## Ожидаемый результат
-- `docs/AUDIT.md` (~800–1500 строк) — карта всех находок с приоритетами.
-- `docs/AUDIT-FIX-LOG.md` — журнал применённых автофиксов.
-- Несколько атомарных правок в коде (P0/P1 категории «безопасно фиксить автоматически»).
-- Резюме в чате с топ-10 и next steps на ручные правки.
+1. Слить `/analytics` + `/risk-analytics` в одну страницу с вкладками.
+2. Слить `/rag-documents` + `/knowledge-base` в один пункт.
+3. Свернуть Branding/AI/Integrations в вкладки `/settings`.
+
+Если по одному из пунктов «нет» — напишите; иначе просто одобрите план и я начну.
