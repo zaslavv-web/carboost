@@ -77,7 +77,7 @@ const CareerTracksManagement = () => {
   const { data: actions = [] } = useQuery({
     queryKey: ["career_level_actions", companyId],
     queryFn: async () => {
-      const templateIds = templates.map(t => t.id);
+      const templateIds = templates.map(tpl => tpl.id);
       if (!templateIds.length) return [];
       const { data, error } = await laravelDb
         .from("career_level_actions")
@@ -421,38 +421,38 @@ const CareerTracksManagement = () => {
               <p className="text-sm text-muted-foreground">{t("careerTracks.emptyTemplatesHint")}</p>
             </div>
           )}
-          {templates.map(t => {
-            const isExpanded = expandedId === t.id;
-            const tActions = actions.filter(a => a.template_id === t.id);
-            const tAssignments = assignments.filter(a => a.template_id === t.id);
-            const fromPos = t.from_position_id ? posMap[t.from_position_id] : null;
-            const toPos = t.to_position_id ? posMap[t.to_position_id] : null;
-            const steps = (t.steps as unknown as Step[]) || [];
+          {templates.map(tpl => {
+            const isExpanded = expandedId === tpl.id;
+            const tActions = actions.filter(a => a.template_id === tpl.id);
+            const tAssignments = assignments.filter(a => a.template_id === tpl.id);
+            const fromPos = tpl.from_position_id ? posMap[tpl.from_position_id] : null;
+            const toPos = tpl.to_position_id ? posMap[tpl.to_position_id] : null;
+            const steps = (tpl.steps as unknown as Step[]) || [];
             return (
-              <div key={t.id} className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
+              <div key={tpl.id} className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
                 <div className="p-5 flex items-center gap-4 cursor-pointer hover:bg-secondary/30 transition-colors"
-                  onClick={() => setExpandedId(isExpanded ? null : t.id)}>
+                  onClick={() => setExpandedId(isExpanded ? null : tpl.id)}>
                   <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
                     <Route className="w-5 h-5 text-primary-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground">{t.title}</h3>
+                    <h3 className="font-semibold text-foreground">{tpl.title}</h3>
                     <p className="text-xs text-muted-foreground">
                       {fromPos ? fromPos.title : "—"} → {toPos ? toPos.title : "—"}
-                      {t.estimated_months && <span className="ml-2">· {t("careerTracks.months", { n: t.estimated_months })}</span>}
+                      {tpl.estimated_months && <span className="ml-2">· {t("careerTracks.months", { n: tpl.estimated_months })}</span>}
                       <span className="ml-2">· {t("careerTracks.assignments", { n: tAssignments.length })}</span>
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={e => { e.stopPropagation(); setAssignModal(t.id); }}
+                    <button onClick={e => { e.stopPropagation(); setAssignModal(tpl.id); }}
                       className="p-2 rounded-lg hover:bg-secondary transition-colors" title={t("careerTracks.assignModalTitle")}>
                       <Users className="w-4 h-4 text-muted-foreground" />
                     </button>
-                    <button onClick={e => { e.stopPropagation(); editTemplate(t); }}
+                    <button onClick={e => { e.stopPropagation(); editTemplate(tpl); }}
                       className="p-2 rounded-lg hover:bg-secondary transition-colors">
                       <Edit2 className="w-4 h-4 text-muted-foreground" />
                     </button>
-                    <button onClick={e => { e.stopPropagation(); deleteMutation.mutate(t.id); }}
+                    <button onClick={e => { e.stopPropagation(); deleteMutation.mutate(tpl.id); }}
                       className="p-2 rounded-lg hover:bg-destructive/10 transition-colors">
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </button>
@@ -462,11 +462,11 @@ const CareerTracksManagement = () => {
 
                 {isExpanded && (
                   <div className="px-5 pb-5 border-t border-border/50 space-y-4">
-                    {t.description && <p className="text-sm text-muted-foreground mt-3">{t.description}</p>}
-                    {t.motivation_text && (
+                    {tpl.description && <p className="text-sm text-muted-foreground mt-3">{tpl.description}</p>}
+                    {tpl.motivation_text && (
                       <div className="bg-primary/5 rounded-lg p-3">
                         <p className="text-xs font-medium text-primary mb-1">{t("careerTracks.motivationBadge")}</p>
-                        <p className="text-sm text-foreground">{t.motivation_text}</p>
+                        <p className="text-sm text-foreground">{tpl.motivation_text}</p>
                       </div>
                     )}
 
@@ -503,19 +503,19 @@ const CareerTracksManagement = () => {
                         ))}
                       </div>
                       <div className="flex gap-2 mt-2">
-                        <input type="text" placeholder={t("careerTracks.addActionPlaceholder")} value={actionTexts[t.id] || ""}
-                          onChange={e => setActionTexts({ ...actionTexts, [t.id]: e.target.value })}
+                        <input type="text" placeholder={t("careerTracks.addActionPlaceholder")} value={actionTexts[tpl.id] || ""}
+                          onChange={e => setActionTexts({ ...actionTexts, [tpl.id]: e.target.value })}
                           onKeyDown={e => {
-                            if (e.key === "Enter" && actionTexts[t.id]?.trim()) {
-                              addActionMutation.mutate({ templateId: t.id, text: actionTexts[t.id].trim() });
-                              setActionTexts({ ...actionTexts, [t.id]: "" });
+                            if (e.key === "Enter" && actionTexts[tpl.id]?.trim()) {
+                              addActionMutation.mutate({ templateId: tpl.id, text: actionTexts[tpl.id].trim() });
+                              setActionTexts({ ...actionTexts, [tpl.id]: "" });
                             }
                           }}
                           className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
                         <button onClick={() => {
-                          if (actionTexts[t.id]?.trim()) {
-                            addActionMutation.mutate({ templateId: t.id, text: actionTexts[t.id].trim() });
-                            setActionTexts({ ...actionTexts, [t.id]: "" });
+                          if (actionTexts[tpl.id]?.trim()) {
+                            addActionMutation.mutate({ templateId: tpl.id, text: actionTexts[tpl.id].trim() });
+                            setActionTexts({ ...actionTexts, [tpl.id]: "" });
                           }
                         }} className="px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm"><Plus className="w-4 h-4" /></button>
                       </div>
@@ -567,7 +567,7 @@ const CareerTracksManagement = () => {
           )}
           {assignments.map(a => {
             const p = profileMap[a.user_id];
-            const t = templates.find(t => t.id === a.template_id);
+            const tpl = templates.find(tpl => tpl.id === a.template_id);
             return (
               <div key={a.id} className="bg-card rounded-xl p-5 shadow-card border border-border flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium">
@@ -575,7 +575,7 @@ const CareerTracksManagement = () => {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-foreground">{p?.full_name || "—"}</h3>
-                  <p className="text-xs text-muted-foreground">{p?.position || ""} · {t?.title || "—"}</p>
+                  <p className="text-xs text-muted-foreground">{p?.position || ""} · {tpl?.title || "—"}</p>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${a.status === "completed" ? "bg-success/20 text-success" : "bg-info/20 text-info"}`}>
                   {a.status === "completed" ? t("careerTracks.statusCompleted") : t("careerTracks.statusActive")}
