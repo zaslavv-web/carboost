@@ -90,6 +90,10 @@ import TrackerBacklog from "@/pages/tracker/TrackerBacklog";
 import TrackerMyBacklog from "@/pages/tracker/MyBacklog";
 import MyProfile from "@/pages/MyProfile";
 import InvestorDeck from "@/pages/investor/InvestorDeck";
+import ComfortCompany from "@/pages/analytics/comfort/ComfortCompany";
+import ComfortDepartment from "@/pages/analytics/comfort/ComfortDepartment";
+import ComfortEmployee from "@/pages/analytics/comfort/ComfortEmployee";
+import Initiatives from "@/pages/Initiatives";
 import { Navigate } from "react-router-dom";
 
 
@@ -170,6 +174,11 @@ const App = () => (
                 <Route path="/hr-documents-personal" element={<HrDocumentsPersonal />} />
                 <Route path="/people-analytics" element={<PeopleAnalytics />} />
                 <Route path="/integrations" element={<Integrations />} />
+                <Route path="/analytics/comfort" element={<ComfortCompany />} />
+                <Route path="/analytics/comfort/department/:id" element={<ComfortDepartment />} />
+                <Route path="/analytics/comfort/user/:id" element={<ComfortEmployee />} />
+                <Route path="/initiatives" element={<Initiatives />} />
+
 
 
                 <Route path="/performance" element={<Performance />} />
