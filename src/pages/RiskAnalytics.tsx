@@ -360,13 +360,7 @@ const RiskAnalytics = () => {
                   >
                     <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
                     <RadialBar background dataKey="value" cornerRadius={6} />
-                    <RTooltip
-                      contentStyle={{
-                        background: "hsl(var(--popover))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: 8,
-                      }}
-                    />
+                    <RTooltip {...tooltipProps("none")} />
                   </RadialBarChart>
                 </ResponsiveContainer>
               </div>
