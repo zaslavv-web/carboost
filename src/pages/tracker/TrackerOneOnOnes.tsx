@@ -157,6 +157,8 @@ const AgendaBlock = ({ meetingId }: { meetingId: string }) => {
 const MeetingCard = ({ meeting }: { meeting: TrackerOneOnOne }) => {
   const [expanded, setExpanded] = useState(false);
   const update = useUpdateOneOnOne();
+  const nameMap = useEmployeeNameMap();
+  const empName = nameMap.get(meeting.employee_id) || `ID ${meeting.employee_id.slice(0, 8)}`;
   return (
     <Card>
       <CardContent className="p-4">
@@ -164,8 +166,8 @@ const MeetingCard = ({ meeting }: { meeting: TrackerOneOnOne }) => {
           <CalendarClock className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="font-medium">{format(new Date(meeting.scheduled_at), "dd MMM yyyy, HH:mm")}</p>
-            <p className="text-xs text-muted-foreground">
-              Сотрудник: <span className="font-mono">{meeting.employee_id.slice(0, 8)}</span> · {meeting.duration_minutes} мин
+            <p className="text-xs text-muted-foreground truncate">
+              Сотрудник: <span className="font-medium text-foreground">{empName}</span> · {meeting.duration_minutes} мин
             </p>
           </div>
           <MeetingStatusBadge status={meeting.status} />
