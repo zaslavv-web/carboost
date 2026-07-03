@@ -87,6 +87,17 @@ Route::middleware('throttle:30,1')->group(function () {
     Route::post('/rpc/submit_pricing_inquiry', fn (\Illuminate\Http\Request $r) =>
         app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'submit_pricing_inquiry'));
 
+    // Регистрация новой компании самим HRD на форме /login → выполняется ДО signUp
+    // (фронт получает company_id, затем создаёт auth-пользователя с этим company_id).
+    // SQL-функция register_company валидирует длину/уникальность имени, throttle защищает от спама.
+    Route::post('/rpc/register_company', fn (\Illuminate\Http\Request $r) =>
+        app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'register_company'));
+
+    // find_company_by_name используется при регистрации не-HRD пользователей (сотрудник/руководитель
+    // указывают существующую компанию до создания auth-аккаунта). Тоже должен быть публичным.
+    Route::post('/rpc/find_company_by_name', fn (\Illuminate\Http\Request $r) =>
+        app(\App\Http\Controllers\Api\RpcController::class)->call($r, 'find_company_by_name'));
+
     // Продуктовая аналитика: ingest публичный (события можно слать и без логина —
     // например, с лендинга). Запросы данных закрыты ниже под auth:sanctum.
     Route::post('/analytics/ingest', [\App\Http\Controllers\Api\AnalyticsController::class, 'ingest']);
