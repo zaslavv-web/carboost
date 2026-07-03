@@ -1,34 +1,37 @@
+
 ## Проблема
-Попап (tooltip) при наведении на графики Recharts не читается: в большинстве мест задан только `backgroundColor` контейнера (`--card`/`--popover`), а цвет текста и цвет значений/подписей остаются дефолтными Recharts (тёмно-серые), из-за чего на тёмной теме текст сливается с фоном. В части графиков (`PeopleAnalytics`, `GamificationManagement`, `UserProductAnalytics`) `<Tooltip />` вообще без стилей — белый попап с чёрным текстом даже в тёмной теме.
 
-## Решение
-Ввести единый стиль tooltip и применить его во всех графиках Recharts.
+На вкладке `Поручения` (`/tracker/tasks`) при заходе всплывают красные тосты «Backend разорвал соединение…». Их ровно столько, сколько отрисовано задач × 2.
 
-1. Создать `src/lib/chartTooltip.ts` с экспортами:
-   - `chartTooltipContentStyle` — `background: hsl(var(--popover))`, `border: 1px solid hsl(var(--border))`, `borderRadius: 8`, `color: hsl(var(--popover-foreground))`, `boxShadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,.25))`, `fontSize: 12`, `padding: 8px 10px`.
-   - `chartTooltipLabelStyle` — `color: hsl(var(--foreground))`, `fontWeight: 600`, `marginBottom: 4`.
-   - `chartTooltipItemStyle` — `color: hsl(var(--popover-foreground))`.
-   - `chartTooltipCursor` — `{ fill: 'hsl(var(--muted) / 0.35)' }` для BarChart, отдельно `chartTooltipCursorLine` — `{ stroke: 'hsl(var(--border))' }` для Line/Area.
-   - Хелпер `tooltipProps(kind?: 'bar'|'line')` возвращает готовый объект пропсов `{ contentStyle, labelStyle, itemStyle, cursor }`.
+Корень:
+- `LinkGoalDialog` рендерится в каждой строке `TaskRow` и **сразу** (без `enabled`) вызывает:
+  - `useGoals({ status: "published" })` → `GET tracker_goals`
+  - `useTaskLinks(task.id)` → `GET tracker_task_goal_links`
+- Хелпер `handle()` в `src/hooks/tracker.ts` на любой ошибке дёргает `toast.error(...)` **и** пробрасывает исключение. React Query потом ретраит (по умолчанию 3 раза) — получаем шквал одинаковых тостов и мигание «Backend разорвал соединение…».
 
-2. Обновить все места с Recharts `<Tooltip />` на `<Tooltip {...tooltipProps('bar'|'line')} />`:
-   - `src/pages/Analytics.tsx` (4 шт.)
-   - `src/pages/HRDDashboard.tsx` (3 шт., включая уже кастомный на строке 219 — оставить кастомный content, но привести стили в соответствие)
-   - `src/pages/ManagerDashboard.tsx`
-   - `src/pages/ProductAnalytics.tsx` (2 шт., переиспользовать вместо локального `tooltipStyle`)
-   - `src/pages/PeopleAnalytics.tsx` (5 шт.)
-   - `src/pages/GamificationManagement.tsx` (2 шт.)
-   - `src/pages/RiskAnalytics.tsx` (2 шт., `RTooltip`)
-   - `src/pages/Passport.tsx`, `src/pages/Dashboard.tsx` — привести к единому стилю.
-   - `src/components/HRDCareerTracksAnalytics.tsx`
-   - `src/components/HRDEmployeeMap.tsx` (`RTooltip`)
-   - `src/components/UserProductAnalytics.tsx`
-   - `src/components/PathsSankey.tsx`
+## Что делаю
 
-3. Кастомный tooltip в `src/components/ui/chart.tsx` (`ChartTooltipContent`) — уже использует `bg-background` / `text-foreground`, поэтому там правок не нужно, кроме проверки, что нигде не подмешивается белый фон.
+1. **`src/pages/tracker/TrackerTasks.tsx`** — `LinkGoalDialog` рефакторю так, чтобы запросы `useGoals` и `useTaskLinks` вызывались только при открытом диалоге:
+   - Локальный `useState open` уже есть — прокидываю его в хуки через параметр `enabled`.
+   - Метку `Цели (N)` на кнопке при закрытом диалоге показываю без запроса: `links.length` только когда `open`; при закрытии показываю просто `Цели`.
+   - Это убирает `tasks.length × 2` бэкенд-запросов при первом входе.
+
+2. **`src/hooks/tracker.ts`** — правлю `useGoals` и `useTaskLinks`:
+   - Добавляю параметр `options?: { enabled?: boolean }` (совместимо, дефолт `true`).
+   - В `useTaskLinks` уже есть `enabled: !!taskId`, дополнительно учитываю переданный флаг.
+
+3. **`src/hooks/tracker.ts` — хелпер `handle`**:
+   - Не показываю `toast.error` для сетевых ошибок с сигнатурой «Backend разорвал соединение / Backend недоступен / Backend не ответил вовремя» — только пишу в `console.warn` и пробрасываю исключение. React Query покажет обычное состояние ошибки, но не будет спамить тостами.
+   - Ошибки уровня 4xx/5xx с осмысленным message (валидация, «нет доступа» и т.п.) продолжают тостить как раньше.
+
+4. **`src/hooks/tracker.ts`** — устанавливаю у обоих `useQuery` в `LinkGoalDialog` (`useGoals`, `useTaskLinks`) `retry: 0` для сетевых ошибок, чтобы даже без диалога один случайный рефетч не разворачивался в тройной ретрай.
 
 ## Проверка
-- Playwright под HRD: открыть Dashboard, Analytics, People Analytics, Risk Analytics, Gamification, Career Tracks Analytics — навести курсор на bar/line/pie, снять скриншоты в тёмной и светлой темах, убедиться что текст контрастный.
 
-## Технические детали
-Не трогать бизнес-логику и данные графиков — только пропсы `<Tooltip>`. Все цвета через семантические токены (`--popover`, `--popover-foreground`, `--foreground`, `--border`, `--muted`), никаких хардкодов `#fff` / `text-white`.
+- Через Playwright под учёткой HRD зайти на `/tracker/tasks`, снять скриншот: тостов «Backend разорвал соединение…» быть не должно; список задач и имя адресата отображаются.
+- Открыть диалог «Цели» на строке задачи — тогда запросы `tracker_goals` и `tracker_task_goal_links` уходят; если backend недоступен — тост появляется один раз (пользователь явно инициировал действие).
+- `bunx tsgo --noEmit` — без ошибок.
+
+## Что НЕ трогаю
+
+- Сам endpoint Laravel и nginx-прокси — это инфраструктура пользователя; фикс чисто фронтовый и уменьшает «шум», а также прекращает лишнюю нагрузку на бэкенд при первом входе.

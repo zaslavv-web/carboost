@@ -168,19 +168,28 @@ export interface TrackerAgendaItem {
 }
 
 /* ============ HELPERS ============ */
+const NETWORK_ERR_RE = /Backend разорвал соединение|Backend недоступен|Backend не ответил вовремя|Failed to fetch|NetworkError|ERR_CONNECTION_CLOSED/i;
 const handle = <T,>({ data, error }: { data: T | null; error: any }): T => {
   if (error) {
     const msg = error.message || "Ошибка запроса";
-    toast.error(msg);
+    if (NETWORK_ERR_RE.test(String(msg))) {
+      // Не спамим тостами при сетевых сбоях — просто пишем в консоль.
+      console.warn("[tracker] network error:", msg);
+    } else {
+      toast.error(msg);
+    }
     throw new Error(msg);
   }
   return data as T;
 };
 
+
 /* ============ GOALS ============ */
-export function useGoals(filter?: { holder_id?: string; status?: GoalStatus }) {
+export function useGoals(filter?: { holder_id?: string; status?: GoalStatus }, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["tracker.goals", filter],
+    enabled: options?.enabled ?? true,
+    retry: 0,
     queryFn: async () => {
       let q = laravelDb.from("tracker_goals").select("*").order("created_at", { ascending: false });
       if (filter?.holder_id) q = q.eq("holder_id", filter.holder_id);
@@ -190,6 +199,7 @@ export function useGoals(filter?: { holder_id?: string; status?: GoalStatus }) {
     },
   });
 }
+
 
 export function useGoal(goalId?: string) {
   return useQuery({
@@ -325,16 +335,18 @@ export function useUpdateTask() {
   });
 }
 
-export function useTaskLinks(taskId?: string) {
+export function useTaskLinks(taskId?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["tracker.taskLinks", taskId],
-    enabled: !!taskId,
+    enabled: !!taskId && (options?.enabled ?? true),
+    retry: 0,
     queryFn: async () => {
       const res = await laravelDb.from("tracker_task_goal_links").select("*").eq("task_id", taskId!);
       return handle<TrackerTaskGoalLink[]>(res as any) ?? [];
     },
   });
 }
+
 
 export function useKrTaskLinks(krId?: string) {
   return useQuery({

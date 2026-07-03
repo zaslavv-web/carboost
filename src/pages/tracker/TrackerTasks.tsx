@@ -78,8 +78,8 @@ const TaskCreateDialog = () => {
 const LinkGoalDialog = ({ taskId }: { taskId: string }) => {
   const [open, setOpen] = useState(false);
   const [goalId, setGoalId] = useState("");
-  const { data: goals = [] } = useGoals({ status: "published" });
-  const { data: links = [] } = useTaskLinks(taskId);
+  const { data: goals = [] } = useGoals({ status: "published" }, { enabled: open });
+  const { data: links = [] } = useTaskLinks(taskId, { enabled: open });
   const link = useLinkTaskToGoal();
   const unlink = useUnlinkTaskFromGoal();
   const linkedIds = new Set(links.map((l) => l.goal_id));
@@ -88,9 +88,10 @@ const LinkGoalDialog = ({ taskId }: { taskId: string }) => {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-1.5">
-          <Link2 className="w-3.5 h-3.5" />Цели {links.length > 0 && <span className="text-xs">({links.length})</span>}
+          <Link2 className="w-3.5 h-3.5" />Цели{open && links.length > 0 && <span className="text-xs">({links.length})</span>}
         </Button>
       </DialogTrigger>
+
       <DialogContent>
         <DialogHeader><DialogTitle>Связать поручение с целями</DialogTitle></DialogHeader>
         <div className="space-y-3">
