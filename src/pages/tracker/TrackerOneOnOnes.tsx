@@ -4,14 +4,15 @@ import { useEffectiveUserId } from "@/hooks/useUserProfile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MeetingStatusBadge } from "@/components/tracker/Badges";
+import { EmployeePicker, useEmployeeNameMap } from "@/components/tracker/EmployeePicker";
 import { Plus, CalendarClock, ListChecks } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const MEETING_STATUS_OPTIONS: { value: MeetingStatus; label: string }[] = [
   { value: "planned", label: "Запланирована" },
