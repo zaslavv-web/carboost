@@ -185,9 +185,11 @@ const handle = <T,>({ data, error }: { data: T | null; error: any }): T => {
 
 
 /* ============ GOALS ============ */
-export function useGoals(filter?: { holder_id?: string; status?: GoalStatus }) {
+export function useGoals(filter?: { holder_id?: string; status?: GoalStatus }, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["tracker.goals", filter],
+    enabled: options?.enabled ?? true,
+    retry: 0,
     queryFn: async () => {
       let q = laravelDb.from("tracker_goals").select("*").order("created_at", { ascending: false });
       if (filter?.holder_id) q = q.eq("holder_id", filter.holder_id);
@@ -197,6 +199,7 @@ export function useGoals(filter?: { holder_id?: string; status?: GoalStatus }) {
     },
   });
 }
+
 
 export function useGoal(goalId?: string) {
   return useQuery({
