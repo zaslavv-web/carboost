@@ -4,14 +4,15 @@ import { useEffectiveUserId } from "@/hooks/useUserProfile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MeetingStatusBadge } from "@/components/tracker/Badges";
+import { EmployeePicker, useEmployeeNameMap } from "@/components/tracker/EmployeePicker";
 import { Plus, CalendarClock, ListChecks } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const MEETING_STATUS_OPTIONS: { value: MeetingStatus; label: string }[] = [
   { value: "planned", label: "Запланирована" },
@@ -24,46 +25,108 @@ const CreateDialog = () => {
   const [form, setForm] = useState({ employee_id: "", scheduled_at: "", duration_minutes: 30 });
   const [error, setError] = useState<string | null>(null);
   const create = useCreateOneOnOne();
-  const minDateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 16);
+  const uid = useEffectiveUserId();
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const minDateTime = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const maxDate = new Date(now.getFullYear() + 5, 11, 31);
+  const maxDateTime = `${maxDate.getFullYear()}-12-31T23:59`;
+
   const save = async () => {
     setError(null);
-    if (!form.employee_id.trim() || !form.scheduled_at) return;
+    if (!form.employee_id.trim()) {
+      setError("Выберите сотрудника");
+      return;
+    }
+    if (uid && form.employee_id === uid) {
+      setError("Нельзя запланировать встречу с самим собой");
+      return;
+    }
+    if (!form.scheduled_at) {
+      setError("Укажите дату и время");
+      return;
+    }
     const scheduled = new Date(form.scheduled_at);
+    if (isNaN(scheduled.getTime())) {
+      setError("Некорректная дата");
+      return;
+    }
     if (scheduled.getTime() < Date.now()) {
       setError("Нельзя планировать встречу в прошлом");
       return;
     }
-    await create.mutateAsync({
-      employee_id: form.employee_id.trim(),
-      scheduled_at: scheduled.toISOString(),
-      duration_minutes: form.duration_minutes,
-      status: "planned",
-    });
-    setOpen(false);
-    setForm({ employee_id: "", scheduled_at: "", duration_minutes: 30 });
+    if (scheduled > maxDate) {
+      setError("Слишком далёкая дата");
+      return;
+    }
+    if (!form.duration_minutes || form.duration_minutes < 5 || form.duration_minutes > 480) {
+      setError("Длительность должна быть от 5 до 480 минут");
+      return;
+    }
+    try {
+      await create.mutateAsync({
+        employee_id: form.employee_id,
+        scheduled_at: scheduled.toISOString(),
+        duration_minutes: form.duration_minutes,
+        status: "planned",
+      });
+      setOpen(false);
+      setForm({ employee_id: "", scheduled_at: "", duration_minutes: 30 });
+    } catch (e: any) {
+      const msg = e?.message || e?.error?.message || "";
+      // Достаём валидационные ошибки Laravel, если пришли
+      const details = e?.errors && typeof e.errors === "object"
+        ? Object.values(e.errors).flat().join("; ")
+        : "";
+      const finalMsg = details || msg || "Не удалось сохранить встречу";
+      setError(finalMsg);
+      toast.error(finalMsg);
+    }
   };
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setError(null); }}>
       <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-1.5" />Новая встреча</Button></DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>Запланировать 1:1</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>ID сотрудника</Label>
-            <Input value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })} placeholder="UUID сотрудника" />
-            <p className="text-xs text-muted-foreground">В следующей итерации заменим на селектор.</p>
+            <Label>Сотрудник</Label>
+            <EmployeePicker
+              value={form.employee_id}
+              onChange={(v) => setForm({ ...form, employee_id: v })}
+              excludeIds={uid ? [uid] : []}
+              placeholder="Найти по ФИО или e-mail…"
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2"><Label>Дата и время</Label><Input type="datetime-local" min={minDateTime} value={form.scheduled_at} onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Длительность, мин</Label><Input type="number" min={5} value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })} /></div>
+            <div className="space-y-2">
+              <Label>Дата и время</Label>
+              <Input
+                type="datetime-local"
+                min={minDateTime}
+                max={maxDateTime}
+                value={form.scheduled_at}
+                onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Длительность, мин</Label>
+              <Input
+                type="number"
+                min={5}
+                max={480}
+                value={form.duration_minutes}
+                onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })}
+              />
+            </div>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Отмена</Button>
-          <Button onClick={save} disabled={create.isPending}>Запланировать</Button>
+          <Button onClick={save} disabled={create.isPending}>
+            {create.isPending ? "Сохранение…" : "Запланировать"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -94,6 +157,8 @@ const AgendaBlock = ({ meetingId }: { meetingId: string }) => {
 const MeetingCard = ({ meeting }: { meeting: TrackerOneOnOne }) => {
   const [expanded, setExpanded] = useState(false);
   const update = useUpdateOneOnOne();
+  const nameMap = useEmployeeNameMap();
+  const empName = nameMap.get(meeting.employee_id) || `ID ${meeting.employee_id.slice(0, 8)}`;
   return (
     <Card>
       <CardContent className="p-4">
@@ -101,8 +166,8 @@ const MeetingCard = ({ meeting }: { meeting: TrackerOneOnOne }) => {
           <CalendarClock className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="font-medium">{format(new Date(meeting.scheduled_at), "dd MMM yyyy, HH:mm")}</p>
-            <p className="text-xs text-muted-foreground">
-              Сотрудник: <span className="font-mono">{meeting.employee_id.slice(0, 8)}</span> · {meeting.duration_minutes} мин
+            <p className="text-xs text-muted-foreground truncate">
+              Сотрудник: <span className="font-medium text-foreground">{empName}</span> · {meeting.duration_minutes} мин
             </p>
           </div>
           <MeetingStatusBadge status={meeting.status} />
