@@ -277,11 +277,8 @@ const ProductAnalytics = () => {
   );
 };
 
-const tooltipStyle = {
-  backgroundColor: "hsl(var(--card))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "8px",
-};
+
+
 
 const Loader = () => (
   <div className="flex items-center justify-center h-40">
