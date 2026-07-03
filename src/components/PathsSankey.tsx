@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { tooltipProps } from "@/lib/chartTooltip";
 import { ResponsiveContainer, Sankey, Tooltip, Layer, Rectangle } from "recharts";
 
 interface Transition {
@@ -83,14 +84,7 @@ const PathsSankey = ({ transitions, maxNodes = 24 }: Props) => {
             node={<SankeyNode />}
             margin={{ top: 10, right: 140, bottom: 10, left: 140 }}
           >
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-            />
+            <Tooltip {...tooltipProps("none")} />
           </Sankey>
         </ResponsiveContainer>
       </div>

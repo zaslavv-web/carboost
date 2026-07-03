@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Users, TrendingUp, CalendarDays, AlertTriangle, Building2 } from "lucide-react";
+import { tooltipProps } from "@/lib/chartTooltip";
 
 type Bucket = { label: string; value: number };
 type MonthPoint = { month: string; value: number };
@@ -101,7 +102,7 @@ export default function PeopleAnalytics() {
                 <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={60} />
                 <YAxis allowDecimals={false} />
-                <Tooltip />
+                <Tooltip {...tooltipProps("bar")} />
                 <Bar dataKey="value" fill="#D5A52A" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -117,7 +118,7 @@ export default function PeopleAnalytics() {
                   {tenure.map((_, i) => (<Cell key={i} fill={COLORS[i % COLORS.length]} />))}
                 </Pie>
                 <Legend />
-                <Tooltip />
+                <Tooltip {...tooltipProps("bar")} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -131,7 +132,7 @@ export default function PeopleAnalytics() {
                 <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} />
-                <Tooltip />
+                <Tooltip {...tooltipProps("bar")} />
                 <Line type="monotone" dataKey="value" stroke="#D5A52A" strokeWidth={2} dot />
               </LineChart>
             </ResponsiveContainer>
@@ -146,7 +147,7 @@ export default function PeopleAnalytics() {
                 <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} />
-                <Tooltip />
+                <Tooltip {...tooltipProps("bar")} />
                 <Bar dataKey="days" fill="#8B6914" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -161,7 +162,7 @@ export default function PeopleAnalytics() {
                 <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                 <XAxis type="number" allowDecimals={false} />
                 <YAxis type="category" dataKey="label" tick={{ fontSize: 11 }} width={160} />
-                <Tooltip />
+                <Tooltip {...tooltipProps("bar")} />
                 <Bar dataKey="value" fill="#D5A52A" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>

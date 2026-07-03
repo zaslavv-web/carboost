@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { tooltipProps } from "@/lib/chartTooltip";
 import { useTranslation } from "react-i18next";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -171,13 +172,7 @@ const HRDCareerTracksAnalytics = () => {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="stepLabel" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
               <YAxis allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                }}
-              />
+              <Tooltip {...tooltipProps("bar")} />
               <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                 {d.stepDistribution.map((_, i) => (
                   <Cell key={i} fill="hsl(var(--primary))" />

@@ -11,6 +11,7 @@ import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { format } from "date-fns";
+import { tooltipProps } from "@/lib/chartTooltip";
 
 type Ev = { id: string; event_type: string; event_name: string; route?: string | null; occurred_at: string };
 type Session = { id: string; started_at: string; ended_at: string | null; errors_count: number };
@@ -107,7 +108,7 @@ const UserProductAnalytics = ({ userId }: { userId: string }) => {
             <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
             <XAxis dataKey="d" fontSize={11} />
             <YAxis fontSize={11} />
-            <Tooltip />
+            <Tooltip {...tooltipProps("bar")} />
             <Area type="monotone" dataKey="events" stroke="hsl(var(--primary))" fill="url(#evColor)" />
           </AreaChart>
         </ResponsiveContainer>

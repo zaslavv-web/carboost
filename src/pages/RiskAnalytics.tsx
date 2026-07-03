@@ -1,4 +1,5 @@
 import { laravelDb } from "@/integrations/laravel/db";
+import { tooltipProps } from "@/lib/chartTooltip";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -304,14 +305,7 @@ const RiskAnalytics = () => {
                   <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="dept" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} domain={[0, 100]} />
-                  <RTooltip
-                    contentStyle={{
-                      background: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 8,
-                      color: "hsl(var(--popover-foreground))",
-                    }}
-                  />
+                  <RTooltip {...tooltipProps("bar")} />
                   <Bar dataKey="avgRisk" radius={[6, 6, 0, 0]}>
                     {byDept.map((row) => (
                       <Cell
@@ -366,13 +360,7 @@ const RiskAnalytics = () => {
                   >
                     <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
                     <RadialBar background dataKey="value" cornerRadius={6} />
-                    <RTooltip
-                      contentStyle={{
-                        background: "hsl(var(--popover))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: 8,
-                      }}
-                    />
+                    <RTooltip {...tooltipProps("none")} />
                   </RadialBarChart>
                 </ResponsiveContainer>
               </div>
