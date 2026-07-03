@@ -28,7 +28,7 @@ const pillars = [
 
 export default function Slide1Product() {
   return (
-    <SlideLayout kicker="Инвестиционное предложение · 2026">
+    <SlideLayout kicker="Инвестиционное предложение · 2026" hideWatermark>
       <div className="flex h-full flex-col px-24 pt-28 pb-16">
         <div className="flex items-center gap-8">
           <motion.img
