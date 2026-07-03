@@ -358,6 +358,19 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::get('/people-analytics/absence',   [\App\Http\Controllers\Api\PeopleAnalyticsController::class, 'absence']);
         Route::get('/people-analytics/risk',      [\App\Http\Controllers\Api\PeopleAnalyticsController::class, 'risk']);
 
+        // ---- Wave 7: Comfort Analytics (predictive employee comfort) ----
+        Route::post('/comfort/recompute',        [\App\Http\Controllers\Api\ComfortController::class, 'recompute']);
+        Route::get ('/comfort/company',          [\App\Http\Controllers\Api\ComfortController::class, 'company']);
+        Route::get ('/comfort/department/{id}',  [\App\Http\Controllers\Api\ComfortController::class, 'department']);
+        Route::get ('/comfort/user/{id}',        [\App\Http\Controllers\Api\ComfortController::class, 'user']);
+
+        // ---- Wave 7: Initiatives (employee product proposals) ----
+        Route::get   ('/initiatives',            [\App\Http\Controllers\Api\InitiativeController::class, 'index']);
+        Route::post  ('/initiatives',            [\App\Http\Controllers\Api\InitiativeController::class, 'store']);
+        Route::post  ('/initiatives/{id}/vote',  [\App\Http\Controllers\Api\InitiativeController::class, 'vote']);
+        Route::patch ('/initiatives/{id}/review',[\App\Http\Controllers\Api\InitiativeController::class, 'review']);
+        Route::delete('/initiatives/{id}',       [\App\Http\Controllers\Api\InitiativeController::class, 'destroy']);
+
         // ---- Wave 6: Integrations (webhooks + iCal) ----
         Route::get   ('/webhooks/events',              [\App\Http\Controllers\Api\WebhookController::class, 'events']);
         Route::get   ('/webhooks',                     [\App\Http\Controllers\Api\WebhookController::class, 'index']);
