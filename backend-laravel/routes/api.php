@@ -184,6 +184,11 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     Route::post('/admin/email-settings/activate', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'activate']);
     Route::delete('/admin/email-settings', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'clear']);
 
+    // Superadmin: демо-компания «ООО Демо» (наполнение и сброс)
+    Route::get('/superadmin/demo/status', [\App\Http\Controllers\Api\Admin\DemoSeedController::class, 'status']);
+    Route::post('/superadmin/demo/seed',  [\App\Http\Controllers\Api\Admin\DemoSeedController::class, 'seed']);
+    Route::post('/superadmin/demo/reset', [\App\Http\Controllers\Api\Admin\DemoSeedController::class, 'reset']);
+
 
     // Профиль текущего пользователя — без has.company (нужен на CompleteRegistration)
     Route::get('/profiles/me', [ProfileController::class, 'me']);
