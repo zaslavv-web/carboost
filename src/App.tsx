@@ -89,6 +89,7 @@ import TrackerWorkflows from "@/pages/tracker/TrackerWorkflows";
 import TrackerBacklog from "@/pages/tracker/TrackerBacklog";
 import TrackerMyBacklog from "@/pages/tracker/MyBacklog";
 import MyProfile from "@/pages/MyProfile";
+import InvestorDeck from "@/pages/investor/InvestorDeck";
 import { Navigate } from "react-router-dom";
 
 
@@ -118,6 +119,7 @@ const App = () => (
             <AnalyticsBootstrap />
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/investor-deck" element={<InvestorDeck />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/feature/:slug" element={<FeaturePage />} />
               <Route path="/login" element={<Login />} />
