@@ -16,6 +16,7 @@ import Notifications from "@/pages/Notifications";
 import ManagerDashboard from "@/pages/ManagerDashboard";
 import HRDDashboard from "@/pages/HRDDashboard";
 import SuperadminDashboard from "@/pages/SuperadminDashboard";
+import SeedDemoCompany from "@/pages/SeedDemoCompany";
 import UsersManagement from "@/pages/UsersManagement";
 import Support from "@/pages/Support";
 import Scenarios from "@/pages/Scenarios";
@@ -142,6 +143,7 @@ const App = () => (
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/product-analytics" element={<SuperadminOnly><ProductAnalytics /></SuperadminOnly>} />
                 <Route path="/superadmin" element={<SuperadminDashboard />} />
+                <Route path="/superadmin/demo-seed" element={<SuperadminOnly><SeedDemoCompany /></SuperadminOnly>} />
                 <Route path="/companies" element={<Companies />} />
                 <Route path="/users" element={<UsersManagement />} />
                 <Route path="/users/:userId" element={<UserProfileFull />} />
