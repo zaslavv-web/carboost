@@ -89,6 +89,7 @@ import TrackerWorkflows from "@/pages/tracker/TrackerWorkflows";
 import TrackerBacklog from "@/pages/tracker/TrackerBacklog";
 import TrackerMyBacklog from "@/pages/tracker/MyBacklog";
 import MyProfile from "@/pages/MyProfile";
+import InvestorDeck from "@/pages/investor/InvestorDeck";
 import { Navigate } from "react-router-dom";
 
 
