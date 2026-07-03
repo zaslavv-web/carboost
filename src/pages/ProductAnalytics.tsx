@@ -129,7 +129,7 @@ const ProductAnalytics = () => {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="d" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                     <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip {...tooltipProps("line")} />
                     <Legend />
                     <Line type="monotone" dataKey="users" stroke="hsl(var(--primary))" name={t("productAnalytics.m.users")} />
                     <Line type="monotone" dataKey="events" stroke="hsl(var(--info))" name={t("productAnalytics.m.events")} />
@@ -211,7 +211,7 @@ const ProductAnalytics = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                 <YAxis dataKey="event_name" type="category" width={180} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip {...tooltipProps("line")} />
                 <Bar dataKey="count" fill="hsl(var(--primary))" name={t("productAnalytics.cols.count")} />
                 <Bar dataKey="users" fill="hsl(var(--info))" name={t("productAnalytics.m.users")} />
               </BarChart>

@@ -651,7 +651,7 @@ const GamificationManagement = () => {
                     <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>
                       {categoryData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip {...tooltipProps("bar")} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -663,7 +663,7 @@ const GamificationManagement = () => {
                   <BarChart data={topEmployees} layout="vertical">
                     <XAxis type="number" />
                     <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
-                    <Tooltip />
+                    <Tooltip {...tooltipProps("bar")} />
                     <Bar dataKey="points" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>

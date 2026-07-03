@@ -260,7 +260,7 @@ const Analytics = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+                  <Tooltip {...tooltipProps("bar")} />
                   <Legend />
                   <Line type="monotone" dataKey="avgScore" stroke="hsl(var(--primary))" strokeWidth={2} name={t("analytics.charts.avgScoreLine")} />
                   <Line type="monotone" dataKey="assessments" stroke="hsl(var(--info))" strokeWidth={2} name={t("analytics.charts.assessmentsLine")} />
@@ -282,7 +282,7 @@ const Analytics = () => {
                         <Cell key={i} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+                    <Tooltip {...tooltipProps("bar")} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="space-y-2 mt-2">
@@ -312,7 +312,7 @@ const Analytics = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+                  <Tooltip {...tooltipProps("bar")} />
                   <Legend />
                   <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name={t("analytics.charts.avgScoreBar")} />
                   <Bar dataKey="avgReadiness" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} name={t("analytics.charts.readinessBar")} />
@@ -331,7 +331,7 @@ const Analytics = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis type="number" domain={[0, 100]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                   <YAxis dataKey="name" type="category" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} width={120} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+                  <Tooltip {...tooltipProps("bar")} />
                   <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name={t("analytics.charts.avgLevelBar")} />
                 </BarChart>
               </ResponsiveContainer>

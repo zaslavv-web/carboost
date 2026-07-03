@@ -531,7 +531,7 @@ const HRDDashboard = () => {
                       <Cell key={i} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+                  <Tooltip {...tooltipProps("bar")} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-2 mt-2">
@@ -560,7 +560,7 @@ const HRDDashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                 <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                <Tooltip contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+                <Tooltip {...tooltipProps("bar")} />
                 <Legend />
                 <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name={t("hrdDashboard.charts.avgScoreBar")} />
                 <Bar dataKey="employees" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} name={t("hrdDashboard.charts.employeesBar")} />

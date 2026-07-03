@@ -107,7 +107,7 @@ const UserProductAnalytics = ({ userId }: { userId: string }) => {
             <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
             <XAxis dataKey="d" fontSize={11} />
             <YAxis fontSize={11} />
-            <Tooltip />
+            <Tooltip {...tooltipProps("bar")} />
             <Area type="monotone" dataKey="events" stroke="hsl(var(--primary))" fill="url(#evColor)" />
           </AreaChart>
         </ResponsiveContainer>

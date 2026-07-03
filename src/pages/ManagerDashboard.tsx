@@ -315,7 +315,7 @@ const ManagerDashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                 <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+                <Tooltip {...tooltipProps("bar")} />
                 <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name={t("managerDashboard.avgScoreBar")} />
                 <Bar dataKey="employees" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} name={t("managerDashboard.employeesBar")} />
               </BarChart>
