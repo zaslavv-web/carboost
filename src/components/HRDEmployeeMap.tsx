@@ -744,14 +744,7 @@ const HRDEmployeeMap = () => {
                                 <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                               ))}
                             </Pie>
-                            <RTooltip
-                              contentStyle={{
-                                backgroundColor: "hsl(var(--card))",
-                                border: "1px solid hsl(var(--border))",
-                                borderRadius: 8,
-                                fontSize: 12,
-                              }}
-                            />
+                            <RTooltip {...tooltipProps("none")} />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
