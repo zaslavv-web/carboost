@@ -168,14 +168,21 @@ export interface TrackerAgendaItem {
 }
 
 /* ============ HELPERS ============ */
+const NETWORK_ERR_RE = /Backend разорвал соединение|Backend недоступен|Backend не ответил вовремя|Failed to fetch|NetworkError|ERR_CONNECTION_CLOSED/i;
 const handle = <T,>({ data, error }: { data: T | null; error: any }): T => {
   if (error) {
     const msg = error.message || "Ошибка запроса";
-    toast.error(msg);
+    if (NETWORK_ERR_RE.test(String(msg))) {
+      // Не спамим тостами при сетевых сбоях — просто пишем в консоль.
+      console.warn("[tracker] network error:", msg);
+    } else {
+      toast.error(msg);
+    }
     throw new Error(msg);
   }
   return data as T;
 };
+
 
 /* ============ GOALS ============ */
 export function useGoals(filter?: { holder_id?: string; status?: GoalStatus }) {
