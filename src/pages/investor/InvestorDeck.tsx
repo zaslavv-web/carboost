@@ -1,19 +1,29 @@
 import { useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import DeckNav from "./DeckNav";
 import Slide1Product from "./slides/Slide1Product";
 import Slide2Market from "./slides/Slide2Market";
 import Slide3ProductTree from "./slides/Slide3ProductTree";
 import Slide4AI from "./slides/Slide4AI";
 import Slide5Economics from "./slides/Slide5Economics";
+import Slide6Sales from "./slides/Slide6Sales";
 
-const slides = [Slide1Product, Slide2Market, Slide3ProductTree, Slide4AI, Slide5Economics];
+const slides = [
+  Slide1Product,
+  Slide2Market,
+  Slide3ProductTree,
+  Slide4AI,
+  Slide5Economics,
+  Slide6Sales,
+];
 const titles = [
   "Продукт",
   "Рынок",
   "Архитектура",
   "AI",
   "Экономика",
+  "Продажи",
 ];
 
 export default function InvestorDeck() {
@@ -60,9 +70,19 @@ export default function InvestorDeck() {
 
   return (
     <div className="min-h-screen bg-[#1B1D22] print:bg-white">
-      {/* Экран: только текущий слайд, вписанный transform:scale */}
+      {/* Экран: только текущий слайд, вписанный transform:scale + анимация перехода */}
       <div className="print:hidden">
-        <Current />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, scale: 0.985, filter: "blur(6px)" }}
+            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, scale: 1.01, filter: "blur(6px)" }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Current />
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Печать: все слайды подряд, каждый на своей странице */}
