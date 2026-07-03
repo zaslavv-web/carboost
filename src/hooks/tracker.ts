@@ -335,16 +335,18 @@ export function useUpdateTask() {
   });
 }
 
-export function useTaskLinks(taskId?: string) {
+export function useTaskLinks(taskId?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["tracker.taskLinks", taskId],
-    enabled: !!taskId,
+    enabled: !!taskId && (options?.enabled ?? true),
+    retry: 0,
     queryFn: async () => {
       const res = await laravelDb.from("tracker_task_goal_links").select("*").eq("task_id", taskId!);
       return handle<TrackerTaskGoalLink[]>(res as any) ?? [];
     },
   });
 }
+
 
 export function useKrTaskLinks(krId?: string) {
   return useQuery({
