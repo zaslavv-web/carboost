@@ -217,13 +217,7 @@ const CompetencyComparisonModal = ({
                   <Radar name={t("hrdDashboard.comparison.positionBenchmark")} dataKey="required" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} strokeWidth={2} />
                   <Radar name={t("hrdDashboard.comparison.employee")} dataKey="actual" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.2} strokeWidth={2} />
                   <Legend />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
+                  <Tooltip {...tooltipProps("bar")} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
