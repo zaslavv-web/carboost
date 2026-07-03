@@ -36,44 +36,49 @@ const pains = [
   "Нехватка HR-аналитики для доски директоров: риски, вовлечённость, ROI обучения",
 ];
 
+function BigNumber({ value, unit }: { value: string; unit: string }) {
+  return (
+    <div className="mt-4 flex items-baseline gap-4">
+      <span className="font-['Instrument_Serif'] text-[76px] leading-none text-[#F5F1E8]">
+        {value}
+      </span>
+      <span className="text-[24px] font-light text-[#F5F1E8]/70">{unit}</span>
+    </div>
+  );
+}
+
 export default function Slide2Market() {
   return (
     <SlideLayout kicker="Рынок · Россия · 2024–2025">
       <div className="grid h-full grid-cols-12 gap-8 px-16 pt-28 pb-14">
         <div className="col-span-12">
-          <h2 className="font-['Instrument_Serif'] text-[64px] leading-none text-[#F5F1E8]">
-            Растущий и <span className="italic text-[#D5A52A]">недоцифрованный</span> HR
+          <h2 className="font-['Instrument_Serif'] text-[60px] leading-[1.05] text-[#F5F1E8]">
+            Основные показатели <span className="italic text-[#D5A52A]">рынка HRTech</span> в России
           </h2>
         </div>
 
         {/* Stat cards */}
-        <div className="col-span-4 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] p-6">
+        <div className="col-span-4 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] px-8 py-6">
           <div className="text-[15px] uppercase tracking-widest text-[#D5A52A]">Целевые компании</div>
-          <div className="mt-3 font-['Instrument_Serif'] text-[80px] leading-none text-[#F5F1E8]">
-            ~21 тыс.
-          </div>
-          <div className="mt-2 text-[16px] text-[#F5F1E8]/70">
-            Юр.лиц в РФ со штатом 250+ (Росстат, реестр МСП, 2024). CAGR ~4% в год.
+          <BigNumber value="21" unit="тыс. компаний" />
+          <div className="mt-3 text-[16px] text-[#F5F1E8]/70">
+            Юр.лиц в РФ со штатом 250+ (Росстат, реестр МСП, 2024). Темпы роста ~4% в год.
           </div>
         </div>
 
-        <div className="col-span-4 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] p-6">
+        <div className="col-span-4 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] px-8 py-6">
           <div className="text-[15px] uppercase tracking-widest text-[#D5A52A]">Расходы на 1 сотрудника</div>
-          <div className="mt-3 font-['Instrument_Serif'] text-[80px] leading-none text-[#F5F1E8]">
-            ₽140–180 тыс/год
-          </div>
-          <div className="mt-2 text-[16px] text-[#F5F1E8]/70">
+          <BigNumber value="₽ 140–180" unit="тыс. / год" />
+          <div className="mt-3 text-[16px] text-[#F5F1E8]/70">
             Онбординг + обучение + удержание (HH Talent Report 2024, Kept HR Survey 2024). +18% г/г.
           </div>
         </div>
 
-        <div className="col-span-4 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] p-6">
+        <div className="col-span-4 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] px-8 py-6">
           <div className="text-[15px] uppercase tracking-widest text-[#D5A52A]">Рынок HR-tech РФ</div>
-          <div className="mt-3 font-['Instrument_Serif'] text-[80px] leading-none text-[#F5F1E8]">
-            ₽92 млрд
-          </div>
-          <div className="mt-2 text-[16px] text-[#F5F1E8]/70">
-            Прогноз 2025 (TAdviser, Smart Ranking). CAGR ~35% в 2021–2025.
+          <BigNumber value="₽ 92" unit="млрд · прогноз 2025" />
+          <div className="mt-3 text-[16px] text-[#F5F1E8]/70">
+            TAdviser, Smart Ranking. Темпы роста ~35% в год (2021–2025).
           </div>
         </div>
 
