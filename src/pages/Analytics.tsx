@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { tooltipProps } from "@/lib/chartTooltip";
 import { useRef, useState } from "react";
 import { laravelDb } from "@/integrations/laravel/db";
 import { BarChart3, TrendingUp, Users, Target, Loader2, ImageDown, FileSpreadsheet } from "lucide-react";

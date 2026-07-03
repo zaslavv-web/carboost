@@ -1,4 +1,5 @@
 /**
+import { tooltipProps } from "@/lib/chartTooltip";
  * Волна 6: People Analytics — расширенная HR-аналитика.
  *
  * Читает агрегированные показатели из /api/people-analytics/*:

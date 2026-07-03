@@ -1,4 +1,5 @@
 /**
+import { tooltipProps } from "@/lib/chartTooltip";
  * Продуктовая аналитика конкретного пользователя.
  * Использует существующий эндпоинт GET /analytics/user-timeline.
  * Доступ — только superadmin (проверка на бэке: abort_if(!$isSuper, 403)).

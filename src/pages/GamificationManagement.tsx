@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { tooltipProps } from "@/lib/chartTooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { laravelDb } from "@/integrations/laravel/db";

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { tooltipProps } from "@/lib/chartTooltip";
 import { ResponsiveContainer, Sankey, Tooltip, Layer, Rectangle } from "recharts";
 
 interface Transition {
