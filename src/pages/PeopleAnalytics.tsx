@@ -1,5 +1,4 @@
 /**
-import { tooltipProps } from "@/lib/chartTooltip";
  * Волна 6: People Analytics — расширенная HR-аналитика.
  *
  * Читает агрегированные показатели из /api/people-analytics/*:
@@ -19,6 +18,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Users, TrendingUp, CalendarDays, AlertTriangle, Building2 } from "lucide-react";
+import { tooltipProps } from "@/lib/chartTooltip";
 
 type Bucket = { label: string; value: number };
 type MonthPoint = { month: string; value: number };
