@@ -118,6 +118,7 @@ const App = () => (
             <AnalyticsBootstrap />
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/investor-deck" element={<InvestorDeck />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/feature/:slug" element={<FeaturePage />} />
               <Route path="/login" element={<Login />} />
