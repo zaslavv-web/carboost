@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { laravelDb } from "@/integrations/laravel/db";
 import { Building2, Plus, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -172,21 +172,12 @@ const Companies = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {companies.map((c: any) => (
-            <div
-              key={c.id}
-              onClick={() => navigate(`/users?companyId=${c.id}`)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  navigate(`/users?companyId=${c.id}`);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              title={t("companies.openEmployees", { defaultValue: "Открыть сотрудников компании" })}
-              className="group bg-card rounded-xl border border-border p-5 space-y-3 cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-ring/30"
-            >
-              <div className="flex items-start justify-between">
+            <div key={c.id} className="group relative bg-card rounded-xl border border-border hover:border-primary/40 hover:shadow-sm transition-all">
+              <Link
+                to={`/users?companyId=${c.id}`}
+                title={t("companies.openEmployees", { defaultValue: "Открыть сотрудников" })}
+                className="block p-5 pr-24 space-y-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-ring/30"
+              >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <Building2 className="w-5 h-5 text-primary" />
@@ -196,27 +187,32 @@ const Companies = () => {
                     <p className="text-xs text-muted-foreground">{t("companies.employees", { count: companyCounts[c.id] || 0 })}</p>
                   </div>
                 </div>
-                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); startEdit(c); }}
-                    className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
-                  >
-                    <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm(t("companies.confirmDelete"))) deleteMutation.mutate(c.id);
-                    }}
-                    className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                  </button>
-                </div>
+                {c.description && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">{c.description}</p>
+                )}
+              </Link>
+              <div className="absolute top-3 right-3 flex gap-1">
+                <button
+                  type="button"
+                  aria-label={t("companies.formEditTitle")}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); startEdit(c); }}
+                  className="p-2 rounded-lg hover:bg-secondary transition-colors touch-manipulation"
+                >
+                  <Pencil className="w-4 h-4 text-muted-foreground" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={t("companies.confirmDelete")}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (confirm(t("companies.confirmDelete"))) deleteMutation.mutate(c.id);
+                  }}
+                  className="p-2 rounded-lg hover:bg-destructive/10 transition-colors touch-manipulation"
+                >
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </button>
               </div>
-              {c.description && (
-                <p className="text-sm text-muted-foreground line-clamp-2">{c.description}</p>
-              )}
             </div>
           ))}
         </div>
