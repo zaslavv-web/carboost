@@ -83,4 +83,30 @@ class DbControllerTest extends TestCase
             ->getJson('/api/db/departments?select=*&eq.name=___missing___&single=1')
             ->assertStatus(404);
     }
+
+    public function test_delete_without_filters_is_blocked(): void
+    {
+        $company = $this->makeCompany();
+
+        $this->actingAs($this->makeUser('superadmin'), 'sanctum')
+            ->deleteJson('/api/db/companies')
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'mass_mutation_blocked');
+
+        $this->assertDatabaseHas('companies', ['id' => $company->id]);
+    }
+
+    public function test_delete_company_with_eq_id_deletes_only_that_company(): void
+    {
+        $target = $this->makeCompany(['name' => 'Delete target']);
+        $other = $this->makeCompany(['name' => 'Keep target']);
+
+        $this->actingAs($this->makeUser('superadmin'), 'sanctum')
+            ->deleteJson('/api/db/companies?eq.id=' . $target->id)
+            ->assertOk()
+            ->assertJsonPath('data.deleted', 1);
+
+        $this->assertDatabaseMissing('companies', ['id' => $target->id]);
+        $this->assertDatabaseHas('companies', ['id' => $other->id]);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\CompanyRecoveryService;
 use App\Services\AuthUserService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -87,6 +88,9 @@ class SeedDemoCompany extends Command
             $this->seedNotificationsAndChats();
         });
 
+        $this->validateSeedResult($headcount);
+        $this->warnAboutMissingCompanies();
+
         $this->info("✅ Готово. company_id = {$this->companyId}");
         $this->line('Логины (единый пароль DemoPass!2026):');
         foreach (array_slice($this->emailBook, 0, 12, true) as $login => $email) {
@@ -145,6 +149,41 @@ class SeedDemoCompany extends Command
         if ($missingPositionIds > 0) {
             throw new \RuntimeException("Demo seed: у {$missingPositionIds} профилей есть должность без position_id.");
         }
+    }
+
+    private function validateSeedResult(int $expectedHeadcount): void
+    {
+        if (! DB::table('companies')->where('id', $this->companyId)->exists()) {
+            throw new \RuntimeException("Demo seed: компания {$this->companyId} не найдена после завершения сидера.");
+        }
+
+        $profileCount = DB::table('profiles')->where('company_id', $this->companyId)->count();
+        if ($profileCount < $expectedHeadcount) {
+            throw new \RuntimeException("Demo seed: ожидалось минимум {$expectedHeadcount} профилей в компании, найдено {$profileCount}. Вероятно, существующие demo-пользователи не были привязаны к новой компании.");
+        }
+
+        $departmentCount = DB::table('departments')->where('company_id', $this->companyId)->count();
+        $positionCount = DB::table('positions')->where('company_id', $this->companyId)->count();
+        if ($departmentCount === 0 || $positionCount === 0) {
+            throw new \RuntimeException("Demo seed: неполная оргструктура (departments={$departmentCount}, positions={$positionCount}).");
+        }
+    }
+
+    private function warnAboutMissingCompanies(): void
+    {
+        try {
+            $missing = app(CompanyRecoveryService::class)->missingCompanyIds(includeDemoOrphans: false);
+        } catch (\Throwable $e) {
+            Log::warning('Не удалось проверить missing companies после demo:seed: ' . $e->getMessage());
+            return;
+        }
+
+        if ($missing === []) {
+            return;
+        }
+
+        $this->warn('⚠️ Найдены данные, которые ссылаются на отсутствующие компании: ' . count($missing));
+        $this->line('   Для восстановления строк companies запустите: php artisan companies:recover-missing --apply');
     }
 
     // ---------- reset ----------
@@ -353,31 +392,36 @@ class SeedDemoCompany extends Command
                 $email = "{$login}@demo.pikrosta.ru";
                 $this->emailBook[$login] = $email;
 
-                if (DB::table('users')->where('email', $email)->exists()) {
-                    $existingId = DB::table('users')->where('email', $email)->value('id');
-                    $this->userIds[$role][] = $existingId;
-                    $this->allUserIds[] = $existingId;
-                    $seq++;
-                    continue;
-                }
-
                 try {
-                    $user = $auth->createWithPassword(
-                        $email,
-                        $this->password,
-                        $full,
-                        $role,
-                        companyId: $this->companyId,
-                        isVerified: true,
-                    );
-                    $uid = (string) $user->id;
+                    $existingId = DB::table('users')->where('email', $email)->value('id');
+                    if ($existingId) {
+                        $uid = (string) $existingId;
+                        $this->attachExistingDemoUser($uid, $email, $full, $role);
+                    } else {
+                        $user = $auth->createWithPassword(
+                            $email,
+                            $this->password,
+                            $full,
+                            $role,
+                            companyId: $this->companyId,
+                            isVerified: true,
+                        );
+                        $uid = (string) $user->id;
+                    }
+
                     $this->userIds[$role][] = $uid;
                     $this->allUserIds[] = $uid;
 
-                    // Проставим position/department/hire_date/avatar
+                    // Проставим/обновим position/department/hire_date/avatar. Это важно для
+                    // сценария, когда строку companies удалили, а demo-пользователи остались:
+                    // повторный seed должен перепривязать их profile.company_id к новой компании.
                     $dept = $this->randomKey($this->departmentIds, 'departmentIds');
                     $posTitle = $this->pickPositionForRole($role, $dept);
                     DB::table('profiles')->where('user_id', $uid)->update([
+                        'company_id'  => $this->companyId,
+                        'full_name'   => $full,
+                        'requested_role' => $role,
+                        'is_verified' => true,
                         'department'  => $dept,
                         'position'    => $posTitle,
                         'position_id' => $this->positionIds[$posTitle] ?? null,
@@ -388,11 +432,54 @@ class SeedDemoCompany extends Command
                         'updated_at'  => now(),
                     ]);
                 } catch (\Throwable $e) {
-                    Log::warning("Не удалось создать демо-пользователя {$email}: " . $e->getMessage());
+                    Log::warning("Не удалось создать/обновить демо-пользователя {$email}: " . $e->getMessage());
                     $this->warn("  ! пропущен: {$email} — " . $e->getMessage());
                 }
                 $seq++;
             }
+        }
+    }
+
+    private function attachExistingDemoUser(string $uid, string $email, string $fullName, string $role): void
+    {
+        $meta = [];
+        $rawMeta = DB::table('users')->where('id', $uid)->value('meta');
+        if (is_string($rawMeta) && $rawMeta !== '') {
+            $decoded = json_decode($rawMeta, true);
+            if (is_array($decoded)) $meta = $decoded;
+        } elseif (is_array($rawMeta)) {
+            $meta = $rawMeta;
+        }
+        $meta['company_id'] = $this->companyId;
+        $meta['requested_role'] = $role;
+        $meta['full_name'] = $fullName;
+        $meta['email_verified'] = true;
+
+        DB::table('users')->where('id', $uid)->update([
+            'meta' => json_encode($meta, JSON_UNESCAPED_UNICODE),
+            'email_verified_at' => DB::raw('COALESCE(email_verified_at, CURRENT_TIMESTAMP)'),
+            'updated_at' => now(),
+        ]);
+
+        if (! DB::table('profiles')->where('user_id', $uid)->exists()) {
+            DB::table('profiles')->insert([
+                'id' => (string) Str::uuid(),
+                'user_id' => $uid,
+                'company_id' => $this->companyId,
+                'full_name' => $fullName,
+                'requested_role' => $role,
+                'is_verified' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        if (! DB::table('user_roles')->where('user_id', $uid)->where('role', $role)->exists()) {
+            DB::table('user_roles')->insert([
+                'id' => (string) Str::uuid(),
+                'user_id' => $uid,
+                'role' => $role,
+            ]);
         }
     }
 
