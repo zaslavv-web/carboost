@@ -175,13 +175,12 @@ class SeedDemoCompany extends Command
         }
         if (Schema::hasTable('company_currency_settings')) {
             DB::table('company_currency_settings')->insert([
-                'id'         => (string) Str::uuid(),
-                'company_id' => $this->companyId,
-                'name'       => 'Демо-коин',
-                'symbol'     => '⚡',
-                'is_active'  => true,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'id'            => (string) Str::uuid(),
+                'company_id'    => $this->companyId,
+                'currency_name' => 'Демо-коин',
+                'currency_icon' => '⚡',
+                'created_at'    => now(),
+                'updated_at'    => now(),
             ]);
         }
     }
