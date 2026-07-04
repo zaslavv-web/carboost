@@ -817,7 +817,7 @@ class SeedDemoCompany extends Command
                 'id'                => (string) Str::uuid(),
                 'user_id'           => $uid,
                 'company_id'        => $this->companyId,
-                'position_id'       => array_values($this->positionIds)[array_rand($this->positionIds)],
+                'position_id'       => $this->positionIds[array_rand($this->positionIds)],
                 'status'            => 'confirmed',
                 'version'           => 1,
                 'answers'           => json_encode(['basic' => ['department' => 'Разработка'], 'competencies' => []]),
