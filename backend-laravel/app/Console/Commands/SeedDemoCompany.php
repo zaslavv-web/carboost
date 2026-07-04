@@ -53,12 +53,14 @@ class SeedDemoCompany extends Command
 
             $this->info('2/12  Создаю оргструктуру (отделы, должности)…');
             $this->createOrgStructure();
+            $this->validateOrgStructure();
 
             $this->info('3/12  Создаю карьерные треки…');
             $this->createCareerTracks();
 
             $this->info("4/12  Создаю {$headcount} сотрудников…");
             $this->createUsers($auth, $headcount);
+            $this->validateUsers();
 
             $this->info('5/12  Расставляю руководителей и team_members…');
             $this->assignManagers();
@@ -92,6 +94,57 @@ class SeedDemoCompany extends Command
         }
         $this->line('  … (полный список — в UI /superadmin/demo-seed)');
         return self::SUCCESS;
+    }
+
+    private function randomValue(array $items, string $context = 'array')
+    {
+        if ($items === []) {
+            throw new \RuntimeException("Demo seed: пустой массив для случайного выбора ({$context}).");
+        }
+
+        return $items[array_rand($items)];
+    }
+
+    private function randomKey(array $items, string $context = 'array')
+    {
+        if ($items === []) {
+            throw new \RuntimeException("Demo seed: пустой массив для случайного ключа ({$context}).");
+        }
+
+        return array_rand($items);
+    }
+
+    private function validateOrgStructure(): void
+    {
+        if ($this->departmentIds === []) {
+            throw new \RuntimeException('Demo seed: не созданы отделы, дальнейшее наполнение невозможно.');
+        }
+
+        if ($this->positionIds === []) {
+            throw new \RuntimeException('Demo seed: не созданы должности, дальнейшее наполнение невозможно.');
+        }
+    }
+
+    private function validateUsers(): void
+    {
+        if ($this->allUserIds === []) {
+            throw new \RuntimeException('Demo seed: не создан ни один пользователь, дальнейшее наполнение невозможно.');
+        }
+
+        if (empty($this->userIds['employee'])) {
+            throw new \RuntimeException('Demo seed: не созданы сотрудники employee, невозможно назначить задачи и командную структуру.');
+        }
+
+        $missingPositionIds = DB::table('profiles')
+            ->where('company_id', $this->companyId)
+            ->whereIn('user_id', $this->allUserIds)
+            ->whereNotNull('position')
+            ->whereNull('position_id')
+            ->count();
+
+        if ($missingPositionIds > 0) {
+            throw new \RuntimeException("Demo seed: у {$missingPositionIds} профилей есть должность без position_id.");
+        }
     }
 
     // ---------- reset ----------
@@ -293,8 +346,8 @@ class SeedDemoCompany extends Command
             $this->userIds[$role] = [];
             for ($i = 0; $i < $count; $i++) {
                 $isMale = ($seq % 2 === 0);
-                $first = $isMale ? $namesM[array_rand($namesM)] : $namesF[array_rand($namesF)];
-                $last  = $isMale ? $surM[array_rand($surM)]  : $surF[array_rand($surF)];
+                $first = $isMale ? $this->randomValue($namesM, 'male first names') : $this->randomValue($namesF, 'female first names');
+                $last  = $isMale ? $this->randomValue($surM, 'male surnames') : $this->randomValue($surF, 'female surnames');
                 $full  = "{$first} {$last}";
                 $login = sprintf('%s.%02d', $role, $i + 1);
                 $email = "{$login}@demo.pikrosta.ru";
@@ -322,7 +375,7 @@ class SeedDemoCompany extends Command
                     $this->allUserIds[] = $uid;
 
                     // Проставим position/department/hire_date/avatar
-                    $dept = array_rand($this->departmentIds);
+                    $dept = $this->randomKey($this->departmentIds, 'departmentIds');
                     $posTitle = $this->pickPositionForRole($role, $dept);
                     DB::table('profiles')->where('user_id', $uid)->update([
                         'department'  => $dept,
@@ -365,7 +418,7 @@ class SeedDemoCompany extends Command
             };
         }
         $list = $byDept[$dept] ?? ['Fullstack Developer'];
-        return $list[array_rand($list)];
+        return $this->randomValue($list, "positions for {$dept}");
     }
 
     // ---------- 5. managers ----------
@@ -376,7 +429,7 @@ class SeedDemoCompany extends Command
         if (!$managers || !$employees) return;
 
         foreach ($employees as $eid) {
-            $mid = $managers[array_rand($managers)];
+            $mid = $this->randomValue($managers, 'managers');
             DB::table('team_members')->insertOrIgnore([
                 'id'          => (string) Str::uuid(),
                 'company_id'  => $this->companyId,
@@ -460,8 +513,8 @@ class SeedDemoCompany extends Command
 
         // Заказы
         for ($i = 0; $i < 30; $i++) {
-            $buyer = $this->allUserIds[array_rand($this->allUserIds)];
-            $prod = $productIds[array_rand($productIds)];
+            $buyer = $this->randomValue($this->allUserIds, 'allUserIds');
+            $prod = $this->randomValue($productIds, 'shop products');
             $qty = random_int(1, 2);
             $total = $prod['price'] * $qty;
             $oid = (string) Str::uuid();
@@ -574,7 +627,7 @@ class SeedDemoCompany extends Command
         // попытки, компетенции, ассессменты
         foreach ($this->allUserIds as $uid) {
             if ($tests && random_int(1, 100) <= 70) {
-                $tid = $tests[array_rand($tests)];
+                $tid = $this->randomValue($tests, 'tests');
                 DB::table('test_attempts')->insert([
                     'id'                    => (string) Str::uuid(),
                     'user_id'               => $uid,
@@ -672,8 +725,8 @@ class SeedDemoCompany extends Command
 
         // peer recognitions
         for ($i = 0; $i < 80; $i++) {
-            $from = $this->allUserIds[array_rand($this->allUserIds)];
-            $to = $this->allUserIds[array_rand($this->allUserIds)];
+            $from = $this->randomValue($this->allUserIds, 'allUserIds');
+            $to = $this->randomValue($this->allUserIds, 'allUserIds');
             if ($from === $to) continue;
             DB::table('peer_recognitions')->insert([
                 'id'          => (string) Str::uuid(),
@@ -787,7 +840,7 @@ class SeedDemoCompany extends Command
             ];
             foreach ($ideas as [$title, $cat]) {
                 $iid = (string) Str::uuid();
-                $author = $this->allUserIds[array_rand($this->allUserIds)];
+                $author = $this->randomValue($this->allUserIds, 'allUserIds');
                 DB::table('initiatives')->insert([
                     'id' => $iid, 'company_id' => $this->companyId, 'author_id' => $author,
                     'title' => $title, 'description' => 'Демо-инициатива: ' . $title,
@@ -817,7 +870,7 @@ class SeedDemoCompany extends Command
                 'id'                => (string) Str::uuid(),
                 'user_id'           => $uid,
                 'company_id'        => $this->companyId,
-                'position_id'       => $this->positionIds[array_rand($this->positionIds)],
+                'position_id'       => $this->randomValue($this->positionIds, 'positionIds'),
                 'status'            => 'confirmed',
                 'version'           => 1,
                 'answers'           => json_encode(['basic' => ['department' => 'Разработка'], 'competencies' => []]),
@@ -899,8 +952,8 @@ class SeedDemoCompany extends Command
                 DB::table('chat_messages')->insert([
                     'id' => (string) Str::uuid(),
                     'conversation_id' => $cid,
-                    'sender_id' => $this->allUserIds[array_rand($this->allUserIds)],
-                    'body' => $msgs[array_rand($msgs)],
+                    'sender_id' => $this->randomValue($this->allUserIds, 'allUserIds'),
+                    'body' => $this->randomValue($msgs, 'chat messages'),
                     'created_at' => now()->subMinutes(random_int(5, 60 * 24 * 7)),
                     'updated_at' => now(),
                 ]);
