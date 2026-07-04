@@ -165,9 +165,10 @@ class SeedDemoCompany extends Command
             DB::table('company_onboarding_settings')->insert([
                 'id'                     => (string) Str::uuid(),
                 'company_id'             => $this->companyId,
+                'auto_assign_tests'      => true,
+                'auto_assign_tracks'     => true,
                 'welcome_bonus_enabled'  => true,
                 'welcome_bonus_amount'   => 100,
-                'auto_assign_tracks'     => true,
                 'created_at'             => now(),
                 'updated_at'             => now(),
             ]);
