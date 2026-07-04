@@ -4,9 +4,9 @@ import { laravel } from "@/integrations/laravel/client";
 import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2, UserPlus, X, KeyRound, IdCard } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import type { AppRole } from "@/hooks/useUserProfile";
@@ -40,11 +40,31 @@ const UsersManagement = () => {
     superadmin: { label: t("users.roleSuperadmin"), cls: "bg-destructive/10 text-destructive" },
   };
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [companyFilter, setCompanyFilter] = useState<string>("all");
+  const [companyFilter, setCompanyFilter] = useState<string>(
+    () => searchParams.get("companyId") || "all"
+  );
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+
+  // Sync company filter from URL (?companyId=...) — enables quick-filter deep-linking from Companies list.
+  useEffect(() => {
+    const cid = searchParams.get("companyId");
+    if (cid && cid !== companyFilter) {
+      setCompanyFilter(cid);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const updateCompanyFilter = (value: string) => {
+    setCompanyFilter(value);
+    const next = new URLSearchParams(searchParams);
+    if (value === "all") next.delete("companyId");
+    else next.set("companyId", value);
+    setSearchParams(next, { replace: true });
+  };
 
   const { data: companies = [] } = useQuery({
     queryKey: ["companies_list"],
