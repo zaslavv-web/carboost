@@ -234,10 +234,19 @@ class DbController extends Controller
     {
         $model = self::resolve($table);
         $query = $model::query();
-        $this->applyFilters($query, $request);
+        $applied = $this->applyFilters($query, $request);
         $values = $request->input('values', []);
         if (! $values) {
             return response()->json(['error' => 'Нет данных для обновления'], 422);
+        }
+        if ($applied === 0 || empty($query->getQuery()->wheres)) {
+            \Illuminate\Support\Facades\Log::warning('DbController mass update blocked', [
+                'table' => $table, 'query' => $request->server('QUERY_STRING'),
+            ]);
+            return response()->json([
+                'error' => 'Отказ: массовое обновление без фильтров запрещено',
+                'code'  => 'mass_mutation_blocked',
+            ], 422);
         }
         $rows = $query->get();
         foreach ($rows as $row) {
@@ -252,7 +261,30 @@ class DbController extends Controller
     {
         $model = self::resolve($table);
         $query = $model::query();
-        $this->applyFilters($query, $request);
+        $applied = $this->applyFilters($query, $request);
+        if ($applied === 0 || empty($query->getQuery()->wheres)) {
+            \Illuminate\Support\Facades\Log::warning('DbController mass delete blocked', [
+                'table' => $table, 'query' => $request->server('QUERY_STRING'),
+            ]);
+            return response()->json([
+                'error' => 'Отказ: массовое удаление без фильтров запрещено',
+                'code'  => 'mass_mutation_blocked',
+            ], 422);
+        }
+        // Extra safeguard for high-blast-radius tables: require an explicit id filter.
+        $requireIdFilter = ['companies'];
+        if (in_array($table, $requireIdFilter, true)) {
+            $hasIdFilter = false;
+            foreach ($query->getQuery()->wheres as $w) {
+                if (($w['column'] ?? null) === 'id') { $hasIdFilter = true; break; }
+            }
+            if (! $hasIdFilter) {
+                return response()->json([
+                    'error' => "Отказ: удаление из '$table' требует фильтр по id",
+                    'code'  => 'id_filter_required',
+                ], 422);
+            }
+        }
         $rows = $query->get();
         foreach ($rows as $row) {
             $this->authorizeAny('delete', $row);
@@ -271,19 +303,50 @@ class DbController extends Controller
         return self::MODEL_MAP[$table];
     }
 
-    protected function applyFilters($query, Request $request): void
+    /**
+     * Parse filter params from the RAW query string. PHP replaces '.' with '_'
+     * inside $_GET keys (legacy register_globals behaviour), so relying on
+     * $request->query() would silently drop `eq.id`, `ilike.name`, etc. and
+     * turn a filtered DELETE into a mass-delete. Return the number of filters
+     * applied so callers can enforce "no filter → no mutation" guards.
+     */
+    protected function applyFilters($query, Request $request): int
     {
-        foreach ($request->query() as $key => $value) {
+        $raw = (string) $request->server('QUERY_STRING');
+        if ($raw === '') return 0;
+
+        $pairs = [];
+        foreach (explode('&', $raw) as $chunk) {
+            if ($chunk === '') continue;
+            [$k, $v] = array_pad(explode('=', $chunk, 2), 2, '');
+            $key = urldecode($k);
+            $val = urldecode($v);
+            $pairs[] = [$key, $val];
+        }
+
+        $applied = 0;
+        foreach ($pairs as [$key, $value]) {
             if (! str_contains($key, '.')) continue;
             [$op, $col] = explode('.', $key, 2);
+            // Guard against empty values that would otherwise expand to
+            // `where col = ''` and quietly match nothing (or, for text cols,
+            // everything on some ORMs). Treat as "no filter applied".
+            if ($value === '' && $op !== 'is') continue;
+
             if ($op === 'in') {
-                $query->whereIn($col, array_filter(explode(',', (string) $value)));
+                $items = array_values(array_filter(explode(',', $value), fn ($x) => $x !== ''));
+                if (! $items) continue;
+                $query->whereIn($col, $items);
+                $applied++;
             } elseif ($op === 'is') {
                 $value === 'null' ? $query->whereNull($col) : $query->whereNotNull($col);
+                $applied++;
             } elseif (isset(self::OPS[$op])) {
                 $query->where($col, self::OPS[$op], $value);
+                $applied++;
             }
         }
+        return $applied;
     }
 
     protected function applySelect($query, Request $request): void
