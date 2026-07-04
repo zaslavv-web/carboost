@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { laravelDb } from "@/integrations/laravel/db";
 import { Building2, Plus, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +8,7 @@ import { useTranslation } from "react-i18next";
 
 const Companies = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { t } = useTranslation("admin");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -170,23 +172,40 @@ const Companies = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {companies.map((c: any) => (
-            <div key={c.id} className="bg-card rounded-xl border border-border p-5 space-y-3">
+            <div
+              key={c.id}
+              onClick={() => navigate(`/users?companyId=${c.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigate(`/users?companyId=${c.id}`);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              title={t("companies.openEmployees", { defaultValue: "Открыть сотрудников компании" })}
+              className="group bg-card rounded-xl border border-border p-5 space-y-3 cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-ring/30"
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <Building2 className="w-5 h-5 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-foreground truncate">{c.name}</p>
+                    <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">{c.name}</p>
                     <p className="text-xs text-muted-foreground">{t("companies.employees", { count: companyCounts[c.id] || 0 })}</p>
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  <button onClick={() => startEdit(c)} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); startEdit(c); }}
+                    className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                  >
                     <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (confirm(t("companies.confirmDelete"))) deleteMutation.mutate(c.id);
                     }}
                     className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
