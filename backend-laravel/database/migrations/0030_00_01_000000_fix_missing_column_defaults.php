@@ -31,12 +31,12 @@ return new class extends Migration
             if (!Schema::hasTable($table)) {
                 continue;
             }
-            foreach ($cols as $col => $definition) {
+            foreach ($cols as $col => [$definition, $backfill]) {
                 if (!Schema::hasColumn($table, $col)) {
                     continue;
                 }
-                // Backfill NULLs before enforcing NOT NULL.
-                DB::statement("UPDATE `{$table}` SET `{$col}` = DEFAULT(`{$col}`) WHERE `{$col}` IS NULL");
+                // Backfill NULLs so the NOT NULL alter succeeds.
+                DB::statement("UPDATE `{$table}` SET `{$col}` = ? WHERE `{$col}` IS NULL", [$backfill]);
                 DB::statement("ALTER TABLE `{$table}` MODIFY `{$col}` {$definition}");
             }
         }
