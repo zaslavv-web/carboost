@@ -18,10 +18,10 @@ return new class extends Migration
     /** [table => [column => "TYPE NOT NULL DEFAULT ..."]] */
     private array $fixes = [
         'company_onboarding_settings' => [
-            'auto_assign_tests'     => 'TINYINT(1) NOT NULL DEFAULT 1',
-            'auto_assign_tracks'    => 'TINYINT(1) NOT NULL DEFAULT 1',
-            'welcome_bonus_enabled' => 'TINYINT(1) NOT NULL DEFAULT 1',
-            'welcome_bonus_amount'  => 'INT NOT NULL DEFAULT 100',
+            'auto_assign_tests'     => ['TINYINT(1) NOT NULL DEFAULT 1', '1'],
+            'auto_assign_tracks'    => ['TINYINT(1) NOT NULL DEFAULT 1', '1'],
+            'welcome_bonus_enabled' => ['TINYINT(1) NOT NULL DEFAULT 1', '1'],
+            'welcome_bonus_amount'  => ['INT NOT NULL DEFAULT 100', '100'],
         ],
     ];
 
