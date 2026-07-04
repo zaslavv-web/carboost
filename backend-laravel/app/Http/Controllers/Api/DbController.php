@@ -234,10 +234,19 @@ class DbController extends Controller
     {
         $model = self::resolve($table);
         $query = $model::query();
-        $this->applyFilters($query, $request);
+        $applied = $this->applyFilters($query, $request);
         $values = $request->input('values', []);
         if (! $values) {
             return response()->json(['error' => 'Нет данных для обновления'], 422);
+        }
+        if ($applied === 0 || empty($query->getQuery()->wheres)) {
+            \Illuminate\Support\Facades\Log::warning('DbController mass update blocked', [
+                'table' => $table, 'query' => $request->server('QUERY_STRING'),
+            ]);
+            return response()->json([
+                'error' => 'Отказ: массовое обновление без фильтров запрещено',
+                'code'  => 'mass_mutation_blocked',
+            ], 422);
         }
         $rows = $query->get();
         foreach ($rows as $row) {
@@ -252,7 +261,30 @@ class DbController extends Controller
     {
         $model = self::resolve($table);
         $query = $model::query();
-        $this->applyFilters($query, $request);
+        $applied = $this->applyFilters($query, $request);
+        if ($applied === 0 || empty($query->getQuery()->wheres)) {
+            \Illuminate\Support\Facades\Log::warning('DbController mass delete blocked', [
+                'table' => $table, 'query' => $request->server('QUERY_STRING'),
+            ]);
+            return response()->json([
+                'error' => 'Отказ: массовое удаление без фильтров запрещено',
+                'code'  => 'mass_mutation_blocked',
+            ], 422);
+        }
+        // Extra safeguard for high-blast-radius tables: require an explicit id filter.
+        $requireIdFilter = ['companies'];
+        if (in_array($table, $requireIdFilter, true)) {
+            $hasIdFilter = false;
+            foreach ($query->getQuery()->wheres as $w) {
+                if (($w['column'] ?? null) === 'id') { $hasIdFilter = true; break; }
+            }
+            if (! $hasIdFilter) {
+                return response()->json([
+                    'error' => "Отказ: удаление из '$table' требует фильтр по id",
+                    'code'  => 'id_filter_required',
+                ], 422);
+            }
+        }
         $rows = $query->get();
         foreach ($rows as $row) {
             $this->authorizeAny('delete', $row);
