@@ -449,6 +449,7 @@ class SeedDemoCompany extends Command
                 'description' => $desc,
                 'price'       => $price,
                 'stock'       => $stock,
+                'period_kind' => 'none',
                 'is_active'   => true,
                 'created_by'  => $admin,
                 'created_at'  => now(),
