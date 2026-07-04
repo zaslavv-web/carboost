@@ -359,7 +359,7 @@ const UsersManagement = () => {
           {isSuperadmin && companies.length > 0 && (
             <select
               value={companyFilter}
-              onChange={(e) => setCompanyFilter(e.target.value)}
+              onChange={(e) => updateCompanyFilter(e.target.value)}
               className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
             >
               <option value="all">{t("users.allCompanies")}</option>
@@ -376,6 +376,9 @@ const UsersManagement = () => {
                 setSearch("");
                 setStatusFilter("all");
                 setCompanyFilter("all");
+                const next = new URLSearchParams(searchParams);
+                next.delete("companyId");
+                setSearchParams(next, { replace: true });
                 setRoleFilter("all");
                 setDepartmentFilter("all");
               }}
