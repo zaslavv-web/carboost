@@ -299,6 +299,10 @@ class SeedDemoCompany extends Command
             'Финансы'    => ['Financial Analyst','Accountant'],
             'Поддержка'  => ['Support Engineer','Customer Success Manager'],
         ];
+
+        $competencyMap = $this->positionCompetencyMap();
+        $psychoMap = $this->positionPsychologicalMap();
+
         foreach ($depts as $name => $positions) {
             $did = (string) Str::uuid();
             DB::table('departments')->insert([
@@ -313,20 +317,26 @@ class SeedDemoCompany extends Command
 
             foreach ($positions as $title) {
                 $pid = (string) Str::uuid();
+                $competencies = $competencyMap[$title] ?? [
+                    ['skill' => 'Коммуникация', 'required_level' => 3],
+                    ['skill' => 'Ответственность', 'required_level' => 4],
+                    ['skill' => 'Работа в команде', 'required_level' => 3],
+                ];
+                $psycho = $psychoMap[$title] ?? [
+                    ['trait' => 'Стрессоустойчивость', 'level' => 'выше среднего'],
+                    ['trait' => 'Проактивность', 'level' => 'выше среднего'],
+                ];
                 DB::table('positions')->insert([
                     'id'             => $pid,
                     'company_id'     => $this->companyId,
                     'title'          => $title,
-                    'description'    => "Должность {$title} в отделе {$name}.",
+                    'description'    => $this->positionDescription($title, $name),
                     'department'     => $name,
-                    'created_by'     => $this->companyId, // будет обновлено позже
+                    'created_by'     => $this->companyId,
                     'profile_status' => 'approved',
                     'profile_version' => 1,
-                    'psychological_profile' => json_encode(new \stdClass()),
-                    'competency_profile'    => json_encode([
-                        ['skill' => 'Коммуникация', 'level' => 3],
-                        ['skill' => 'Ответственность', 'level' => 4],
-                    ]),
+                    'psychological_profile' => json_encode($psycho, JSON_UNESCAPED_UNICODE),
+                    'competency_profile'    => json_encode($competencies, JSON_UNESCAPED_UNICODE),
                     'profile_template' => json_encode(new \stdClass()),
                     'created_at'    => now(),
                     'updated_at'    => now(),
@@ -335,6 +345,88 @@ class SeedDemoCompany extends Command
             }
         }
     }
+
+    private function positionDescription(string $title, string $dept): string
+    {
+        $map = [
+            'Product Manager'          => 'Отвечает за продуктовую стратегию, roadmap, работу с рынком и запуск фич.',
+            'Product Owner'            => 'Управляет бэклогом, приоритетами и работой команды разработки.',
+            'Product Analyst'          => 'Анализирует продуктовые метрики, проводит A/B-тесты, готовит инсайты.',
+            'Fullstack Developer'      => 'Разрабатывает end-to-end функциональность: фронтенд + бэкенд + БД.',
+            'Backend Developer'        => 'Разрабатывает серверную логику, API, интеграции и БД.',
+            'Frontend Developer'       => 'Реализует пользовательские интерфейсы, работает с React/TypeScript.',
+            'QA Engineer'              => 'Тестирует релизы, автоматизирует регресс, ведёт баг-репорты.',
+            'DevOps Engineer'          => 'Обеспечивает CI/CD, мониторинг, инфраструктуру и надёжность.',
+            'UX/UI Designer'           => 'Проектирует пользовательский опыт и визуальный интерфейс.',
+            'Product Designer'         => 'Отвечает за end-to-end дизайн продукта: исследования, UX, UI, дизайн-систему.',
+            'Sales Manager'            => 'Ведёт сделки full-cycle, работает с воронкой и планом продаж.',
+            'Head of Sales'            => 'Руководит отделом продаж, строит процессы и достигает revenue-целей.',
+            'Account Manager'          => 'Развивает существующих клиентов, растит LTV и NPS.',
+            'Marketing Manager'        => 'Отвечает за маркетинговую стратегию, каналы, кампании и бюджет.',
+            'Content Manager'          => 'Планирует и создаёт контент для сайта, блога и соцсетей.',
+            'SEO Specialist'           => 'Отвечает за поисковую оптимизацию и рост органического трафика.',
+            'HR Business Partner'      => 'Партнёр бизнеса по людям: подбор, развитие, удержание, культура.',
+            'Recruiter'                => 'Закрывает вакансии, ведёт воронку кандидатов, работает с брендом.',
+            'L&D Specialist'           => 'Развивает сотрудников: тренинги, треки, оценка компетенций.',
+            'Financial Analyst'        => 'Готовит финмодель, отчётность, unit-экономику и планирование.',
+            'Accountant'               => 'Ведёт бухгалтерский и налоговый учёт, отчётность.',
+            'Support Engineer'         => 'Обрабатывает обращения клиентов, диагностирует и решает инциденты.',
+            'Customer Success Manager' => 'Обеспечивает достижение клиентом ценности продукта и продлевает контракты.',
+        ];
+        return $map[$title] ?? "Должность {$title} в отделе {$dept}.";
+    }
+
+    private function positionCompetencyMap(): array
+    {
+        $c = fn(string $s, int $l) => ['skill' => $s, 'required_level' => $l];
+        return [
+            'Product Manager'          => [$c('Продуктовое мышление',5), $c('Работа с метриками',4), $c('Стейкхолдер-менеджмент',5), $c('Roadmap-планирование',5), $c('User research',4)],
+            'Product Owner'            => [$c('Управление бэклогом',5), $c('Agile/Scrum',5), $c('Приоритизация',4), $c('Коммуникация',5)],
+            'Product Analyst'          => [$c('SQL',5), $c('Статистика',4), $c('A/B-тесты',4), $c('Визуализация данных',4)],
+            'Fullstack Developer'      => [$c('React/TypeScript',4), $c('Node.js/PHP',4), $c('SQL',4), $c('Архитектура',4), $c('Ревью кода',4)],
+            'Backend Developer'        => [$c('PHP/Laravel',5), $c('SQL',5), $c('API-дизайн',4), $c('Тестирование',4), $c('Производительность',4)],
+            'Frontend Developer'       => [$c('React',5), $c('TypeScript',5), $c('CSS/Tailwind',4), $c('Доступность',3), $c('Производительность UI',4)],
+            'QA Engineer'              => [$c('Тест-дизайн',5), $c('Автоматизация тестов',4), $c('API-тестирование',4), $c('Внимание к деталям',5)],
+            'DevOps Engineer'          => [$c('Docker/K8s',5), $c('CI/CD',5), $c('Мониторинг',4), $c('IaC',4), $c('Безопасность',4)],
+            'UX/UI Designer'           => [$c('UX-исследования',4), $c('Прототипирование',5), $c('Figma',5), $c('Дизайн-системы',4)],
+            'Product Designer'         => [$c('Продуктовый дизайн',5), $c('UX-исследования',5), $c('Дизайн-системы',5), $c('Кроссфункциональная работа',4)],
+            'Sales Manager'            => [$c('Ведение сделок',5), $c('Работа с возражениями',5), $c('CRM',4), $c('Переговоры',5)],
+            'Head of Sales'            => [$c('Управление командой',5), $c('Sales-стратегия',5), $c('Прогнозирование',5), $c('Найм',4)],
+            'Account Manager'          => [$c('Удержание клиентов',5), $c('Upsell/Cross-sell',4), $c('Коммуникация',5), $c('CRM',4)],
+            'Marketing Manager'        => [$c('Маркетинг-стратегия',5), $c('Управление бюджетом',4), $c('Аналитика каналов',4), $c('Бренд',4)],
+            'Content Manager'          => [$c('Копирайтинг',5), $c('Контент-план',5), $c('SEO-основы',3), $c('SMM',4)],
+            'SEO Specialist'           => [$c('Техническое SEO',5), $c('Семантика',5), $c('Линкбилдинг',4), $c('Аналитика',4)],
+            'HR Business Partner'      => [$c('Оценка людей',5), $c('Развитие сотрудников',5), $c('Конфликт-менеджмент',4), $c('HR-аналитика',4)],
+            'Recruiter'                => [$c('Sourcing',5), $c('Интервью',5), $c('ATS',4), $c('Employer brand',4)],
+            'L&D Specialist'           => [$c('Дизайн обучения',5), $c('Оценка компетенций',5), $c('Фасилитация',4)],
+            'Financial Analyst'        => [$c('Финмоделирование',5), $c('Unit-экономика',5), $c('Excel/BI',5)],
+            'Accountant'               => [$c('Бухучёт',5), $c('Налоги РФ',5), $c('1С',5)],
+            'Support Engineer'         => [$c('Диагностика инцидентов',5), $c('Клиентоориентированность',5), $c('SQL',3)],
+            'Customer Success Manager' => [$c('Onboarding клиента',5), $c('Retention',5), $c('Ведение аккаунтов',4)],
+        ];
+    }
+
+    private function positionPsychologicalMap(): array
+    {
+        $t = fn(string $tr, string $lv) => ['trait' => $tr, 'level' => $lv];
+        return [
+            'Product Manager'          => [$t('Стратегическое мышление','высокое'), $t('Лидерство','выше среднего'), $t('Эмпатия','выше среднего'), $t('Проактивность','высокое')],
+            'Backend Developer'        => [$t('Аналитическое мышление','высокое'), $t('Внимательность','высокое'), $t('Обучаемость','выше среднего')],
+            'Frontend Developer'       => [$t('Внимательность','высокое'), $t('Эстетический вкус','выше среднего'), $t('Обучаемость','выше среднего')],
+            'Fullstack Developer'      => [$t('Системное мышление','высокое'), $t('Обучаемость','высокое'), $t('Проактивность','выше среднего')],
+            'QA Engineer'              => [$t('Скрупулёзность','высокое'), $t('Критическое мышление','высокое')],
+            'DevOps Engineer'          => [$t('Ответственность','высокое'), $t('Стрессоустойчивость','высокое')],
+            'Sales Manager'            => [$t('Целеустремлённость','высокое'), $t('Коммуникабельность','высокое'), $t('Стрессоустойчивость','высокое')],
+            'Head of Sales'            => [$t('Лидерство','высокое'), $t('Ориентация на результат','высокое')],
+            'HR Business Partner'      => [$t('Эмпатия','высокое'), $t('Дипломатичность','высокое'), $t('Аналитичность','выше среднего')],
+            'Recruiter'                => [$t('Коммуникабельность','высокое'), $t('Настойчивость','выше среднего')],
+            'Marketing Manager'        => [$t('Креативность','высокое'), $t('Аналитичность','выше среднего')],
+            'UX/UI Designer'           => [$t('Креативность','высокое'), $t('Эмпатия к пользователю','высокое')],
+            'Support Engineer'         => [$t('Клиентоориентированность','высокое'), $t('Терпеливость','высокое')],
+            'Customer Success Manager' => [$t('Клиентоориентированность','высокое'), $t('Проактивность','высокое')],
+        ];
+    }
+
 
     // ---------- 3. career tracks ----------
     private function createCareerTracks(): void
