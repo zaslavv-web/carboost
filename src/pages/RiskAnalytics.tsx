@@ -58,6 +58,13 @@ const RiskAnalytics = () => {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string | null>(null);
   const [levelFilter, setLevelFilter] = useState<"all" | "low" | "medium" | "high">("all");
+  const [deptFilter, setDeptFilter] = useState<string | null>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+  const applyFilter = (dept: string | null, level: "all" | "low" | "medium" | "high") => {
+    setDeptFilter(dept);
+    setLevelFilter(level);
+    setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
 
   const { data: employees = [] } = useQuery({
     queryKey: ["company-employees", profile?.company_id],
