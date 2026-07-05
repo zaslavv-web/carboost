@@ -1,6 +1,6 @@
 import { laravelDb } from "@/integrations/laravel/db";
 import { tooltipProps } from "@/lib/chartTooltip";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -58,6 +58,13 @@ const RiskAnalytics = () => {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string | null>(null);
   const [levelFilter, setLevelFilter] = useState<"all" | "low" | "medium" | "high">("all");
+  const [deptFilter, setDeptFilter] = useState<string | null>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+  const applyFilter = (dept: string | null, level: "all" | "low" | "medium" | "high") => {
+    setDeptFilter(dept);
+    setLevelFilter(level);
+    setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
 
   const { data: employees = [] } = useQuery({
     queryKey: ["company-employees", profile?.company_id],
@@ -209,8 +216,8 @@ const RiskAnalytics = () => {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setLevelFilter("all")}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setLevelFilter("all")}
+          onClick={() => applyFilter(deptFilter, "all")}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && applyFilter(deptFilter, "all")}
           className={`text-left transition-all cursor-pointer ${levelFilter === "all" ? "ring-2 ring-primary/40 rounded-xl" : ""}`}
         >
           <Card className="glass p-4 hover-lift h-full">
@@ -227,8 +234,8 @@ const RiskAnalytics = () => {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setLevelFilter("high")}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setLevelFilter("high")}
+          onClick={() => applyFilter(deptFilter, "high")}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && applyFilter(deptFilter, "high")}
           className={`text-left transition-all cursor-pointer ${levelFilter === "high" ? "ring-2 ring-destructive/50 rounded-xl" : ""}`}
         >
           <Card className="glass p-4 hover-lift border-destructive/30 h-full">
@@ -245,8 +252,8 @@ const RiskAnalytics = () => {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setLevelFilter("medium")}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setLevelFilter("medium")}
+          onClick={() => applyFilter(deptFilter, "medium")}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && applyFilter(deptFilter, "medium")}
           className={`text-left transition-all cursor-pointer ${levelFilter === "medium" ? "ring-2 ring-warning/50 rounded-xl" : ""}`}
         >
           <Card className="glass p-4 hover-lift border-warning/30 h-full">
@@ -290,7 +297,14 @@ const RiskAnalytics = () => {
             <div className="space-y-2">
               {byDept.map((row) => (
                 <div key={row.dept} className="grid grid-cols-12 items-center gap-3">
-                  <div className="col-span-4 text-sm font-medium text-foreground truncate">{row.dept}</div>
+                  <button
+                    type="button"
+                    onClick={() => applyFilter(row.dept, "all")}
+                    className="col-span-4 text-sm font-medium text-foreground truncate text-left hover:text-primary transition-colors"
+                    title={t("riskAnalytics.heatmap.filterByDept", { defaultValue: "Показать всех сотрудников отдела" })}
+                  >
+                    {row.dept}
+                  </button>
                   <div className="col-span-7 flex h-8 rounded-lg overflow-hidden border border-border">
                     {(["high", "medium", "low"] as const).map((lvl) => {
                       const count = row[lvl];
@@ -298,19 +312,21 @@ const RiskAnalytics = () => {
                       if (pct === 0) return null;
                       const bg =
                         lvl === "high"
-                          ? "bg-destructive/80"
+                          ? "bg-destructive/80 hover:bg-destructive"
                           : lvl === "medium"
-                          ? "bg-warning/70"
-                          : "bg-success/70";
+                          ? "bg-warning/70 hover:bg-warning"
+                          : "bg-success/70 hover:bg-success";
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={lvl}
-                          className={`${bg} flex items-center justify-center text-xs font-semibold text-white transition-all`}
+                          onClick={() => applyFilter(row.dept, lvl)}
+                          className={`${bg} flex items-center justify-center text-xs font-semibold text-white transition-all cursor-pointer`}
                           style={{ width: `${pct}%` }}
-                          title={`${lvl}: ${count}`}
+                          title={`${row.dept} · ${lvl}: ${count} — ${t("riskAnalytics.heatmap.clickToFilter", { defaultValue: "клик — фильтр таблицы" })}`}
                         >
                           {pct > 12 ? count : ""}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -318,6 +334,7 @@ const RiskAnalytics = () => {
                 </div>
               ))}
             </div>
+
           )}
 
           {/* Avg risk by dept chart */}
@@ -329,7 +346,12 @@ const RiskAnalytics = () => {
                   <XAxis dataKey="dept" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} domain={[0, 100]} />
                   <RTooltip {...tooltipProps("bar")} />
-                  <Bar dataKey="avgRisk" radius={[6, 6, 0, 0]}>
+                  <Bar
+                    dataKey="avgRisk"
+                    radius={[6, 6, 0, 0]}
+                    onClick={(d: any) => d?.dept && applyFilter(d.dept, "all")}
+                    cursor="pointer"
+                  >
                     {byDept.map((row) => (
                       <Cell
                         key={row.dept}
@@ -343,6 +365,7 @@ const RiskAnalytics = () => {
                       />
                     ))}
                   </Bar>
+
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -419,8 +442,54 @@ const RiskAnalytics = () => {
       </div>
 
       {/* Employee table with risk pills */}
-      <Card className="glass p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-4">{t("riskAnalytics.table.title")}</h3>
+      <Card className="glass p-5" ref={tableRef}>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3 className="text-sm font-semibold text-foreground">{t("riskAnalytics.table.title")}</h3>
+          {(deptFilter || levelFilter !== "all") && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground">
+                {t("riskAnalytics.table.activeFilters", { defaultValue: "Активные фильтры:" })}
+              </span>
+              {deptFilter && (
+                <Badge variant="outline" className="gap-1 pr-1">
+                  {deptFilter}
+                  <button
+                    type="button"
+                    onClick={() => setDeptFilter(null)}
+                    className="ml-1 rounded hover:bg-secondary/60 p-0.5"
+                    aria-label="clear dept"
+                  >
+                    ✕
+                  </button>
+                </Badge>
+              )}
+              {levelFilter !== "all" && (
+                <Badge variant="outline" className="gap-1 pr-1">
+                  {levelFilter === "high"
+                    ? t("riskAnalytics.detail.highRisk")
+                    : levelFilter === "medium"
+                    ? t("riskAnalytics.detail.mediumRisk")
+                    : t("riskAnalytics.detail.lowRisk")}
+                  <button
+                    type="button"
+                    onClick={() => setLevelFilter("all")}
+                    className="ml-1 rounded hover:bg-secondary/60 p-0.5"
+                    aria-label="clear level"
+                  >
+                    ✕
+                  </button>
+                </Badge>
+              )}
+              <button
+                type="button"
+                onClick={() => applyFilter(null, "all")}
+                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+              >
+                {t("riskAnalytics.table.clearAll", { defaultValue: "Сбросить все" })}
+              </button>
+            </div>
+          )}
+        </div>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">{t("riskAnalytics.table.loading")}</p>
         ) : (
@@ -439,10 +508,12 @@ const RiskAnalytics = () => {
               <tbody>
                 {employees
                   .filter((emp: any) => {
+                    if (deptFilter && (emp.department || "—") !== deptFilter) return false;
                     if (levelFilter === "all") return true;
                     const s = scoreMap.get(emp.user_id);
                     return s?.risk_level === levelFilter;
                   })
+
                   .map((emp: any) => {
                   const s = scoreMap.get(emp.user_id);
                   return (
