@@ -151,34 +151,38 @@ const buildGraph = (env: EnvData, showFuture: boolean): { nodes: Node[]; edges: 
     });
   });
 
-  if (showFuture && env.future_projection?.target_position) {
+  if (showFuture) {
     const fp = env.future_projection;
+    const hasTarget = !!fp?.target_position;
     nodes.push({
       id: "future",
       position: { x: 350, y: 480 },
       data: {
-        label: `Через год\n${fp.target_position!.title}${
-          fp.track_template?.title ? "\nтрек: " + fp.track_template.title : ""
-        }${fp.total_steps ? `\nэтап ${fp.current_step}/${fp.total_steps}` : ""}`,
+        label: hasTarget
+          ? `Через год\n${fp!.target_position!.title}${
+              fp!.track_template?.title ? "\nтрек: " + fp!.track_template.title : ""
+            }${fp!.total_steps ? `\nэтап ${fp!.current_step}/${fp!.total_steps}` : ""}`
+          : `Через год\nЦелевая должность не назначена.\nНастройте карьерный трек\nв разделе «Карьера».`,
       },
       style: {
         ...baseStyle,
-        background: "hsl(var(--accent))",
-        color: "hsl(var(--accent-foreground))",
+        background: hasTarget ? "hsl(var(--accent))" : "hsl(var(--muted))",
+        color: hasTarget ? "hsl(var(--accent-foreground))" : "hsl(var(--muted-foreground))",
         borderStyle: "dashed",
-        opacity: 0.9,
+        opacity: hasTarget ? 0.9 : 0.75,
       },
     });
     edges.push({
       id: "e-user-future",
       source: env.user.user_id,
       target: "future",
-      label: "цель",
+      label: hasTarget ? "цель" : "цель (не задана)",
       labelStyle: { fontSize: 10 },
       style: { strokeDasharray: "6 4" },
       markerEnd: { type: MarkerType.ArrowClosed },
     });
   }
+
 
   return { nodes, edges };
 };
