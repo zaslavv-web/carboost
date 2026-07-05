@@ -429,14 +429,52 @@ const RiskAnalytics = () => {
 
         {/* Detail panel */}
         <Card className="glass p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4">{t("riskAnalytics.detail.title")}</h3>
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">{t("riskAnalytics.detail.title")}</h3>
+              <div className="mt-1 flex items-center gap-2 flex-wrap">
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] uppercase tracking-wide ${
+                    selectionMode === "auto"
+                      ? "border-primary/40 text-primary"
+                      : "border-border text-muted-foreground"
+                  }`}
+                >
+                  {selectionMode === "auto"
+                    ? t("riskAnalytics.detail.modeAuto", { defaultValue: "Топ риска" })
+                    : t("riskAnalytics.detail.modeManual", { defaultValue: "Выбран вручную" })}
+                </Badge>
+                {selectionMode === "manual" && (
+                  <button
+                    type="button"
+                    onClick={resetSelection}
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  >
+                    {t("riskAnalytics.detail.resetSelection", { defaultValue: "Сбросить выбор" })}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
           {!selectedScore || !selectedEmp ? (
-            <p className="text-sm text-muted-foreground">{t("riskAnalytics.detail.selectEmployee")}</p>
+            <p className="text-sm text-muted-foreground">
+              {filteredEmployees.length === 0
+                ? t("riskAnalytics.detail.emptyFilter", {
+                    defaultValue: "Под текущий фильтр нет оценённых сотрудников",
+                  })
+                : t("riskAnalytics.detail.selectEmployee")}
+            </p>
           ) : (
             <div className="space-y-4">
               <div>
                 <div className="text-base font-semibold text-foreground">{selectedEmp.full_name}</div>
                 <div className="text-xs text-muted-foreground">{selectedEmp.position}</div>
+                {selectionReason && (
+                  <div className="mt-1 text-[11px] text-muted-foreground italic">
+                    {selectionReason}
+                  </div>
+                )}
               </div>
               <Badge className={`${levelColor(selectedScore.risk_level)} border`}>
                 {selectedScore.risk_level === "high"
@@ -445,6 +483,7 @@ const RiskAnalytics = () => {
                   ? t("riskAnalytics.detail.mediumRisk")
                   : t("riskAnalytics.detail.lowRisk")}
               </Badge>
+
 
               <div className="h-40">
                 <ResponsiveContainer width="100%" height="100%">
