@@ -428,7 +428,7 @@ const RiskAnalytics = () => {
                   <Sparkles className="w-3 h-3" /> {t("riskAnalytics.detail.recommendations")}
                 </div>
                 <ul className="space-y-1 text-sm">
-                  {(selectedScore.recommendations as string[]).map((r, i) => (
+                  {(Array.isArray(selectedScore.recommendations) ? selectedScore.recommendations : typeof selectedScore.recommendations === "string" ? (() => { try { const p = JSON.parse(selectedScore.recommendations as any); return Array.isArray(p) ? p : []; } catch { return []; } })() : []).map((r: any, i: number) => (
                     <li key={i} className="flex gap-2">
                       <span className="text-success">✓</span>
                       <span className="text-foreground">{r}</span>
