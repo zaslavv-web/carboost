@@ -1193,25 +1193,207 @@ class SeedDemoCompany extends Command
             ]);
         }
 
-        // hr_documents
+        // hr_documents — регламенты и профили, на которых строятся карьерные треки
         $admin = ($this->userIds['hrd'][0] ?? $this->allUserIds[0]);
-        foreach (['Welcome book','Политика ИБ','Регламент отпусков','Кодекс общения'] as $doc) {
+        $docs = $this->demoHrDocuments();
+        foreach ($docs as $doc) {
             DB::table('hr_documents')->insert([
                 'id'                => (string) Str::uuid(),
                 'company_id'        => $this->companyId,
                 'created_by'        => $admin,
-                'document_type'     => 'policy',
-                'title'             => $doc,
-                'description'       => "Демо-документ: {$doc}",
+                'document_type'     => $doc['type'],
+                'title'             => $doc['title'],
+                'description'       => $doc['description'],
                 'file_url'          => null,
-                'file_name'         => null,
+                'file_name'         => $doc['file_name'] ?? null,
                 'processing_status' => 'processed',
-                'extracted_data'    => json_encode(new \stdClass()),
+                'extracted_data'    => json_encode($doc['extracted_data'], JSON_UNESCAPED_UNICODE),
                 'created_at'        => now(),
                 'updated_at'        => now(),
             ]);
         }
     }
+
+    /** Набор HR-документов, наполняющих компанию контекстом для построения карьерных треков. */
+    private function demoHrDocuments(): array
+    {
+        return [
+            [
+                'type'  => 'hr_strategy',
+                'title' => 'Стратегия управления талантами',
+                'description' => 'Как компания растит и удерживает ключевых сотрудников.',
+                'file_name' => 'talent_strategy.pdf',
+                'extracted_data' => [
+                    'summary' => 'Ставка на внутренний рост: 70% руководящих ролей закрываются внутренними кандидатами.',
+                    'pillars' => ['Развитие через карьерные треки','Регулярная оценка компетенций','Наставничество','Прозрачные критерии повышения'],
+                    'kpi'     => ['internal_mobility_share' => 0.7, 'annual_promotion_rate' => 0.15, 'attrition_target' => 0.09],
+                ],
+            ],
+            [
+                'type'  => 'hr_strategy',
+                'title' => 'Матрица грейдов и компетенций',
+                'description' => 'Единая шкала грейдов (Junior/Middle/Senior/Lead) и требуемые уровни компетенций.',
+                'file_name' => 'grades_matrix.xlsx',
+                'extracted_data' => [
+                    'grades' => [
+                        ['grade' => 'Junior',  'expected_experience_months' => 0,  'autonomy' => 'работает под ревью'],
+                        ['grade' => 'Middle',  'expected_experience_months' => 18, 'autonomy' => 'самостоятельно решает типовые задачи'],
+                        ['grade' => 'Senior',  'expected_experience_months' => 36, 'autonomy' => 'ведёт сложные проекты, наставник'],
+                        ['grade' => 'Lead',    'expected_experience_months' => 60, 'autonomy' => 'управление направлением/командой'],
+                    ],
+                    'competency_levels' => [1,2,3,4,5],
+                ],
+            ],
+            [
+                'type'  => 'hr_strategy',
+                'title' => 'Регламент построения карьерных треков',
+                'description' => 'Как HRD и руководители создают и утверждают карьерные треки между должностями.',
+                'file_name' => 'career_tracks_regulation.pdf',
+                'extracted_data' => [
+                    'steps' => [
+                        'Определить пары должностей from → to из матрицы карьерных связей',
+                        'Согласовать стратегию перехода и оценочные критерии',
+                        'Определить обязательные шаги: знания, прикладные навыки, ответственность',
+                        'Настроить сценарии шагов (тесты, файлы, комментарий) в разделе Карьерные треки',
+                        'Провести ревью и утверждение HRD',
+                    ],
+                    'required_evidence' => ['Пройденный тест ≥ 75%','Минимум 1 файл артефакта','Комментарий-рефлексия','Одобрение руководителя'],
+                    'review_cadence_months' => 6,
+                ],
+            ],
+            [
+                'type'  => 'talent_management',
+                'title' => 'Карта карьерных зависимостей',
+                'description' => 'Граф допустимых переходов между должностями (используется на странице «Стратегии карьерного роста»).',
+                'file_name' => 'career_dependency_map.json',
+                'extracted_data' => [
+                    'vertical_paths' => [
+                        ['from' => 'Frontend Developer', 'to' => 'Fullstack Developer'],
+                        ['from' => 'Backend Developer',  'to' => 'Fullstack Developer'],
+                        ['from' => 'Sales Manager',      'to' => 'Head of Sales'],
+                        ['from' => 'Recruiter',          'to' => 'HR Business Partner'],
+                        ['from' => 'Content Manager',    'to' => 'Marketing Manager'],
+                        ['from' => 'Product Owner',      'to' => 'Product Manager'],
+                        ['from' => 'UX/UI Designer',     'to' => 'Product Designer'],
+                    ],
+                    'lateral_paths' => [
+                        ['from' => 'QA Engineer',        'to' => 'Backend Developer'],
+                        ['from' => 'QA Engineer',        'to' => 'DevOps Engineer'],
+                        ['from' => 'Support Engineer',   'to' => 'Customer Success Manager'],
+                        ['from' => 'Account Manager',    'to' => 'Sales Manager'],
+                    ],
+                ],
+            ],
+            [
+                'type'  => 'talent_management',
+                'title' => 'Стандарт профиля должности',
+                'description' => 'Как описывать роль: обязанности, компетенции 1-5, психологический портрет.',
+                'file_name' => 'position_profile_standard.pdf',
+                'extracted_data' => [
+                    'sections' => ['Назначение роли','Ответственность','Ключевые метрики','Компетенции (1-5)','Психологический профиль','Критерии Middle/Senior'],
+                    'psychological_scale' => ['низкое','ниже среднего','среднее','выше среднего','высокое'],
+                ],
+            ],
+            [
+                'type'  => 'talent_management',
+                'title' => 'Регламент оценки компетенций (Performance Review)',
+                'description' => 'Полугодовая оценка: самооценка, оценка руководителя, 360° и калибровка.',
+                'file_name' => 'performance_review_policy.pdf',
+                'extracted_data' => [
+                    'cycle' => 'полугодие',
+                    'inputs' => ['Самооценка','Оценка руководителя','360-градусная обратная связь','Метрики роли'],
+                    'output' => ['Обновление competency_profile сотрудника','Решение по грейду/треку','План развития (IDP)'],
+                ],
+            ],
+            [
+                'type'  => 'talent_management',
+                'title' => 'Шаблон индивидуального плана развития (IDP)',
+                'description' => 'Формат IDP: цель на 6 мес., компетенции, действия, чек-поинты.',
+                'file_name' => 'idp_template.docx',
+                'extracted_data' => [
+                    'fields' => ['Целевая роль','Компетенции для прокачки','План действий','Ментор','Метрики успеха','Чек-поинты (30/60/90)'],
+                ],
+            ],
+            [
+                'type'  => 'talent_management',
+                'title' => 'Программа наставничества',
+                'description' => 'Правила подбора ментора и формат встреч 1:1.',
+                'file_name' => 'mentorship_program.pdf',
+                'extracted_data' => [
+                    'match_rules' => ['Ментор — грейд выше','Из соседнего или целевого отдела','Прошёл онбординг ментора'],
+                    'cadence' => 'встреча раз в 2 недели, 45 минут',
+                ],
+            ],
+            [
+                'type'  => 'motivation_strategy',
+                'title' => 'Политика мотивации и повышений',
+                'description' => 'Как связаны прохождение трека, повышение грейда и рост дохода.',
+                'file_name' => 'motivation_policy.pdf',
+                'extracted_data' => [
+                    'rules' => [
+                        'Успешно пройденный трек = кандидат на повышение в течение квартала',
+                        'Повышение грейда даёт рост оклада на 10-25%',
+                        'Наставничество оплачивается через внутреннюю валюту (демо-коины)',
+                    ],
+                    'internal_currency' => 'Демо-коин',
+                ],
+            ],
+            [
+                'type'  => 'motivation_strategy',
+                'title' => 'Программа онбординга новых сотрудников',
+                'description' => '90-дневный план: welcome, знакомство с командой, первые задачи, ревью.',
+                'file_name' => 'onboarding_90_days.pdf',
+                'extracted_data' => [
+                    'milestones' => [
+                        ['day' => 1,  'goals' => ['Оформление','Доступы','Welcome-встреча']],
+                        ['day' => 30, 'goals' => ['Знакомство с продуктом','Первая задача','Погружение в отдел']],
+                        ['day' => 60, 'goals' => ['Самостоятельные задачи','Обратная связь от ментора']],
+                        ['day' => 90, 'goals' => ['Итоговое ревью','План развития','Назначение первого трека']],
+                    ],
+                ],
+            ],
+            [
+                'type'  => 'motivation_strategy',
+                'title' => 'Welcome book',
+                'description' => 'Приветственная книга сотрудника: миссия, ценности, ритуалы.',
+                'file_name' => 'welcome_book.pdf',
+                'extracted_data' => [
+                    'mission' => 'Растить людей и продукт быстрее рынка.',
+                    'values'  => ['Открытость','Ответственность','Забота о клиенте','Постоянное развитие'],
+                ],
+            ],
+            [
+                'type'  => 'hr_strategy',
+                'title' => 'Регламент отпусков и режима работы',
+                'description' => 'Гибридный график, оформление отпусков, обмен сменами.',
+                'file_name' => 'leave_policy.pdf',
+                'extracted_data' => [
+                    'annual_leave_days' => 28,
+                    'sick_leave_notification_hours' => 4,
+                    'remote_days_per_week' => 3,
+                ],
+            ],
+            [
+                'type'  => 'hr_strategy',
+                'title' => 'Политика информационной безопасности',
+                'description' => 'Обязательные правила работы с данными и учётными записями.',
+                'file_name' => 'infosec_policy.pdf',
+                'extracted_data' => [
+                    'rules' => ['Пароли ≥ 12 символов','2FA обязателен','Данные клиентов — только в утверждённых системах','Инциденты — сообщать в течение 1 часа'],
+                ],
+            ],
+            [
+                'type'  => 'hr_strategy',
+                'title' => 'Кодекс общения и обратной связи',
+                'description' => 'Как мы даём обратную связь и решаем конфликты.',
+                'file_name' => 'communication_code.pdf',
+                'extracted_data' => [
+                    'principles' => ['Обратная связь — о поведении, не о личности','SBI-модель (Situation-Behavior-Impact)','Конфликт решается в диалоге, эскалация к HRBP'],
+                ],
+            ],
+        ];
+    }
+
 
     // ---------- 12. notifications + chats ----------
     private function seedNotificationsAndChats(): void
