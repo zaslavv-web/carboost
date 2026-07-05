@@ -18,6 +18,10 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Users, TrendingUp, CalendarDays, AlertTriangle, Building2 } from "lucide-react";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+import { ChartExplainer } from "@/components/metrics/ChartExplainer";
+import type { MetricKey } from "@/lib/metricsCatalog";
+
 import { tooltipProps } from "@/lib/chartTooltip";
 
 type Bucket = { label: string; value: number };
