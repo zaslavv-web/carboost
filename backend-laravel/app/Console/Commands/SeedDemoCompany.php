@@ -194,17 +194,26 @@ class SeedDemoCompany extends Command
         foreach ($ids as $cid) {
             $userIds = DB::table('profiles')->where('company_id', $cid)->pluck('user_id')->all();
 
+            // Каскадно удаляем career_level_actions (нет company_id)
+            if (Schema::hasTable('career_level_actions') && Schema::hasTable('career_track_templates')) {
+                $tplIds = DB::table('career_track_templates')->where('company_id', $cid)->pluck('id')->all();
+                if ($tplIds) {
+                    DB::table('career_level_actions')->whereIn('template_id', $tplIds)->delete();
+                }
+            }
+
+
             foreach ([
                 'comfort_scores','comfort_signal_events','initiative_votes','initiatives',
                 'employee_risk_scores','peer_recognitions','peer_recognition_reactions',
                 'achievements','employee_rewards','gamification_reward_types',
                 'notifications','test_attempts','closed_question_tests',
                 'career_step_submission_files','career_step_submissions','career_goals',
-                'employee_career_assignments','career_track_templates',
+                'employee_career_assignments','career_step_scenarios','career_track_templates',
                 'shop_cart_items','shop_order_items','shop_orders','shop_products',
                 'hr_task_assignees','hr_tasks','hr_documents','employee_questionnaires',
                 'competencies','assessments','currency_transactions','currency_balances',
-                'company_currency_settings','team_members','positions','departments',
+                'company_currency_settings','team_members','position_career_paths','positions','departments',
                 'company_onboarding_settings','employee_invitations','support_tickets',
             ] as $t) {
                 if (Schema::hasTable($t) && Schema::hasColumn($t, 'company_id')) {
@@ -290,6 +299,10 @@ class SeedDemoCompany extends Command
             'Финансы'    => ['Financial Analyst','Accountant'],
             'Поддержка'  => ['Support Engineer','Customer Success Manager'],
         ];
+
+        $competencyMap = $this->positionCompetencyMap();
+        $psychoMap = $this->positionPsychologicalMap();
+
         foreach ($depts as $name => $positions) {
             $did = (string) Str::uuid();
             DB::table('departments')->insert([
@@ -304,20 +317,26 @@ class SeedDemoCompany extends Command
 
             foreach ($positions as $title) {
                 $pid = (string) Str::uuid();
+                $competencies = $competencyMap[$title] ?? [
+                    ['skill' => 'Коммуникация', 'required_level' => 3],
+                    ['skill' => 'Ответственность', 'required_level' => 4],
+                    ['skill' => 'Работа в команде', 'required_level' => 3],
+                ];
+                $psycho = $psychoMap[$title] ?? [
+                    ['trait' => 'Стрессоустойчивость', 'level' => 'выше среднего'],
+                    ['trait' => 'Проактивность', 'level' => 'выше среднего'],
+                ];
                 DB::table('positions')->insert([
                     'id'             => $pid,
                     'company_id'     => $this->companyId,
                     'title'          => $title,
-                    'description'    => "Должность {$title} в отделе {$name}.",
+                    'description'    => $this->positionDescription($title, $name),
                     'department'     => $name,
-                    'created_by'     => $this->companyId, // будет обновлено позже
+                    'created_by'     => $this->companyId,
                     'profile_status' => 'approved',
                     'profile_version' => 1,
-                    'psychological_profile' => json_encode(new \stdClass()),
-                    'competency_profile'    => json_encode([
-                        ['skill' => 'Коммуникация', 'level' => 3],
-                        ['skill' => 'Ответственность', 'level' => 4],
-                    ]),
+                    'psychological_profile' => json_encode($psycho, JSON_UNESCAPED_UNICODE),
+                    'competency_profile'    => json_encode($competencies, JSON_UNESCAPED_UNICODE),
                     'profile_template' => json_encode(new \stdClass()),
                     'created_at'    => now(),
                     'updated_at'    => now(),
@@ -327,42 +346,246 @@ class SeedDemoCompany extends Command
         }
     }
 
+    private function positionDescription(string $title, string $dept): string
+    {
+        $map = [
+            'Product Manager'          => 'Отвечает за продуктовую стратегию, roadmap, работу с рынком и запуск фич.',
+            'Product Owner'            => 'Управляет бэклогом, приоритетами и работой команды разработки.',
+            'Product Analyst'          => 'Анализирует продуктовые метрики, проводит A/B-тесты, готовит инсайты.',
+            'Fullstack Developer'      => 'Разрабатывает end-to-end функциональность: фронтенд + бэкенд + БД.',
+            'Backend Developer'        => 'Разрабатывает серверную логику, API, интеграции и БД.',
+            'Frontend Developer'       => 'Реализует пользовательские интерфейсы, работает с React/TypeScript.',
+            'QA Engineer'              => 'Тестирует релизы, автоматизирует регресс, ведёт баг-репорты.',
+            'DevOps Engineer'          => 'Обеспечивает CI/CD, мониторинг, инфраструктуру и надёжность.',
+            'UX/UI Designer'           => 'Проектирует пользовательский опыт и визуальный интерфейс.',
+            'Product Designer'         => 'Отвечает за end-to-end дизайн продукта: исследования, UX, UI, дизайн-систему.',
+            'Sales Manager'            => 'Ведёт сделки full-cycle, работает с воронкой и планом продаж.',
+            'Head of Sales'            => 'Руководит отделом продаж, строит процессы и достигает revenue-целей.',
+            'Account Manager'          => 'Развивает существующих клиентов, растит LTV и NPS.',
+            'Marketing Manager'        => 'Отвечает за маркетинговую стратегию, каналы, кампании и бюджет.',
+            'Content Manager'          => 'Планирует и создаёт контент для сайта, блога и соцсетей.',
+            'SEO Specialist'           => 'Отвечает за поисковую оптимизацию и рост органического трафика.',
+            'HR Business Partner'      => 'Партнёр бизнеса по людям: подбор, развитие, удержание, культура.',
+            'Recruiter'                => 'Закрывает вакансии, ведёт воронку кандидатов, работает с брендом.',
+            'L&D Specialist'           => 'Развивает сотрудников: тренинги, треки, оценка компетенций.',
+            'Financial Analyst'        => 'Готовит финмодель, отчётность, unit-экономику и планирование.',
+            'Accountant'               => 'Ведёт бухгалтерский и налоговый учёт, отчётность.',
+            'Support Engineer'         => 'Обрабатывает обращения клиентов, диагностирует и решает инциденты.',
+            'Customer Success Manager' => 'Обеспечивает достижение клиентом ценности продукта и продлевает контракты.',
+        ];
+        return $map[$title] ?? "Должность {$title} в отделе {$dept}.";
+    }
+
+    private function positionCompetencyMap(): array
+    {
+        $c = fn(string $s, int $l) => ['skill' => $s, 'required_level' => $l];
+        return [
+            'Product Manager'          => [$c('Продуктовое мышление',5), $c('Работа с метриками',4), $c('Стейкхолдер-менеджмент',5), $c('Roadmap-планирование',5), $c('User research',4)],
+            'Product Owner'            => [$c('Управление бэклогом',5), $c('Agile/Scrum',5), $c('Приоритизация',4), $c('Коммуникация',5)],
+            'Product Analyst'          => [$c('SQL',5), $c('Статистика',4), $c('A/B-тесты',4), $c('Визуализация данных',4)],
+            'Fullstack Developer'      => [$c('React/TypeScript',4), $c('Node.js/PHP',4), $c('SQL',4), $c('Архитектура',4), $c('Ревью кода',4)],
+            'Backend Developer'        => [$c('PHP/Laravel',5), $c('SQL',5), $c('API-дизайн',4), $c('Тестирование',4), $c('Производительность',4)],
+            'Frontend Developer'       => [$c('React',5), $c('TypeScript',5), $c('CSS/Tailwind',4), $c('Доступность',3), $c('Производительность UI',4)],
+            'QA Engineer'              => [$c('Тест-дизайн',5), $c('Автоматизация тестов',4), $c('API-тестирование',4), $c('Внимание к деталям',5)],
+            'DevOps Engineer'          => [$c('Docker/K8s',5), $c('CI/CD',5), $c('Мониторинг',4), $c('IaC',4), $c('Безопасность',4)],
+            'UX/UI Designer'           => [$c('UX-исследования',4), $c('Прототипирование',5), $c('Figma',5), $c('Дизайн-системы',4)],
+            'Product Designer'         => [$c('Продуктовый дизайн',5), $c('UX-исследования',5), $c('Дизайн-системы',5), $c('Кроссфункциональная работа',4)],
+            'Sales Manager'            => [$c('Ведение сделок',5), $c('Работа с возражениями',5), $c('CRM',4), $c('Переговоры',5)],
+            'Head of Sales'            => [$c('Управление командой',5), $c('Sales-стратегия',5), $c('Прогнозирование',5), $c('Найм',4)],
+            'Account Manager'          => [$c('Удержание клиентов',5), $c('Upsell/Cross-sell',4), $c('Коммуникация',5), $c('CRM',4)],
+            'Marketing Manager'        => [$c('Маркетинг-стратегия',5), $c('Управление бюджетом',4), $c('Аналитика каналов',4), $c('Бренд',4)],
+            'Content Manager'          => [$c('Копирайтинг',5), $c('Контент-план',5), $c('SEO-основы',3), $c('SMM',4)],
+            'SEO Specialist'           => [$c('Техническое SEO',5), $c('Семантика',5), $c('Линкбилдинг',4), $c('Аналитика',4)],
+            'HR Business Partner'      => [$c('Оценка людей',5), $c('Развитие сотрудников',5), $c('Конфликт-менеджмент',4), $c('HR-аналитика',4)],
+            'Recruiter'                => [$c('Sourcing',5), $c('Интервью',5), $c('ATS',4), $c('Employer brand',4)],
+            'L&D Specialist'           => [$c('Дизайн обучения',5), $c('Оценка компетенций',5), $c('Фасилитация',4)],
+            'Financial Analyst'        => [$c('Финмоделирование',5), $c('Unit-экономика',5), $c('Excel/BI',5)],
+            'Accountant'               => [$c('Бухучёт',5), $c('Налоги РФ',5), $c('1С',5)],
+            'Support Engineer'         => [$c('Диагностика инцидентов',5), $c('Клиентоориентированность',5), $c('SQL',3)],
+            'Customer Success Manager' => [$c('Onboarding клиента',5), $c('Retention',5), $c('Ведение аккаунтов',4)],
+        ];
+    }
+
+    private function positionPsychologicalMap(): array
+    {
+        $t = fn(string $tr, string $lv) => ['trait' => $tr, 'level' => $lv];
+        return [
+            'Product Manager'          => [$t('Стратегическое мышление','высокое'), $t('Лидерство','выше среднего'), $t('Эмпатия','выше среднего'), $t('Проактивность','высокое')],
+            'Backend Developer'        => [$t('Аналитическое мышление','высокое'), $t('Внимательность','высокое'), $t('Обучаемость','выше среднего')],
+            'Frontend Developer'       => [$t('Внимательность','высокое'), $t('Эстетический вкус','выше среднего'), $t('Обучаемость','выше среднего')],
+            'Fullstack Developer'      => [$t('Системное мышление','высокое'), $t('Обучаемость','высокое'), $t('Проактивность','выше среднего')],
+            'QA Engineer'              => [$t('Скрупулёзность','высокое'), $t('Критическое мышление','высокое')],
+            'DevOps Engineer'          => [$t('Ответственность','высокое'), $t('Стрессоустойчивость','высокое')],
+            'Sales Manager'            => [$t('Целеустремлённость','высокое'), $t('Коммуникабельность','высокое'), $t('Стрессоустойчивость','высокое')],
+            'Head of Sales'            => [$t('Лидерство','высокое'), $t('Ориентация на результат','высокое')],
+            'HR Business Partner'      => [$t('Эмпатия','высокое'), $t('Дипломатичность','высокое'), $t('Аналитичность','выше среднего')],
+            'Recruiter'                => [$t('Коммуникабельность','высокое'), $t('Настойчивость','выше среднего')],
+            'Marketing Manager'        => [$t('Креативность','высокое'), $t('Аналитичность','выше среднего')],
+            'UX/UI Designer'           => [$t('Креативность','высокое'), $t('Эмпатия к пользователю','высокое')],
+            'Support Engineer'         => [$t('Клиентоориентированность','высокое'), $t('Терпеливость','высокое')],
+            'Customer Success Manager' => [$t('Клиентоориентированность','высокое'), $t('Проактивность','высокое')],
+        ];
+    }
+
+
     // ---------- 3. career tracks ----------
     private function createCareerTracks(): void
     {
+        // Основные (вертикальные) треки развития
         $tracks = [
-            ['Backend Developer', 'Fullstack Developer'],
-            ['Frontend Developer', 'Fullstack Developer'],
-            ['Sales Manager', 'Head of Sales'],
-            ['Recruiter', 'HR Business Partner'],
-            ['Content Manager', 'Marketing Manager'],
-            ['Support Engineer', 'Customer Success Manager'],
+            ['Backend Developer',  'Fullstack Developer',      12, 'Расширение фронтенд-стека к сильной серверной базе.'],
+            ['Frontend Developer', 'Fullstack Developer',      12, 'Расширение бэкенд-стека к сильной клиентской базе.'],
+            ['Fullstack Developer','Backend Developer',        9,  'Углубление в backend-архитектуру и производительность.'],
+            ['QA Engineer',        'Backend Developer',        18, 'Переход из тестирования в разработку через автотесты и API.'],
+            ['Sales Manager',      'Head of Sales',            18, 'Развитие управленческих навыков и стратегического планирования.'],
+            ['Account Manager',    'Sales Manager',            9,  'Освоение full-cycle продаж и работы с новыми клиентами.'],
+            ['Recruiter',          'HR Business Partner',      15, 'Расширение до партнёрства с бизнесом: развитие, оценка, удержание.'],
+            ['L&D Specialist',     'HR Business Partner',      12, 'Партнёрство с бизнесом через управление людьми и оценку.'],
+            ['Content Manager',    'Marketing Manager',        15, 'Развитие в маркетинговую стратегию, каналы и бюджет.'],
+            ['SEO Specialist',     'Marketing Manager',        15, 'Расширение экспертизы за пределы органики: перфоманс, бренд.'],
+            ['Support Engineer',   'Customer Success Manager', 12, 'Переход от инцидент-менеджмента к развитию клиентов.'],
+            ['Product Analyst',    'Product Manager',          15, 'Углубление в продуктовую стратегию и работу со стейкхолдерами.'],
+            ['Product Owner',      'Product Manager',          9,  'От управления бэклогом к продуктовой стратегии.'],
+            ['UX/UI Designer',     'Product Designer',         12, 'Развитие в end-to-end продуктовый дизайн.'],
         ];
-        foreach ($tracks as [$from, $to]) {
+        foreach ($tracks as [$from, $to, $months, $strategy]) {
             if (!isset($this->positionIds[$from], $this->positionIds[$to])) continue;
             $tid = (string) Str::uuid();
+            $steps = $this->trackStepsFor($from, $to);
             DB::table('career_track_templates')->insert([
                 'id'                => $tid,
                 'company_id'        => $this->companyId,
                 'from_position_id'  => $this->positionIds[$from],
                 'to_position_id'    => $this->positionIds[$to],
                 'title'             => "Трек: {$from} → {$to}",
-                'description'       => "Карьерный трек развития от {$from} до {$to}.",
+                'description'       => $strategy,
                 'motivation_text'   => 'Пройдите трек, чтобы получить повышение и рост дохода.',
-                'estimated_months'  => 9,
-                'steps'             => json_encode([
-                    ['title' => 'База знаний', 'duration_months' => 2, 'goals' => ['Пройти вводный курс','Сдать тест']],
-                    ['title' => 'Прикладные навыки', 'duration_months' => 3, 'goals' => ['Реализовать 3 задачи','Ревью от ментора']],
-                    ['title' => 'Ответственность', 'duration_months' => 4, 'goals' => ['Взять проект','Наставничество']],
-                ]),
+                'estimated_months'  => $months,
+                'steps'             => json_encode($steps, JSON_UNESCAPED_UNICODE),
                 'is_active'         => true,
                 'created_by'        => $this->companyId,
                 'created_at'        => now(),
                 'updated_at'        => now(),
             ]);
             $this->trackIds["{$from}→{$to}"] = $tid;
+
+            // Сценарии шагов
+            foreach ($steps as $i => $step) {
+                DB::table('career_step_scenarios')->insert([
+                    'id'               => (string) Str::uuid(),
+                    'template_id'      => $tid,
+                    'company_id'       => $this->companyId,
+                    'step_order'       => $i + 1,
+                    'requires_test'    => $i >= 1,
+                    'min_test_score'   => 75,
+                    'requires_files'   => $i >= 1,
+                    'min_files'        => 1,
+                    'requires_comment' => true,
+                    'instructions'     => "Шаг {$step['title']}: сдайте требуемые артефакты и получите одобрение руководителя.",
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]);
+                // Действия внутри шага
+                foreach ($step['goals'] as $gi => $goal) {
+                    DB::table('career_level_actions')->insert([
+                        'id'           => (string) Str::uuid(),
+                        'template_id'  => $tid,
+                        'action_text'  => $goal,
+                        'action_order' => $i * 10 + $gi,
+                        'is_required'  => true,
+                        'category'     => ['knowledge','skill','ownership'][$i] ?? 'skill',
+                        'created_at'   => now(),
+                        'updated_at'   => now(),
+                    ]);
+                }
+            }
+
+            // Явная связь должностей в графе (для React Flow карьерных зависимостей)
+            DB::table('position_career_paths')->updateOrInsert(
+                [
+                    'from_position_id' => $this->positionIds[$from],
+                    'to_position_id'   => $this->positionIds[$to],
+                ],
+                [
+                    'id'                   => (string) Str::uuid(),
+                    'company_id'           => $this->companyId,
+                    'strategy_description' => $strategy,
+                    'requirements'         => json_encode(array_map(fn($s) => $s['title'], $steps), JSON_UNESCAPED_UNICODE),
+                    'estimated_months'     => $months,
+                    'created_by'           => $this->companyId,
+                    'created_at'           => now(),
+                    'updated_at'           => now(),
+                ]
+            );
+        }
+
+        // Дополнительные латеральные и кросс-функциональные связи (без полного трека, только граф)
+        $lateral = [
+            ['QA Engineer',            'DevOps Engineer',           15, 'Кросс-переход в инфраструктуру через автотесты и CI/CD.'],
+            ['Frontend Developer',     'UX/UI Designer',            12, 'Кросс-переход в дизайн через сильный визуальный вкус и опыт UI.'],
+            ['UX/UI Designer',         'Frontend Developer',        12, 'Переход в разработку через опыт с дизайн-системой и вёрсткой.'],
+            ['Customer Success Manager','Account Manager',          6,  'Развитие в up-sell через клиентский опыт.'],
+            ['Support Engineer',       'QA Engineer',               9,  'Развитие в тестирование через опыт диагностики.'],
+            ['Recruiter',              'L&D Specialist',            9,  'Смежная роль: развитие компетенций и обучение.'],
+            ['Product Owner',          'Product Analyst',           6,  'Кросс-переход в аналитику продукта.'],
+            ['Marketing Manager',      'Product Manager',           15, 'Расширение до продуктовой стратегии.'],
+            ['Financial Analyst',      'Product Analyst',           9,  'Смежная роль: аналитика с фокусом на продукт.'],
+            ['Head of Sales',          'Product Manager',           18, 'Кросс-переход в продукт через глубокое понимание рынка.'],
+        ];
+        foreach ($lateral as [$from, $to, $months, $strategy]) {
+            if (!isset($this->positionIds[$from], $this->positionIds[$to])) continue;
+            DB::table('position_career_paths')->updateOrInsert(
+                [
+                    'from_position_id' => $this->positionIds[$from],
+                    'to_position_id'   => $this->positionIds[$to],
+                ],
+                [
+                    'id'                   => (string) Str::uuid(),
+                    'company_id'           => $this->companyId,
+                    'strategy_description' => $strategy,
+                    'requirements'         => json_encode(['Совместные проекты','Ментор из целевой роли','Оценка компетенций'], JSON_UNESCAPED_UNICODE),
+                    'estimated_months'     => $months,
+                    'created_by'           => $this->companyId,
+                    'created_at'           => now(),
+                    'updated_at'           => now(),
+                ]
+            );
         }
     }
+
+    private function trackStepsFor(string $from, string $to): array
+    {
+        return [
+            [
+                'title' => "База знаний ({$to})",
+                'duration_months' => 2,
+                'goals' => [
+                    "Изучить материалы по роли «{$to}»",
+                    "Пройти вводный тест на минимум 75%",
+                    "Подготовить конспект ключевых различий {$from} → {$to}",
+                ],
+            ],
+            [
+                'title' => 'Прикладные навыки',
+                'duration_months' => 4,
+                'goals' => [
+                    'Реализовать 3 задачи в зоне ответственности целевой роли',
+                    'Получить письменное ревью от ментора',
+                    'Прикрепить артефакты (документы/ссылки/скриншоты)',
+                ],
+            ],
+            [
+                'title' => 'Ответственность и владение',
+                'duration_months' => 5,
+                'goals' => [
+                    'Взять owner-ship за проект длительностью не менее месяца',
+                    'Провести не менее 2 наставнических сессий с младшими коллегами',
+                    'Собрать 360-обратную связь и защитить результаты у HRD',
+                ],
+            ],
+        ];
+    }
+
 
     // ---------- 4. users ----------
     private function createUsers(AuthUserService $auth, int $headcount): void
@@ -970,25 +1193,207 @@ class SeedDemoCompany extends Command
             ]);
         }
 
-        // hr_documents
+        // hr_documents — регламенты и профили, на которых строятся карьерные треки
         $admin = ($this->userIds['hrd'][0] ?? $this->allUserIds[0]);
-        foreach (['Welcome book','Политика ИБ','Регламент отпусков','Кодекс общения'] as $doc) {
+        $docs = $this->demoHrDocuments();
+        foreach ($docs as $doc) {
             DB::table('hr_documents')->insert([
                 'id'                => (string) Str::uuid(),
                 'company_id'        => $this->companyId,
                 'created_by'        => $admin,
-                'document_type'     => 'policy',
-                'title'             => $doc,
-                'description'       => "Демо-документ: {$doc}",
+                'document_type'     => $doc['type'],
+                'title'             => $doc['title'],
+                'description'       => $doc['description'],
                 'file_url'          => null,
-                'file_name'         => null,
+                'file_name'         => $doc['file_name'] ?? null,
                 'processing_status' => 'processed',
-                'extracted_data'    => json_encode(new \stdClass()),
+                'extracted_data'    => json_encode($doc['extracted_data'], JSON_UNESCAPED_UNICODE),
                 'created_at'        => now(),
                 'updated_at'        => now(),
             ]);
         }
     }
+
+    /** Набор HR-документов, наполняющих компанию контекстом для построения карьерных треков. */
+    private function demoHrDocuments(): array
+    {
+        return [
+            [
+                'type'  => 'hr_strategy',
+                'title' => 'Стратегия управления талантами',
+                'description' => 'Как компания растит и удерживает ключевых сотрудников.',
+                'file_name' => 'talent_strategy.pdf',
+                'extracted_data' => [
+                    'summary' => 'Ставка на внутренний рост: 70% руководящих ролей закрываются внутренними кандидатами.',
+                    'pillars' => ['Развитие через карьерные треки','Регулярная оценка компетенций','Наставничество','Прозрачные критерии повышения'],
+                    'kpi'     => ['internal_mobility_share' => 0.7, 'annual_promotion_rate' => 0.15, 'attrition_target' => 0.09],
+                ],
+            ],
+            [
+                'type'  => 'hr_strategy',
+                'title' => 'Матрица грейдов и компетенций',
+                'description' => 'Единая шкала грейдов (Junior/Middle/Senior/Lead) и требуемые уровни компетенций.',
+                'file_name' => 'grades_matrix.xlsx',
+                'extracted_data' => [
+                    'grades' => [
+                        ['grade' => 'Junior',  'expected_experience_months' => 0,  'autonomy' => 'работает под ревью'],
+                        ['grade' => 'Middle',  'expected_experience_months' => 18, 'autonomy' => 'самостоятельно решает типовые задачи'],
+                        ['grade' => 'Senior',  'expected_experience_months' => 36, 'autonomy' => 'ведёт сложные проекты, наставник'],
+                        ['grade' => 'Lead',    'expected_experience_months' => 60, 'autonomy' => 'управление направлением/командой'],
+                    ],
+                    'competency_levels' => [1,2,3,4,5],
+                ],
+            ],
+            [
+                'type'  => 'hr_strategy',
+                'title' => 'Регламент построения карьерных треков',
+                'description' => 'Как HRD и руководители создают и утверждают карьерные треки между должностями.',
+                'file_name' => 'career_tracks_regulation.pdf',
+                'extracted_data' => [
+                    'steps' => [
+                        'Определить пары должностей from → to из матрицы карьерных связей',
+                        'Согласовать стратегию перехода и оценочные критерии',
+                        'Определить обязательные шаги: знания, прикладные навыки, ответственность',
+                        'Настроить сценарии шагов (тесты, файлы, комментарий) в разделе Карьерные треки',
+                        'Провести ревью и утверждение HRD',
+                    ],
+                    'required_evidence' => ['Пройденный тест ≥ 75%','Минимум 1 файл артефакта','Комментарий-рефлексия','Одобрение руководителя'],
+                    'review_cadence_months' => 6,
+                ],
+            ],
+            [
+                'type'  => 'talent_management',
+                'title' => 'Карта карьерных зависимостей',
+                'description' => 'Граф допустимых переходов между должностями (используется на странице «Стратегии карьерного роста»).',
+                'file_name' => 'career_dependency_map.json',
+                'extracted_data' => [
+                    'vertical_paths' => [
+                        ['from' => 'Frontend Developer', 'to' => 'Fullstack Developer'],
+                        ['from' => 'Backend Developer',  'to' => 'Fullstack Developer'],
+                        ['from' => 'Sales Manager',      'to' => 'Head of Sales'],
+                        ['from' => 'Recruiter',          'to' => 'HR Business Partner'],
+                        ['from' => 'Content Manager',    'to' => 'Marketing Manager'],
+                        ['from' => 'Product Owner',      'to' => 'Product Manager'],
+                        ['from' => 'UX/UI Designer',     'to' => 'Product Designer'],
+                    ],
+                    'lateral_paths' => [
+                        ['from' => 'QA Engineer',        'to' => 'Backend Developer'],
+                        ['from' => 'QA Engineer',        'to' => 'DevOps Engineer'],
+                        ['from' => 'Support Engineer',   'to' => 'Customer Success Manager'],
+                        ['from' => 'Account Manager',    'to' => 'Sales Manager'],
+                    ],
+                ],
+            ],
+            [
+                'type'  => 'talent_management',
+                'title' => 'Стандарт профиля должности',
+                'description' => 'Как описывать роль: обязанности, компетенции 1-5, психологический портрет.',
+                'file_name' => 'position_profile_standard.pdf',
+                'extracted_data' => [
+                    'sections' => ['Назначение роли','Ответственность','Ключевые метрики','Компетенции (1-5)','Психологический профиль','Критерии Middle/Senior'],
+                    'psychological_scale' => ['низкое','ниже среднего','среднее','выше среднего','высокое'],
+                ],
+            ],
+            [
+                'type'  => 'talent_management',
+                'title' => 'Регламент оценки компетенций (Performance Review)',
+                'description' => 'Полугодовая оценка: самооценка, оценка руководителя, 360° и калибровка.',
+                'file_name' => 'performance_review_policy.pdf',
+                'extracted_data' => [
+                    'cycle' => 'полугодие',
+                    'inputs' => ['Самооценка','Оценка руководителя','360-градусная обратная связь','Метрики роли'],
+                    'output' => ['Обновление competency_profile сотрудника','Решение по грейду/треку','План развития (IDP)'],
+                ],
+            ],
+            [
+                'type'  => 'talent_management',
+                'title' => 'Шаблон индивидуального плана развития (IDP)',
+                'description' => 'Формат IDP: цель на 6 мес., компетенции, действия, чек-поинты.',
+                'file_name' => 'idp_template.docx',
+                'extracted_data' => [
+                    'fields' => ['Целевая роль','Компетенции для прокачки','План действий','Ментор','Метрики успеха','Чек-поинты (30/60/90)'],
+                ],
+            ],
+            [
+                'type'  => 'talent_management',
+                'title' => 'Программа наставничества',
+                'description' => 'Правила подбора ментора и формат встреч 1:1.',
+                'file_name' => 'mentorship_program.pdf',
+                'extracted_data' => [
+                    'match_rules' => ['Ментор — грейд выше','Из соседнего или целевого отдела','Прошёл онбординг ментора'],
+                    'cadence' => 'встреча раз в 2 недели, 45 минут',
+                ],
+            ],
+            [
+                'type'  => 'motivation_strategy',
+                'title' => 'Политика мотивации и повышений',
+                'description' => 'Как связаны прохождение трека, повышение грейда и рост дохода.',
+                'file_name' => 'motivation_policy.pdf',
+                'extracted_data' => [
+                    'rules' => [
+                        'Успешно пройденный трек = кандидат на повышение в течение квартала',
+                        'Повышение грейда даёт рост оклада на 10-25%',
+                        'Наставничество оплачивается через внутреннюю валюту (демо-коины)',
+                    ],
+                    'internal_currency' => 'Демо-коин',
+                ],
+            ],
+            [
+                'type'  => 'motivation_strategy',
+                'title' => 'Программа онбординга новых сотрудников',
+                'description' => '90-дневный план: welcome, знакомство с командой, первые задачи, ревью.',
+                'file_name' => 'onboarding_90_days.pdf',
+                'extracted_data' => [
+                    'milestones' => [
+                        ['day' => 1,  'goals' => ['Оформление','Доступы','Welcome-встреча']],
+                        ['day' => 30, 'goals' => ['Знакомство с продуктом','Первая задача','Погружение в отдел']],
+                        ['day' => 60, 'goals' => ['Самостоятельные задачи','Обратная связь от ментора']],
+                        ['day' => 90, 'goals' => ['Итоговое ревью','План развития','Назначение первого трека']],
+                    ],
+                ],
+            ],
+            [
+                'type'  => 'motivation_strategy',
+                'title' => 'Welcome book',
+                'description' => 'Приветственная книга сотрудника: миссия, ценности, ритуалы.',
+                'file_name' => 'welcome_book.pdf',
+                'extracted_data' => [
+                    'mission' => 'Растить людей и продукт быстрее рынка.',
+                    'values'  => ['Открытость','Ответственность','Забота о клиенте','Постоянное развитие'],
+                ],
+            ],
+            [
+                'type'  => 'hr_strategy',
+                'title' => 'Регламент отпусков и режима работы',
+                'description' => 'Гибридный график, оформление отпусков, обмен сменами.',
+                'file_name' => 'leave_policy.pdf',
+                'extracted_data' => [
+                    'annual_leave_days' => 28,
+                    'sick_leave_notification_hours' => 4,
+                    'remote_days_per_week' => 3,
+                ],
+            ],
+            [
+                'type'  => 'hr_strategy',
+                'title' => 'Политика информационной безопасности',
+                'description' => 'Обязательные правила работы с данными и учётными записями.',
+                'file_name' => 'infosec_policy.pdf',
+                'extracted_data' => [
+                    'rules' => ['Пароли ≥ 12 символов','2FA обязателен','Данные клиентов — только в утверждённых системах','Инциденты — сообщать в течение 1 часа'],
+                ],
+            ],
+            [
+                'type'  => 'hr_strategy',
+                'title' => 'Кодекс общения и обратной связи',
+                'description' => 'Как мы даём обратную связь и решаем конфликты.',
+                'file_name' => 'communication_code.pdf',
+                'extracted_data' => [
+                    'principles' => ['Обратная связь — о поведении, не о личности','SBI-модель (Situation-Behavior-Impact)','Конфликт решается в диалоге, эскалация к HRBP'],
+                ],
+            ],
+        ];
+    }
+
 
     // ---------- 12. notifications + chats ----------
     private function seedNotificationsAndChats(): void
