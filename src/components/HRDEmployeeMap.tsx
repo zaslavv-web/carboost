@@ -118,6 +118,12 @@ const HRDEmployeeMap = () => {
   const [taskFormFromId, setTaskFormFromId] = useState<string | null>(null);
   const [taskFormToId, setTaskFormToId] = useState<string | null>(null);
 
+  // Cascading map navigation (stormbpmn-style drill-down)
+  const [mapLevel, setMapLevel] = useState<"company" | "department" | "team">("company");
+  const [activeDept, setActiveDept] = useState<string | null>(null);
+  const [activeTeamManagerId, setActiveTeamManagerId] = useState<string | null>(null);
+
+
   // Employees in company
   const { data: employees = [], isLoading: loadingEmps } = useQuery({
     queryKey: ["hrd_map_employees", companyId],
