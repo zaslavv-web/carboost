@@ -158,7 +158,7 @@ async function scenarioA() {
   // Create competency (user_id required by schema: справочник хранится на уровне сотрудника)
   const comp = await call("POST", "/api/competencies", {
     body: {
-      user_id: state.userId,
+      user_id: state.profileId || state.userId,
       skill_name: `SIM-COMP-${Date.now()}`,
       skill_value: 60,
       category: "hard",
@@ -253,7 +253,7 @@ async function scenarioB() {
   if (tplId) {
     const assign = await call("POST", "/api/db/employee_career_assignments", {
       body: {
-        user_id: state.userId,
+        user_id: state.profileId || state.userId,
         template_id: tplId,
         company_id: state.companyId,
         status: "active",
@@ -306,7 +306,7 @@ async function scenarioC() {
   // IDP via db bridge
   const idp = await call("POST", "/api/db/individual_development_plans", {
     body: {
-      user_id: state.userId,
+      user_id: state.profileId || state.userId,
       company_id: state.companyId,
       created_by: state.userId,
       title: `SIM-IDP-${Date.now()}`,
