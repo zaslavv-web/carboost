@@ -132,7 +132,7 @@ export default function PeopleAnalytics() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Динамика найма (12 мес)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base"><ChartExplainer metricKey="hiring_funnel_conversion" hint="Пики — активные волны найма; спад — заморозка вакансий." /></CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={hiring}>
@@ -147,7 +147,7 @@ export default function PeopleAnalytics() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Отсутствия по месяцам (дней)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base"><ChartExplainer metricKey="absence_rate" hint="Рост — сигнал нагрузки или сезонности; смотрите разбивку по отделам." /></CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={absence}>
@@ -178,7 +178,7 @@ export default function PeopleAnalytics() {
 
         {risk.some((b) => b.value > 0) && (
           <Card className="lg:col-span-2">
-            <CardHeader><CardTitle className="text-base">Распределение по риск-баллу</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base"><ChartExplainer metricKey="risk_index" hint="Красная и жёлтая зоны требуют HR-действий в первую очередь." /></CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-4 gap-4">
                 {risk.map((b) => (
