@@ -431,39 +431,161 @@ class SeedDemoCompany extends Command
     // ---------- 3. career tracks ----------
     private function createCareerTracks(): void
     {
+        // Основные (вертикальные) треки развития
         $tracks = [
-            ['Backend Developer', 'Fullstack Developer'],
-            ['Frontend Developer', 'Fullstack Developer'],
-            ['Sales Manager', 'Head of Sales'],
-            ['Recruiter', 'HR Business Partner'],
-            ['Content Manager', 'Marketing Manager'],
-            ['Support Engineer', 'Customer Success Manager'],
+            ['Backend Developer',  'Fullstack Developer',      12, 'Расширение фронтенд-стека к сильной серверной базе.'],
+            ['Frontend Developer', 'Fullstack Developer',      12, 'Расширение бэкенд-стека к сильной клиентской базе.'],
+            ['Fullstack Developer','Backend Developer',        9,  'Углубление в backend-архитектуру и производительность.'],
+            ['QA Engineer',        'Backend Developer',        18, 'Переход из тестирования в разработку через автотесты и API.'],
+            ['Sales Manager',      'Head of Sales',            18, 'Развитие управленческих навыков и стратегического планирования.'],
+            ['Account Manager',    'Sales Manager',            9,  'Освоение full-cycle продаж и работы с новыми клиентами.'],
+            ['Recruiter',          'HR Business Partner',      15, 'Расширение до партнёрства с бизнесом: развитие, оценка, удержание.'],
+            ['L&D Specialist',     'HR Business Partner',      12, 'Партнёрство с бизнесом через управление людьми и оценку.'],
+            ['Content Manager',    'Marketing Manager',        15, 'Развитие в маркетинговую стратегию, каналы и бюджет.'],
+            ['SEO Specialist',     'Marketing Manager',        15, 'Расширение экспертизы за пределы органики: перфоманс, бренд.'],
+            ['Support Engineer',   'Customer Success Manager', 12, 'Переход от инцидент-менеджмента к развитию клиентов.'],
+            ['Product Analyst',    'Product Manager',          15, 'Углубление в продуктовую стратегию и работу со стейкхолдерами.'],
+            ['Product Owner',      'Product Manager',          9,  'От управления бэклогом к продуктовой стратегии.'],
+            ['UX/UI Designer',     'Product Designer',         12, 'Развитие в end-to-end продуктовый дизайн.'],
         ];
-        foreach ($tracks as [$from, $to]) {
+        foreach ($tracks as [$from, $to, $months, $strategy]) {
             if (!isset($this->positionIds[$from], $this->positionIds[$to])) continue;
             $tid = (string) Str::uuid();
+            $steps = $this->trackStepsFor($from, $to);
             DB::table('career_track_templates')->insert([
                 'id'                => $tid,
                 'company_id'        => $this->companyId,
                 'from_position_id'  => $this->positionIds[$from],
                 'to_position_id'    => $this->positionIds[$to],
                 'title'             => "Трек: {$from} → {$to}",
-                'description'       => "Карьерный трек развития от {$from} до {$to}.",
+                'description'       => $strategy,
                 'motivation_text'   => 'Пройдите трек, чтобы получить повышение и рост дохода.',
-                'estimated_months'  => 9,
-                'steps'             => json_encode([
-                    ['title' => 'База знаний', 'duration_months' => 2, 'goals' => ['Пройти вводный курс','Сдать тест']],
-                    ['title' => 'Прикладные навыки', 'duration_months' => 3, 'goals' => ['Реализовать 3 задачи','Ревью от ментора']],
-                    ['title' => 'Ответственность', 'duration_months' => 4, 'goals' => ['Взять проект','Наставничество']],
-                ]),
+                'estimated_months'  => $months,
+                'steps'             => json_encode($steps, JSON_UNESCAPED_UNICODE),
                 'is_active'         => true,
                 'created_by'        => $this->companyId,
                 'created_at'        => now(),
                 'updated_at'        => now(),
             ]);
             $this->trackIds["{$from}→{$to}"] = $tid;
+
+            // Сценарии шагов
+            foreach ($steps as $i => $step) {
+                DB::table('career_step_scenarios')->insert([
+                    'id'               => (string) Str::uuid(),
+                    'template_id'      => $tid,
+                    'company_id'       => $this->companyId,
+                    'step_order'       => $i + 1,
+                    'requires_test'    => $i >= 1,
+                    'min_test_score'   => 75,
+                    'requires_files'   => $i >= 1,
+                    'min_files'        => 1,
+                    'requires_comment' => true,
+                    'instructions'     => "Шаг {$step['title']}: сдайте требуемые артефакты и получите одобрение руководителя.",
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]);
+                // Действия внутри шага
+                foreach ($step['goals'] as $gi => $goal) {
+                    DB::table('career_level_actions')->insert([
+                        'id'           => (string) Str::uuid(),
+                        'template_id'  => $tid,
+                        'action_text'  => $goal,
+                        'action_order' => $i * 10 + $gi,
+                        'is_required'  => true,
+                        'category'     => ['knowledge','skill','ownership'][$i] ?? 'skill',
+                        'created_at'   => now(),
+                        'updated_at'   => now(),
+                    ]);
+                }
+            }
+
+            // Явная связь должностей в графе (для React Flow карьерных зависимостей)
+            DB::table('position_career_paths')->updateOrInsert(
+                [
+                    'from_position_id' => $this->positionIds[$from],
+                    'to_position_id'   => $this->positionIds[$to],
+                ],
+                [
+                    'id'                   => (string) Str::uuid(),
+                    'company_id'           => $this->companyId,
+                    'strategy_description' => $strategy,
+                    'requirements'         => json_encode(array_map(fn($s) => $s['title'], $steps), JSON_UNESCAPED_UNICODE),
+                    'estimated_months'     => $months,
+                    'created_by'           => $this->companyId,
+                    'created_at'           => now(),
+                    'updated_at'           => now(),
+                ]
+            );
+        }
+
+        // Дополнительные латеральные и кросс-функциональные связи (без полного трека, только граф)
+        $lateral = [
+            ['QA Engineer',            'DevOps Engineer',           15, 'Кросс-переход в инфраструктуру через автотесты и CI/CD.'],
+            ['Frontend Developer',     'UX/UI Designer',            12, 'Кросс-переход в дизайн через сильный визуальный вкус и опыт UI.'],
+            ['UX/UI Designer',         'Frontend Developer',        12, 'Переход в разработку через опыт с дизайн-системой и вёрсткой.'],
+            ['Customer Success Manager','Account Manager',          6,  'Развитие в up-sell через клиентский опыт.'],
+            ['Support Engineer',       'QA Engineer',               9,  'Развитие в тестирование через опыт диагностики.'],
+            ['Recruiter',              'L&D Specialist',            9,  'Смежная роль: развитие компетенций и обучение.'],
+            ['Product Owner',          'Product Analyst',           6,  'Кросс-переход в аналитику продукта.'],
+            ['Marketing Manager',      'Product Manager',           15, 'Расширение до продуктовой стратегии.'],
+            ['Financial Analyst',      'Product Analyst',           9,  'Смежная роль: аналитика с фокусом на продукт.'],
+            ['Head of Sales',          'Product Manager',           18, 'Кросс-переход в продукт через глубокое понимание рынка.'],
+        ];
+        foreach ($lateral as [$from, $to, $months, $strategy]) {
+            if (!isset($this->positionIds[$from], $this->positionIds[$to])) continue;
+            DB::table('position_career_paths')->updateOrInsert(
+                [
+                    'from_position_id' => $this->positionIds[$from],
+                    'to_position_id'   => $this->positionIds[$to],
+                ],
+                [
+                    'id'                   => (string) Str::uuid(),
+                    'company_id'           => $this->companyId,
+                    'strategy_description' => $strategy,
+                    'requirements'         => json_encode(['Совместные проекты','Ментор из целевой роли','Оценка компетенций'], JSON_UNESCAPED_UNICODE),
+                    'estimated_months'     => $months,
+                    'created_by'           => $this->companyId,
+                    'created_at'           => now(),
+                    'updated_at'           => now(),
+                ]
+            );
         }
     }
+
+    private function trackStepsFor(string $from, string $to): array
+    {
+        return [
+            [
+                'title' => "База знаний ({$to})",
+                'duration_months' => 2,
+                'goals' => [
+                    "Изучить материалы по роли «{$to}»",
+                    "Пройти вводный тест на минимум 75%",
+                    "Подготовить конспект ключевых различий {$from} → {$to}",
+                ],
+            ],
+            [
+                'title' => 'Прикладные навыки',
+                'duration_months' => 4,
+                'goals' => [
+                    'Реализовать 3 задачи в зоне ответственности целевой роли',
+                    'Получить письменное ревью от ментора',
+                    'Прикрепить артефакты (документы/ссылки/скриншоты)',
+                ],
+            ],
+            [
+                'title' => 'Ответственность и владение',
+                'duration_months' => 5,
+                'goals' => [
+                    'Взять owner-ship за проект длительностью не менее месяца',
+                    'Провести не менее 2 наставнических сессий с младшими коллегами',
+                    'Собрать 360-обратную связь и защитить результаты у HRD',
+                ],
+            ],
+        ];
+    }
+
 
     // ---------- 4. users ----------
     private function createUsers(AuthUserService $auth, int $headcount): void
