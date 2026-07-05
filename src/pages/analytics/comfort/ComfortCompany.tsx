@@ -15,6 +15,10 @@ import {
 import { Loader2, TrendingUp, TrendingDown, Minus, ArrowRight, RefreshCw } from "lucide-react";
 import { tooltipProps } from "@/lib/chartTooltip";
 import { toast } from "@/hooks/use-toast";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+import { ChartExplainer } from "@/components/metrics/ChartExplainer";
+import type { MetricKey } from "@/lib/metricsCatalog";
+
 
 type Score = {
   comfort_index: number; tov_score: number; kpi_score: number; career_score: number;
