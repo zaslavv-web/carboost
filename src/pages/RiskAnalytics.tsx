@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Activity, AlertTriangle, Sparkles, TrendingDown, TrendingUp, RefreshCw, Users } from "lucide-react";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+
 import {
   ResponsiveContainer,
   RadialBarChart,
