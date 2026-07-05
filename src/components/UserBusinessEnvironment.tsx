@@ -221,14 +221,16 @@ const UserBusinessEnvironment = ({ userId }: { userId: string }) => {
     },
   });
 
-  const graph = useMemo(() => (env ? buildGraph(env, showFuture) : { nodes: [], edges: [] }), [env, showFuture]);
+  const fp = env?.future_projection;
+  const hasAnyFuture = !!(fp && (fp.target_position || fp.track_template || (fp.expected_items && fp.expected_items.length > 0)));
+  const effectiveShowFuture = showFuture && hasAnyFuture;
+
+  const graph = useMemo(() => (env ? buildGraph(env, effectiveShowFuture) : { nodes: [], edges: [] }), [env, effectiveShowFuture]);
 
   if (isLoading) return <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto my-12" />;
   if (error) return <div className="text-destructive">{(error as Error).message}</div>;
   if (!env) return null;
 
-  const fp = env.future_projection;
-  const hasAnyFuture = !!(fp && (fp.target_position || fp.track_template || (fp.expected_items && fp.expected_items.length > 0)));
 
   return (
     <div className="space-y-4">
