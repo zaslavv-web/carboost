@@ -6,16 +6,18 @@
  * Pool «Через год» (полупрозрачный, пунктирные стрелки) — целевая должность
  * и ожидаемые навыки/цели по активному треку.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ReactFlow, Background, Controls, MarkerType,
+  ReactFlowProvider, useReactFlow,
   type Node, type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { laravel } from "@/integrations/laravel/client";
+
 
 type Person = {
   user_id: string;
