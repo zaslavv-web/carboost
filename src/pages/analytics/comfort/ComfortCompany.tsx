@@ -185,12 +185,14 @@ export default function ComfortCompany() {
   );
 }
 
-function KpiTile({ label, value, trend, delta, risk }: { label: string; value: number; trend?: string; delta?: number; risk?: string }) {
+function KpiTile({ label, value, trend, delta, risk, metricKey }: { label: string; value: number; trend?: string; delta?: number; risk?: string; metricKey?: MetricKey }) {
   const Icon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
   return (
     <Card>
       <CardContent className="p-4">
-        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="text-xs text-muted-foreground">
+          {metricKey ? <MetricLabel metricKey={metricKey} labelOverride={label} /> : label}
+        </div>
         <div className="flex items-end justify-between mt-1">
           <div className="text-3xl font-serif">{value}</div>
           {trend && (
@@ -204,3 +206,4 @@ function KpiTile({ label, value, trend, delta, risk }: { label: string; value: n
     </Card>
   );
 }
+
