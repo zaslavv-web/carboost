@@ -499,10 +499,18 @@ const RiskAnalytics = () => {
                 <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="text-left py-2 font-medium">{t("riskAnalytics.table.colEmployee")}</th>
                   <th className="text-left py-2 font-medium">{t("riskAnalytics.table.colDept")}</th>
-                  <th className="text-center py-2 font-medium">{t("riskAnalytics.table.colAttrition")}</th>
-                  <th className="text-center py-2 font-medium">{t("riskAnalytics.table.colBurnout")}</th>
-                  <th className="text-center py-2 font-medium">{t("riskAnalytics.table.colEngagement")}</th>
-                  <th className="text-center py-2 font-medium">{t("riskAnalytics.table.colLevel")}</th>
+                  <th className="text-center py-2 font-medium">
+                    <MetricLabel metricKey="employee_attrition_risk" labelOverride={t("riskAnalytics.table.colAttrition")} />
+                  </th>
+                  <th className="text-center py-2 font-medium">
+                    <MetricLabel metricKey="burnout_risk" labelOverride={t("riskAnalytics.table.colBurnout")} />
+                  </th>
+                  <th className="text-center py-2 font-medium">
+                    <MetricLabel metricKey="employee_engagement" labelOverride={t("riskAnalytics.table.colEngagement")} />
+                  </th>
+                  <th className="text-center py-2 font-medium">
+                    <MetricLabel metricKey="employee_risk_level" labelOverride={t("riskAnalytics.table.colLevel")} />
+                  </th>
                 </tr>
               </thead>
               <tbody>

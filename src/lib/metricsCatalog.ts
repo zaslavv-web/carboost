@@ -426,6 +426,80 @@ export const metricsCatalog = M({
       en: "Identify the slowest steps and simplify review.",
     },
   },
+
+  // ─────── Риск-профиль сотрудника ───────
+  employee_attrition_risk: {
+    key: "employee_attrition_risk",
+    label: { ru: "Риск оттока", en: "Attrition risk" },
+    short: { ru: "0–100 по сотруднику", en: "0–100 per employee" },
+    formula: {
+      ru: "Взвешенная сумма факторов: стаж, вовлечённость, комфорт, активность в карьерном треке, отсутствия.",
+      en: "Weighted sum: tenure, engagement, comfort, career activity, absences.",
+    },
+    interpretation: {
+      ru: "< 40 — низкий; 40–69 — средний; ≥ 70 — высокий риск ухода.",
+      en: "< 40 low; 40–69 medium; ≥ 70 high risk of leaving.",
+    },
+    action: {
+      ru: "Проведите 1:1, назначьте retention-действия и обновите IDP.",
+      en: "Run a 1:1, assign retention actions, refresh the IDP.",
+    },
+    href: "/risk-analytics",
+  },
+  burnout_risk: {
+    key: "burnout_risk",
+    label: { ru: "Риск выгорания", en: "Burnout risk" },
+    short: { ru: "0–100 по сотруднику", en: "0–100 per employee" },
+    formula: {
+      ru: "Взвешенная сумма: переработки, просроченные задачи, падение вовлечённости, низкий комфорт, отсутствие отпусков.",
+      en: "Weighted sum: overtime, overdue tasks, engagement drop, low comfort, no vacations.",
+    },
+    interpretation: {
+      ru: "< 40 — норма; 40–69 — напряжение; ≥ 70 — высокий риск выгорания.",
+      en: "< 40 normal; 40–69 strain; ≥ 70 high burnout risk.",
+    },
+    action: {
+      ru: "Снимите нагрузку, назначьте отпуск, проведите wellbeing-чек-ин.",
+      en: "Reduce load, schedule leave, run a wellbeing check-in.",
+    },
+    href: "/analytics/comfort/company",
+  },
+  employee_engagement: {
+    key: "employee_engagement",
+    label: { ru: "Вовлечённость сотрудника", en: "Employee engagement" },
+    short: { ru: "% по Pulse и активности", en: "% from pulse and activity" },
+    formula: {
+      ru: "100 − (риск оттока + риск выгорания) ÷ 2, скорректировано на ответы Pulse-опросов.",
+      en: "100 − (attrition + burnout) ÷ 2, adjusted with pulse survey responses.",
+    },
+    interpretation: {
+      ru: "≥ 70% — здоровая вовлечённость; 50–69% — напряжение; < 50% — тревога.",
+      en: "≥ 70% healthy; 50–69% tension; < 50% alarm.",
+    },
+    action: {
+      ru: "Пригласите в точечный Pulse и обсудите слабые темы на 1:1.",
+      en: "Invite to a targeted pulse and discuss weak topics at a 1:1.",
+    },
+    href: "/pulse-surveys",
+  },
+  employee_risk_level: {
+    key: "employee_risk_level",
+    label: { ru: "Уровень риска", en: "Risk level" },
+    short: { ru: "low / medium / high", en: "low / medium / high" },
+    formula: {
+      ru: "max(риск оттока, риск выгорания): ≥ 70 → high, ≥ 40 → medium, иначе low.",
+      en: "max(attrition, burnout): ≥ 70 → high, ≥ 40 → medium, else low.",
+    },
+    interpretation: {
+      ru: "High — требует HR-действий немедленно; medium — на мониторинге; low — стабильно.",
+      en: "High — needs immediate HR action; medium — monitor; low — stable.",
+    },
+    action: {
+      ru: "Кликните по уровню, чтобы отфильтровать таблицу и назначить действия.",
+      en: "Click a level to filter the table and assign actions.",
+    },
+    href: "/risk-analytics",
+  },
 });
 
 export type MetricKey = keyof typeof metricsCatalog;
