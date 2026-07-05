@@ -6,16 +6,18 @@
  * Pool «Через год» (полупрозрачный, пунктирные стрелки) — целевая должность
  * и ожидаемые навыки/цели по активному треку.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ReactFlow, Background, Controls, MarkerType,
+  ReactFlowProvider, useReactFlow,
   type Node, type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { laravel } from "@/integrations/laravel/client";
+
 
 type Person = {
   user_id: string;
@@ -149,36 +151,62 @@ const buildGraph = (env: EnvData, showFuture: boolean): { nodes: Node[]; edges: 
     });
   });
 
-  if (showFuture && env.future_projection?.target_position) {
+  if (showFuture) {
     const fp = env.future_projection;
+    const hasTarget = !!fp?.target_position;
     nodes.push({
       id: "future",
       position: { x: 350, y: 480 },
       data: {
-        label: `Через год\n${fp.target_position!.title}${
-          fp.track_template?.title ? "\nтрек: " + fp.track_template.title : ""
-        }${fp.total_steps ? `\nэтап ${fp.current_step}/${fp.total_steps}` : ""}`,
+        label: hasTarget
+          ? `Через год\n${fp!.target_position!.title}${
+              fp!.track_template?.title ? "\nтрек: " + fp!.track_template.title : ""
+            }${fp!.total_steps ? `\nэтап ${fp!.current_step}/${fp!.total_steps}` : ""}`
+          : `Через год\nЦелевая должность не назначена.\nНастройте карьерный трек\nв разделе «Карьера».`,
       },
       style: {
         ...baseStyle,
-        background: "hsl(var(--accent))",
-        color: "hsl(var(--accent-foreground))",
+        background: hasTarget ? "hsl(var(--accent))" : "hsl(var(--muted))",
+        color: hasTarget ? "hsl(var(--accent-foreground))" : "hsl(var(--muted-foreground))",
         borderStyle: "dashed",
-        opacity: 0.9,
+        opacity: hasTarget ? 0.9 : 0.75,
       },
     });
     edges.push({
       id: "e-user-future",
       source: env.user.user_id,
       target: "future",
-      label: "цель",
+      label: hasTarget ? "цель" : "цель (не задана)",
       labelStyle: { fontSize: 10 },
       style: { strokeDasharray: "6 4" },
       markerEnd: { type: MarkerType.ArrowClosed },
     });
   }
 
+
   return { nodes, edges };
+};
+
+const GraphCanvas = ({ nodes, edges, resetKey }: { nodes: Node[]; edges: Edge[]; resetKey: string | number }) => {
+  const rf = useReactFlow();
+  useEffect(() => {
+    const t = setTimeout(() => rf.fitView({ padding: 0.2, duration: 300 }), 50);
+    return () => clearTimeout(t);
+  }, [resetKey, nodes.length, rf]);
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      fitView
+      nodesDraggable={false}
+      nodesConnectable={false}
+      elementsSelectable={false}
+      proOptions={{ hideAttribution: true }}
+    >
+      <Background gap={20} />
+      <Controls showInteractive={false} />
+    </ReactFlow>
+  );
 };
 
 const UserBusinessEnvironment = ({ userId }: { userId: string }) => {
@@ -193,11 +221,16 @@ const UserBusinessEnvironment = ({ userId }: { userId: string }) => {
     },
   });
 
-  const graph = useMemo(() => (env ? buildGraph(env, showFuture) : { nodes: [], edges: [] }), [env, showFuture]);
+  const fp = env?.future_projection;
+  const hasAnyFuture = !!(fp && (fp.target_position || fp.track_template || (fp.expected_items && fp.expected_items.length > 0)));
+  const effectiveShowFuture = showFuture && hasAnyFuture;
+
+  const graph = useMemo(() => (env ? buildGraph(env, effectiveShowFuture) : { nodes: [], edges: [] }), [env, effectiveShowFuture]);
 
   if (isLoading) return <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto my-12" />;
   if (error) return <div className="text-destructive">{(error as Error).message}</div>;
   if (!env) return null;
+
 
   return (
     <div className="space-y-4">
@@ -205,30 +238,37 @@ const UserBusinessEnvironment = ({ userId }: { userId: string }) => {
         <div className="text-sm text-muted-foreground">
           Управляет: {env.direct_reports.length} • Коллег: {env.peers.length} • Взаимодействий (90д): {env.interactions.length}
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={showFuture}
-            onChange={(e) => setShowFuture(e.target.checked)}
-            className="rounded"
-          />
-          Показать проекцию через год
-        </label>
+        <div className="flex items-center gap-3">
+          <label
+            className={`flex items-center gap-2 text-sm ${hasAnyFuture ? "" : "opacity-60 cursor-not-allowed"}`}
+            title={hasAnyFuture ? undefined : "Нет активного карьерного трека"}
+          >
+            <input
+              type="checkbox"
+              checked={showFuture && hasAnyFuture}
+              disabled={!hasAnyFuture}
+              onChange={(e) => setShowFuture(e.target.checked)}
+              className="rounded"
+            />
+            Показать проекцию через год
+          </label>
+          {!hasAnyFuture && (
+            <Link to={`/career`} className="text-xs text-primary hover:underline">
+              Настроить карьеру →
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="bg-card rounded-xl border border-border" style={{ height: 620 }}>
-        <ReactFlow
-          nodes={graph.nodes}
-          edges={graph.edges}
-          fitView
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background gap={20} />
-          <Controls showInteractive={false} />
-        </ReactFlow>
+        <ReactFlowProvider>
+          <GraphCanvas
+            key={showFuture && hasAnyFuture ? "with-future" : "no-future"}
+            nodes={graph.nodes}
+            edges={graph.edges}
+            resetKey={`${showFuture}-${graph.nodes.length}`}
+          />
+        </ReactFlowProvider>
       </div>
 
       {env.future_projection?.expected_items && env.future_projection.expected_items.length > 0 && (
@@ -250,6 +290,7 @@ const UserBusinessEnvironment = ({ userId }: { userId: string }) => {
     </div>
   );
 };
+
 
 const PersonList = ({ title, items }: { title: string; items: Person[] }) => (
   <div className="bg-card rounded-xl border border-border p-4">
