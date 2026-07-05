@@ -89,6 +89,10 @@ async function login() {
   state.userId = r.json.user.id;
   state.companyId = r.json.user.company_id;
   log("logged in as", r.json.user.email, "company", state.companyId);
+  // Профиль (UUID) для сущностей, где user_id — uuid из profiles, а не bigint auth id.
+  const p = await call("GET", "/api/profiles/me", { scenario: "auth", step: "profile" });
+  state.profileId = p.json?.id;
+  log("profile.id", state.profileId);
 }
 
 // ---------- Scenario A: org structure & positions ----------
