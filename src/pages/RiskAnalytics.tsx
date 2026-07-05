@@ -57,13 +57,24 @@ const RiskAnalytics = () => {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState<"auto" | "manual">("auto");
   const [levelFilter, setLevelFilter] = useState<"all" | "low" | "medium" | "high">("all");
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
   const applyFilter = (dept: string | null, level: "all" | "low" | "medium" | "high") => {
     setDeptFilter(dept);
     setLevelFilter(level);
+    setSelectionMode("auto");
+    setSelected(null);
     setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+  const pickEmployee = (userId: string) => {
+    setSelectionMode("manual");
+    setSelected(userId);
+  };
+  const resetSelection = () => {
+    setSelectionMode("auto");
+    setSelected(null);
   };
 
   const { data: employees = [] } = useQuery({
