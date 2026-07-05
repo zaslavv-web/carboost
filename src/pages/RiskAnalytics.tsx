@@ -346,7 +346,12 @@ const RiskAnalytics = () => {
                   <XAxis dataKey="dept" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} domain={[0, 100]} />
                   <RTooltip {...tooltipProps("bar")} />
-                  <Bar dataKey="avgRisk" radius={[6, 6, 0, 0]}>
+                  <Bar
+                    dataKey="avgRisk"
+                    radius={[6, 6, 0, 0]}
+                    onClick={(d: any) => d?.dept && applyFilter(d.dept, "all")}
+                    cursor="pointer"
+                  >
                     {byDept.map((row) => (
                       <Cell
                         key={row.dept}
@@ -360,6 +365,7 @@ const RiskAnalytics = () => {
                       />
                     ))}
                   </Bar>
+
                 </BarChart>
               </ResponsiveContainer>
             </div>
