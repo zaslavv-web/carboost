@@ -204,42 +204,236 @@ const HRDEmployeeMap = () => {
     enabled: !!companyId,
   });
 
-  // Build graph
+  // Precompute department/manager indices for cascading map
+  const empById = useMemo(() => {
+    const m = new Map<string, Employee>();
+    employees.forEach((e) => m.set(e.user_id, e));
+    return m;
+  }, [employees]);
+
+  const managerToEmployees = useMemo(() => {
+    const m = new Map<string, string[]>();
+    teamLinks.forEach((l) => {
+      if (!m.has(l.manager_id)) m.set(l.manager_id, []);
+      m.get(l.manager_id)!.push(l.employee_id);
+    });
+    return m;
+  }, [teamLinks]);
+
+  const employeeToManager = useMemo(() => {
+    const m = new Map<string, string>();
+    teamLinks.forEach((l) => m.set(l.employee_id, l.manager_id));
+    return m;
+  }, [teamLinks]);
+
+  const deptOf = (uid: string | null | undefined) =>
+    (uid && empById.get(uid)?.department) || "—";
+
+  // Build graph depending on current drill-down level
   const layouted = useMemo(() => {
     if (employees.length === 0) return { nodes: [] as Node[], edges: [] as Edge[] };
 
-    // Group by department for grid positioning
-    const byDept = new Map<string, Employee[]>();
-    employees.forEach((e) => {
-      const k = e.department || "—";
-      if (!byDept.has(k)) byDept.set(k, []);
-      byDept.get(k)!.push(e);
-    });
-
     const nodes: Node[] = [];
-    const colW = 280;
-    const rowH = 130;
-    let col = 0;
-    Array.from(byDept.entries()).forEach(([dept, emps]) => {
-      emps.forEach((e, idx) => {
-        const isSelected = selectedEmployeeId === e.user_id;
+    const edges: Edge[] = [];
+
+    // ============ LEVEL 1: COMPANY (departments) ============
+    if (mapLevel === "company") {
+      const byDept = new Map<string, Employee[]>();
+      employees.forEach((e) => {
+        const k = e.department || "—";
+        if (!byDept.has(k)) byDept.set(k, []);
+        byDept.get(k)!.push(e);
+      });
+
+      const entries = Array.from(byDept.entries());
+      const cols = Math.max(1, Math.ceil(Math.sqrt(entries.length)));
+      const colW = 320;
+      const rowH = 200;
+      entries.forEach(([dept, emps], i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        // Head = manager whose team lives in this dept (heuristic: employee with most reports here)
+        const scores = emps.map((e) => e.overall_score ?? 0);
+        const avg =
+          scores.filter((s) => s > 0).length > 0
+            ? (scores.reduce((a, b) => a + b, 0) / scores.filter((s) => s > 0).length).toFixed(1)
+            : "—";
+        const activeTasks = hrTasks.filter(
+          (t) =>
+            (t.status === "assigned" || t.status === "in_review") &&
+            (deptOf(t.created_by) === dept || t.assignees.some((a) => deptOf(a.user_id) === dept)),
+        ).length;
         nodes.push({
-          id: e.user_id,
-          position: { x: col * colW, y: idx * rowH },
+          id: `dept:${dept}`,
+          position: { x: col * colW, y: row * rowH },
           data: {
             label: (
               <div className="text-left">
-                <div className="font-semibold text-xs truncate max-w-[200px]">{e.full_name || t("employeeMap.noName")}</div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Building2 className="w-3.5 h-3.5 text-primary" />
+                  <div className="font-semibold text-sm truncate max-w-[220px]">{dept}</div>
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {t("employeeMap.drill.people", { defaultValue: "Сотрудников" })}: <b className="text-foreground">{emps.length}</b>
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {t("employeeMap.drill.avgScore", { defaultValue: "Ср. балл" })}: <b className="text-foreground">{avg}</b>
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {t("employeeMap.drill.activeTasks", { defaultValue: "Активных задач" })}: <b className="text-foreground">{activeTasks}</b>
+                </div>
+                <div className="text-[10px] text-primary mt-1">→ {t("employeeMap.drill.open", { defaultValue: "открыть" })}</div>
+              </div>
+            ),
+          },
+          style: {
+            background: "hsl(var(--card))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: 12,
+            padding: 12,
+            color: "hsl(var(--foreground))",
+            width: 260,
+            cursor: "pointer",
+          },
+        });
+      });
+
+      // Aggregate HR-task edges between departments
+      const deptEdges = new Map<string, number>();
+      hrTasks.forEach((tsk) => {
+        const from = deptOf(tsk.created_by);
+        tsk.assignees.forEach((a) => {
+          const to = deptOf(a.user_id);
+          if (from === to) return;
+          const k = `${from}→${to}`;
+          deptEdges.set(k, (deptEdges.get(k) || 0) + 1);
+        });
+      });
+      deptEdges.forEach((count, k) => {
+        const [from, to] = k.split("→");
+        edges.push({
+          id: `de-${k}`,
+          source: `dept:${from}`,
+          target: `dept:${to}`,
+          type: "smoothstep",
+          style: { stroke: "hsl(var(--primary))", strokeWidth: 1.5, strokeDasharray: "5 4" },
+          markerEnd: { type: MarkerType.Arrow, color: "hsl(var(--primary))" },
+          label: `🎯 ${count}`,
+          labelStyle: { fill: "hsl(var(--foreground))", fontSize: 11, fontWeight: 500 },
+          labelBgStyle: { fill: "hsl(var(--card))" },
+        });
+      });
+
+      return { nodes, edges };
+    }
+
+    // ============ LEVEL 2: DEPARTMENT (teams by manager) ============
+    if (mapLevel === "department" && activeDept) {
+      const deptEmps = employees.filter((e) => (e.department || "—") === activeDept);
+      // Group by their manager (if within same dept)
+      const groups = new Map<string, Employee[]>(); // key = manager_id or "__unmanaged__"
+      deptEmps.forEach((e) => {
+        const mgr = employeeToManager.get(e.user_id);
+        const key = mgr && deptEmps.some((x) => x.user_id === mgr) ? mgr : "__unmanaged__";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(e);
+      });
+
+      const entries = Array.from(groups.entries());
+      const cols = Math.max(1, Math.ceil(Math.sqrt(entries.length)));
+      const colW = 320;
+      const rowH = 200;
+      entries.forEach(([key, members], i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const mgr = key !== "__unmanaged__" ? empById.get(key) : null;
+        const scores = members.map((e) => e.overall_score ?? 0).filter((s) => s > 0);
+        const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : "—";
+        nodes.push({
+          id: `team:${key}`,
+          position: { x: col * colW, y: row * rowH },
+          data: {
+            label: (
+              <div className="text-left">
+                <div className="font-semibold text-sm truncate max-w-[220px]">
+                  {mgr ? mgr.full_name : t("employeeMap.drill.unmanaged", { defaultValue: "Без руководителя" })}
+                </div>
+                {mgr && (
+                  <div className="text-[10px] text-muted-foreground truncate max-w-[220px]">
+                    {mgr.position || "—"}
+                  </div>
+                )}
+                <div className="text-[11px] text-muted-foreground mt-1">
+                  {t("employeeMap.drill.teamSize", { defaultValue: "В команде" })}: <b className="text-foreground">{members.length}</b>
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {t("employeeMap.drill.avgScore", { defaultValue: "Ср. балл" })}: <b className="text-foreground">{avg}</b>
+                </div>
+                <div className="text-[10px] text-primary mt-1">→ {t("employeeMap.drill.open", { defaultValue: "открыть" })}</div>
+              </div>
+            ),
+          },
+          style: {
+            background: "hsl(var(--card))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: 12,
+            padding: 12,
+            color: "hsl(var(--foreground))",
+            width: 260,
+            cursor: "pointer",
+          },
+        });
+      });
+
+      return { nodes, edges };
+    }
+
+    // ============ LEVEL 3: TEAM (individual employees) ============
+    if (mapLevel === "team") {
+      let members: Employee[] = [];
+      if (activeTeamManagerId === "__unmanaged__" && activeDept) {
+        members = employees.filter(
+          (e) => (e.department || "—") === activeDept && !employeeToManager.get(e.user_id),
+        );
+      } else if (activeTeamManagerId) {
+        const ids = new Set<string>([activeTeamManagerId, ...(managerToEmployees.get(activeTeamManagerId) || [])]);
+        members = employees.filter((e) => ids.has(e.user_id));
+      }
+
+      const colW = 280;
+      const rowH = 130;
+      const cols = Math.max(1, Math.ceil(Math.sqrt(members.length)));
+      members.forEach((e, idx) => {
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        const isSelected = selectedEmployeeId === e.user_id;
+        const isManager = e.user_id === activeTeamManagerId;
+        nodes.push({
+          id: e.user_id,
+          position: { x: col * colW, y: row * rowH },
+          data: {
+            label: (
+              <div className="text-left">
+                <div className="font-semibold text-xs truncate max-w-[200px]">
+                  {isManager ? "👑 " : ""}
+                  {e.full_name || t("employeeMap.noName")}
+                </div>
                 <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">
                   {e.position || "—"}
                 </div>
-                <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">{dept}</div>
+                <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">
+                  {e.department || "—"}
+                </div>
               </div>
             ),
           },
           style: {
             background: isSelected ? "hsl(var(--primary) / 0.15)" : "hsl(var(--card))",
-            border: isSelected ? "2px solid hsl(var(--primary))" : "1px solid hsl(var(--border))",
+            border: isSelected
+              ? "2px solid hsl(var(--primary))"
+              : isManager
+              ? "1px solid hsl(var(--primary))"
+              : "1px solid hsl(var(--border))",
             borderRadius: 12,
             padding: 10,
             color: "hsl(var(--foreground))",
@@ -247,54 +441,66 @@ const HRDEmployeeMap = () => {
           },
         });
       });
-      col++;
-    });
 
-    const edges: Edge[] = [];
-    // Manager edges (vertical hierarchy)
-    teamLinks.forEach((l, i) => {
-      edges.push({
-        id: `mgr-${i}`,
-        source: l.manager_id,
-        target: l.employee_id,
-        type: "smoothstep",
-        animated: false,
-        style: { stroke: "hsl(var(--info))", strokeWidth: 2 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--info))" },
-        label: t("employeeMap.manages"),
-        labelStyle: { fill: "hsl(var(--muted-foreground))", fontSize: 10 },
-      });
-    });
-
-    // HR-task edges (horizontal): from creator to each assignee
-    hrTasks.forEach((t) => {
-      t.assignees.forEach((a) => {
-        if (a.user_id === t.created_by) return;
-        const color =
-          t.status === "completed"
-            ? "hsl(var(--success))"
-            : t.status === "in_review"
-            ? "hsl(var(--warning))"
-            : t.status === "rejected" || t.status === "cancelled"
-            ? "hsl(var(--destructive))"
-            : "hsl(var(--primary))";
+      // Manager → employee edges within team
+      const idSet = new Set(members.map((m) => m.user_id));
+      teamLinks.forEach((l, i) => {
+        if (!idSet.has(l.manager_id) || !idSet.has(l.employee_id)) return;
         edges.push({
-          id: `task-${t.id}-${a.user_id}`,
-          source: t.created_by,
-          target: a.user_id,
-          type: "default",
-          animated: t.status === "in_review",
-          style: { stroke: color, strokeWidth: 1.5, strokeDasharray: "5 4" },
-          markerEnd: { type: MarkerType.Arrow, color },
-          label: `🎯 ${t.title.slice(0, 18)}${t.reward_coins ? ` · ${t.reward_coins}🪙` : ""}`,
-          labelStyle: { fill: "hsl(var(--foreground))", fontSize: 10, fontWeight: 500 },
-          labelBgStyle: { fill: "hsl(var(--card))" },
+          id: `mgr-${i}`,
+          source: l.manager_id,
+          target: l.employee_id,
+          type: "smoothstep",
+          style: { stroke: "hsl(var(--info))", strokeWidth: 2 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--info))" },
         });
       });
-    });
+
+      // HR-task edges within team
+      hrTasks.forEach((tsk) => {
+        tsk.assignees.forEach((a) => {
+          if (a.user_id === tsk.created_by) return;
+          if (!idSet.has(tsk.created_by) || !idSet.has(a.user_id)) return;
+          const color =
+            tsk.status === "completed"
+              ? "hsl(var(--success))"
+              : tsk.status === "in_review"
+              ? "hsl(var(--warning))"
+              : tsk.status === "rejected" || tsk.status === "cancelled"
+              ? "hsl(var(--destructive))"
+              : "hsl(var(--primary))";
+          edges.push({
+            id: `task-${tsk.id}-${a.user_id}`,
+            source: tsk.created_by,
+            target: a.user_id,
+            type: "default",
+            animated: tsk.status === "in_review",
+            style: { stroke: color, strokeWidth: 1.5, strokeDasharray: "5 4" },
+            markerEnd: { type: MarkerType.Arrow, color },
+            label: `🎯 ${tsk.title.slice(0, 18)}${tsk.reward_coins ? ` · ${tsk.reward_coins}🪙` : ""}`,
+            labelStyle: { fill: "hsl(var(--foreground))", fontSize: 10, fontWeight: 500 },
+            labelBgStyle: { fill: "hsl(var(--card))" },
+          });
+        });
+      });
+
+      return { nodes, edges };
+    }
 
     return { nodes, edges };
-  }, [employees, teamLinks, hrTasks, selectedEmployeeId]);
+  }, [
+    employees,
+    teamLinks,
+    hrTasks,
+    selectedEmployeeId,
+    mapLevel,
+    activeDept,
+    activeTeamManagerId,
+    empById,
+    managerToEmployees,
+    employeeToManager,
+    t,
+  ]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layouted.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layouted.edges);
@@ -305,9 +511,25 @@ const HRDEmployeeMap = () => {
     setEdges(layouted.edges);
   }, [layouted, setNodes, setEdges]);
 
-  const onNodeClick = useCallback((_: any, node: Node) => {
-    setSelectedEmployeeId(node.id);
-  }, []);
+  const onNodeClick = useCallback(
+    (_: any, node: Node) => {
+      if (node.id.startsWith("dept:")) {
+        setActiveDept(node.id.slice(5));
+        setMapLevel("department");
+        setSelectedEmployeeId(null);
+        return;
+      }
+      if (node.id.startsWith("team:")) {
+        setActiveTeamManagerId(node.id.slice(5));
+        setMapLevel("team");
+        setSelectedEmployeeId(null);
+        return;
+      }
+      setSelectedEmployeeId(node.id);
+    },
+    [],
+  );
+
 
   const selected = employees.find((e) => e.user_id === selectedEmployeeId) || null;
 
