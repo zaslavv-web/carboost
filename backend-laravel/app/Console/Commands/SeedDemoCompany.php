@@ -194,6 +194,15 @@ class SeedDemoCompany extends Command
         foreach ($ids as $cid) {
             $userIds = DB::table('profiles')->where('company_id', $cid)->pluck('user_id')->all();
 
+            // Каскадно удаляем career_level_actions (нет company_id)
+            if (Schema::hasTable('career_level_actions') && Schema::hasTable('career_track_templates')) {
+                $tplIds = DB::table('career_track_templates')->where('company_id', $cid)->pluck('id')->all();
+                if ($tplIds) {
+                    DB::table('career_level_actions')->whereIn('template_id', $tplIds)->delete();
+                }
+            }
+
+
             foreach ([
                 'comfort_scores','comfort_signal_events','initiative_votes','initiatives',
                 'employee_risk_scores','peer_recognitions','peer_recognition_reactions',
