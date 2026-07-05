@@ -216,8 +216,8 @@ const RiskAnalytics = () => {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setLevelFilter("all")}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setLevelFilter("all")}
+          onClick={() => applyFilter(deptFilter, "all")}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && applyFilter(deptFilter, "all")}
           className={`text-left transition-all cursor-pointer ${levelFilter === "all" ? "ring-2 ring-primary/40 rounded-xl" : ""}`}
         >
           <Card className="glass p-4 hover-lift h-full">
@@ -234,8 +234,8 @@ const RiskAnalytics = () => {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setLevelFilter("high")}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setLevelFilter("high")}
+          onClick={() => applyFilter(deptFilter, "high")}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && applyFilter(deptFilter, "high")}
           className={`text-left transition-all cursor-pointer ${levelFilter === "high" ? "ring-2 ring-destructive/50 rounded-xl" : ""}`}
         >
           <Card className="glass p-4 hover-lift border-destructive/30 h-full">
@@ -252,8 +252,8 @@ const RiskAnalytics = () => {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setLevelFilter("medium")}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setLevelFilter("medium")}
+          onClick={() => applyFilter(deptFilter, "medium")}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && applyFilter(deptFilter, "medium")}
           className={`text-left transition-all cursor-pointer ${levelFilter === "medium" ? "ring-2 ring-warning/50 rounded-xl" : ""}`}
         >
           <Card className="glass p-4 hover-lift border-warning/30 h-full">
