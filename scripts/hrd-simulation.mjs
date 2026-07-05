@@ -253,7 +253,7 @@ async function scenarioB() {
   if (tplId) {
     const assign = await call("POST", "/api/db/employee_career_assignments", {
       body: {
-        user_id: state.profileId || state.userId,
+        user_id: state.userId,
         template_id: tplId,
         company_id: state.companyId,
         status: "active",
@@ -306,7 +306,7 @@ async function scenarioC() {
   // IDP via db bridge
   const idp = await call("POST", "/api/db/individual_development_plans", {
     body: {
-      user_id: state.profileId || state.userId,
+      user_id: state.userId,
       company_id: state.companyId,
       created_by: state.userId,
       title: `SIM-IDP-${Date.now()}`,
