@@ -57,13 +57,24 @@ const RiskAnalytics = () => {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState<"auto" | "manual">("auto");
   const [levelFilter, setLevelFilter] = useState<"all" | "low" | "medium" | "high">("all");
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
   const applyFilter = (dept: string | null, level: "all" | "low" | "medium" | "high") => {
     setDeptFilter(dept);
     setLevelFilter(level);
+    setSelectionMode("auto");
+    setSelected(null);
     setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+  const pickEmployee = (userId: string) => {
+    setSelectionMode("manual");
+    setSelected(userId);
+  };
+  const resetSelection = () => {
+    setSelectionMode("auto");
+    setSelected(null);
   };
 
   const { data: employees = [] } = useQuery({
@@ -180,8 +191,52 @@ const RiskAnalytics = () => {
     }));
   }, [employees, scoreMap]);
 
-  const selectedScore = selected ? scoreMap.get(selected) : null;
-  const selectedEmp = selected ? employees.find((e: any) => e.user_id === selected) : null;
+  const filteredEmployees = useMemo(
+    () =>
+      employees.filter((emp: any) => {
+        if (deptFilter && (emp.department || "—") !== deptFilter) return false;
+        if (levelFilter === "all") return true;
+        const s = scoreMap.get(emp.user_id);
+        return s?.risk_level === levelFilter;
+      }),
+    [employees, scoreMap, deptFilter, levelFilter]
+  );
+
+  const autoTopRisk = useMemo(() => {
+    let best: { emp: any; score: RiskRow; peak: number } | null = null;
+    for (const emp of filteredEmployees) {
+      const s = scoreMap.get(emp.user_id);
+      if (!s) continue;
+      const peak = Math.max(s.attrition_risk, s.burnout_risk);
+      if (
+        !best ||
+        peak > best.peak ||
+        (peak === best.peak && s.attrition_risk > best.score.attrition_risk) ||
+        (peak === best.peak &&
+          s.attrition_risk === best.score.attrition_risk &&
+          (emp.full_name ?? "").localeCompare(best.emp.full_name ?? "") < 0)
+      ) {
+        best = { emp, score: s, peak };
+      }
+    }
+    return best;
+  }, [filteredEmployees, scoreMap]);
+
+  const effectiveSelectedId =
+    selectionMode === "manual" ? selected : autoTopRisk?.emp.user_id ?? null;
+  const selectedScore = effectiveSelectedId ? scoreMap.get(effectiveSelectedId) : null;
+  const selectedEmp = effectiveSelectedId
+    ? employees.find((e: any) => e.user_id === effectiveSelectedId)
+    : null;
+  const selectionReason =
+    selectionMode === "manual"
+      ? t("riskAnalytics.detail.reasonManual", { defaultValue: "Выбран из таблицы вручную" })
+      : autoTopRisk
+      ? t("riskAnalytics.detail.reasonAuto", {
+          defaultValue: "Максимальный риск в текущем срезе ({{peak}})",
+          peak: autoTopRisk.peak,
+        })
+      : "";
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
@@ -374,14 +429,52 @@ const RiskAnalytics = () => {
 
         {/* Detail panel */}
         <Card className="glass p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4">{t("riskAnalytics.detail.title")}</h3>
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">{t("riskAnalytics.detail.title")}</h3>
+              <div className="mt-1 flex items-center gap-2 flex-wrap">
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] uppercase tracking-wide ${
+                    selectionMode === "auto"
+                      ? "border-primary/40 text-primary"
+                      : "border-border text-muted-foreground"
+                  }`}
+                >
+                  {selectionMode === "auto"
+                    ? t("riskAnalytics.detail.modeAuto", { defaultValue: "Топ риска" })
+                    : t("riskAnalytics.detail.modeManual", { defaultValue: "Выбран вручную" })}
+                </Badge>
+                {selectionMode === "manual" && (
+                  <button
+                    type="button"
+                    onClick={resetSelection}
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  >
+                    {t("riskAnalytics.detail.resetSelection", { defaultValue: "Сбросить выбор" })}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
           {!selectedScore || !selectedEmp ? (
-            <p className="text-sm text-muted-foreground">{t("riskAnalytics.detail.selectEmployee")}</p>
+            <p className="text-sm text-muted-foreground">
+              {filteredEmployees.length === 0
+                ? t("riskAnalytics.detail.emptyFilter", {
+                    defaultValue: "Под текущий фильтр нет оценённых сотрудников",
+                  })
+                : t("riskAnalytics.detail.selectEmployee")}
+            </p>
           ) : (
             <div className="space-y-4">
               <div>
                 <div className="text-base font-semibold text-foreground">{selectedEmp.full_name}</div>
                 <div className="text-xs text-muted-foreground">{selectedEmp.position}</div>
+                {selectionReason && (
+                  <div className="mt-1 text-[11px] text-muted-foreground italic">
+                    {selectionReason}
+                  </div>
+                )}
               </div>
               <Badge className={`${levelColor(selectedScore.risk_level)} border`}>
                 {selectedScore.risk_level === "high"
@@ -390,6 +483,7 @@ const RiskAnalytics = () => {
                   ? t("riskAnalytics.detail.mediumRisk")
                   : t("riskAnalytics.detail.lowRisk")}
               </Badge>
+
 
               <div className="h-40">
                 <ResponsiveContainer width="100%" height="100%">
@@ -514,24 +608,17 @@ const RiskAnalytics = () => {
                 </tr>
               </thead>
               <tbody>
-                {employees
-                  .filter((emp: any) => {
-                    if (deptFilter && (emp.department || "—") !== deptFilter) return false;
-                    if (levelFilter === "all") return true;
-                    const s = scoreMap.get(emp.user_id);
-                    return s?.risk_level === levelFilter;
-                  })
-
-                  .map((emp: any) => {
+                {filteredEmployees.map((emp: any) => {
                   const s = scoreMap.get(emp.user_id);
                   return (
                     <tr
                       key={emp.user_id}
-                      onClick={() => setSelected(emp.user_id)}
+                      onClick={() => pickEmployee(emp.user_id)}
                       className={`border-t border-border cursor-pointer hover:bg-secondary/40 transition-colors ${
-                        selected === emp.user_id ? "bg-primary/10" : ""
+                        effectiveSelectedId === emp.user_id ? "bg-primary/10" : ""
                       }`}
                     >
+
                       <td className="py-2.5 font-medium text-foreground">{emp.full_name}</td>
                       <td className="py-2.5 text-muted-foreground">{emp.department || "—"}</td>
                       <td className="py-2.5 text-center">
