@@ -11,6 +11,9 @@ import MetricCard from "@/components/MetricCard";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+import { ChartExplainer } from "@/components/metrics/ChartExplainer";
+
 import HRDCareerTracksAnalytics from "@/components/HRDCareerTracksAnalytics";
 import HRDEmployeeMap from "@/components/HRDEmployeeMap";
 import { useUserProfile, type AppRole } from "@/hooks/useUserProfile";
