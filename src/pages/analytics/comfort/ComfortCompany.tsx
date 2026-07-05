@@ -100,7 +100,7 @@ export default function ComfortCompany() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader><CardTitle className="text-base">Динамика индекса, 90 дней</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base"><ChartExplainer metricKey="comfort_index" hint="Смотрите на тренд: устойчивый рост — хорошо, падение 2+ периода — красный флаг." /></CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={trend}>
