@@ -24,7 +24,8 @@ class ComfortController extends Controller
     {
         if (! $this->canManage()) return response()->json(['error' => 'forbidden'], 403);
         $u = Auth::user();
-        $companyId = (string) ($r->input('company_id') ?: $u->company_id ?: '');
+        // FIX: User::company_id всегда null (данные в profiles) — используем companyId().
+        $companyId = (string) ($r->input('company_id') ?: (method_exists($u, 'companyId') ? $u->companyId() : '') ?: '');
         if (! $companyId) return response()->json(['error' => 'company_id required'], 422);
         $r = $this->svc->computeForCompany($companyId);
         return response()->json($r);
@@ -196,7 +197,8 @@ class ComfortController extends Controller
         if ($r->input('company_id') && $this->hasRole($u->id, 'superadmin')) {
             return (string) $r->input('company_id');
         }
-        return $u->company_id ? (string) $u->company_id : null;
+        // FIX: тянем company_id из profiles через User::companyId().
+        return method_exists($u, 'companyId') ? $u->companyId() : null;
     }
 
     private function hasRole($uid, string $role): bool

@@ -61,6 +61,8 @@ class DbController extends Controller
         'employee_risk_scores'     => \App\Models\EmployeeRiskScore::class,
         'gamification_reward_types' => \App\Models\GamificationRewardType::class,
         'hr_documents'             => \App\Models\HrDocument::class,
+        'hr_tasks'                 => \App\Models\HrTask::class,
+        'hr_task_assignees'        => \App\Models\HrTaskAssignee::class,
         'notifications'            => \App\Models\Notification::class,
         'support_tickets'          => \App\Models\SupportTicket::class,
         'team_members'             => \App\Models\TeamMember::class,

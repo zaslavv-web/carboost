@@ -13,4 +13,15 @@ class AssessmentScenario extends Model
     protected $table = 'assessment_scenarios';
     protected $fillable = ['company_id', 'created_by', 'title', 'description', 'file_url', 'scenario_data', 'is_active'];
     protected $casts = ['scenario_data' => 'array', 'is_active' => 'boolean'];
+
+    protected static function booted(): void
+    {
+        // FIX: колонка created_by NOT NULL — авто-заполняем текущим пользователем,
+        // иначе CRUD POST /assessment-scenarios падал с 500.
+        static::creating(function (self $m) {
+            if (empty($m->created_by) && ($u = auth()->user())) {
+                $m->created_by = $u->id;
+            }
+        });
+    }
 }
