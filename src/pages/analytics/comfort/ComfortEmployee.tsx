@@ -85,10 +85,11 @@ export default function ComfortEmployee() {
       {s ? (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Tile label="Индекс" value={s.comfort_index} />
-            <Tile label="Тон общения" value={s.tov_score} />
-            <Tile label="KPI" value={s.kpi_score} />
-            <Tile label="Карьера" value={s.career_score} />
+            <Tile metricKey="comfort_index" label="Индекс комфорта" value={s.comfort_index} />
+            <Tile label="Тон общения (0–100)" value={s.tov_score} />
+            <Tile label="Исполнение KPI (0–100)" value={s.kpi_score} />
+            <Tile label="Карьерный рост (0–100)" value={s.career_score} />
+
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
