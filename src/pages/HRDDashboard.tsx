@@ -553,7 +553,10 @@ const HRDDashboard = () => {
 
         {/* Department comparison */}
         <div className="lg:col-span-2 glass rounded-xl p-6">
-          <h3 className="font-semibold text-foreground mb-4">{t("hrdDashboard.charts.avgScoreByDept")}</h3>
+          <div className="mb-4">
+            <ChartExplainer metricKey="avg_competency_score" hint="Сравнение отделов помогает найти зоны роста и подсветить сильные команды." />
+          </div>
+
           {departmentData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={departmentData}>
