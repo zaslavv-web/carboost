@@ -442,8 +442,54 @@ const RiskAnalytics = () => {
       </div>
 
       {/* Employee table with risk pills */}
-      <Card className="glass p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-4">{t("riskAnalytics.table.title")}</h3>
+      <Card className="glass p-5" ref={tableRef}>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3 className="text-sm font-semibold text-foreground">{t("riskAnalytics.table.title")}</h3>
+          {(deptFilter || levelFilter !== "all") && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground">
+                {t("riskAnalytics.table.activeFilters", { defaultValue: "Активные фильтры:" })}
+              </span>
+              {deptFilter && (
+                <Badge variant="outline" className="gap-1 pr-1">
+                  {deptFilter}
+                  <button
+                    type="button"
+                    onClick={() => setDeptFilter(null)}
+                    className="ml-1 rounded hover:bg-secondary/60 p-0.5"
+                    aria-label="clear dept"
+                  >
+                    ✕
+                  </button>
+                </Badge>
+              )}
+              {levelFilter !== "all" && (
+                <Badge variant="outline" className="gap-1 pr-1">
+                  {levelFilter === "high"
+                    ? t("riskAnalytics.detail.highRisk")
+                    : levelFilter === "medium"
+                    ? t("riskAnalytics.detail.mediumRisk")
+                    : t("riskAnalytics.detail.lowRisk")}
+                  <button
+                    type="button"
+                    onClick={() => setLevelFilter("all")}
+                    className="ml-1 rounded hover:bg-secondary/60 p-0.5"
+                    aria-label="clear level"
+                  >
+                    ✕
+                  </button>
+                </Badge>
+              )}
+              <button
+                type="button"
+                onClick={() => applyFilter(null, "all")}
+                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+              >
+                {t("riskAnalytics.table.clearAll", { defaultValue: "Сбросить все" })}
+              </button>
+            </div>
+          )}
+        </div>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">{t("riskAnalytics.table.loading")}</p>
         ) : (
@@ -462,10 +508,12 @@ const RiskAnalytics = () => {
               <tbody>
                 {employees
                   .filter((emp: any) => {
+                    if (deptFilter && (emp.department || "—") !== deptFilter) return false;
                     if (levelFilter === "all") return true;
                     const s = scoreMap.get(emp.user_id);
                     return s?.risk_level === levelFilter;
                   })
+
                   .map((emp: any) => {
                   const s = scoreMap.get(emp.user_id);
                   return (
