@@ -191,8 +191,52 @@ const RiskAnalytics = () => {
     }));
   }, [employees, scoreMap]);
 
-  const selectedScore = selected ? scoreMap.get(selected) : null;
-  const selectedEmp = selected ? employees.find((e: any) => e.user_id === selected) : null;
+  const filteredEmployees = useMemo(
+    () =>
+      employees.filter((emp: any) => {
+        if (deptFilter && (emp.department || "—") !== deptFilter) return false;
+        if (levelFilter === "all") return true;
+        const s = scoreMap.get(emp.user_id);
+        return s?.risk_level === levelFilter;
+      }),
+    [employees, scoreMap, deptFilter, levelFilter]
+  );
+
+  const autoTopRisk = useMemo(() => {
+    let best: { emp: any; score: RiskRow; peak: number } | null = null;
+    for (const emp of filteredEmployees) {
+      const s = scoreMap.get(emp.user_id);
+      if (!s) continue;
+      const peak = Math.max(s.attrition_risk, s.burnout_risk);
+      if (
+        !best ||
+        peak > best.peak ||
+        (peak === best.peak && s.attrition_risk > best.score.attrition_risk) ||
+        (peak === best.peak &&
+          s.attrition_risk === best.score.attrition_risk &&
+          (emp.full_name ?? "").localeCompare(best.emp.full_name ?? "") < 0)
+      ) {
+        best = { emp, score: s, peak };
+      }
+    }
+    return best;
+  }, [filteredEmployees, scoreMap]);
+
+  const effectiveSelectedId =
+    selectionMode === "manual" ? selected : autoTopRisk?.emp.user_id ?? null;
+  const selectedScore = effectiveSelectedId ? scoreMap.get(effectiveSelectedId) : null;
+  const selectedEmp = effectiveSelectedId
+    ? employees.find((e: any) => e.user_id === effectiveSelectedId)
+    : null;
+  const selectionReason =
+    selectionMode === "manual"
+      ? t("riskAnalytics.detail.reasonManual", { defaultValue: "Выбран из таблицы вручную" })
+      : autoTopRisk
+      ? t("riskAnalytics.detail.reasonAuto", {
+          defaultValue: "Максимальный риск в текущем срезе ({{peak}})",
+          peak: autoTopRisk.peak,
+        })
+      : "";
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
