@@ -188,9 +188,10 @@ const ManagerDashboard = () => {
       {/* Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <MetricCard title={t("managerDashboard.metrics.teamSize")} value={String(teamMembers.length)} icon={Users} />
-        <MetricCard title={t("managerDashboard.metrics.avgProgress")} value={`${avgProgress}%`} subtitle={t("managerDashboard.metrics.careerTracks")} icon={TrendingUp} />
-        <MetricCard title={t("managerDashboard.metrics.goalsInProgress")} value={String(totalGoals)} subtitle={atRiskCount > 0 ? t("managerDashboard.metrics.atRisk", { count: atRiskCount }) : undefined} icon={Target} />
-        <MetricCard title={t("managerDashboard.metrics.avgScore")} value={String(avgScore)} subtitle={t("managerDashboard.metrics.teamCompetencies")} icon={Award} />
+        <MetricCard metricKey="track_progress" title={t("managerDashboard.metrics.avgProgress")} value={`${avgProgress}%`} subtitle={t("managerDashboard.metrics.careerTracks")} icon={TrendingUp} />
+        <MetricCard metricKey="overdue_tasks" title={t("managerDashboard.metrics.goalsInProgress")} value={String(totalGoals)} subtitle={atRiskCount > 0 ? t("managerDashboard.metrics.atRisk", { count: atRiskCount }) : undefined} icon={Target} />
+        <MetricCard metricKey="team_avg_score" title={t("managerDashboard.metrics.avgScore")} value={String(avgScore)} subtitle={t("managerDashboard.metrics.teamCompetencies")} icon={Award} />
+
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
