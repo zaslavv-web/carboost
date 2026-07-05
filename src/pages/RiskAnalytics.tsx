@@ -297,7 +297,14 @@ const RiskAnalytics = () => {
             <div className="space-y-2">
               {byDept.map((row) => (
                 <div key={row.dept} className="grid grid-cols-12 items-center gap-3">
-                  <div className="col-span-4 text-sm font-medium text-foreground truncate">{row.dept}</div>
+                  <button
+                    type="button"
+                    onClick={() => applyFilter(row.dept, "all")}
+                    className="col-span-4 text-sm font-medium text-foreground truncate text-left hover:text-primary transition-colors"
+                    title={t("riskAnalytics.heatmap.filterByDept", { defaultValue: "Показать всех сотрудников отдела" })}
+                  >
+                    {row.dept}
+                  </button>
                   <div className="col-span-7 flex h-8 rounded-lg overflow-hidden border border-border">
                     {(["high", "medium", "low"] as const).map((lvl) => {
                       const count = row[lvl];
@@ -305,19 +312,21 @@ const RiskAnalytics = () => {
                       if (pct === 0) return null;
                       const bg =
                         lvl === "high"
-                          ? "bg-destructive/80"
+                          ? "bg-destructive/80 hover:bg-destructive"
                           : lvl === "medium"
-                          ? "bg-warning/70"
-                          : "bg-success/70";
+                          ? "bg-warning/70 hover:bg-warning"
+                          : "bg-success/70 hover:bg-success";
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={lvl}
-                          className={`${bg} flex items-center justify-center text-xs font-semibold text-white transition-all`}
+                          onClick={() => applyFilter(row.dept, lvl)}
+                          className={`${bg} flex items-center justify-center text-xs font-semibold text-white transition-all cursor-pointer`}
                           style={{ width: `${pct}%` }}
-                          title={`${lvl}: ${count}`}
+                          title={`${row.dept} · ${lvl}: ${count} — ${t("riskAnalytics.heatmap.clickToFilter", { defaultValue: "клик — фильтр таблицы" })}`}
                         >
                           {pct > 12 ? count : ""}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -325,6 +334,7 @@ const RiskAnalytics = () => {
                 </div>
               ))}
             </div>
+
           )}
 
           {/* Avg risk by dept chart */}
