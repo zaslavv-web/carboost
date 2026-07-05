@@ -14,6 +14,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, ChevronLeft, ArrowUpRight } from "lucide-react";
 import { tooltipProps } from "@/lib/chartTooltip";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+import type { MetricKey } from "@/lib/metricsCatalog";
+
 
 const riskColor: Record<string, string> = {
   low: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
