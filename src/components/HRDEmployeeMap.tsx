@@ -756,28 +756,96 @@ const HRDEmployeeMap = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
         <div
-          className="bg-card rounded-xl border border-border overflow-hidden react-flow-contrast-cursor"
+          className="bg-card rounded-xl border border-border overflow-hidden react-flow-contrast-cursor flex flex-col"
           style={{ height: "70vh" }}
         >
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onNodeClick={onNodeClick}
-            fitView
-            minZoom={0.2}
-            maxZoom={1.5}
-          >
-            <Background color="hsl(var(--border))" gap={20} />
-            <Controls />
-            <MiniMap
-              nodeColor={() => "hsl(var(--primary))"}
-              maskColor="hsl(var(--background) / 0.7)"
-              style={{ background: "hsl(var(--card))" }}
-            />
-          </ReactFlow>
+          {/* Breadcrumbs / drill-down navigation */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30 text-xs">
+            {mapLevel !== "company" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => {
+                  if (mapLevel === "team") {
+                    setMapLevel("department");
+                    setActiveTeamManagerId(null);
+                  } else {
+                    setMapLevel("company");
+                    setActiveDept(null);
+                  }
+                  setSelectedEmployeeId(null);
+                }}
+              >
+                <ArrowUp className="w-3.5 h-3.5 mr-1" />
+                {t("employeeMap.drill.up", { defaultValue: "Уровень выше" })}
+              </Button>
+            )}
+            <button
+              className={`hover:text-foreground transition-colors ${mapLevel === "company" ? "text-foreground font-medium" : "text-muted-foreground"}`}
+              onClick={() => {
+                setMapLevel("company");
+                setActiveDept(null);
+                setActiveTeamManagerId(null);
+                setSelectedEmployeeId(null);
+              }}
+            >
+              {t("employeeMap.drill.company", { defaultValue: "Компания" })}
+            </button>
+            {activeDept && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                <button
+                  className={`hover:text-foreground transition-colors truncate max-w-[180px] ${mapLevel === "department" ? "text-foreground font-medium" : "text-muted-foreground"}`}
+                  onClick={() => {
+                    setMapLevel("department");
+                    setActiveTeamManagerId(null);
+                    setSelectedEmployeeId(null);
+                  }}
+                >
+                  {activeDept}
+                </button>
+              </>
+            )}
+            {mapLevel === "team" && activeTeamManagerId && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-foreground font-medium truncate max-w-[200px]">
+                  {activeTeamManagerId === "__unmanaged__"
+                    ? t("employeeMap.drill.unmanaged", { defaultValue: "Без руководителя" })
+                    : empById.get(activeTeamManagerId)?.full_name || "—"}
+                </span>
+              </>
+            )}
+            <div className="ml-auto text-[10px] text-muted-foreground">
+              {mapLevel === "company" && t("employeeMap.drill.hintCompany", { defaultValue: "Кликните по подразделению для детализации" })}
+              {mapLevel === "department" && t("employeeMap.drill.hintDept", { defaultValue: "Кликните по команде" })}
+              {mapLevel === "team" && t("employeeMap.drill.hintTeam", { defaultValue: "Кликните по сотруднику" })}
+            </div>
+          </div>
+          <div className="flex-1 min-h-0">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onNodeClick={onNodeClick}
+              fitView
+              fitViewOptions={{ padding: 0.2 }}
+              minZoom={0.2}
+              maxZoom={1.5}
+            >
+              <Background color="hsl(var(--border))" gap={20} />
+              <Controls />
+              <MiniMap
+                nodeColor={() => "hsl(var(--primary))"}
+                maskColor="hsl(var(--background) / 0.7)"
+                style={{ background: "hsl(var(--card))" }}
+              />
+            </ReactFlow>
+          </div>
         </div>
+
 
         <div className="bg-card rounded-xl border border-border overflow-hidden flex flex-col">
           {!selected ? (
