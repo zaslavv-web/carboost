@@ -49,7 +49,11 @@ import {
   X,
   Users as UsersIcon,
   Trash2,
+  ChevronRight,
+  ArrowUp,
+  Building2,
 } from "lucide-react";
+
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { getIntlLocale } from "@/lib/dateLocale";
