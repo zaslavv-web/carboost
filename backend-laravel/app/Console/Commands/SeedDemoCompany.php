@@ -200,11 +200,11 @@ class SeedDemoCompany extends Command
                 'achievements','employee_rewards','gamification_reward_types',
                 'notifications','test_attempts','closed_question_tests',
                 'career_step_submission_files','career_step_submissions','career_goals',
-                'employee_career_assignments','career_track_templates',
+                'employee_career_assignments','career_step_scenarios','career_track_templates',
                 'shop_cart_items','shop_order_items','shop_orders','shop_products',
                 'hr_task_assignees','hr_tasks','hr_documents','employee_questionnaires',
                 'competencies','assessments','currency_transactions','currency_balances',
-                'company_currency_settings','team_members','positions','departments',
+                'company_currency_settings','team_members','position_career_paths','positions','departments',
                 'company_onboarding_settings','employee_invitations','support_tickets',
             ] as $t) {
                 if (Schema::hasTable($t) && Schema::hasColumn($t, 'company_id')) {
