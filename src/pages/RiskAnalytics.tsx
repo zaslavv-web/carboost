@@ -414,7 +414,7 @@ const RiskAnalytics = () => {
               <div>
                 <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">{t("riskAnalytics.detail.factors")}</div>
                 <ul className="space-y-1 text-sm">
-                  {(selectedScore.factors as string[]).map((f, i) => (
+                  {(Array.isArray(selectedScore.factors) ? selectedScore.factors : typeof selectedScore.factors === "string" ? (() => { try { const p = JSON.parse(selectedScore.factors as any); return Array.isArray(p) ? p : []; } catch { return []; } })() : []).map((f: any, i: number) => (
                     <li key={i} className="flex gap-2">
                       <span className="text-primary">•</span>
                       <span className="text-foreground">{f}</span>
