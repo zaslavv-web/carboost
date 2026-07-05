@@ -187,6 +187,28 @@ const buildGraph = (env: EnvData, showFuture: boolean): { nodes: Node[]; edges: 
   return { nodes, edges };
 };
 
+const GraphCanvas = ({ nodes, edges, resetKey }: { nodes: Node[]; edges: Edge[]; resetKey: string | number }) => {
+  const rf = useReactFlow();
+  useEffect(() => {
+    const t = setTimeout(() => rf.fitView({ padding: 0.2, duration: 300 }), 50);
+    return () => clearTimeout(t);
+  }, [resetKey, nodes.length, rf]);
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      fitView
+      nodesDraggable={false}
+      nodesConnectable={false}
+      elementsSelectable={false}
+      proOptions={{ hideAttribution: true }}
+    >
+      <Background gap={20} />
+      <Controls showInteractive={false} />
+    </ReactFlow>
+  );
+};
+
 const UserBusinessEnvironment = ({ userId }: { userId: string }) => {
   const [showFuture, setShowFuture] = useState(true);
 
@@ -205,36 +227,46 @@ const UserBusinessEnvironment = ({ userId }: { userId: string }) => {
   if (error) return <div className="text-destructive">{(error as Error).message}</div>;
   if (!env) return null;
 
+  const fp = env.future_projection;
+  const hasAnyFuture = !!(fp && (fp.target_position || fp.track_template || (fp.expected_items && fp.expected_items.length > 0)));
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="text-sm text-muted-foreground">
           Управляет: {env.direct_reports.length} • Коллег: {env.peers.length} • Взаимодействий (90д): {env.interactions.length}
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={showFuture}
-            onChange={(e) => setShowFuture(e.target.checked)}
-            className="rounded"
-          />
-          Показать проекцию через год
-        </label>
+        <div className="flex items-center gap-3">
+          <label
+            className={`flex items-center gap-2 text-sm ${hasAnyFuture ? "" : "opacity-60 cursor-not-allowed"}`}
+            title={hasAnyFuture ? undefined : "Нет активного карьерного трека"}
+          >
+            <input
+              type="checkbox"
+              checked={showFuture && hasAnyFuture}
+              disabled={!hasAnyFuture}
+              onChange={(e) => setShowFuture(e.target.checked)}
+              className="rounded"
+            />
+            Показать проекцию через год
+          </label>
+          {!hasAnyFuture && (
+            <Link to={`/career`} className="text-xs text-primary hover:underline">
+              Настроить карьеру →
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="bg-card rounded-xl border border-border" style={{ height: 620 }}>
-        <ReactFlow
-          nodes={graph.nodes}
-          edges={graph.edges}
-          fitView
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background gap={20} />
-          <Controls showInteractive={false} />
-        </ReactFlow>
+        <ReactFlowProvider>
+          <GraphCanvas
+            key={showFuture && hasAnyFuture ? "with-future" : "no-future"}
+            nodes={graph.nodes}
+            edges={graph.edges}
+            resetKey={`${showFuture}-${graph.nodes.length}`}
+          />
+        </ReactFlowProvider>
       </div>
 
       {env.future_projection?.expected_items && env.future_projection.expected_items.length > 0 && (
@@ -256,6 +288,7 @@ const UserBusinessEnvironment = ({ userId }: { userId: string }) => {
     </div>
   );
 };
+
 
 const PersonList = ({ title, items }: { title: string; items: Person[] }) => (
   <div className="bg-card rounded-xl border border-border p-4">
