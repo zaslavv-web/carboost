@@ -196,7 +196,7 @@ export default function PeopleAnalytics() {
   );
 }
 
-function KpiCard({ icon: Icon, label, value }: { icon: any; label: string; value: number }) {
+function KpiCard({ icon: Icon, label, value, metricKey }: { icon: any; label: string; value: number; metricKey?: MetricKey }) {
   return (
     <Card>
       <CardContent className="p-4 flex items-center gap-3">
@@ -204,10 +204,13 @@ function KpiCard({ icon: Icon, label, value }: { icon: any; label: string; value
           <Icon className="h-5 w-5" />
         </div>
         <div>
-          <div className="text-xs text-muted-foreground">{label}</div>
+          <div className="text-xs text-muted-foreground">
+            {metricKey ? <MetricLabel metricKey={metricKey} labelOverride={label} /> : label}
+          </div>
           <div className="text-2xl font-serif">{value}</div>
         </div>
       </CardContent>
+
     </Card>
   );
 }
