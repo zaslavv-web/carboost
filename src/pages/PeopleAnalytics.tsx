@@ -79,22 +79,25 @@ export default function PeopleAnalytics() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard icon={Users} label="Всего сотрудников" value={headcount?.total ?? 0} />
+        <KpiCard metricKey="headcount_delta" icon={Users} label="Всего сотрудников" value={headcount?.total ?? 0} />
         <KpiCard
           icon={Building2}
           label="Департаментов"
           value={headcount?.by_department.filter((d) => d.label !== "Без департамента").length ?? 0}
         />
         <KpiCard
+          metricKey="hiring_funnel_conversion"
           icon={TrendingUp}
           label="Нанято за 12 мес"
           value={hiring.reduce((s, x) => s + x.value, 0)}
         />
         <KpiCard
+          metricKey="risk_index"
           icon={AlertTriangle}
           label="В зоне высокого риска"
           value={risk.filter((b) => b.label === "Высокий" || b.label === "Критический").reduce((s, x) => s + x.value, 0)}
         />
+
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
