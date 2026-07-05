@@ -88,10 +88,11 @@ export default function ComfortCompany() {
 
       {company ? (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <KpiTile label="Индекс компании" value={company.comfort_index} trend={company.trend} delta={company.trend_delta} risk={company.risk_level} />
-          <KpiTile label="Тон общения" value={company.tov_score} />
-          <KpiTile label="KPI" value={company.kpi_score} />
-          <KpiTile label="Карьера" value={company.career_score} />
+          <KpiTile metricKey="comfort_index" label="Индекс комфорта компании" value={company.comfort_index} trend={company.trend} delta={company.trend_delta} risk={company.risk_level} />
+          <KpiTile label="Тон общения (0–100)" value={company.tov_score} />
+          <KpiTile label="Исполнение KPI (0–100)" value={company.kpi_score} />
+          <KpiTile label="Карьерный рост (0–100)" value={company.career_score} />
+
         </div>
       ) : (
         <Card><CardContent className="p-6 text-sm text-muted-foreground">Данных пока нет. Нажмите «Пересчитать».</CardContent></Card>
