@@ -92,15 +92,20 @@ class PeopleAnalyticsController extends Controller
         $companyId = $this->scope($request);
         $start = Carbon::now()->startOfMonth()->subMonths(11);
 
-        $rows = DB::table('profiles')
-            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
-            ->whereNotNull('hire_date')
-            ->where('hire_date', '>=', $start->toDateString())
-            ->selectRaw("to_char(hire_date, 'YYYY-MM') as month, COUNT(*) as value")
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get()
-            ->keyBy('month');
+        try {
+            $rows = DB::table('profiles')
+                ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+                ->whereNotNull('hire_date')
+                ->where('hire_date', '>=', $start->toDateString())
+                ->selectRaw("to_char(hire_date::date, 'YYYY-MM') as month, COUNT(*) as value")
+                ->groupByRaw("to_char(hire_date::date, 'YYYY-MM')")
+                ->orderByRaw("to_char(hire_date::date, 'YYYY-MM')")
+                ->get()
+                ->keyBy('month');
+        } catch (\Throwable $e) {
+            report($e);
+            $rows = collect();
+        }
 
         $series = [];
         for ($i = 0; $i < 12; $i++) {
@@ -122,15 +127,20 @@ class PeopleAnalyticsController extends Controller
             return response()->json(['series' => []]);
         }
 
-        $rows = DB::table('leave_requests')
-            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
-            ->where('status', 'approved')
-            ->where('start_date', '>=', $start->toDateString())
-            ->selectRaw("to_char(start_date, 'YYYY-MM') as month, COALESCE(SUM(business_days), 0) as days, COUNT(*) as requests")
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get()
-            ->keyBy('month');
+        try {
+            $rows = DB::table('leave_requests')
+                ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+                ->where('status', 'approved')
+                ->where('start_date', '>=', $start->toDateString())
+                ->selectRaw("to_char(start_date::date, 'YYYY-MM') as month, COALESCE(SUM(business_days), 0) as days, COUNT(*) as requests")
+                ->groupByRaw("to_char(start_date::date, 'YYYY-MM')")
+                ->orderByRaw("to_char(start_date::date, 'YYYY-MM')")
+                ->get()
+                ->keyBy('month');
+        } catch (\Throwable $e) {
+            report($e);
+            $rows = collect();
+        }
 
         $series = [];
         for ($i = 0; $i < 6; $i++) {
@@ -150,15 +160,22 @@ class PeopleAnalyticsController extends Controller
         if (!DB::getSchemaBuilder()->hasTable('employee_risk_scores')) {
             return response()->json(['buckets' => []]);
         }
-        $rows = DB::table('employee_risk_scores')
-            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
-            ->selectRaw("
-                SUM(CASE WHEN risk_score < 30 THEN 1 ELSE 0 END) as low,
-                SUM(CASE WHEN risk_score >= 30 AND risk_score < 60 THEN 1 ELSE 0 END) as mid,
-                SUM(CASE WHEN risk_score >= 60 AND risk_score < 80 THEN 1 ELSE 0 END) as high,
-                SUM(CASE WHEN risk_score >= 80 THEN 1 ELSE 0 END) as critical
-            ")
-            ->first();
+        // FIX: схема таблицы содержит risk_level (text) + attrition_risk/burnout_risk (int),
+        // а не risk_score. Раньше SQL падал с 500 из-за отсутствующего столбца.
+        try {
+            $rows = DB::table('employee_risk_scores')
+                ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+                ->selectRaw("
+                    SUM(CASE WHEN risk_level = 'low'      THEN 1 ELSE 0 END) as low,
+                    SUM(CASE WHEN risk_level = 'medium'   THEN 1 ELSE 0 END) as mid,
+                    SUM(CASE WHEN risk_level = 'high'     THEN 1 ELSE 0 END) as high,
+                    SUM(CASE WHEN risk_level = 'critical' THEN 1 ELSE 0 END) as critical
+                ")
+                ->first();
+        } catch (\Throwable $e) {
+            report($e);
+            $rows = null;
+        }
         return response()->json([
             'buckets' => [
                 ['label' => 'Низкий',       'value' => (int) ($rows->low ?? 0)],

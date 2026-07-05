@@ -24,7 +24,8 @@ class RiskController extends Controller
     {
         if (! $this->canManage()) return response()->json(['error' => 'forbidden'], 403);
         $u = Auth::user();
-        $companyId = (string) ($r->input('company_id') ?: $u->company_id ?: '');
+        // FIX: User модель не хранит company_id напрямую — только через companyId() из profile.
+        $companyId = (string) ($r->input('company_id') ?: (method_exists($u, 'companyId') ? $u->companyId() : '') ?: '');
         if (! $companyId) return response()->json(['error' => 'company_id required'], 422);
 
         $n = $this->svc->computeForCompany($companyId);

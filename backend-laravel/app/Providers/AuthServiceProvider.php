@@ -79,6 +79,10 @@ class AuthServiceProvider extends ServiceProvider
         // Teams
         Models\TeamMember::class               => TeamMemberPolicy::class,
 
+        // HR tasks (шаблоны заданий для HRD) — компания/HRD-скоуп
+        Models\HrTask::class                   => CompanyScopedPolicy::class,
+        Models\HrTaskAssignee::class           => OwnedRecordPolicy::class,
+
         // Tracker module
         Models\TrackerProject::class           => CompanyScopedPolicy::class,
         Models\TrackerOkrPeriod::class         => CompanyScopedPolicy::class,
