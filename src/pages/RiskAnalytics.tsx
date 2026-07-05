@@ -1,6 +1,6 @@
 import { laravelDb } from "@/integrations/laravel/db";
 import { tooltipProps } from "@/lib/chartTooltip";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserProfile } from "@/hooks/useUserProfile";
