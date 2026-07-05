@@ -20,6 +20,8 @@ import CurrencyWidget from "@/components/CurrencyWidget";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+
 import {
   Radar,
   RadarChart,
