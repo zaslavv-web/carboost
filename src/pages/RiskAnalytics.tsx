@@ -608,24 +608,17 @@ const RiskAnalytics = () => {
                 </tr>
               </thead>
               <tbody>
-                {employees
-                  .filter((emp: any) => {
-                    if (deptFilter && (emp.department || "—") !== deptFilter) return false;
-                    if (levelFilter === "all") return true;
-                    const s = scoreMap.get(emp.user_id);
-                    return s?.risk_level === levelFilter;
-                  })
-
-                  .map((emp: any) => {
+                {filteredEmployees.map((emp: any) => {
                   const s = scoreMap.get(emp.user_id);
                   return (
                     <tr
                       key={emp.user_id}
-                      onClick={() => setSelected(emp.user_id)}
+                      onClick={() => pickEmployee(emp.user_id)}
                       className={`border-t border-border cursor-pointer hover:bg-secondary/40 transition-colors ${
-                        selected === emp.user_id ? "bg-primary/10" : ""
+                        effectiveSelectedId === emp.user_id ? "bg-primary/10" : ""
                       }`}
                     >
+
                       <td className="py-2.5 font-medium text-foreground">{emp.full_name}</td>
                       <td className="py-2.5 text-muted-foreground">{emp.department || "—"}</td>
                       <td className="py-2.5 text-center">
