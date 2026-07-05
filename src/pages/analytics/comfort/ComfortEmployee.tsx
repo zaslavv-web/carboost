@@ -174,11 +174,14 @@ export default function ComfortEmployee() {
   );
 }
 
-function Tile({ label, value }: { label: string; value: number }) {
+function Tile({ label, value, metricKey }: { label: string; value: number; metricKey?: MetricKey }) {
   return (
     <Card><CardContent className="p-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-xs text-muted-foreground">
+        {metricKey ? <MetricLabel metricKey={metricKey} labelOverride={label} /> : label}
+      </div>
       <div className="text-3xl font-serif mt-1">{value}</div>
     </CardContent></Card>
   );
 }
+
