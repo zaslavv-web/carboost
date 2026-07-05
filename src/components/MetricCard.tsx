@@ -1,4 +1,6 @@
 import { LucideIcon } from "lucide-react";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+import type { MetricKey } from "@/lib/metricsCatalog";
 
 interface MetricCardProps {
   title: string;
@@ -7,13 +9,17 @@ interface MetricCardProps {
   icon: LucideIcon;
   trend?: { value: string; positive: boolean };
   className?: string;
+  /** Ключ метрики из справочника — добавит (i) с расшифровкой у заголовка. */
+  metricKey?: MetricKey;
 }
 
-const MetricCard = ({ title, value, subtitle, icon: Icon, trend, className = "" }: MetricCardProps) => (
+const MetricCard = ({ title, value, subtitle, icon: Icon, trend, className = "", metricKey }: MetricCardProps) => (
   <div className={`bg-card rounded-xl p-6 shadow-card border border-border animate-fade-in overflow-hidden ${className}`}>
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-muted-foreground font-medium truncate">{title}</p>
+        <p className="text-sm text-muted-foreground font-medium truncate">
+          {metricKey ? <MetricLabel metricKey={metricKey} labelOverride={title} /> : title}
+        </p>
         <p className="text-2xl font-bold text-foreground mt-1 truncate">{value}</p>
         {subtitle && <p className="text-xs text-muted-foreground mt-1 truncate">{subtitle}</p>}
         {trend && (

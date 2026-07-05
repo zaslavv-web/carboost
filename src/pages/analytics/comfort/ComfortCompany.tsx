@@ -15,6 +15,10 @@ import {
 import { Loader2, TrendingUp, TrendingDown, Minus, ArrowRight, RefreshCw } from "lucide-react";
 import { tooltipProps } from "@/lib/chartTooltip";
 import { toast } from "@/hooks/use-toast";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+import { ChartExplainer } from "@/components/metrics/ChartExplainer";
+import type { MetricKey } from "@/lib/metricsCatalog";
+
 
 type Score = {
   comfort_index: number; tov_score: number; kpi_score: number; career_score: number;
@@ -84,10 +88,11 @@ export default function ComfortCompany() {
 
       {company ? (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <KpiTile label="Индекс компании" value={company.comfort_index} trend={company.trend} delta={company.trend_delta} risk={company.risk_level} />
-          <KpiTile label="Тон общения" value={company.tov_score} />
-          <KpiTile label="KPI" value={company.kpi_score} />
-          <KpiTile label="Карьера" value={company.career_score} />
+          <KpiTile metricKey="comfort_index" label="Индекс комфорта компании" value={company.comfort_index} trend={company.trend} delta={company.trend_delta} risk={company.risk_level} />
+          <KpiTile label="Тон общения (0–100)" value={company.tov_score} />
+          <KpiTile label="Исполнение KPI (0–100)" value={company.kpi_score} />
+          <KpiTile label="Карьерный рост (0–100)" value={company.career_score} />
+
         </div>
       ) : (
         <Card><CardContent className="p-6 text-sm text-muted-foreground">Данных пока нет. Нажмите «Пересчитать».</CardContent></Card>
@@ -95,7 +100,7 @@ export default function ComfortCompany() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader><CardTitle className="text-base">Динамика индекса, 90 дней</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base"><ChartExplainer metricKey="comfort_index" hint="Смотрите на тренд: устойчивый рост — хорошо, падение 2+ периода — красный флаг." /></CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={trend}>
@@ -180,12 +185,14 @@ export default function ComfortCompany() {
   );
 }
 
-function KpiTile({ label, value, trend, delta, risk }: { label: string; value: number; trend?: string; delta?: number; risk?: string }) {
+function KpiTile({ label, value, trend, delta, risk, metricKey }: { label: string; value: number; trend?: string; delta?: number; risk?: string; metricKey?: MetricKey }) {
   const Icon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
   return (
     <Card>
       <CardContent className="p-4">
-        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="text-xs text-muted-foreground">
+          {metricKey ? <MetricLabel metricKey={metricKey} labelOverride={label} /> : label}
+        </div>
         <div className="flex items-end justify-between mt-1">
           <div className="text-3xl font-serif">{value}</div>
           {trend && (
@@ -199,3 +206,4 @@ function KpiTile({ label, value, trend, delta, risk }: { label: string; value: n
     </Card>
   );
 }
+

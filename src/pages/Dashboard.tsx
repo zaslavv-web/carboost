@@ -20,6 +20,8 @@ import CurrencyWidget from "@/components/CurrencyWidget";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+
 import {
   Radar,
   RadarChart,
@@ -198,7 +200,8 @@ const Dashboard = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card className="glass p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <Target className="w-4 h-4 text-primary" /> {t("dashboard.kpi.trackProgress")}
+            <Target className="w-4 h-4 text-primary" />
+            <MetricLabel metricKey="track_progress" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">{overallProgress}%</div>
           <div className="text-xs text-muted-foreground mt-1">
@@ -207,14 +210,18 @@ const Dashboard = () => {
         </Card>
         <Card className="glass p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <TrendingUp className="w-4 h-4 text-info" /> {t("dashboard.kpi.competencies")}
+            <TrendingUp className="w-4 h-4 text-info" />
+            <MetricLabel metricKey="avg_competency_score" />
           </div>
-          <div className="mt-2 text-2xl font-bold text-foreground">{competencies.length}</div>
-          <div className="text-xs text-muted-foreground mt-1">{t("dashboard.kpi.avgScore", { value: avgCompetency })}</div>
+          <div className="mt-2 text-2xl font-bold text-foreground">{avgCompetency}</div>
+          <div className="text-[11px] text-muted-foreground mt-1">
+            {t("dashboard.kpi.competenciesCount", { count: competencies.length, defaultValue: "по {{count}} компетенциям" })}
+          </div>
         </Card>
         <Card className="glass p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <Award className="w-4 h-4 text-warning" /> {t("dashboard.kpi.achievements")}
+            <Award className="w-4 h-4 text-warning" />
+            <MetricLabel metricKey="gamification_points" labelOverride={t("dashboard.kpi.achievements")} />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">{achievements.length}</div>
         </Card>
@@ -226,6 +233,7 @@ const Dashboard = () => {
           <div className="text-xs text-muted-foreground mt-1 truncate">{profile?.position || "—"}</div>
         </Card>
       </div>
+
 
       <CurrencyWidget />
 

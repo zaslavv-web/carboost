@@ -14,6 +14,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, ChevronLeft, ArrowUpRight } from "lucide-react";
 import { tooltipProps } from "@/lib/chartTooltip";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+import type { MetricKey } from "@/lib/metricsCatalog";
+
 
 const riskColor: Record<string, string> = {
   low: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
@@ -82,10 +85,11 @@ export default function ComfortEmployee() {
       {s ? (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Tile label="Индекс" value={s.comfort_index} />
-            <Tile label="Тон общения" value={s.tov_score} />
-            <Tile label="KPI" value={s.kpi_score} />
-            <Tile label="Карьера" value={s.career_score} />
+            <Tile metricKey="comfort_index" label="Индекс комфорта" value={s.comfort_index} />
+            <Tile label="Тон общения (0–100)" value={s.tov_score} />
+            <Tile label="Исполнение KPI (0–100)" value={s.kpi_score} />
+            <Tile label="Карьерный рост (0–100)" value={s.career_score} />
+
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -170,11 +174,14 @@ export default function ComfortEmployee() {
   );
 }
 
-function Tile({ label, value }: { label: string; value: number }) {
+function Tile({ label, value, metricKey }: { label: string; value: number; metricKey?: MetricKey }) {
   return (
     <Card><CardContent className="p-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-xs text-muted-foreground">
+        {metricKey ? <MetricLabel metricKey={metricKey} labelOverride={label} /> : label}
+      </div>
       <div className="text-3xl font-serif mt-1">{value}</div>
     </CardContent></Card>
   );
 }
+

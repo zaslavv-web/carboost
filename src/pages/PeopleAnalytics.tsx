@@ -18,6 +18,10 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Users, TrendingUp, CalendarDays, AlertTriangle, Building2 } from "lucide-react";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+import { ChartExplainer } from "@/components/metrics/ChartExplainer";
+import type { MetricKey } from "@/lib/metricsCatalog";
+
 import { tooltipProps } from "@/lib/chartTooltip";
 
 type Bucket = { label: string; value: number };
@@ -75,22 +79,25 @@ export default function PeopleAnalytics() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard icon={Users} label="Всего сотрудников" value={headcount?.total ?? 0} />
+        <KpiCard metricKey="headcount_delta" icon={Users} label="Всего сотрудников" value={headcount?.total ?? 0} />
         <KpiCard
           icon={Building2}
           label="Департаментов"
           value={headcount?.by_department.filter((d) => d.label !== "Без департамента").length ?? 0}
         />
         <KpiCard
+          metricKey="hiring_funnel_conversion"
           icon={TrendingUp}
           label="Нанято за 12 мес"
           value={hiring.reduce((s, x) => s + x.value, 0)}
         />
         <KpiCard
+          metricKey="risk_index"
           icon={AlertTriangle}
           label="В зоне высокого риска"
           value={risk.filter((b) => b.label === "Высокий" || b.label === "Критический").reduce((s, x) => s + x.value, 0)}
         />
+
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -125,7 +132,7 @@ export default function PeopleAnalytics() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Динамика найма (12 мес)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base"><ChartExplainer metricKey="hiring_funnel_conversion" hint="Пики — активные волны найма; спад — заморозка вакансий." /></CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={hiring}>
@@ -140,7 +147,7 @@ export default function PeopleAnalytics() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Отсутствия по месяцам (дней)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base"><ChartExplainer metricKey="absence_rate" hint="Рост — сигнал нагрузки или сезонности; смотрите разбивку по отделам." /></CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={absence}>
@@ -171,7 +178,7 @@ export default function PeopleAnalytics() {
 
         {risk.some((b) => b.value > 0) && (
           <Card className="lg:col-span-2">
-            <CardHeader><CardTitle className="text-base">Распределение по риск-баллу</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base"><ChartExplainer metricKey="risk_index" hint="Красная и жёлтая зоны требуют HR-действий в первую очередь." /></CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-4 gap-4">
                 {risk.map((b) => (
@@ -189,7 +196,7 @@ export default function PeopleAnalytics() {
   );
 }
 
-function KpiCard({ icon: Icon, label, value }: { icon: any; label: string; value: number }) {
+function KpiCard({ icon: Icon, label, value, metricKey }: { icon: any; label: string; value: number; metricKey?: MetricKey }) {
   return (
     <Card>
       <CardContent className="p-4 flex items-center gap-3">
@@ -197,10 +204,13 @@ function KpiCard({ icon: Icon, label, value }: { icon: any; label: string; value
           <Icon className="h-5 w-5" />
         </div>
         <div>
-          <div className="text-xs text-muted-foreground">{label}</div>
+          <div className="text-xs text-muted-foreground">
+            {metricKey ? <MetricLabel metricKey={metricKey} labelOverride={label} /> : label}
+          </div>
           <div className="text-2xl font-serif">{value}</div>
         </div>
       </CardContent>
+
     </Card>
   );
 }

@@ -11,6 +11,9 @@ import MetricCard from "@/components/MetricCard";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+import { ChartExplainer } from "@/components/metrics/ChartExplainer";
+
 import HRDCareerTracksAnalytics from "@/components/HRDCareerTracksAnalytics";
 import HRDEmployeeMap from "@/components/HRDEmployeeMap";
 import { useUserProfile, type AppRole } from "@/hooks/useUserProfile";
@@ -494,10 +497,11 @@ const HRDDashboard = () => {
         </div>
         <div className="glass rounded-xl p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <TrendingUp className="w-4 h-4 text-info" /> {t("hrdDashboard.metrics.avgScore")}
+            <TrendingUp className="w-4 h-4 text-info" />
+            <MetricLabel metricKey="avg_competency_score" labelOverride={t("hrdDashboard.metrics.avgScore")} />
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{avgScore}</div>
-          <div className="text-xs text-muted-foreground mt-1">{t("hrdDashboard.metrics.perCompany")}</div>
+          <div className="text-[11px] text-muted-foreground mt-1">0–5 по компании</div>
         </div>
         <div className="glass rounded-xl p-4 hover-lift">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
@@ -512,6 +516,7 @@ const HRDDashboard = () => {
           <div className="mt-2 text-3xl font-bold text-foreground">{deptMap.size}</div>
         </div>
       </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Role distribution */}
@@ -548,7 +553,10 @@ const HRDDashboard = () => {
 
         {/* Department comparison */}
         <div className="lg:col-span-2 glass rounded-xl p-6">
-          <h3 className="font-semibold text-foreground mb-4">{t("hrdDashboard.charts.avgScoreByDept")}</h3>
+          <div className="mb-4">
+            <ChartExplainer metricKey="avg_competency_score" hint="Сравнение отделов помогает найти зоны роста и подсветить сильные команды." />
+          </div>
+
           {departmentData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={departmentData}>

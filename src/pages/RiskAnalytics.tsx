@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Activity, AlertTriangle, Sparkles, TrendingDown, TrendingUp, RefreshCw, Users } from "lucide-react";
+import { MetricLabel } from "@/components/metrics/MetricLabel";
+
 import {
   ResponsiveContainer,
   RadialBarChart,
@@ -204,57 +206,78 @@ const RiskAnalytics = () => {
 
       {/* KPI cards — clickable, filter the table below */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => setLevelFilter("all")}
-          className={`text-left transition-all ${levelFilter === "all" ? "ring-2 ring-primary/40 rounded-xl" : ""}`}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setLevelFilter("all")}
+          className={`text-left transition-all cursor-pointer ${levelFilter === "all" ? "ring-2 ring-primary/40 rounded-xl" : ""}`}
         >
-          <Card className="glass p-4 hover-lift cursor-pointer h-full">
+          <Card className="glass p-4 hover-lift h-full">
             <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wide">
-              <Users className="w-4 h-4" /> {t("riskAnalytics.kpi.employees")}
+              <Users className="w-4 h-4" />
+              <span onClick={(e) => e.stopPropagation()}>
+                <MetricLabel metricKey="headcount_delta" labelOverride={t("riskAnalytics.kpi.employees")} />
+              </span>
             </div>
             <div className="mt-2 text-3xl font-bold text-foreground">{summary.total}</div>
             <div className="text-xs text-muted-foreground mt-1">{t("riskAnalytics.kpi.covered", { count: summary.covered })}</div>
           </Card>
-        </button>
-        <button
-          type="button"
+        </div>
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => setLevelFilter("high")}
-          className={`text-left transition-all ${levelFilter === "high" ? "ring-2 ring-destructive/50 rounded-xl" : ""}`}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setLevelFilter("high")}
+          className={`text-left transition-all cursor-pointer ${levelFilter === "high" ? "ring-2 ring-destructive/50 rounded-xl" : ""}`}
         >
-          <Card className="glass p-4 hover-lift cursor-pointer border-destructive/30 h-full">
+          <Card className="glass p-4 hover-lift border-destructive/30 h-full">
             <div className="flex items-center gap-2 text-destructive text-xs uppercase tracking-wide">
-              <AlertTriangle className="w-4 h-4" /> {t("riskAnalytics.kpi.highRisk")}
+              <AlertTriangle className="w-4 h-4" />
+              <span onClick={(e) => e.stopPropagation()}>
+                <MetricLabel metricKey="risk_index" labelOverride={t("riskAnalytics.kpi.highRisk")} />
+              </span>
             </div>
             <div className="mt-2 text-3xl font-bold text-destructive">{summary.high}</div>
             <div className="text-xs text-muted-foreground mt-1">{t("riskAnalytics.kpi.actionRequired")}</div>
           </Card>
-        </button>
-        <button
-          type="button"
+        </div>
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => setLevelFilter("medium")}
-          className={`text-left transition-all ${levelFilter === "medium" ? "ring-2 ring-warning/50 rounded-xl" : ""}`}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setLevelFilter("medium")}
+          className={`text-left transition-all cursor-pointer ${levelFilter === "medium" ? "ring-2 ring-warning/50 rounded-xl" : ""}`}
         >
-          <Card className="glass p-4 hover-lift cursor-pointer border-warning/30 h-full">
+          <Card className="glass p-4 hover-lift border-warning/30 h-full">
             <div className="flex items-center gap-2 text-warning text-xs uppercase tracking-wide">
-              <TrendingDown className="w-4 h-4" /> {t("riskAnalytics.kpi.mediumRisk")}
+              <TrendingDown className="w-4 h-4" />
+              <span onClick={(e) => e.stopPropagation()}>
+                <MetricLabel metricKey="attrition_forecast" labelOverride={t("riskAnalytics.kpi.mediumRisk")} />
+              </span>
             </div>
             <div className="mt-2 text-3xl font-bold text-warning">{summary.medium}</div>
           </Card>
-        </button>
-        <button
-          type="button"
+        </div>
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => navigate("/dashboard")}
-          className="text-left transition-all"
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate("/dashboard")}
+          className="text-left transition-all cursor-pointer"
         >
-          <Card className="glass p-4 hover-lift cursor-pointer border-success/30 h-full">
+          <Card className="glass p-4 hover-lift border-success/30 h-full">
             <div className="flex items-center gap-2 text-success text-xs uppercase tracking-wide">
-              <TrendingUp className="w-4 h-4" /> {t("riskAnalytics.kpi.engagement")}
+              <TrendingUp className="w-4 h-4" />
+              <span onClick={(e) => e.stopPropagation()}>
+                <MetricLabel metricKey="engagement_index" labelOverride={t("riskAnalytics.kpi.engagement")} />
+              </span>
             </div>
             <div className="mt-2 text-3xl font-bold text-success">{summary.avgEngagement}%</div>
           </Card>
-        </button>
+        </div>
       </div>
+
 
 
       <div className="grid lg:grid-cols-3 gap-6">
