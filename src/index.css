@@ -14,6 +14,22 @@
 @import '@fontsource/urbanist/800.css';
 @import '@fontsource/epilogue/400.css';
 @import '@fontsource/epilogue/500.css';
+@import '@fontsource/golos-text/400.css';
+@import '@fontsource/golos-text/500.css';
+@import '@fontsource/golos-text/600.css';
+@import '@fontsource/golos-text/700.css';
+@import '@fontsource/golos-text/800.css';
+
+/* Инвестиционный deck: единая гарнитура без засечек с табличными цифрами.
+   Golos Text — кириллический аналог Century Gothic с ровными tabular-nums. */
+.deck-scope,
+.deck-scope * {
+  font-family: 'Golos Text', 'Century Gothic', system-ui, -apple-system, sans-serif !important;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.deck-scope table { font-variant-numeric: tabular-nums; }
+.deck-scope .deck-italic { font-style: italic; }
 
 @tailwind base;
 @tailwind components;
