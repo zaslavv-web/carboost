@@ -85,9 +85,24 @@ function DeckInner() {
         exit: { opacity: 0 },
       }
     : {
-        enter: (d: number) => ({ opacity: 0, x: d >= 0 ? 60 : -60 }),
-        center: { opacity: 1, x: 0 },
-        exit: (d: number) => ({ opacity: 0, x: d >= 0 ? -60 : 60 }),
+        enter: (d: number) => ({
+          opacity: 0,
+          x: d >= 0 ? 120 : -120,
+          scale: 0.94,
+          filter: "blur(12px)",
+        }),
+        center: {
+          opacity: 1,
+          x: 0,
+          scale: 1,
+          filter: "blur(0px)",
+        },
+        exit: (d: number) => ({
+          opacity: 0,
+          x: d >= 0 ? -120 : 120,
+          scale: 0.96,
+          filter: "blur(12px)",
+        }),
       };
 
   return (
@@ -102,7 +117,7 @@ function DeckInner() {
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
           >
             <Current />
           </motion.div>

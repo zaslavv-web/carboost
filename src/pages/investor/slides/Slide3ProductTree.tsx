@@ -97,7 +97,13 @@ export default function Slide3ProductTree() {
                 className="relative flex flex-col rounded-2xl border border-[#D5A52A]/40 bg-white p-6 shadow-sm"
               >
                 {/* Connector to root */}
-                <div className="absolute -top-6 left-1/2 h-6 w-0.5 -translate-x-1/2 bg-[#D5A52A]/60" />
+                <motion.div
+                  initial={{ scaleY: 0 }}
+                  animate={{ scaleY: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 + i * 0.12, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ transformOrigin: "top" }}
+                  className="absolute -top-6 left-1/2 h-6 w-0.5 -translate-x-1/2 bg-[#D5A52A]/60"
+                />
 
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#D5A52A]/20 text-[#8C6A1A]">
