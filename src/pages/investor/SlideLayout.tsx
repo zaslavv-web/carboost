@@ -31,7 +31,7 @@ export default function SlideLayout({
   }, []);
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#F7F4EC] print:static print:overflow-visible">
+    <div className="deck-scope fixed inset-0 overflow-hidden bg-[#F7F4EC] print:static print:overflow-visible">
       <div
         className={`absolute left-1/2 top-1/2 origin-center overflow-hidden bg-[#F7F4EC] text-[#1B1D22] ${className}`}
         style={{
