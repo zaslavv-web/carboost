@@ -132,9 +132,39 @@ export default function Slide5Economics() {
                     <NumericEditable id={`${r.id}.monthly`} defaultValue={teamDefaults.find(t => t.id === r.id)!.monthly} />
                   </td>
                 </tr>
+              {extrasResolved.map((r) => (
+                <tr key={r.id} className="border-b border-[#D5A52A]/10 last:border-0">
+                  <td className="py-1.5 text-[#F5F1E8]/85">
+                    <div className="flex items-center gap-1.5">
+                      {editMode && (
+                        <button
+                          type="button"
+                          onClick={() => removeExtra(r.id)}
+                          className="text-[#D5A52A]/70 hover:text-[#D5A52A]"
+                          aria-label="Удалить сотрудника"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                      <Editable id={`${r.id}.role`} defaultValue={r.role} />
+                    </div>
+                  </td>
+                  <td className="py-1.5 text-right font-mono text-[#F5F1E8]">
+                    <NumericEditable id={`${r.id}.monthly`} defaultValue={r.monthly} />
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
+          {editMode && (
+            <button
+              type="button"
+              onClick={addExtra}
+              className="mt-2 inline-flex items-center gap-1 rounded-md border border-dashed border-[#D5A52A]/50 px-2 py-1 text-[12px] text-[#D5A52A] hover:bg-[#D5A52A]/10"
+            >
+              <Plus size={12} /> Добавить сотрудника
+            </button>
+          )}
           <div className="mt-3 border-t border-[#D5A52A]/30 pt-2">
             <div className="flex items-baseline justify-between text-[14px] text-[#F5F1E8]/70">
               <span>Мес</span>
