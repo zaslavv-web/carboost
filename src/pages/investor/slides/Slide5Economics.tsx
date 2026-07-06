@@ -1,6 +1,7 @@
 import SlideLayout from "../SlideLayout";
 import Editable from "../deck/Editable";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Users, Megaphone, PiggyBank } from "lucide-react";
 
 const team = [
   { role: "2 × Разработчик (fullstack)", monthly: 500 },
