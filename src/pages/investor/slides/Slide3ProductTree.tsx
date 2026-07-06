@@ -1,30 +1,34 @@
 import SlideLayout from "../SlideLayout";
 import Editable from "../deck/Editable";
 import { motion } from "framer-motion";
+import { GraduationCap, Trophy, Gamepad2, BarChart3 } from "lucide-react";
 
 const branches = [
   {
     id: "b1",
+    Icon: GraduationCap,
     name: "Онлайн-университет",
     leaves: [
       "Онбординг новых сотрудников",
       "Профильное обучение",
-      "Обучение новым продуктам компании",
+      "Обучение новым продуктам",
       "Обязательные курсы и аттестации",
     ],
   },
   {
     id: "b2",
+    Icon: Trophy,
     name: "Кадровый резерв",
     leaves: [
       "Карьерные треки",
-      "Оценка эффективности (перформанс-ревью)",
-      "Рейтинг сотрудника (риски и отставания)",
+      "Перформанс-ревью",
+      "Рейтинг сотрудника (риски)",
       "План индивидуального развития",
     ],
   },
   {
     id: "b3",
+    Icon: Gamepad2,
     name: "Геймификация",
     leaves: [
       "Награды за достижения",
@@ -35,6 +39,7 @@ const branches = [
   },
   {
     id: "b4",
+    Icon: BarChart3,
     name: "Кадровая аналитика",
     leaves: [
       "Риски по сотрудникам",
