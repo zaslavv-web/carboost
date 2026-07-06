@@ -36,13 +36,13 @@ const pains = [
   "Нехватка HR-аналитики для доски директоров: риски, вовлечённость, ROI обучения",
 ];
 
-function BigNumber({ value, unit }: { value: string; unit: string }) {
+function BigNumber({ id, value, unit }: { id: string; value: string; unit: string }) {
   return (
     <div className="mt-4 flex items-baseline gap-4">
-      <span className="font-['Instrument_Serif'] text-[76px] leading-none text-[#F5F1E8]">
-        {value}
-      </span>
-      <span className="text-[24px] font-light text-[#F5F1E8]/70">{unit}</span>
+      <Editable id={`${id}.v`} defaultValue={value}
+        className="font-['Instrument_Serif'] text-[60px] leading-none text-[#F5F1E8]" />
+      <Editable id={`${id}.u`} defaultValue={unit}
+        className="text-[24px] font-light text-[#F5F1E8]/70" />
     </div>
   );
 }
