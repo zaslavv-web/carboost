@@ -1,6 +1,7 @@
 import SlideLayout from "../SlideLayout";
 import Editable from "../deck/Editable";
 import { CheckCircle2, Clock } from "lucide-react";
+import { motion } from "framer-motion";
 
 const done = [
   { id: "s7.done.0", text: "Портал компании: мессенджер, новости, таск-трекер" },
@@ -49,7 +50,12 @@ export default function Slide7Status() {
             </div>
           </div>
           <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-[#D5A52A]/15">
-            <div className="h-full rounded-full bg-gradient-to-r from-[#8C6A1A] to-[#D5A52A]" style={{ width: `${readiness}%` }} />
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${readiness}%` }}
+              transition={{ duration: 1.2, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="h-full rounded-full bg-gradient-to-r from-[#8C6A1A] to-[#D5A52A]"
+            />
           </div>
         </div>
 
