@@ -1,28 +1,34 @@
 import brandLogo from "@/assets/logo-growth-peak.png";
+import heroNetwork from "@/assets/deck/hero-network.png";
 import SlideLayout from "../SlideLayout";
 import { motion } from "framer-motion";
 import Editable from "../deck/Editable";
+import { Users, LayoutGrid, Flag, Server } from "lucide-react";
 
 const pillars = [
   {
     id: "s1.p1",
-    title: "Для компаний с численностью от 100 сотрудников",
-    text: "Адаптация, развитие, оценка, удержание, аналитика — в одном контуре.",
+    Icon: Users,
+    title: "Для компаний от 100 сотрудников",
+    text: "Адаптация, развитие, оценка, удержание и аналитика — в одном контуре.",
   },
   {
     id: "s1.p2",
+    Icon: LayoutGrid,
     title: "Единое окно сотрудника",
-    text: "16 модулей в единой платформе. Сотрудник вместо 5+ систем использует одну не теряя в эффективности",
+    text: "16 модулей в одной платформе — вместо 5+ систем, без потери эффективности.",
   },
   {
     id: "s1.p3",
+    Icon: Flag,
     title: "100% российская разработка",
-    text: "Поддерживает работу с российскими ИИ, весь контент на русских серверах, поддержка осуществляется из России",
+    text: "Российские ИИ, серверы в РФ, поддержка из России.",
   },
   {
     id: "s1.p4",
-    title: "Облако или установка в контуре",
-    text: "Разворачивается в облаке или в информационном контуре компании (Docker / nginx / Kubernetes). Без внешних облачных зависимостей.",
+    Icon: Server,
+    title: "Облако или свой контур",
+    text: "Разворачивается в облаке или в контуре компании (Docker / nginx / Kubernetes). Без внешних зависимостей.",
   },
 ];
 
