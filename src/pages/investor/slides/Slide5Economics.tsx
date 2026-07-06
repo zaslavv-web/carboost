@@ -3,7 +3,8 @@ import SlideLayout from "../SlideLayout";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import Editable from "../deck/Editable";
 import NumericEditable from "../deck/NumericEditable";
-import { useDeckNumber } from "../deck/DeckContentContext";
+import { useDeckCtx, useDeckNumber } from "../deck/DeckContentContext";
+import { Plus, X } from "lucide-react";
 
 // ==== Defaults ====
 const teamDefaults = [
