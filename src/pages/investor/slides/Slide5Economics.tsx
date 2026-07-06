@@ -3,7 +3,8 @@ import SlideLayout from "../SlideLayout";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import Editable from "../deck/Editable";
 import NumericEditable from "../deck/NumericEditable";
-import { useDeckNumber } from "../deck/DeckContentContext";
+import { useDeckCtx, useDeckNumber } from "../deck/DeckContentContext";
+import { Plus, X } from "lucide-react";
 
 // ==== Defaults ====
 const teamDefaults = [
@@ -36,11 +37,44 @@ const raiseLow = 5_000;
 const raiseHigh = 10_000;
 
 export default function Slide5Economics() {
-  // reactive values
+  const { values, setValue, editMode } = useDeckCtx();
+
+  // reactive values (fixed team defaults)
   const team = teamDefaults.map((r) => ({
     ...r,
     monthly: useDeckNumber(`${r.id}.monthly`, r.monthly),
   }));
+
+  // extras: пользовательские сотрудники, хранятся JSON-списком
+  const extras = useMemo(() => {
+    try {
+      const parsed = JSON.parse(values["s5.team.extras"] ?? "[]");
+      if (!Array.isArray(parsed)) return [] as { id: string; role: string; monthly: number }[];
+      return parsed as { id: string; role: string; monthly: number }[];
+    } catch {
+      return [] as { id: string; role: string; monthly: number }[];
+    }
+  }, [values]);
+
+  const extrasResolved = extras.map((e) => ({
+    ...e,
+    role: values[`${e.id}.role`] ?? e.role,
+    monthly: Number(values[`${e.id}.monthly`] ?? e.monthly) || 0,
+  }));
+
+  const addExtra = () => {
+    const id = `s5.team.x.${Date.now()}`;
+    const next = [...extras, { id, role: "Новый сотрудник", monthly: 100 }];
+    setValue("s5.team.extras", JSON.stringify(next));
+  };
+  const removeExtra = (id: string) => {
+    const next = extras.filter((e) => e.id !== id);
+    setValue("s5.team.extras", JSON.stringify(next));
+    // очистим оверрайды, чтобы не копились
+    setValue(`${id}.role`, "");
+    setValue(`${id}.monthly`, "");
+  };
+
   const promo = promoDefaults.map((r) => ({
     ...r,
     v: useDeckNumber(`${r.id}.v`, r.v),
@@ -48,7 +82,7 @@ export default function Slide5Economics() {
   const infraYear = useDeckNumber("s5.infra", INFRA_DEFAULT);
 
   const calc = useMemo(() => {
-    const teamMonthly = team.reduce((s, r) => s + r.monthly, 0);
+    const teamMonthly = team.reduce((s, r) => s + r.monthly, 0) + extrasResolved.reduce((s, r) => s + r.monthly, 0);
     const teamYear = teamMonthly * 12;
     const promoYear = promo.reduce((s, r) => s + r.v, 0);
     const total = teamYear + promoYear + infraYear;
@@ -65,7 +99,7 @@ export default function Slide5Economics() {
       { name: "Инфраструктура / AI", v: infraYear, fill: "#5A4410" },
     ];
     return { teamMonthly, teamYear, promoYear, total, cac, paybackMonths, ltv, arrY1, arrY2, arrY3, breakEvenClients, donut };
-  }, [team, promo, infraYear]);
+  }, [team, promo, infraYear, extrasResolved]);
 
   const { teamMonthly, teamYear, promoYear, total, cac, paybackMonths, ltv, arrY1, arrY2, arrY3, breakEvenClients, donut } = calc;
 
@@ -99,8 +133,39 @@ export default function Slide5Economics() {
                   </td>
                 </tr>
               ))}
+              {extrasResolved.map((r) => (
+                <tr key={r.id} className="border-b border-[#D5A52A]/10 last:border-0">
+                  <td className="py-1.5 text-[#F5F1E8]/85">
+                    <div className="flex items-center gap-1.5">
+                      {editMode && (
+                        <button
+                          type="button"
+                          onClick={() => removeExtra(r.id)}
+                          className="text-[#D5A52A]/70 hover:text-[#D5A52A]"
+                          aria-label="Удалить сотрудника"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                      <Editable id={`${r.id}.role`} defaultValue={r.role} />
+                    </div>
+                  </td>
+                  <td className="py-1.5 text-right font-mono text-[#F5F1E8]">
+                    <NumericEditable id={`${r.id}.monthly`} defaultValue={r.monthly} />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
+          {editMode && (
+            <button
+              type="button"
+              onClick={addExtra}
+              className="mt-2 inline-flex items-center gap-1 rounded-md border border-dashed border-[#D5A52A]/50 px-2 py-1 text-[12px] text-[#D5A52A] hover:bg-[#D5A52A]/10"
+            >
+              <Plus size={12} /> Добавить сотрудника
+            </button>
+          )}
           <div className="mt-3 border-t border-[#D5A52A]/30 pt-2">
             <div className="flex items-baseline justify-between text-[14px] text-[#F5F1E8]/70">
               <span>Мес</span>
