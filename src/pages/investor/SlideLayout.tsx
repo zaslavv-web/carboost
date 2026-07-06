@@ -33,7 +33,7 @@ export default function SlideLayout({
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#F7F4EC] print:static print:overflow-visible">
       <div
-        className={`absolute left-1/2 top-1/2 origin-center bg-[#F7F4EC] text-[#1B1D22] ${className}`}
+        className={`absolute left-1/2 top-1/2 origin-center overflow-hidden bg-[#F7F4EC] text-[#1B1D22] ${className}`}
         style={{
           width: 1920,
           height: 1080,
@@ -42,6 +42,33 @@ export default function SlideLayout({
           transform: `scale(${scale})`,
         }}
       >
+        {/* Декоративные фоновые орбы */}
+        <motion.div
+          aria-hidden
+          initial={{ opacity: 0, scale: 0.7 }}
+          animate={{ opacity: 0.55, scale: 1 }}
+          transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+          className="pointer-events-none absolute -right-40 -top-40 h-[600px] w-[600px] rounded-full"
+          style={{ background: "radial-gradient(circle at center, #D5A52A55, transparent 60%)", filter: "blur(40px)" }}
+        />
+        <motion.div
+          aria-hidden
+          initial={{ opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 0.45, scale: 1 }}
+          transition={{ duration: 1.6, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+          className="pointer-events-none absolute -bottom-60 -left-40 h-[700px] w-[700px] rounded-full"
+          style={{ background: "radial-gradient(circle at center, #8C6A1A44, transparent 60%)", filter: "blur(50px)" }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(213,165,42,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(213,165,42,0.05) 1px, transparent 1px)",
+            backgroundSize: "80px 80px",
+          }}
+        />
+
         {kicker && (
           <Editable
             id={`kicker.${kicker}`}
