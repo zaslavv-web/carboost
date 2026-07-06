@@ -99,7 +99,7 @@ export default function Slide5Economics() {
       { name: "Инфраструктура / AI", v: infraYear, fill: "#5A4410" },
     ];
     return { teamMonthly, teamYear, promoYear, total, cac, paybackMonths, ltv, arrY1, arrY2, arrY3, breakEvenClients, donut };
-  }, [team, promo, infraYear]);
+  }, [team, promo, infraYear, extrasResolved]);
 
   const { teamMonthly, teamYear, promoYear, total, cac, paybackMonths, ltv, arrY1, arrY2, arrY3, breakEvenClients, donut } = calc;
 
