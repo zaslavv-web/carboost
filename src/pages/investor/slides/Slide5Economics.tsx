@@ -82,7 +82,7 @@ export default function Slide5Economics() {
   const infraYear = useDeckNumber("s5.infra", INFRA_DEFAULT);
 
   const calc = useMemo(() => {
-    const teamMonthly = team.reduce((s, r) => s + r.monthly, 0);
+    const teamMonthly = team.reduce((s, r) => s + r.monthly, 0) + extrasResolved.reduce((s, r) => s + r.monthly, 0);
     const teamYear = teamMonthly * 12;
     const promoYear = promo.reduce((s, r) => s + r.v, 0);
     const total = teamYear + promoYear + infraYear;
