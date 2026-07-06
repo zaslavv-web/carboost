@@ -1,4 +1,5 @@
 import SlideLayout from "../SlideLayout";
+import Editable from "../deck/Editable";
 import { Brain, PowerOff, Server, Sparkles } from "lucide-react";
 
 const whyAi = [
@@ -29,9 +30,12 @@ export default function Slide4AI() {
     <SlideLayout kicker="AI под капотом">
       <div className="grid h-full grid-cols-12 gap-6 px-16 pt-28 pb-14">
         <div className="col-span-12">
-          <h2 className="font-['Instrument_Serif'] text-[64px] leading-none text-[#F5F1E8]">
-            AI — <span className="italic text-[#D5A52A]">ускоритель</span>, а не костыль
+          <h2 className="font-['Instrument_Serif'] text-[60px] leading-none text-[#F5F1E8]">
+            <Editable id="s4.h1.a" defaultValue="AI — " />
+            <span className="italic text-[#D5A52A]"><Editable id="s4.h1.b" defaultValue="ускоритель" /></span>
+            <Editable id="s4.h1.c" defaultValue=", а не костыль" />
           </h2>
+
         </div>
 
         <div className="col-span-6 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] p-6">

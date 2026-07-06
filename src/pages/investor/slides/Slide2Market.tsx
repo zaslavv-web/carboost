@@ -1,4 +1,5 @@
 import SlideLayout from "../SlideLayout";
+import Editable from "../deck/Editable";
 import {
   Bar,
   BarChart,
@@ -36,13 +37,13 @@ const pains = [
   "Нехватка HR-аналитики для доски директоров: риски, вовлечённость, ROI обучения",
 ];
 
-function BigNumber({ value, unit }: { value: string; unit: string }) {
+function BigNumber({ id, value, unit }: { id: string; value: string; unit: string }) {
   return (
     <div className="mt-4 flex items-baseline gap-4">
-      <span className="font-['Instrument_Serif'] text-[76px] leading-none text-[#F5F1E8]">
-        {value}
-      </span>
-      <span className="text-[24px] font-light text-[#F5F1E8]/70">{unit}</span>
+      <Editable id={`${id}.v`} defaultValue={value}
+        className="font-['Instrument_Serif'] text-[60px] leading-none text-[#F5F1E8]" />
+      <Editable id={`${id}.u`} defaultValue={unit}
+        className="text-[24px] font-light text-[#F5F1E8]/70" />
     </div>
   );
 }
@@ -53,33 +54,39 @@ export default function Slide2Market() {
       <div className="grid h-full grid-cols-12 gap-8 px-16 pt-28 pb-14">
         <div className="col-span-12">
           <h2 className="font-['Instrument_Serif'] text-[60px] leading-[1.05] text-[#F5F1E8]">
-            Основные показатели <span className="italic text-[#D5A52A]">рынка HRTech</span> в России
-          </h2>
+          <Editable id="s2.title.a" defaultValue="Основные показатели " />
+          <span className="italic text-[#D5A52A]"><Editable id="s2.title.b" defaultValue="рынка HRTech" /></span>
+          <Editable id="s2.title.c" defaultValue=" в России" />
+        </h2>
         </div>
+
 
         {/* Stat cards */}
         <div className="col-span-4 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] px-8 py-6">
-          <div className="text-[15px] uppercase tracking-widest text-[#D5A52A]">Целевые компании</div>
-          <BigNumber value="21" unit="тыс. компаний" />
-          <div className="mt-3 text-[16px] text-[#F5F1E8]/70">
-            Юр.лиц в РФ со штатом 250+ (Росстат, реестр МСП, 2024). Темпы роста ~4% в год.
-          </div>
+          <Editable id="s2.k1" defaultValue="Целевые компании" as="div"
+            className="text-[15px] uppercase tracking-widest text-[#D5A52A]" />
+          <BigNumber id="s2.n1" value="21" unit="тыс. компаний" />
+          <Editable id="s2.t1" as="div" multiline
+            defaultValue="Юр.лиц в РФ со штатом 250+ (Росстат, реестр МСП, 2024). Темпы роста ~4% в год."
+            className="mt-3 text-[16px] text-[#F5F1E8]/70" />
         </div>
 
         <div className="col-span-4 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] px-8 py-6">
-          <div className="text-[15px] uppercase tracking-widest text-[#D5A52A]">Расходы на 1 сотрудника</div>
-          <BigNumber value="₽ 140–180" unit="тыс. / год" />
-          <div className="mt-3 text-[16px] text-[#F5F1E8]/70">
-            Онбординг + обучение + удержание (HH Talent Report 2024, Kept HR Survey 2024). +18% г/г.
-          </div>
+          <Editable id="s2.k2" defaultValue="Расходы на 1 сотрудника" as="div"
+            className="text-[15px] uppercase tracking-widest text-[#D5A52A]" />
+          <BigNumber id="s2.n2" value="₽ 140–180" unit="тыс. / год" />
+          <Editable id="s2.t2" as="div" multiline
+            defaultValue="Онбординг + обучение + удержание (HH Talent Report 2024, Kept HR Survey 2024). +18% г/г."
+            className="mt-3 text-[16px] text-[#F5F1E8]/70" />
         </div>
 
         <div className="col-span-4 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] px-8 py-6">
-          <div className="text-[15px] uppercase tracking-widest text-[#D5A52A]">Рынок HR-tech РФ</div>
-          <BigNumber value="₽ 92" unit="млрд · прогноз 2025" />
-          <div className="mt-3 text-[16px] text-[#F5F1E8]/70">
-            TAdviser, Smart Ranking. Темпы роста ~35% в год (2021–2025).
-          </div>
+          <Editable id="s2.k3" defaultValue="Рынок HR-tech РФ" as="div"
+            className="text-[15px] uppercase tracking-widest text-[#D5A52A]" />
+          <BigNumber id="s2.n3" value="₽ 92" unit="млрд · прогноз 2025" />
+          <Editable id="s2.t3" as="div" multiline
+            defaultValue="TAdviser, Smart Ranking. Темпы роста ~35% в год (2021–2025)."
+            className="mt-3 text-[16px] text-[#F5F1E8]/70" />
         </div>
 
         {/* Charts */}

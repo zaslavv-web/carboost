@@ -1,4 +1,5 @@
 import SlideLayout from "../SlideLayout";
+import Editable from "../deck/Editable";
 import { Target, Megaphone, Handshake, Rocket, Users, Layers } from "lucide-react";
 
 const channels = [
@@ -47,12 +48,14 @@ export default function Slide6Sales() {
       <div className="grid h-full grid-cols-12 gap-6 px-14 pt-28 pb-10">
         <div className="col-span-12">
           <h2 className="font-['Instrument_Serif'] text-[58px] leading-[1.05] text-[#F5F1E8]">
-            Как мы <span className="italic text-[#D5A52A]">продаём</span> первым 30 клиентам
+            <Editable id="s6.h1.a" defaultValue="Как мы " />
+            <span className="italic text-[#D5A52A]"><Editable id="s6.h1.b" defaultValue="продаём" /></span>
+            <Editable id="s6.h1.c" defaultValue=" первым 30 клиентам" />
           </h2>
-          <p className="mt-2 max-w-[1400px] text-[20px] text-[#F5F1E8]/70">
-            Целевой ICP — компании 200+ сотрудников с активным HRD и бюджетом на цифровизацию.
-            Модель — B2B SaaS с бесплатным PoC, средний цикл сделки 45–90 дней.
-          </p>
+          <Editable id="s6.lead" as="p" multiline
+            defaultValue="Целевой ICP — компании 200+ сотрудников с активным HRD и бюджетом на цифровизацию. Модель — B2B SaaS с бесплатным PoC, средний цикл сделки 45–90 дней."
+            className="mt-2 max-w-[1400px] text-[20px] text-[#F5F1E8]/70" />
+
         </div>
 
         {/* 5 channels */}

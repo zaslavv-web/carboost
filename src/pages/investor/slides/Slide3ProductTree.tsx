@@ -1,4 +1,5 @@
 import SlideLayout from "../SlideLayout";
+import Editable from "../deck/Editable";
 import { motion } from "framer-motion";
 
 type Module = { name: string; services: string[] };
@@ -38,11 +39,13 @@ export default function Slide3ProductTree() {
     <SlideLayout kicker="Архитектура продукта">
       <div className="flex h-full flex-col px-14 pt-28 pb-10">
         <h2 className="font-['Instrument_Serif'] text-[60px] leading-[1.05] text-[#F5F1E8]">
-          Дерево <span className="italic text-[#D5A52A]">платформы</span>
+          <Editable id="s3.title.a" defaultValue="Дерево " />
+          <span className="italic text-[#D5A52A]"><Editable id="s3.title.b" defaultValue="платформы" /></span>
         </h2>
-        <p className="mt-2 max-w-[1400px] text-[20px] text-[#F5F1E8]/70">
-          Ствол — информационный портал. Ветки — 9 модулей. Листья — сервисы и подмодули.
-        </p>
+        <Editable id="s3.subtitle" as="p" multiline
+          defaultValue="Ствол — информационный портал. Ветки — 9 модулей. Листья — сервисы и подмодули."
+          className="mt-2 max-w-[1400px] text-[20px] text-[#F5F1E8]/70" />
+
 
         <div className="relative mt-4 flex-1">
           <svg viewBox={`0 0 ${W} ${H}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
