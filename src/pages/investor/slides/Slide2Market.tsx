@@ -58,6 +58,8 @@ export default function Slide2Market() {
           <span className="italic text-[#D5A52A]"><Editable id="s2.title.b" defaultValue="рынка HRTech" /></span>
           <Editable id="s2.title.c" defaultValue=" в России" />
         </h2>
+        </div>
+
 
         {/* Stat cards */}
         <div className="col-span-4 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] px-8 py-6">

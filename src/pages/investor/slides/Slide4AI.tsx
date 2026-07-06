@@ -29,7 +29,7 @@ export default function Slide4AI() {
     <SlideLayout kicker="AI под капотом">
       <div className="grid h-full grid-cols-12 gap-6 px-16 pt-28 pb-14">
         <div className="col-span-12">
-          <h2 className="font-['Instrument_Serif'] text-[64px] leading-none text-[#F5F1E8]">
+          <h2 className="font-['Instrument_Serif'] text-[60px] leading-none text-[#F5F1E8]">
             AI — <span className="italic text-[#D5A52A]">ускоритель</span>, а не костыль
           </h2>
         </div>
