@@ -132,6 +132,7 @@ export default function Slide5Economics() {
                     <NumericEditable id={`${r.id}.monthly`} defaultValue={teamDefaults.find(t => t.id === r.id)!.monthly} />
                   </td>
                 </tr>
+              ))}
               {extrasResolved.map((r) => (
                 <tr key={r.id} className="border-b border-[#D5A52A]/10 last:border-0">
                   <td className="py-1.5 text-[#F5F1E8]/85">
