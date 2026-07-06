@@ -27,7 +27,14 @@ const todo = [
 export default function Slide7Status() {
   return (
     <SlideLayout kicker="Статус реализации">
-      <div className="flex h-full flex-col px-[90px] pt-[110px] pb-[80px]">
+      <div className="relative flex h-full flex-col px-[90px] pt-[110px] pb-[80px]">
+        <img
+          src={peakGrowth}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          className="pointer-events-none absolute right-[60px] top-[70px] w-[340px] opacity-60"
+        />
         <Editable
           id="s7.title"
           as="h2"
