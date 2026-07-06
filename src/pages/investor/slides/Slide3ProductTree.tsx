@@ -106,12 +106,17 @@ export default function Slide3ProductTree() {
                 style={{ transformOrigin: "top" }}
                 className="absolute -top-6 left-1/2 h-6 w-0.5 -translate-x-1/2 bg-[#D5A52A]/60"
               />
-              <Editable
-                id={`s3.${br.id}.name`}
-                defaultValue={br.name}
-                as="div"
-                className="text-[28px] font-semibold leading-[1.15] text-[#1B1D22]"
-              />
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 flex-none items-center justify-center rounded-lg bg-[#D5A52A]/15 text-[#8C6A1A]">
+                  <br.Icon size={26} strokeWidth={1.8} />
+                </div>
+                <Editable
+                  id={`s3.${br.id}.name`}
+                  defaultValue={br.name}
+                  as="div"
+                  className="text-[28px] font-semibold leading-[1.15] text-[#1B1D22]"
+                />
+              </div>
               <ul className="mt-4 space-y-3">
                 {br.leaves.map((leaf, j) => (
                   <li
