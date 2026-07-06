@@ -1,5 +1,5 @@
 import brandLogo from "@/assets/logo-growth-peak.png";
-import heroNetwork from "@/assets/deck/hero-network.png";
+import heroImg from "@/assets/deck/slide1-hero.png";
 import SlideLayout from "../SlideLayout";
 import { motion } from "framer-motion";
 import Editable from "../deck/Editable";
@@ -28,93 +28,94 @@ const pillars = [
     id: "s1.p4",
     Icon: Server,
     title: "Облако или свой контур",
-    text: "Разворачивается в облаке или в контуре компании (Docker / nginx / Kubernetes). Без внешних зависимостей.",
+    text: "Разворачивается в облаке или в контуре компании (Docker / nginx / Kubernetes).",
   },
 ];
 
 export default function Slide1Product() {
   return (
     <SlideLayout kicker="Инвестиционное предложение · 2026" hideWatermark>
-      <div className="flex h-full flex-col px-[90px] pt-[110px] pb-[90px]">
-        {/* Бренд */}
-        <div className="flex items-center gap-8">
-          <motion.img
-            src={brandLogo}
-            alt="Пик роста"
-            initial={{ scale: 0.85, opacity: 0, rotate: -6 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="h-[150px] w-[150px] rounded-2xl object-cover shadow-2xl ring-1 ring-[#D5A52A]/30"
-          />
-          <div className="flex flex-col justify-center">
+      <div className="flex h-full flex-col px-[90px] pt-[110px] pb-[70px]">
+        {/* Верхняя сетка: слева бренд+текст, справа изображение */}
+        <div className="grid grid-cols-[1.35fr_1fr] gap-10">
+          <div>
+            <div className="flex items-center gap-6">
+              <motion.img
+                src={brandLogo}
+                alt="Пик роста"
+                initial={{ scale: 0.85, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                className="h-[120px] w-[120px] rounded-2xl object-cover shadow-2xl ring-1 ring-[#D5A52A]/30"
+              />
+              <div>
+                <Editable
+                  id="s1.brand"
+                  defaultValue="Пик роста"
+                  as="div"
+                  className="text-[76px] font-bold leading-[0.95] text-[#1B1D22]"
+                />
+                <Editable
+                  id="s1.brand.sub"
+                  defaultValue="Внутренняя экосистема компании"
+                  as="div"
+                  className="mt-1 text-[22px] font-medium text-[#8C6A1A]"
+                />
+              </div>
+            </div>
+
             <Editable
-              id="s1.brand"
-              defaultValue="Пик роста"
-              as="div"
-              className="font-['Instrument_Serif'] text-[96px] leading-[0.95] text-[#1B1D22]"
+              id="s1.h1"
+              as="h1"
+              defaultValue="HR-инфраструктура — поддержка и развитие главного капитала"
+              className="mt-8 text-[48px] font-bold leading-[1.08] text-[#1B1D22]"
             />
             <Editable
-              id="s1.brand.sub"
-              defaultValue="Внутренняя экосистема компании"
-              as="div"
-              className="mt-1 text-[28px] leading-[1.2] text-[#8C6A1A]"
+              id="s1.lead"
+              as="p"
+              multiline
+              defaultValue="Единая кадровая платформа полного цикла: найм, адаптация, карьерные треки, ИИ-оценка, обучение, отпуска, признание — вместо 5+ инструментов."
+              className="mt-4 text-[22px] leading-[1.35] text-[#1B1D22]/75"
             />
           </div>
-        </div>
 
-        {/* Заголовок + лид */}
-        <div className="mt-10">
-          <Editable
-            id="s1.h1"
-            as="h1"
-            defaultValue="HR-инфраструктура (поддержка и развитие главного капитала компании)"
-            className="max-w-[1650px] font-['Instrument_Serif'] italic text-[64px] leading-[1.05] text-[#1B1D22]"
-          />
-          <Editable
-            id="s1.lead"
-            as="p"
-            multiline
-            defaultValue="Единая кадровая платформа полного цикла: найм, адаптация, карьерные треки, ИИ-оценка, обучение, отпуска, признание. Один продукт вместо 5+ инструментов."
-            className="mt-5 max-w-[1200px] text-[26px] leading-[1.35] text-[#1B1D22]/75"
-          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+            className="flex items-center justify-center rounded-3xl border border-[#D5A52A]/25 bg-white/70 p-6 shadow-sm"
+          >
+            <img src={heroImg} alt="" aria-hidden className="max-h-[300px] w-auto" />
+          </motion.div>
         </div>
-
-        {/* Декоративная иллюстрация */}
-        <img
-          src={heroNetwork}
-          alt=""
-          aria-hidden
-          loading="lazy"
-          className="pointer-events-none absolute right-[40px] top-[220px] w-[560px] opacity-70"
-        />
 
         {/* 4 карточки 2×2 */}
-        <div className="mt-auto grid grid-cols-2 gap-6">
+        <div className="mt-auto grid grid-cols-2 gap-5">
           {pillars.map(({ id, Icon, title, text }, i) => (
             <motion.div
               key={id}
               initial={{ y: 24, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.2 + i * 0.08 }}
-              className="relative rounded-2xl border border-[#D5A52A]/30 bg-white p-7 shadow-sm"
+              className="rounded-2xl border border-[#D5A52A]/30 bg-white p-6 shadow-sm"
             >
               <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 flex-none items-center justify-center rounded-xl bg-[#D5A52A]/15 text-[#8C6A1A]">
-                  <Icon size={30} strokeWidth={1.8} />
+                <div className="flex h-12 w-12 flex-none items-center justify-center rounded-xl bg-[#D5A52A]/15 text-[#8C6A1A]">
+                  <Icon size={26} strokeWidth={1.8} />
                 </div>
                 <div className="flex-1">
                   <Editable
                     id={`${id}.title`}
                     defaultValue={title}
                     as="div"
-                    className="text-[28px] font-semibold leading-[1.15] text-[#1B1D22]"
+                    className="text-[22px] font-semibold leading-[1.2] text-[#1B1D22]"
                   />
                   <Editable
                     id={`${id}.text`}
                     defaultValue={text}
                     as="div"
                     multiline
-                    className="mt-2 text-[24px] leading-[1.35] text-[#1B1D22]/75"
+                    className="mt-2 text-[18px] leading-[1.35] text-[#1B1D22]/75"
                   />
                 </div>
               </div>
@@ -122,9 +123,7 @@ export default function Slide1Product() {
           ))}
         </div>
 
-
-        {/* Футер */}
-        <div className="mt-6 flex items-center justify-between text-[24px] text-[#1B1D22]/60">
+        <div className="mt-5 flex items-center justify-between text-[18px] text-[#1B1D22]/60">
           <Editable id="s1.foot.brand" defaultValue="Пик роста · 2026" />
           <Editable id="s1.foot.page" defaultValue="01 / 08" />
         </div>
