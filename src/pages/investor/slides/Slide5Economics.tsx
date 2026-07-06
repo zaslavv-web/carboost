@@ -39,12 +39,15 @@ export default function Slide5Economics() {
           {/* Команда */}
           <div className="rounded-2xl border border-[#D5A52A]/30 bg-white p-6 shadow-sm">
             <div className="flex items-baseline justify-between">
-              <Editable
-                id="s5.team.title"
-                defaultValue="Команда · фонд оплаты труда"
-                as="div"
-                className="text-[26px] font-semibold text-[#1B1D22]"
-              />
+              <div className="flex items-center gap-3">
+                <Users size={26} strokeWidth={1.8} className="text-[#8C6A1A]" />
+                <Editable
+                  id="s5.team.title"
+                  defaultValue="Команда · фонд оплаты труда"
+                  as="div"
+                  className="text-[26px] font-semibold text-[#1B1D22]"
+                />
+              </div>
               <Editable
                 id="s5.team.unit"
                 defaultValue="Тыс. р./мес."
