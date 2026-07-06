@@ -47,25 +47,26 @@ export default function Slide1Product() {
           defaultValue="Единая кадровая платформа полного цикла: от найма и адаптации — до карьерных треков, оценки с помощью ИИ, оценки эффективности, обучения, отпусков и признания. Один продукт вместо 5+ инструментов."
           className="mt-6 max-w-[1400px] text-[26px] leading-[1.35] text-[#1B1D22]/75" />
 
-        <div className="mt-auto grid grid-cols-4 gap-6">
+        <div className="mt-auto grid grid-cols-2 gap-10">
           {pillars.map(({ id, icon: Icon, title, text }, i) => (
             <motion.div
               key={id}
               initial={{ y: 24, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.2 + i * 0.08 }}
-              className="rounded-2xl border border-[#D5A52A]/30 bg-white p-6 shadow-sm"
+              className="rounded-2xl border border-[#D5A52A]/30 bg-white p-12 shadow-sm"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#D5A52A]/20 text-[#8C6A1A]">
-                <Icon className="h-6 w-6" />
+              <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-[#D5A52A]/20 text-[#8C6A1A]">
+                <Icon className="h-12 w-12" />
               </div>
               <Editable id={`${id}.title`} defaultValue={title} as="div"
-                className="mt-4 text-[22px] font-semibold text-[#1B1D22]" />
+                className="mt-8 text-[36px] font-semibold leading-[1.15] text-[#1B1D22]" />
               <Editable id={`${id}.text`} defaultValue={text} as="div" multiline
-                className="mt-2 text-[16px] leading-[1.4] text-[#1B1D22]/65" />
+                className="mt-5 text-[24px] leading-[1.4] text-[#1B1D22]/70" />
             </motion.div>
           ))}
         </div>
+
       </div>
     </SlideLayout>
   );
