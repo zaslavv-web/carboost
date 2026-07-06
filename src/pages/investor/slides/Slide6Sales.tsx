@@ -82,13 +82,16 @@ export default function Slide6Sales() {
                 className="rounded-2xl border-2 p-6"
                 style={{ borderColor: `${s.color}66`, background: `${s.color}0d` }}
               >
-                <Editable
-                  id={`${s.id}.weeks`}
-                  defaultValue={s.weeks}
-                  as="div"
-                  className="text-[24px] uppercase tracking-widest"
-                  {...{ style: { color: s.color } } as any}
-                />
+                <div className="flex items-center gap-3">
+                  <s.Icon size={28} strokeWidth={1.8} style={{ color: s.color }} />
+                  <Editable
+                    id={`${s.id}.weeks`}
+                    defaultValue={s.weeks}
+                    as="div"
+                    className="text-[24px] uppercase tracking-widest"
+                    {...{ style: { color: s.color } } as any}
+                  />
+                </div>
                 <Editable
                   id={`${s.id}.title`}
                   defaultValue={s.title}
