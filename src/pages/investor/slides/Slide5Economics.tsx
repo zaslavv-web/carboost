@@ -161,17 +161,51 @@ export default function Slide5Economics() {
           <div className="mt-1 text-[14px] text-[#F5F1E8]/65">
             {fmt(total)} тыс. ₽ · раунд-запрос {raiseLow / 1000}–{raiseHigh / 1000} млн ₽
           </div>
-          <div className="mt-2 h-[130px]">
+          <div className="mt-2 h-[170px]">
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={donut} dataKey="v" nameKey="name" innerRadius={35} outerRadius={60} paddingAngle={3}>
+                <Pie
+                  data={donut}
+                  dataKey="v"
+                  nameKey="name"
+                  innerRadius={40}
+                  outerRadius={72}
+                  paddingAngle={4}
+                  stroke="#1B1D22"
+                  strokeWidth={2}
+                  minAngle={12}
+                >
                   {donut.map((d, i) => (<Cell key={i} fill={d.fill} />))}
                 </Pie>
-                <Tooltip contentStyle={{ background: "#1B1D22", border: "1px solid #D5A52A" }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "#1B1D22",
+                    border: "1px solid #D5A52A",
+                    borderRadius: 8,
+                    color: "#F5F1E8",
+                    fontSize: 13,
+                    padding: "8px 10px",
+                  }}
+                  labelStyle={{ color: "#F5F1E8", fontWeight: 600 }}
+                  itemStyle={{ color: "#F5F1E8" }}
+                  formatter={(value: number, name: string) => [`${fmt(value)} тыс. ₽`, name]}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
+          <div className="mt-2 space-y-1">
+            {donut.map((d) => (
+              <div key={d.name} className="flex items-center justify-between text-[13px] text-[#F5F1E8]/85">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: d.fill }} />
+                  <span>{d.name}</span>
+                </div>
+                <span className="font-mono text-[#F5F1E8]">{fmt(d.v)} тыс. ₽</span>
+              </div>
+            ))}
+          </div>
         </div>
+
 
         {/* Unit economics */}
         <div className="col-span-8 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] p-5">
