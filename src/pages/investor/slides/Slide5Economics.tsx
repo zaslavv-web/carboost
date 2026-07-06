@@ -10,6 +10,7 @@ const teamDefaults = [
   { id: "s5.team.0", role: "2 × Fullstack-разработчик", monthly: 500 },
   { id: "s5.team.1", role: "1 × CTO / Tech Lead", monthly: 500 },
   { id: "s5.team.2", role: "1 × Sales Lead (+ бонус %)", monthly: 250 },
+  { id: "s5.team.3", role: "1 × Product Owner", monthly: 400 },
 ];
 const promoDefaults = [
   { id: "s5.promo.0", name: "Контент, SEO, соцсети", v: 1_200 },
