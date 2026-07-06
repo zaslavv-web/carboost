@@ -60,67 +60,46 @@ export default function DeckNav({
     e.target.value = "";
   };
 
+  const btn = "rounded-full p-2 text-[#1B1D22] hover:bg-[#D5A52A]/20";
+
   return (
     <div
-      className={`fixed right-4 bottom-4 z-50 flex flex-col items-center gap-2 rounded-2xl border border-[#D5A52A]/30 bg-[#1B1D22]/85 px-2 py-2 backdrop-blur transition-opacity duration-500 print:hidden ${
+      className={`fixed right-4 bottom-4 z-50 flex flex-col items-center gap-2 rounded-2xl border border-[#D5A52A]/40 bg-white/90 px-2 py-2 backdrop-blur shadow-lg transition-opacity duration-500 print:hidden ${
         visible || editMode ? "opacity-100" : "opacity-0 pointer-events-none"
       }`}
       onMouseEnter={() => setVisible(true)}
     >
-      <button
-        onClick={onPrev}
-        className="rounded-full p-2 text-[#F5F1E8] hover:bg-[#D5A52A]/20 disabled:opacity-30"
-        disabled={index === 0}
-        aria-label="Prev"
-        title="Предыдущий"
-      >
+      <button onClick={onPrev} className={`${btn} disabled:opacity-30`} disabled={index === 0} title="Предыдущий">
         <ChevronLeft className="h-5 w-5" />
       </button>
-      <span className="min-w-[3rem] text-center font-mono text-[12px] text-[#F5F1E8]">
+      <span className="min-w-[3rem] text-center font-mono text-[12px] text-[#1B1D22]">
         {String(index + 1).padStart(2, "0")}/{String(total).padStart(2, "0")}
       </span>
-      <button
-        onClick={onNext}
-        className="rounded-full p-2 text-[#F5F1E8] hover:bg-[#D5A52A]/20 disabled:opacity-30"
-        disabled={index === total - 1}
-        aria-label="Next"
-        title="Следующий"
-      >
+      <button onClick={onNext} className={`${btn} disabled:opacity-30`} disabled={index === total - 1} title="Следующий">
         <ChevronRight className="h-5 w-5" />
       </button>
 
-      <div className="my-1 h-px w-6 bg-[#D5A52A]/30" />
+      <div className="my-1 h-px w-6 bg-[#D5A52A]/40" />
 
       <button
         onClick={() => setEditMode(!editMode)}
-        className={`rounded-full p-2 hover:bg-[#D5A52A]/20 ${editMode ? "bg-[#D5A52A]/25 text-[#D5A52A]" : "text-[#F5F1E8]"}`}
+        className={`rounded-full p-2 hover:bg-[#D5A52A]/20 ${editMode ? "bg-[#D5A52A]/25 text-[#8C6A1A]" : "text-[#1B1D22]"}`}
         title={editMode ? "Выключить режим редактирования" : "Режим редактирования"}
-        aria-label="Toggle edit"
       >
         <Pencil className="h-4 w-4" />
       </button>
       {editMode && (
         <>
-          <button
-            onClick={doExport}
-            className="rounded-full p-2 text-[#F5F1E8] hover:bg-[#D5A52A]/20"
-            title="Экспорт правок (JSON)"
-          >
+          <button onClick={doExport} className={btn} title="Экспорт правок (JSON)">
             <Download className="h-4 w-4" />
           </button>
-          <button
-            onClick={doImport}
-            className="rounded-full p-2 text-[#F5F1E8] hover:bg-[#D5A52A]/20"
-            title="Импорт правок (JSON)"
-          >
+          <button onClick={doImport} className={btn} title="Импорт правок (JSON)">
             <Upload className="h-4 w-4" />
           </button>
           <input ref={fileRef} type="file" accept="application/json" onChange={onFile} className="hidden" />
           <button
-            onClick={() => {
-              if (confirm("Сбросить все правки к исходному варианту?")) reset();
-            }}
-            className="rounded-full p-2 text-[#F5F1E8] hover:bg-[#D5A52A]/20"
+            onClick={() => { if (confirm("Сбросить все правки к исходному варианту?")) reset(); }}
+            className={btn}
             title="Сбросить правки"
           >
             <RotateCcw className="h-4 w-4" />
@@ -128,22 +107,12 @@ export default function DeckNav({
         </>
       )}
 
-      <div className="my-1 h-px w-6 bg-[#D5A52A]/30" />
+      <div className="my-1 h-px w-6 bg-[#D5A52A]/40" />
 
-      <button
-        onClick={onFullscreen}
-        className="rounded-full p-2 text-[#F5F1E8] hover:bg-[#D5A52A]/20"
-        title="Полноэкранный режим (F)"
-        aria-label="Fullscreen"
-      >
+      <button onClick={onFullscreen} className={btn} title="Полноэкранный режим (F)">
         <Maximize2 className="h-4 w-4" />
       </button>
-      <button
-        onClick={() => window.print()}
-        className="rounded-full p-2 text-[#F5F1E8] hover:bg-[#D5A52A]/20"
-        title="Сохранить в PDF"
-        aria-label="Print"
-      >
+      <button onClick={() => window.print()} className={btn} title="Сохранить в PDF">
         <Printer className="h-4 w-4" />
       </button>
     </div>

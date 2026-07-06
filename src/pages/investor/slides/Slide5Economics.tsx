@@ -8,28 +8,19 @@ import { Plus, X } from "lucide-react";
 
 // ==== Defaults ====
 const teamDefaults = [
-  { id: "s5.team.0", role: "2 × Fullstack-разработчик", monthly: 500 },
-  { id: "s5.team.1", role: "1 × CTO / Tech Lead", monthly: 500 },
-  { id: "s5.team.2", role: "1 × Sales Lead (+ бонус %)", monthly: 250 },
-  { id: "s5.team.3", role: "1 × Product Owner", monthly: 400 },
+  { id: "s5.team.0", role: "2 × Разработчик (fullstack)", monthly: 500 },
+  { id: "s5.team.1", role: "1 × Технический лидер", monthly: 500 },
+  { id: "s5.team.2", role: "1 × Руководитель продаж (+ бонус %)", monthly: 250 },
+  { id: "s5.team.3", role: "1 × Владелец продукта", monthly: 400 },
 ];
 const promoDefaults = [
-  { id: "s5.promo.0", name: "Контент, SEO, соцсети", v: 1_200 },
-  { id: "s5.promo.1", name: "Performance / таргет", v: 1_200 },
-  { id: "s5.promo.2", name: "HR-конференции (HR EXPO)", v: 800 },
-  { id: "s5.promo.3", name: "PR и партнёрства", v: 500 },
+  { id: "s5.promo.0", name: "Контент, поисковый трафик, соцсети", v: 1_200 },
+  { id: "s5.promo.1", name: "Реклама и таргетинг", v: 1_200 },
+  { id: "s5.promo.2", name: "Отраслевые конференции", v: 800 },
+  { id: "s5.promo.3", name: "Пиар и партнёрства", v: 500 },
   { id: "s5.promo.4", name: "Демо-стенд и материалы", v: 300 },
 ];
 const INFRA_DEFAULT = 1_500;
-
-// Unit-economics constants
-const seatPrice = 2_000;
-const avgSeats = 200;
-const arpuYear = (seatPrice * avgSeats * 12) / 1000; // 4800 тыс ₽
-const clientsY1 = 4;
-const clientsY2 = 12;
-const clientsY3 = 30;
-const grossMargin = 0.72;
 
 const fmt = (v: number) => Math.round(v).toLocaleString("ru-RU");
 
@@ -39,13 +30,11 @@ const raiseHigh = 10_000;
 export default function Slide5Economics() {
   const { values, setValue, editMode } = useDeckCtx();
 
-  // reactive values (fixed team defaults)
   const team = teamDefaults.map((r) => ({
     ...r,
     monthly: useDeckNumber(`${r.id}.monthly`, r.monthly),
   }));
 
-  // extras: пользовательские сотрудники, хранятся JSON-списком
   const extras = useMemo(() => {
     try {
       const parsed = JSON.parse(values["s5.team.extras"] ?? "[]");
@@ -70,7 +59,6 @@ export default function Slide5Economics() {
   const removeExtra = (id: string) => {
     const next = extras.filter((e) => e.id !== id);
     setValue("s5.team.extras", JSON.stringify(next));
-    // очистим оверрайды, чтобы не копились
     setValue(`${id}.role`, "");
     setValue(`${id}.monthly`, "");
   };
@@ -86,71 +74,64 @@ export default function Slide5Economics() {
     const teamYear = teamMonthly * 12;
     const promoYear = promo.reduce((s, r) => s + r.v, 0);
     const total = teamYear + promoYear + infraYear;
-    const cac = promoYear / clientsY1;
-    const paybackMonths = Math.ceil(cac / ((arpuYear * grossMargin) / 12));
-    const ltv = arpuYear * grossMargin * 3;
-    const arrY1 = arpuYear * clientsY1;
-    const arrY2 = arpuYear * clientsY2;
-    const arrY3 = arpuYear * clientsY3;
-    const breakEvenClients = Math.ceil(total / (arpuYear * grossMargin));
     const donut = [
-      { name: "Команда (ФОТ)", v: teamYear, fill: "#D5A52A" },
+      { name: "Команда (фонд оплаты труда)", v: teamYear, fill: "#D5A52A" },
       { name: "Продвижение", v: promoYear, fill: "#8C6A1A" },
-      { name: "Инфраструктура / AI", v: infraYear, fill: "#5A4410" },
+      { name: "Инфраструктура и ИИ", v: infraYear, fill: "#5A4410" },
     ];
-    return { teamMonthly, teamYear, promoYear, total, cac, paybackMonths, ltv, arrY1, arrY2, arrY3, breakEvenClients, donut };
+    return { teamMonthly, teamYear, promoYear, total, donut };
   }, [team, promo, infraYear, extrasResolved]);
 
-  const { teamMonthly, teamYear, promoYear, total, cac, paybackMonths, ltv, arrY1, arrY2, arrY3, breakEvenClients, donut } = calc;
+  const { teamMonthly, teamYear, promoYear, total, donut } = calc;
+
+  const cellBg = "bg-white";
+  const cellBorder = "border-[#D5A52A]/30";
+  const rowBorder = "border-[#D5A52A]/20";
 
   return (
-    <SlideLayout kicker="Экономика · Бюджет и окупаемость · 12 мес">
+    <SlideLayout kicker="Экономика · Затраты · 12 мес">
       <div className="grid h-full grid-cols-12 gap-5 px-14 pt-28 pb-10">
         <div className="col-span-12">
-          <h2 className="font-['Instrument_Serif'] text-[58px] leading-[1.05] text-[#F5F1E8]">
-            <Editable id="s5.h1.a" defaultValue="Бюджет, " />
-            <span className="italic text-[#D5A52A]"><Editable id="s5.h1.b" defaultValue="юнит-экономика" /></span>
-            <Editable id="s5.h1.c" defaultValue=" и окупаемость" />
+          <h2 className="font-['Instrument_Serif'] text-[58px] leading-[1.05] text-[#1B1D22]">
+            <Editable id="s5.h1.a" defaultValue="Бюджет и " />
+            <span className="italic text-[#8C6A1A]"><Editable id="s5.h1.b" defaultValue="структура затрат" /></span>
+            <Editable id="s5.h1.c" defaultValue=" на год" />
           </h2>
         </div>
 
         {/* Team */}
-        <div className="col-span-4 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] p-5">
+        <div className={`col-span-4 rounded-2xl border ${cellBorder} ${cellBg} p-5 shadow-sm`}>
           <div className="flex items-baseline justify-between">
-            <Editable id="s5.team.title" defaultValue="Команда · ФОТ" as="div"
-              className="text-[20px] font-semibold text-[#F5F1E8]" />
-            <div className="text-[11px] uppercase tracking-widest text-[#D5A52A]">gross / мес, тыс. ₽</div>
+            <Editable id="s5.team.title" defaultValue="Команда · фонд оплаты труда" as="div"
+              className="text-[20px] font-semibold text-[#1B1D22]" />
+            <div className="text-[11px] uppercase tracking-widest text-[#8C6A1A]">мес, тыс. ₽</div>
           </div>
           <table className="mt-2 w-full text-[14px]">
             <tbody>
               {team.map((r) => (
-                <tr key={r.id} className="border-b border-[#D5A52A]/10 last:border-0">
-                  <td className="py-1.5 text-[#F5F1E8]/85">
+                <tr key={r.id} className={`border-b ${rowBorder} last:border-0`}>
+                  <td className="py-1.5 text-[#1B1D22]/85">
                     <Editable id={`${r.id}.role`} defaultValue={r.role} />
                   </td>
-                  <td className="py-1.5 text-right font-mono text-[#F5F1E8]">
+                  <td className="py-1.5 text-right font-mono text-[#1B1D22]">
                     <NumericEditable id={`${r.id}.monthly`} defaultValue={teamDefaults.find(t => t.id === r.id)!.monthly} />
                   </td>
                 </tr>
               ))}
               {extrasResolved.map((r) => (
-                <tr key={r.id} className="border-b border-[#D5A52A]/10 last:border-0">
-                  <td className="py-1.5 text-[#F5F1E8]/85">
+                <tr key={r.id} className={`border-b ${rowBorder} last:border-0`}>
+                  <td className="py-1.5 text-[#1B1D22]/85">
                     <div className="flex items-center gap-1.5">
                       {editMode && (
-                        <button
-                          type="button"
-                          onClick={() => removeExtra(r.id)}
-                          className="text-[#D5A52A]/70 hover:text-[#D5A52A]"
-                          aria-label="Удалить сотрудника"
-                        >
+                        <button type="button" onClick={() => removeExtra(r.id)}
+                          className="text-[#8C6A1A]/70 hover:text-[#8C6A1A]" aria-label="Удалить сотрудника">
                           <X size={12} />
                         </button>
                       )}
                       <Editable id={`${r.id}.role`} defaultValue={r.role} />
                     </div>
                   </td>
-                  <td className="py-1.5 text-right font-mono text-[#F5F1E8]">
+                  <td className="py-1.5 text-right font-mono text-[#1B1D22]">
                     <NumericEditable id={`${r.id}.monthly`} defaultValue={r.monthly} />
                   </td>
                 </tr>
@@ -158,22 +139,19 @@ export default function Slide5Economics() {
             </tbody>
           </table>
           {editMode && (
-            <button
-              type="button"
-              onClick={addExtra}
-              className="mt-2 inline-flex items-center gap-1 rounded-md border border-dashed border-[#D5A52A]/50 px-2 py-1 text-[12px] text-[#D5A52A] hover:bg-[#D5A52A]/10"
-            >
+            <button type="button" onClick={addExtra}
+              className="mt-2 inline-flex items-center gap-1 rounded-md border border-dashed border-[#8C6A1A]/60 px-2 py-1 text-[12px] text-[#8C6A1A] hover:bg-[#D5A52A]/10">
               <Plus size={12} /> Добавить сотрудника
             </button>
           )}
           <div className="mt-3 border-t border-[#D5A52A]/30 pt-2">
-            <div className="flex items-baseline justify-between text-[14px] text-[#F5F1E8]/70">
+            <div className="flex items-baseline justify-between text-[14px] text-[#1B1D22]/70">
               <span>Мес</span>
-              <span className="font-mono text-[#F5F1E8]">{fmt(teamMonthly)} тыс. ₽</span>
+              <span className="font-mono text-[#1B1D22]">{fmt(teamMonthly)} тыс. ₽</span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-[14px] text-[#F5F1E8]/70">Год</span>
-              <span className="font-['Instrument_Serif'] text-[26px] text-[#D5A52A]">
+              <span className="text-[14px] text-[#1B1D22]/70">Год</span>
+              <span className="font-['Instrument_Serif'] text-[26px] text-[#8C6A1A]">
                 {fmt(teamYear)} тыс. ₽
               </span>
             </div>
@@ -181,78 +159,63 @@ export default function Slide5Economics() {
         </div>
 
         {/* Promo */}
-        <div className="col-span-4 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] p-5">
+        <div className={`col-span-4 rounded-2xl border ${cellBorder} ${cellBg} p-5 shadow-sm`}>
           <div className="flex items-baseline justify-between">
             <Editable id="s5.promo.title" defaultValue="Продвижение · 12 мес" as="div"
-              className="text-[20px] font-semibold text-[#F5F1E8]" />
-            <div className="text-[11px] uppercase tracking-widest text-[#D5A52A]">тыс. ₽ / год</div>
+              className="text-[20px] font-semibold text-[#1B1D22]" />
+            <div className="text-[11px] uppercase tracking-widest text-[#8C6A1A]">тыс. ₽ / год</div>
           </div>
           <table className="mt-2 w-full text-[14px]">
             <tbody>
               {promo.map((r) => (
-                <tr key={r.id} className="border-b border-[#D5A52A]/10 last:border-0">
-                  <td className="py-1.5 text-[#F5F1E8]/85">
+                <tr key={r.id} className={`border-b ${rowBorder} last:border-0`}>
+                  <td className="py-1.5 text-[#1B1D22]/85">
                     <Editable id={`${r.id}.name`} defaultValue={r.name} />
                   </td>
-                  <td className="py-1.5 text-right font-mono text-[#F5F1E8]">
+                  <td className="py-1.5 text-right font-mono text-[#1B1D22]">
                     <NumericEditable id={`${r.id}.v`} defaultValue={promoDefaults.find(t => t.id === r.id)!.v} />
                   </td>
                 </tr>
               ))}
               <tr>
-                <td className="py-1.5 text-[#F5F1E8]/85">
-                  <Editable id="s5.infra.name" defaultValue="Инфра / AI-тарифы" />
+                <td className="py-1.5 text-[#1B1D22]/85">
+                  <Editable id="s5.infra.name" defaultValue="Инфраструктура и ИИ" />
                 </td>
-                <td className="py-1.5 text-right font-mono text-[#F5F1E8]">
+                <td className="py-1.5 text-right font-mono text-[#1B1D22]">
                   <NumericEditable id="s5.infra" defaultValue={INFRA_DEFAULT} />
                 </td>
               </tr>
             </tbody>
           </table>
           <div className="mt-3 flex items-baseline justify-between border-t border-[#D5A52A]/30 pt-2">
-            <span className="text-[14px] text-[#F5F1E8]/70">Итого маркетинг + инфра</span>
-            <span className="font-['Instrument_Serif'] text-[26px] text-[#D5A52A]">
+            <span className="text-[14px] text-[#1B1D22]/70">Итого продвижение + инфраструктура</span>
+            <span className="font-['Instrument_Serif'] text-[26px] text-[#8C6A1A]">
               {fmt(promoYear + infraYear)} тыс. ₽
             </span>
           </div>
         </div>
 
         {/* Donut & total */}
-        <div className="col-span-4 rounded-2xl border border-[#D5A52A]/40 bg-[#D5A52A]/5 p-5">
-          <div className="text-[11px] uppercase tracking-widest text-[#D5A52A]">Итого бюджет · год</div>
-          <div className="mt-1 font-['Instrument_Serif'] text-[60px] leading-none text-[#F5F1E8]">
+        <div className="col-span-4 rounded-2xl border border-[#D5A52A]/50 bg-[#D5A52A]/10 p-5 shadow-sm">
+          <div className="text-[11px] uppercase tracking-widest text-[#8C6A1A]">Итого бюджет · год</div>
+          <div className="mt-1 font-['Instrument_Serif'] text-[60px] leading-none text-[#1B1D22]">
             ₽ {(total / 1000).toFixed(1)} млн
           </div>
-          <div className="mt-1 text-[14px] text-[#F5F1E8]/65">
+          <div className="mt-1 text-[14px] text-[#1B1D22]/70">
             {fmt(total)} тыс. ₽ · раунд-запрос {raiseLow / 1000}–{raiseHigh / 1000} млн ₽
           </div>
-          <div className="mt-2 h-[170px]">
+          <div className="mt-2 h-[210px]">
             <ResponsiveContainer>
               <PieChart>
-                <Pie
-                  data={donut}
-                  dataKey="v"
-                  nameKey="name"
-                  innerRadius={40}
-                  outerRadius={72}
-                  paddingAngle={4}
-                  stroke="#1B1D22"
-                  strokeWidth={2}
-                  minAngle={12}
-                >
+                <Pie data={donut} dataKey="v" nameKey="name"
+                  innerRadius={45} outerRadius={80} paddingAngle={4}
+                  stroke="#F7F4EC" strokeWidth={2} minAngle={12}>
                   {donut.map((d, i) => (<Cell key={i} fill={d.fill} />))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{
-                    background: "#1B1D22",
-                    border: "1px solid #D5A52A",
-                    borderRadius: 8,
-                    color: "#F5F1E8",
-                    fontSize: 13,
-                    padding: "8px 10px",
-                  }}
-                  labelStyle={{ color: "#F5F1E8", fontWeight: 600 }}
-                  itemStyle={{ color: "#F5F1E8" }}
+                  contentStyle={{ background: "#fff", border: "1px solid #D5A52A", borderRadius: 8, color: "#1B1D22", fontSize: 13, padding: "8px 10px" }}
+                  labelStyle={{ color: "#1B1D22", fontWeight: 600 }}
+                  itemStyle={{ color: "#1B1D22" }}
                   formatter={(value: number, name: string) => [`${fmt(value)} тыс. ₽`, name]}
                 />
               </PieChart>
@@ -260,80 +223,20 @@ export default function Slide5Economics() {
           </div>
           <div className="mt-2 space-y-1">
             {donut.map((d) => (
-              <div key={d.name} className="flex items-center justify-between text-[13px] text-[#F5F1E8]/85">
+              <div key={d.name} className="flex items-center justify-between text-[13px] text-[#1B1D22]/85">
                 <div className="flex items-center gap-2">
                   <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: d.fill }} />
                   <span>{d.name}</span>
                 </div>
-                <span className="font-mono text-[#F5F1E8]">{fmt(d.v)} тыс. ₽</span>
+                <span className="font-mono text-[#1B1D22]">{fmt(d.v)} тыс. ₽</span>
               </div>
             ))}
           </div>
         </div>
 
-
-        {/* Unit economics */}
-        <div className="col-span-8 rounded-2xl border border-[#D5A52A]/25 bg-[#25272D] p-5">
-          <div className="flex items-baseline justify-between">
-            <div className="text-[20px] font-semibold text-[#F5F1E8]">Юнит-экономика · клиент 200+ сотр.</div>
-            <div className="text-[11px] uppercase tracking-widest text-[#D5A52A]">2 000 ₽ / seat / мес</div>
-          </div>
-          <div className="mt-3 grid grid-cols-5 gap-3">
-            {[
-              { label: "ARPU / год", value: `₽ ${(arpuYear / 1000).toFixed(1)} млн`, sub: "200 сотр × 2 000 ₽ × 12" },
-              { label: "Gross margin", value: `${Math.round(grossMargin * 100)}%`, sub: "после инфры / AI / support" },
-              { label: "CAC", value: `₽ ${fmt(cac)} тыс.`, sub: `бюджет ${fmt(promoYear)} / ${clientsY1} клиента` },
-              { label: "Payback", value: `${paybackMonths} мес`, sub: "маржинальный, per client" },
-              { label: "LTV / CAC", value: `${(ltv / cac).toFixed(1)}×`, sub: `LTV ≈ ₽ ${fmt(ltv)} тыс. (3 года)` },
-            ].map((m) => (
-              <div key={m.label} className="rounded-xl border border-[#D5A52A]/20 bg-[#1B1D22] p-3">
-                <div className="text-[11px] uppercase tracking-widest text-[#D5A52A]">{m.label}</div>
-                <div className="mt-1 font-['Instrument_Serif'] text-[26px] leading-none text-[#F5F1E8]">
-                  {m.value}
-                </div>
-                <div className="mt-1 text-[11px] text-[#F5F1E8]/55">{m.sub}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            {[
-              { y: "Y1 · 12 мес", n: clientsY1, arr: arrY1 },
-              { y: "Y2 · 24 мес", n: clientsY2, arr: arrY2 },
-              { y: "Y3 · 36 мес", n: clientsY3, arr: arrY3 },
-            ].map((r) => (
-              <div key={r.y} className="rounded-xl border border-[#D5A52A]/25 bg-[#1B1D22] p-3">
-                <div className="text-[11px] uppercase tracking-widest text-[#D5A52A]">{r.y}</div>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <span className="font-['Instrument_Serif'] text-[28px] text-[#F5F1E8]">{r.n}</span>
-                  <span className="text-[13px] text-[#F5F1E8]/60">клиентов</span>
-                </div>
-                <div className="mt-1 text-[15px] text-[#F5F1E8]/80">
-                  ARR ≈ <span className="text-[#D5A52A]">₽ {(r.arr / 1000).toFixed(1)} млн</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Break-even */}
-        <div className="col-span-4 rounded-2xl border border-[#D5A52A]/40 bg-[#D5A52A]/5 p-5">
-          <div className="text-[11px] uppercase tracking-widest text-[#D5A52A]">Точка безубыточности</div>
-          <div className="mt-1 font-['Instrument_Serif'] text-[54px] leading-none text-[#F5F1E8]">
-            {breakEvenClients} клиентов
-          </div>
-          <Editable id="s5.be.text" multiline as="div"
-            defaultValue={`При марже ${Math.round(grossMargin * 100)}% и ARPU ₽ ${(arpuYear / 1000).toFixed(1)} млн операционная безубыточность достигается в течение Q2–Q3 второго года.`}
-            className="mt-2 text-[14px] leading-[1.4] text-[#F5F1E8]/75" />
-          <div className="mt-3 border-t border-[#D5A52A]/25 pt-2 text-[13px] text-[#F5F1E8]/60">
-            Плановый ARR к концу Y3 — <span className="text-[#D5A52A]">₽ {(arrY3 / 1000).toFixed(0)} млн</span>,
-            EBITDA-положительный с Y2.
-          </div>
-        </div>
-
-        <div className="col-span-12 text-[12px] text-[#F5F1E8]/50">
-          Все цифры — оценочные, подлежат уточнению в due diligence. Валюта — рубли (тыс. / млн).
-          {" "}Клик по числам в таблицах ФОТ / Продвижение — редактируемо (нужен режим ✎).
+        <div className="col-span-12 text-[12px] text-[#1B1D22]/60">
+          <Editable id="s5.foot" multiline
+            defaultValue="Все цифры оценочные, подлежат уточнению. Валюта — рубли (тыс. / млн). Числа в таблицах ФОТ и Продвижения редактируются в режиме ✎ — сумма пересчитывается автоматически." />
         </div>
       </div>
     </SlideLayout>

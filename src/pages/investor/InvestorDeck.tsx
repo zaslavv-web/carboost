@@ -8,7 +8,9 @@ import Slide2Market from "./slides/Slide2Market";
 import Slide3ProductTree from "./slides/Slide3ProductTree";
 import Slide4AI from "./slides/Slide4AI";
 import Slide5Economics from "./slides/Slide5Economics";
+import Slide5bRevenue from "./slides/Slide5bRevenue";
 import Slide6Sales from "./slides/Slide6Sales";
+import Slide7Status from "./slides/Slide7Status";
 
 const slides = [
   Slide1Product,
@@ -16,9 +18,11 @@ const slides = [
   Slide3ProductTree,
   Slide4AI,
   Slide5Economics,
+  Slide5bRevenue,
   Slide6Sales,
+  Slide7Status,
 ];
-const titles = ["Продукт", "Рынок", "Архитектура", "AI", "Экономика", "Продажи"];
+const titles = ["Продукт", "Рынок", "Архитектура", "ИИ", "Затраты", "Доход", "Оплата", "Статус"];
 
 function DeckInner() {
   const [params, setParams] = useSearchParams();
@@ -87,7 +91,7 @@ function DeckInner() {
       };
 
   return (
-    <div className="min-h-screen bg-[#1B1D22] print:bg-white">
+    <div className="min-h-screen bg-[#F7F4EC] print:bg-white">
       <div className="print:hidden">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div

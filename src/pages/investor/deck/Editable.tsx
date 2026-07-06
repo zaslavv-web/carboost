@@ -24,7 +24,6 @@ export default function Editable({
   const value = useDeckValue(id, defaultValue);
   const ref = useRef<HTMLElement | null>(null);
 
-  // Sync external changes (reset / import) into the DOM when not focused.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -52,7 +51,7 @@ export default function Editable({
   };
 
   const editClass = editMode
-    ? "outline outline-1 outline-dashed outline-[#D5A52A]/50 rounded-sm px-0.5 -mx-0.5 hover:outline-[#D5A52A] focus:outline-solid focus:outline-[#D5A52A] cursor-text transition-colors"
+    ? "outline outline-1 outline-dashed outline-[#8C6A1A]/60 rounded-sm px-0.5 -mx-0.5 hover:outline-[#8C6A1A] focus:outline-solid focus:outline-[#8C6A1A] cursor-text transition-colors"
     : "";
 
   return (
