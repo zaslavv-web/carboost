@@ -1,27 +1,31 @@
 import SlideLayout from "../SlideLayout";
 import Editable from "../deck/Editable";
 import { motion } from "framer-motion";
+import { PlayCircle, FileSignature, Rocket } from "lucide-react";
 
 const stages = [
   {
     id: "s6.st.1",
+    Icon: PlayCircle,
     weeks: "2–4 НЕДЕЛИ",
     title: "Работа с демо",
-    text: "Показ продукта, доступ к песочнице, ответы на вопросы, согласование сценария внедрения.",
+    text: "Демо, песочница, ответы на вопросы, согласование сценария внедрения.",
     color: "#8C6A1A",
   },
   {
     id: "s6.st.2",
+    Icon: FileSignature,
     weeks: "4–6 НЕДЕЛИ",
     title: "Подтверждение и подключение",
-    text: "Подтверждение заинтересованности, согласование договора, техническая поддержка подключения.",
+    text: "Согласование договора и техническая поддержка подключения.",
     color: "#B78C22",
   },
   {
     id: "s6.st.3",
+    Icon: Rocket,
     weeks: "6–8 НЕДЕЛИ",
     title: "Боевой запуск · оплата",
-    text: "Миграция данных, обучение администраторов, приёмка, поступление первой оплаты.",
+    text: "Миграция данных, обучение админов, приёмка и первая оплата.",
     color: "#D5A52A",
   },
 ];
