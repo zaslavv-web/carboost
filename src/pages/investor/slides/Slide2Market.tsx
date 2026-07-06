@@ -74,12 +74,15 @@ export default function Slide2Market() {
               transition={{ duration: 0.5, delay: 0.15 + i * 0.08 }}
               className="rounded-2xl border border-[#D5A52A]/40 bg-white p-7 shadow-sm"
             >
-              <Editable
-                id={`${k.id}.label`}
-                defaultValue={k.label}
-                as="div"
-                className="text-[22px] uppercase tracking-widest text-[#8C6A1A] leading-[1.2]"
-              />
+              <div className="flex items-center gap-3 text-[#8C6A1A]">
+                <k.Icon size={28} strokeWidth={1.8} />
+                <Editable
+                  id={`${k.id}.label`}
+                  defaultValue={k.label}
+                  as="div"
+                  className="text-[22px] uppercase tracking-widest leading-[1.2]"
+                />
+              </div>
               <Editable
                 id={`${k.id}.value`}
                 defaultValue={k.value}
