@@ -37,11 +37,44 @@ const raiseLow = 5_000;
 const raiseHigh = 10_000;
 
 export default function Slide5Economics() {
-  // reactive values
+  const { values, setValue, editMode } = useDeckCtx();
+
+  // reactive values (fixed team defaults)
   const team = teamDefaults.map((r) => ({
     ...r,
     monthly: useDeckNumber(`${r.id}.monthly`, r.monthly),
   }));
+
+  // extras: пользовательские сотрудники, хранятся JSON-списком
+  const extras = useMemo(() => {
+    try {
+      const parsed = JSON.parse(values["s5.team.extras"] ?? "[]");
+      if (!Array.isArray(parsed)) return [] as { id: string; role: string; monthly: number }[];
+      return parsed as { id: string; role: string; monthly: number }[];
+    } catch {
+      return [] as { id: string; role: string; monthly: number }[];
+    }
+  }, [values]);
+
+  const extrasResolved = extras.map((e) => ({
+    ...e,
+    role: values[`${e.id}.role`] ?? e.role,
+    monthly: Number(values[`${e.id}.monthly`] ?? e.monthly) || 0,
+  }));
+
+  const addExtra = () => {
+    const id = `s5.team.x.${Date.now()}`;
+    const next = [...extras, { id, role: "Новый сотрудник", monthly: 100 }];
+    setValue("s5.team.extras", JSON.stringify(next));
+  };
+  const removeExtra = (id: string) => {
+    const next = extras.filter((e) => e.id !== id);
+    setValue("s5.team.extras", JSON.stringify(next));
+    // очистим оверрайды, чтобы не копились
+    setValue(`${id}.role`, "");
+    setValue(`${id}.monthly`, "");
+  };
+
   const promo = promoDefaults.map((r) => ({
     ...r,
     v: useDeckNumber(`${r.id}.v`, r.v),
