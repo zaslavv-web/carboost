@@ -64,7 +64,7 @@ export default function Slide3ProductTree() {
           id="s3.subtitle"
           as="p"
           multiline
-          defaultValue="Базовый модуль — портал компании. Дополнительные модули разделены по категориям. Функционал разбит по категориям"
+          defaultValue="Базовый модуль — портал компании. Дополнительные модули разделены по категориям."
           className="mt-3 text-[26px] leading-[1.3] text-[#1B1D22]/70"
         />
 
