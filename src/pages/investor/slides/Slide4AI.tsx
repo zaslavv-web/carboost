@@ -1,46 +1,52 @@
 import SlideLayout from "../SlideLayout";
 import Editable from "../deck/Editable";
+import aiAbstract from "@/assets/deck/ai-abstract.png";
+import { Sparkles, PowerOff, Server, Cpu } from "lucide-react";
 
 const cards = [
   {
     id: "s4.why",
+    Icon: Sparkles,
     title: "Зачем ИИ",
     items: [
-      "Разбор кадровых документов и оргструктуры (PDF/DOCX/XLSX → структура)",
-      "Генерация карьерных треков, тестов, сценариев оценки под должность",
-      "Ассистент оценки компетенций (структурированный диалог)",
-      "Расчёт рисков по сотрудникам и рекомендаций для директора по персоналу",
-      "Умный поиск по базе знаний и ответы ассистента со ссылками",
+      "Разбор кадровых документов и оргструктуры (PDF/DOCX/XLSX)",
+      "Генерация карьерных треков, тестов, сценариев оценки",
+      "Ассистент оценки компетенций",
+      "Расчёт рисков и рекомендаций для HRD",
+      "Умный поиск по базе знаний со ссылками",
     ],
   },
   {
     id: "s4.no",
+    Icon: PowerOff,
     title: "Что если ИИ отключить",
     items: [
-      "Ядро продукта работает: порталы, треки, обучение, задачи, аналитика по фактам",
-      "Отключаются: авто-генерация треков, тестов, оценка через ИИ, умный поиск",
-      "Работают ручные шаблоны и импорт из XLSX — процесс дольше, но не блокируется",
-      "В админке ИИ включается/выключается по компании и по модулю",
+      "Ядро работает: порталы, треки, обучение, задачи, аналитика",
+      "Отключаются: авто-генерация треков, тестов, ИИ-оценка, умный поиск",
+      "Работают ручные шаблоны и импорт XLSX — дольше, но не блокируется",
+      "В админке ИИ включается по компании и модулю",
     ],
   },
   {
     id: "s4.on",
+    Icon: Server,
     title: "Установка в контуре компании",
     items: [
-      "Полная установка в контуре: браузер + сервер приложений + БД + кэш",
-      "ИИ подключается к любой совместимой модели внутри периметра (vLLM, Ollama)",
-      "Пример: AI_API_URL=http://vllm.internal:8000/v1/chat/completions",
-      "Docker Compose · nginx · Kubernetes · без внешних облачных зависимостей",
+      "Полная установка в контуре: браузер + сервер + БД + кэш",
+      "ИИ — любая совместимая модель внутри периметра (vLLM, Ollama)",
+      "Пример: AI_API_URL=http://vllm.internal:8000/v1/…",
+      "Docker · nginx · Kubernetes · без внешних зависимостей",
     ],
   },
   {
     id: "s4.pr",
+    Icon: Cpu,
     title: "Провайдеры ИИ",
     items: [
-      "YandexGPT · GigaChat (Сбер) — РФ, облако",
-      "vLLM / Ollama — в контуре, открытый код",
+      "YandexGPT · GigaChat — РФ, облако",
+      "vLLM / Ollama — в контуре, open source",
       "Внутренний умный поиск — корпоративная модель",
-      "GPT-4o · OpenRouter — совместимый интерфейс",
+      "GPT-4o · OpenRouter — совместимый API",
     ],
   },
 ];
@@ -48,7 +54,15 @@ const cards = [
 export default function Slide4AI() {
   return (
     <SlideLayout kicker="ИИ под капотом">
-      <div className="flex h-full flex-col px-[90px] pt-[110px] pb-[80px]">
+      <div className="relative flex h-full flex-col px-[90px] pt-[110px] pb-[80px]">
+        <img
+          src={aiAbstract}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          className="pointer-events-none absolute right-[60px] top-[60px] w-[420px] opacity-60"
+        />
+
         <Editable
           id="s4.title"
           as="h2"
@@ -60,14 +74,19 @@ export default function Slide4AI() {
           {cards.map((c) => (
             <div
               key={c.id}
-              className="rounded-2xl border border-[#D5A52A]/30 bg-white p-7 shadow-sm"
+              className="relative rounded-2xl border border-[#D5A52A]/30 bg-white p-7 shadow-sm"
             >
-              <Editable
-                id={`${c.id}.title`}
-                defaultValue={c.title}
-                as="div"
-                className="text-[30px] font-semibold text-[#1B1D22]"
-              />
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 flex-none items-center justify-center rounded-lg bg-[#D5A52A]/15 text-[#8C6A1A]">
+                  <c.Icon size={26} strokeWidth={1.8} />
+                </div>
+                <Editable
+                  id={`${c.id}.title`}
+                  defaultValue={c.title}
+                  as="div"
+                  className="text-[30px] font-semibold text-[#1B1D22]"
+                />
+              </div>
               <ul className="mt-4 space-y-2.5">
                 {c.items.map((it, j) => (
                   <li
