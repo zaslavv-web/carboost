@@ -1,216 +1,128 @@
 import SlideLayout from "../SlideLayout";
 import Editable from "../deck/Editable";
 import { motion } from "framer-motion";
+import { GraduationCap, Users, Trophy, LineChart } from "lucide-react";
 
-type Module = { name: string; services: string[] };
-
-// 9 модулей — 4 слева, 5 справа (или наоборот) для симметричного дерева
-const modules: Module[] = [
-  { name: "Адаптация",     services: ["Онбординг", "Планы", "Испыт. срок"] },
-  { name: "Карьера",       services: ["Треки", "IDP", "AI-оценка"] },
-  { name: "Перфоманс",     services: ["OKR", "1:1", "Ревью 360"] },
-  { name: "Обучение",      services: ["LMS", "Тесты", "Сертификаты"] },
-  { name: "Tracker",       services: ["Задачи", "Board", "Проекты"] },
-  { name: "Аналитика",     services: ["People", "Risk", "HRD Dash"] },
-  { name: "Вовлечение",    services: ["Признание", "Магазин", "Pulse"] },
-  { name: "Коммуникации",  services: ["Чаты", "Лента", "Сообщества"] },
-  { name: "HR-документы",  services: ["Отпуска", "Кадры", "Support"] },
+const branches = [
+  {
+    id: "b1",
+    icon: GraduationCap,
+    name: "Онлайн-университет",
+    leaves: [
+      "Онбординг новых сотрудников",
+      "Профильное обучение",
+      "Обучение новым продуктам компании",
+      "Обязательные курсы и аттестации",
+    ],
+  },
+  {
+    id: "b2",
+    icon: Users,
+    name: "Кадровый резерв",
+    leaves: [
+      "Карьерные треки",
+      "Оценка эффективности (перформанс-ревью)",
+      "Рейтинг сотрудника (риски и отставания)",
+      "План индивидуального развития",
+    ],
+  },
+  {
+    id: "b3",
+    icon: Trophy,
+    name: "Геймификация",
+    leaves: [
+      "Награды за достижения",
+      "Сценарии наград",
+      "Магазин наград",
+      "Рейтинги и знаки отличия",
+    ],
+  },
+  {
+    id: "b4",
+    icon: LineChart,
+    name: "Кадровая аналитика",
+    leaves: [
+      "Риски по сотрудникам",
+      "Текучесть кадров",
+      "Индекс комфорта и вовлечённости",
+      "Прогноз выгорания",
+    ],
+  },
 ];
-
-// Позиции модулей на «дереве»: половина слева, половина справа
-const W = 1888;   // рабочая ширина
-const H = 720;    // рабочая высота SVG
-const CX = W / 2;
-const TRUNK_TOP = 60;
-const TRUNK_BOTTOM = H - 40;
-
-// Разложение: чередуем стороны, распределяем по вертикали
-const positions = modules.map((m, i) => {
-  const side = i % 2 === 0 ? -1 : 1; // -1 = лево, +1 = право
-  const row = Math.floor(i / 2);
-  const totalRows = Math.ceil(modules.length / 2);
-  const y = TRUNK_TOP + 90 + (row * (TRUNK_BOTTOM - TRUNK_TOP - 130)) / (totalRows - 1);
-  const x = CX + side * (360 + (row % 2) * 40);
-  return { ...m, x, y, side, row };
-});
 
 export default function Slide3ProductTree() {
   return (
     <SlideLayout kicker="Архитектура продукта">
       <div className="flex h-full flex-col px-14 pt-28 pb-10">
-        <h2 className="font-['Instrument_Serif'] text-[60px] leading-[1.05] text-[#F5F1E8]">
+        <h2 className="font-['Instrument_Serif'] text-[60px] leading-[1.05] text-[#1B1D22]">
           <Editable id="s3.title.a" defaultValue="Дерево " />
-          <span className="italic text-[#D5A52A]"><Editable id="s3.title.b" defaultValue="платформы" /></span>
+          <span className="italic text-[#8C6A1A]"><Editable id="s3.title.b" defaultValue="платформы" /></span>
         </h2>
         <Editable id="s3.subtitle" as="p" multiline
-          defaultValue="Ствол — информационный портал. Ветки — 9 модулей. Листья — сервисы и подмодули."
-          className="mt-2 max-w-[1400px] text-[20px] text-[#F5F1E8]/70" />
+          defaultValue="Основание — портал компании. Ветки — четыре направления. Листья — сервисы и подмодули."
+          className="mt-2 max-w-[1500px] text-[20px] text-[#1B1D22]/70" />
 
+        {/* Root / основа */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="mx-auto mt-8 w-[1100px] rounded-3xl border-2 border-[#D5A52A] bg-[#D5A52A]/10 px-10 py-6 text-center shadow-md"
+        >
+          <div className="text-[13px] uppercase tracking-widest text-[#8C6A1A]">
+            <Editable id="s3.root.kicker" defaultValue="Основа · портал компании" />
+          </div>
+          <div className="mt-2 font-['Instrument_Serif'] text-[36px] text-[#1B1D22]">
+            <Editable id="s3.root.title" defaultValue="Портал компании «Пик роста»" />
+          </div>
+          <div className="mt-2 flex items-center justify-center gap-3 text-[18px] text-[#1B1D22]/75">
+            <Editable id="s3.root.item.0" defaultValue="Мессенджеры" />
+            <span className="text-[#8C6A1A]">·</span>
+            <Editable id="s3.root.item.1" defaultValue="Новости компании" />
+            <span className="text-[#8C6A1A]">·</span>
+            <Editable id="s3.root.item.2" defaultValue="Таск-трекер" />
+          </div>
+        </motion.div>
 
-        <div className="relative mt-4 flex-1">
-          <svg viewBox={`0 0 ${W} ${H}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
-            <defs>
-              <linearGradient id="trunk-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#D5A52A" />
-                <stop offset="100%" stopColor="#5A4410" />
-              </linearGradient>
-              <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
-                <stop offset="0%" stopColor="#D5A52A" stopOpacity="0.5" />
-                <stop offset="100%" stopColor="#D5A52A" stopOpacity="0" />
-              </radialGradient>
-              <filter id="soft-glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="4" />
-              </filter>
-            </defs>
-
-            {/* Trunk */}
-            <motion.rect
-              x={CX - 14}
-              y={TRUNK_TOP}
-              width={28}
-              height={TRUNK_BOTTOM - TRUNK_TOP}
-              rx={14}
-              fill="url(#trunk-grad)"
-              initial={{ scaleY: 0, originY: 0 }}
-              animate={{ scaleY: 1 }}
-              transition={{ duration: 0.9, ease: "easeOut" }}
-              style={{ transformOrigin: `${CX}px ${TRUNK_TOP}px` }}
-            />
-
-            {/* Root / portal label */}
-            <g>
-              <motion.rect
-                x={CX - 260} y={TRUNK_TOP - 44}
-                width={520} height={70} rx={16}
-                fill="#25272D"
-                stroke="#D5A52A"
-                strokeWidth={1.5}
-                initial={{ opacity: 0, y: -10 }}
+        {/* Branches */}
+        <div className="mt-8 grid flex-1 grid-cols-4 gap-6">
+          {branches.map((br, i) => {
+            const Icon = br.icon;
+            return (
+              <motion.div
+                key={br.id}
+                initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.5 }}
-              />
-              <motion.text
-                x={CX} y={TRUNK_TOP - 14}
-                textAnchor="middle"
-                fill="#D5A52A"
-                fontSize={12}
-                letterSpacing={3}
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+                transition={{ duration: 0.5, delay: 0.2 + i * 0.12 }}
+                className="relative flex flex-col rounded-2xl border border-[#D5A52A]/40 bg-white p-6 shadow-sm"
               >
-                УРОВЕНЬ 1 · БАЗА
-              </motion.text>
-              <motion.text
-                x={CX} y={TRUNK_TOP + 10}
-                textAnchor="middle"
-                fill="#F5F1E8"
-                fontSize={22}
-                fontFamily="Instrument Serif, serif"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-              >
-                Информационный портал «Пик роста»
-              </motion.text>
-            </g>
+                {/* Connector to root */}
+                <div className="absolute -top-6 left-1/2 h-6 w-0.5 -translate-x-1/2 bg-[#D5A52A]/60" />
 
-            {/* Roots at bottom */}
-            <motion.path
-              d={`M ${CX - 180} ${TRUNK_BOTTOM + 20} Q ${CX - 60} ${TRUNK_BOTTOM - 8} ${CX} ${TRUNK_BOTTOM}
-                  Q ${CX + 60} ${TRUNK_BOTTOM - 8} ${CX + 180} ${TRUNK_BOTTOM + 20}`}
-              stroke="#8C6A1A" strokeWidth={3} fill="none" strokeLinecap="round"
-              initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1, delay: 0.6 }}
-            />
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#D5A52A]/20 text-[#8C6A1A]">
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  <Editable id={`s3.${br.id}.name`} defaultValue={br.name} as="div"
+                    className="text-[22px] font-semibold text-[#1B1D22]" />
+                </div>
 
-            {/* Branches + module nodes */}
-            {positions.map((p, i) => {
-              const start = { x: CX, y: p.y };
-              const cx1 = CX + p.side * 100;
-              const cy1 = p.y - 40;
-              const cx2 = p.x - p.side * 120;
-              const cy2 = p.y;
-              const d = `M ${start.x} ${start.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p.x} ${p.y}`;
-              const nodeW = 210;
-              const nodeH = 66;
-              const nodeX = p.side < 0 ? p.x - nodeW : p.x;
-              const anchor = p.side < 0 ? "end" : "start";
-              return (
-                <g key={p.name}>
-                  <motion.path
-                    d={d}
-                    stroke="#D5A52A"
-                    strokeOpacity={0.7}
-                    strokeWidth={2.5}
-                    fill="none"
-                    strokeLinecap="round"
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 0.7, delay: 0.5 + i * 0.09 }}
-                  />
-                  {/* glowing node */}
-                  <motion.circle
-                    cx={p.x} cy={p.y} r={7}
-                    fill="#D5A52A"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 1.1 + i * 0.09, type: "spring", stiffness: 200 }}
-                  />
-                  {/* module label */}
-                  <motion.g
-                    initial={{ opacity: 0, x: p.side * 12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 1.2 + i * 0.09, duration: 0.4 }}
-                  >
-                    <text
-                      x={p.x + p.side * 18}
-                      y={p.y - 6}
-                      textAnchor={anchor}
-                      fill="#F5F1E8"
-                      fontSize={22}
-                      fontWeight={600}
-                    >
-                      {p.name}
-                    </text>
-                    <text
-                      x={p.x + p.side * 18}
-                      y={p.y + 18}
-                      textAnchor={anchor}
-                      fill="#F5F1E8"
-                      fontSize={13}
-                      opacity={0.65}
-                      fontStyle="italic"
-                      fontFamily="Instrument Serif, serif"
-                    >
-                      {p.services.join(" · ")}
-                    </text>
-                  </motion.g>
-                  {/* leaf sub-branches */}
-                  {[0, 1, 2].map((k) => {
-                    const lx = p.x + p.side * (30 + k * 26);
-                    const ly = p.y + 34;
-                    return (
-                      <motion.line
-                        key={k}
-                        x1={p.x} y1={p.y + 12}
-                        x2={lx} y2={ly}
-                        stroke="#D5A52A"
-                        strokeOpacity={0.35}
-                        strokeWidth={1.2}
-                        initial={{ pathLength: 0 }}
-                        animate={{ pathLength: 1 }}
-                        transition={{ duration: 0.4, delay: 1.4 + i * 0.09 + k * 0.05 }}
-                      />
-                    );
-                  })}
-                </g>
-              );
-            })}
-
-            {/* soft glow around trunk top */}
-            <circle cx={CX} cy={TRUNK_TOP + 10} r={90} fill="url(#glow)" />
-          </svg>
+                <ul className="mt-4 space-y-3">
+                  {br.leaves.map((leaf, j) => (
+                    <li key={j} className="flex gap-3 text-[16px] leading-[1.35] text-[#1B1D22]/80">
+                      <span className="mt-2 h-2 w-2 flex-none rounded-full bg-[#D5A52A]" />
+                      <Editable id={`s3.${br.id}.leaf.${j}`} defaultValue={leaf} multiline />
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            );
+          })}
         </div>
 
-        <div className="mt-2 flex items-center justify-between text-[14px] text-[#F5F1E8]/55">
-          <span>Уровни: 1 База → 2 Модули → 3 Сервисы → 4 Подмодули</span>
-          <span>16+ модулей · 60+ сервисов · 5 ролей</span>
+        <div className="mt-4 flex items-center justify-between text-[13px] text-[#1B1D22]/60">
+          <Editable id="s3.foot.a" defaultValue="Уровни: основание → направления → сервисы → подмодули" />
+          <Editable id="s3.foot.b" defaultValue="4 направления · 16+ сервисов · 5 ролей пользователей" />
         </div>
       </div>
     </SlideLayout>

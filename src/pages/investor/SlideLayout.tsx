@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { motion } from "framer-motion";
+import Editable from "./deck/Editable";
 
 /**
  * Слайд 1920×1080, вписывается в окно через transform:scale.
+ * Светлая тема.
  */
 export default function SlideLayout({
   children,
@@ -29,9 +31,9 @@ export default function SlideLayout({
   }, []);
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#1B1D22] print:static print:overflow-visible">
+    <div className="fixed inset-0 overflow-hidden bg-[#F7F4EC] print:static print:overflow-visible">
       <div
-        className={`absolute left-1/2 top-1/2 origin-center bg-[#1B1D22] text-[#F5F1E8] ${className}`}
+        className={`absolute left-1/2 top-1/2 origin-center bg-[#F7F4EC] text-[#1B1D22] ${className}`}
         style={{
           width: 1920,
           height: 1080,
@@ -41,9 +43,12 @@ export default function SlideLayout({
         }}
       >
         {kicker && (
-          <div className="absolute left-16 top-14 text-[22px] font-medium uppercase tracking-[0.28em] text-[#D5A52A]">
-            {kicker}
-          </div>
+          <Editable
+            id={`kicker.${kicker}`}
+            defaultValue={kicker}
+            as="div"
+            className="absolute left-16 top-14 text-[22px] font-medium uppercase tracking-[0.28em] text-[#8C6A1A]"
+          />
         )}
 
         {!hideWatermark && (
@@ -56,9 +61,9 @@ export default function SlideLayout({
             <img
               src={brandLogo}
               alt="Пик роста"
-              className="h-12 w-12 rounded-lg object-cover ring-1 ring-[#D5A52A]/40"
+              className="h-12 w-12 rounded-lg object-cover ring-1 ring-[#D5A52A]/50"
             />
-            <span className="font-['Instrument_Serif'] text-[24px] text-[#F5F1E8]/80">
+            <span className="font-['Instrument_Serif'] text-[24px] text-[#1B1D22]/80">
               Пик роста
             </span>
           </motion.div>

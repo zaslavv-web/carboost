@@ -13,9 +13,6 @@ type Props = {
   onChange?: (n: number) => void;
 };
 
-/**
- * Кликабельное число — превращается в input в режиме редактирования.
- */
 export default function NumericEditable({
   id,
   defaultValue,
@@ -74,7 +71,7 @@ export default function NumericEditable({
           if (e.key === "Enter") { e.preventDefault(); commit(); }
           if (e.key === "Escape") { e.preventDefault(); cancel(); }
         }}
-        className={`${className} bg-[#1B1D22] border border-[#D5A52A] rounded px-1 outline-none w-24 text-right`}
+        className={`${className} bg-white border border-[#8C6A1A] rounded px-1 outline-none w-24 text-right text-[#1B1D22]`}
       />
     );
   }
@@ -90,7 +87,7 @@ export default function NumericEditable({
           setEditing(true);
         }
       }}
-      className={`${className} ${editMode ? "outline outline-1 outline-dashed outline-[#D5A52A]/50 rounded-sm px-0.5 -mx-0.5 hover:outline-[#D5A52A] cursor-text" : ""}`}
+      className={`${className} ${editMode ? "outline outline-1 outline-dashed outline-[#8C6A1A]/60 rounded-sm px-0.5 -mx-0.5 hover:outline-[#8C6A1A] cursor-text" : ""}`}
     >
       {display}
       {suffix ? <span className="ml-1 opacity-70">{suffix}</span> : null}
