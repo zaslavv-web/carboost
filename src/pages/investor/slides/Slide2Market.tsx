@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { motion } from "framer-motion";
+import { Building2, Wallet, TrendingUp } from "lucide-react";
 
 const hrtechMarket = [
   { y: "2021", v: 24 },
@@ -23,29 +24,32 @@ const hrtechMarket = [
 const kpis = [
   {
     id: "s2.k1",
+    Icon: Building2,
     label: "КОМПАНИЙ СО ШТАТОМ БОЛЬШЕ 100 ЧЕЛОВЕК",
     value: "1,3 МЛН.",
-    note: "Юр. лиц в РФ со штатом 100+ (Росстат, реестр МСП, 2024). Темпы роста ~4% в год.",
+    note: "Юр. лиц в РФ, штат 100+ (Росстат, 2024). +4% г/г.",
   },
   {
     id: "s2.k2",
+    Icon: Wallet,
     label: "HR РАСХОДЫ НА 1 СОТРУДНИКА",
     value: "₽ 140–180 ТЫС. РУБ.",
-    note: "Адаптация + обучение + удержание (HH Talent Report 2024, Kept HR Survey 2024). +18% г/г.",
+    note: "Адаптация + обучение + удержание (HH, Kept, 2024). +18% г/г.",
   },
   {
     id: "s2.k3",
+    Icon: TrendingUp,
     label: "РЫНОК КАДРОВЫХ ТЕХНОЛОГИЙ РФ В 2025 ГОДУ",
     value: "₽ 92 млрд",
-    note: "TAdviser, Smart Ranking. Темпы роста ~35% в год (2021–2025).",
+    note: "TAdviser, Smart Ranking. Рост ~35% в год.",
   },
 ];
 
 const pains = [
-  { id: "s2.pain.0", text: "Отток ключевых сотрудников и рост стоимости замены (до 1,5 годовых окладов)" },
-  { id: "s2.pain.1", text: "Разрозненные системы: обучение, найм, опросы — данные не сходятся" },
-  { id: "s2.pain.2", text: "Долгая и неструктурированная адаптация — потеря продуктивности 3–6 мес" },
-  { id: "s2.pain.3", text: "Отсутствие прозрачных карьерных треков и объективной оценки" },
+  { id: "s2.pain.0", text: "Отток ключевых сотрудников: замена — до 1,5 годовых окладов" },
+  { id: "s2.pain.1", text: "Разрозненные системы — данные не сходятся" },
+  { id: "s2.pain.2", text: "Долгая адаптация — потеря 3–6 мес продуктивности" },
+  { id: "s2.pain.3", text: "Нет прозрачных карьерных треков и объективной оценки" },
   { id: "s2.pain.4", text: "Нехватка кадровой аналитики для совета директоров" },
 ];
 
@@ -70,12 +74,15 @@ export default function Slide2Market() {
               transition={{ duration: 0.5, delay: 0.15 + i * 0.08 }}
               className="rounded-2xl border border-[#D5A52A]/40 bg-white p-7 shadow-sm"
             >
-              <Editable
-                id={`${k.id}.label`}
-                defaultValue={k.label}
-                as="div"
-                className="text-[22px] uppercase tracking-widest text-[#8C6A1A] leading-[1.2]"
-              />
+              <div className="flex items-center gap-3 text-[#8C6A1A]">
+                <k.Icon size={28} strokeWidth={1.8} />
+                <Editable
+                  id={`${k.id}.label`}
+                  defaultValue={k.label}
+                  as="div"
+                  className="text-[22px] uppercase tracking-widest leading-[1.2]"
+                />
+              </div>
               <Editable
                 id={`${k.id}.value`}
                 defaultValue={k.value}
