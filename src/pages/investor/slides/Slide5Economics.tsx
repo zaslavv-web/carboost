@@ -122,12 +122,15 @@ export default function Slide5Economics() {
 
           {/* Итого */}
           <div className="rounded-2xl border border-[#D5A52A]/50 bg-[#D5A52A]/10 p-6 shadow-sm">
-            <Editable
-              id="s5.total.title"
-              defaultValue="ИТОГО БЮДЖЕТ · ГОД"
-              as="div"
-              className="text-[24px] uppercase tracking-widest text-[#8C6A1A]"
-            />
+            <div className="flex items-center gap-3">
+              <PiggyBank size={26} strokeWidth={1.8} className="text-[#8C6A1A]" />
+              <Editable
+                id="s5.total.title"
+                defaultValue="ИТОГО БЮДЖЕТ · ГОД"
+                as="div"
+                className="text-[24px] uppercase tracking-widest text-[#8C6A1A]"
+              />
+            </div>
             <Editable
               id="s5.total.value"
               defaultValue="₽ 25,3 млн"
