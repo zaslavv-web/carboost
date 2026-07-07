@@ -31,7 +31,7 @@ export default function SlideLayout({
   }, []);
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#F7F4EC] print:static print:overflow-visible">
+    <div className="deck-scope fixed inset-0 overflow-hidden bg-[#F7F4EC] print:static print:overflow-visible">
       <div
         className={`absolute left-1/2 top-1/2 origin-center overflow-hidden bg-[#F7F4EC] text-[#1B1D22] ${className}`}
         style={{
@@ -90,7 +90,7 @@ export default function SlideLayout({
               alt="Пик роста"
               className="h-12 w-12 rounded-lg object-cover ring-1 ring-[#D5A52A]/50"
             />
-            <span className="font-['Instrument_Serif'] text-[24px] text-[#1B1D22]/80">
+            <span className="text-[22px] font-semibold text-[#1B1D22]/80">
               Пик роста
             </span>
           </motion.div>
