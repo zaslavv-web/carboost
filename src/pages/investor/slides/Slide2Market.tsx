@@ -147,12 +147,12 @@ export default function Slide2Market() {
               id="s2.pains.title"
               defaultValue="Ежедневные боли директора по персоналу"
               as="div"
-              className="text-[20px] font-semibold text-[#1B1D22]"
+              className="text-[30px] font-semibold leading-[1.15] text-[#1B1D22]"
             />
-            <ul className="relative mt-3 space-y-2.5">
+            <ul className="relative mt-4 space-y-3.5">
               {pains.map((p) => (
-                <li key={p.id} className="flex gap-3 text-[19px] leading-[1.3] text-[#1B1D22]/85">
-                  <span className="mt-2.5 h-2 w-2 flex-none rounded-full bg-[#D5A52A]" />
+                <li key={p.id} className="flex gap-3 text-[28px] leading-[1.3] text-[#1B1D22]/85">
+                  <span className="mt-3.5 h-2.5 w-2.5 flex-none rounded-full bg-[#D5A52A]" />
                   <Editable id={p.id} defaultValue={p.text} multiline />
                 </li>
               ))}
