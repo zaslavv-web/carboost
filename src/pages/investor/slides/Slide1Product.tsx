@@ -1,5 +1,5 @@
 import brandLogo from "@/assets/logo-growth-peak.png";
-import HeroDashboardMock from "@/components/landing/HeroDashboardMock";
+import heroAsset from "@/assets/deck/slide1-hrd-real.png.asset.json";
 import SlideLayout from "../SlideLayout";
 import { motion } from "framer-motion";
 import Editable from "../deck/Editable";
@@ -83,9 +83,9 @@ export default function Slide1Product() {
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-            className="flex items-center justify-center"
+            className="overflow-hidden rounded-2xl border border-[#D5A52A]/30 bg-white shadow-2xl ring-1 ring-black/5"
           >
-            <HeroDashboardMock />
+            <img src={heroAsset.url} alt="Панель HRD — реальный интерфейс системы" className="h-full w-full object-cover" />
           </motion.div>
         </div>
 
