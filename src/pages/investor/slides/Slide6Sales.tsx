@@ -51,30 +51,27 @@ export default function Slide6Sales() {
           className="mt-2 text-[20px] text-[#1B1D22]/70"
         />
 
-        {/* Таймлайн — плашка одной высоты, всё внутри */}
-        <div className="mt-6 rounded-3xl border border-[#D5A52A]/30 bg-white p-8 shadow-sm">
-          <div className="relative">
+        {/* Таймлайн — все точки и подписи умещаются в плашку */}
+        <div className="mt-6 rounded-3xl border border-[#D5A52A]/30 bg-white px-10 py-8 shadow-sm">
+          <div className="relative px-3">
+            {/* Линия между центрами крайних точек */}
             <motion.div
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
               style={{ transformOrigin: "left" }}
-              className="absolute left-0 right-0 top-4 h-2 rounded-full bg-gradient-to-r from-[#8C6A1A]/40 via-[#B78C22] to-[#D5A52A]"
+              className="pointer-events-none absolute left-3 right-3 top-3 h-1.5 rounded-full bg-gradient-to-r from-[#8C6A1A]/40 via-[#B78C22] to-[#D5A52A]"
             />
-            <div className="relative h-16">
+            <div className="relative flex items-start justify-between">
               {["0", "2", "4", "6", "8"].map((w, i) => (
-                <div
-                  key={w}
-                  className="absolute -top-2 flex flex-col items-center"
-                  style={{ left: `${i * 25}%`, transform: "translateX(-50%)" }}
-                >
+                <div key={w} className="flex flex-col items-center" style={{ width: 90 }}>
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.4 + i * 0.15, duration: 0.4 }}
-                    className="h-6 w-6 rounded-full border-4 border-white bg-[#8C6A1A] shadow"
+                    className="h-7 w-7 rounded-full border-4 border-white bg-[#8C6A1A] shadow"
                   />
-                  <div className="mt-2 text-[17px] font-medium text-[#1B1D22]/75 tabular-nums">
+                  <div className="mt-2 whitespace-nowrap text-[15px] font-medium text-[#1B1D22]/75 tabular-nums">
                     неделя {w}
                   </div>
                 </div>

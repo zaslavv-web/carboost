@@ -1,5 +1,5 @@
 import brandLogo from "@/assets/logo-growth-peak.png";
-import heroImg from "@/assets/deck/slide1-hero.png";
+import heroImg from "@/assets/deck/slide1-dashboard.jpg";
 import SlideLayout from "../SlideLayout";
 import { motion } from "framer-motion";
 import Editable from "../deck/Editable";
@@ -80,12 +80,12 @@ export default function Slide1Product() {
           </div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-            className="flex items-center justify-center rounded-3xl border border-[#D5A52A]/25 bg-white/70 p-6 shadow-sm"
+            className="overflow-hidden rounded-2xl border border-[#D5A52A]/30 bg-white shadow-2xl ring-1 ring-black/5"
           >
-            <img src={heroImg} alt="" aria-hidden className="max-h-[300px] w-auto" />
+            <img src={heroImg} alt="Дашборд HRD" className="h-full w-full object-cover" />
           </motion.div>
         </div>
 
