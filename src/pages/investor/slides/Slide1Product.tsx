@@ -83,9 +83,9 @@ export default function Slide1Product() {
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden rounded-2xl border border-[#D5A52A]/30 bg-white shadow-2xl ring-1 ring-black/5"
+            className="aspect-[16/10] w-full overflow-hidden rounded-2xl border border-[#D5A52A]/30 bg-white shadow-2xl ring-1 ring-black/5"
           >
-            <img src={heroAsset.url} alt="Панель HRD — реальный интерфейс системы" className="h-full w-full object-cover" />
+            <img src={heroAsset.url} alt="Панель HRD — реальный интерфейс системы" className="h-full w-full object-cover object-left-top" />
           </motion.div>
         </div>
 
