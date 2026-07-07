@@ -78,9 +78,6 @@ export default function Slide6Sales() {
               ))}
             </div>
           </div>
-              ))}
-            </div>
-          </div>
 
           <div className="mt-6 grid grid-cols-3 gap-5">
             {stages.map((s, i) => (
