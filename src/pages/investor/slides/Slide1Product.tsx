@@ -1,5 +1,5 @@
 import brandLogo from "@/assets/logo-growth-peak.png";
-import heroImg from "@/assets/deck/slide1-dashboard.jpg";
+import HeroDashboardMock from "@/components/landing/HeroDashboardMock";
 import SlideLayout from "../SlideLayout";
 import { motion } from "framer-motion";
 import Editable from "../deck/Editable";
