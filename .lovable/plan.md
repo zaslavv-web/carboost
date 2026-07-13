@@ -1,72 +1,74 @@
-# E2E-проверка: компания AIGuild
+## Проблема
 
-Цель — прогнать полный пользовательский цикл на свежей компании, фиксируя и **сразу починяя** каждую найденную ошибку. Никакой автоматики «одной кнопкой» — идём по шагам, после каждого шага сверяем результат в UI и в БД.
+На ai.google.dev бесплатный тир Gemini для новых аккаунтов сейчас фактически закрыт (Google убрал автоматическую выдачу free-ключей в ряде регионов, в РФ доступ через веб-консоль заблокирован без VPN). Получать платный ключ ради оживления AIGuild нерационально.
 
-## Правила прогона
+## Решение
 
-- Каждый шаг = одно действие + верификация (SQL через `supabase--read_query` + скриншот Playwright на localhost).
-  откуда опять supabase?!
-- Любая ошибка (500, RLS, пустой ответ, некорректный UI) → останавливаемся, чиню миграцией/кодом, повторяю шаг.
-- Все находки фиксирую в `docs/AUDIT-FIX-LOG.md` (дата, шаг, симптом, причина, фикс).
-- Тестовые креды: единый пароль `AIGuild!2026`, домен `@aiguild.test`.
+У проекта уже есть **Lovable AI Gateway** (`LOVABLE_API_KEY` авто-провижен Lovable Cloud). Через него доступны модели `google/gemini-2.5-flash`, `google/gemini-2.5-pro`, `google/gemini-3.5-flash` и др. — **без личного ключа Google, оплата идёт кредитами workspace** (у проекта они уже есть, Gemini Flash — самые дешёвые).
 
-## Этапы
+Gateway — OpenAI-совместимый, значит существующий `OpenAICompatibleDriver` в Laravel будет работать, нужно только:
 
-### 1. Создание компании и superadmin-контекста
+1. поменять URL на `https://ai.gateway.lovable.dev/v1/chat/completions`,
+2. отправлять ключ в заголовке `Lovable-API-Key` (а не `Authorization: Bearer`),
+3. указать модель `google/gemini-2.5-flash`.
 
-- Через `/superadmin` создаю компанию **AIGuild**.
-- Проверяю: запись в `companies`, отсутствие «мусорных» дефолтов (positions/departments пустые).
-- Импёрсонирую superadmin → создаю пользователя `hrbp@aiguild.test` с ролью `hrd`, привязываю к компании.
+## Что нужно сделать
 
-### 2. HRBP: импорт оргструктуры
+### 1. Драйвер: поддержать заголовок Lovable-API-Key
 
-- Логин под HRBP.
-- Через модуль **Org Structure** загружаю CSV/XLSX с деревом подразделений и должностей (беру существующий шаблон импорта; если шаблона нет — фиксирую как первый баг и делаю его).
-- Проверяю в БД: `departments`, `positions`, `position_career_paths` — company_id всюду AIGuild, иерархия корректная.
+В `backend-laravel/app/Services/AI/Drivers/OpenAICompatibleDriver.php` добавить ветку: если `provider === 'lovable_gateway'` (или URL содержит `ai.gateway.lovable.dev`) — слать `Lovable-API-Key: <key>` вместо `Authorization: Bearer <key>`. Заголовок `X-Lovable-AIG-SDK: laravel-http` для телеметрии.
 
-### 3. HRBP: загрузка HR-документов
+### 2. Резолвер: новый пресет провайдера
 
-- Загружаю 2–3 документа (регламенты, матрица компетенций) через `hr_documents`.
-- Дожидаюсь `processing_status = processed`, проверяю `extracted_data`.
-- Ошибки парсинга Edge Function → чиню в `services/ai` / соответствующем контроллере.
+В `AiSettingsResolver::buildDriver()` добавить case `'lovable_gateway'` с дефолтами:
 
-### 4. HRBP: построение карьерных треков
+- `api_url = https://ai.gateway.lovable.dev/v1/chat/completions`
+- `model = google/gemini-2.5-flash`
 
-- На базе документов запускаю AI-построение треков (career_track_templates + шаги).
-- Проверяю визуализацию графа должностей и что шаги ссылаются на реальные позиции AIGuild.
-- Назначаю шаблон трека нескольким тестовым сотрудникам.
+Fallback (когда в БД пусто) переключить с `'gemini'` на `'lovable_gateway'`, чтобы новые компании работали из коробки.
 
-### 5. Сотрудники: задачи и чаты
+### 3. UI настройки AI
 
-- Создаю 3–4 пользователей-сотрудников, привязываю к позициям.
-- От их имени: создаю `hr_tasks` (в т.ч. кросс-назначение через `hr_task_assignees`), обмениваюсь сообщениями в 1:1 чатах и, если есть, групповых.
-- Проверяю realtime (Reverb) и что `company_id` не «протекает» между компаниями.
+В `src/pages/AiSettings.tsx` добавить в `PROVIDER_PRESETS` пункт:
 
-### 6. Отчёты для HRBP на базе переписок
+```
+lovable_gateway: {
+  url: "https://ai.gateway.lovable.dev/v1/chat/completions",
+  model: "google/gemini-2.5-flash",
+  label: "Lovable AI (Gemini)",
+  description: "Gemini через Lovable AI Gateway. Ключ не требуется — оплата кредитами workspace.",
+}
+```
 
-- Запускаю аналитику/AI-отчёт по чатам и задачам (People Analytics / AI-summary).
-- Проверяю, что отчёт видит только данные AIGuild, содержит осмысленные выводы, и попадает в интерфейс HRBP.
+Поставить его первым в `PROVIDERS_ORDER`.
 
-### 7. Финализация
+### 4. Секрет на бэкенде
 
-- Прохожу линтер (`supabase--linter`) и security-scan.
-- Обновляю `docs/AUDIT-FIX-LOG.md` итоговым списком найденного/починенного.
-- Кратко резюмирую в чате: что работает, что осталось (если что-то не удалось починить в рамках прогона).
+Laravel-бэкенд крутится на Beget (growth-peak.pro), не в Lovable Cloud, поэтому `LOVABLE_API_KEY` там не появится автоматически. Нужно:
 
-## Технические детали
+- получить значение `LOVABLE_API_KEY` из Lovable (я вытащу через `fetch_secrets` / при необходимости ротирую),
+- прописать в `backend-laravel/.env` на проде:
+  ```
+  AI_API_URL=https://ai.gateway.lovable.dev/v1/chat/completions
+  AI_API_KEY=<значение LOVABLE_API_KEY>
+  AI_MODEL=google/gemini-2.5-flash
+  ```
+- `php artisan config:clear` на сервере.
 
-- Инструменты верификации: `supabase--read_query`, Playwright на `http://localhost:8080` (скриншоты в `/tmp/browser/aiguild/`), `edge_function_logs` при ошибках AI.
-- Исправления схемы — только через `supabase--migration` с GRANT-блоком и RLS-политиками по правилам проекта.
-- Исправления бэкенда — в `backend-laravel/` (папка `core/` пока — только документация, физически код там же, см. ADR-001).
-- Ничего не двигаем физически в `src/` / `backend-laravel/` — работаем в текущей структуре.
+### 5. Проверка
 
-## Что НЕ делаем в этом прогоне
+После деплоя — кнопка «Проверить соединение» на `/ai-settings` (endpoint `/ai-settings/test`) должна вернуть OK и превью ответа.
 
-- Не пишем новые фичи «на будущее» — только фиксы найденных дефектов.
-- Не трогаем прод-данные: всё на dev-окружении Lovable Cloud.
-- Не рефакторим монорепо — это отдельная задача (ADR-001).
+## Что нужно от вас
 
-## Открытый вопрос перед стартом
+1. Подтвердить план.
+2. Дать доступ к `.env` на growth-peak.pro (или сами вставите строки — я подготовлю точный блок).
 
-Нужно ли, чтобы я сначала **прогнал шаг 1 сам** (создал AIGuild + HRBP и показал результат), а дальше шаги 2–6 — под твоим контролем шаг-за-шагом? Или запускаю все шаги подряд, останавливаясь только на ошибках?  
-второе
+## Альтернативы (если не хотим Lovable Gateway)
+
+- **OpenRouter** — free-tier Gemini/Llama, регистрация без карты, ключ выдаётся сразу. Драйвер тот же (OpenAI-совместимый), правки минимальны.
+- **GigaChat / YandexGPT** — уже есть готовые драйверы, работают в РФ, free-tier у обоих.
+- **Купить $2 на DeepSeek** — обсуждали ранее.
+
+Скажите, идём через Lovable Gateway или предпочитаете OpenRouter / российского провайдера?  
+какие риски у пути openrouter?
