@@ -9,7 +9,10 @@ class CompanyPolicy extends BasePolicy
 {
     public function viewAny(User $user): bool
     {
-        return true;
+        // Только superadmin (bypass через BasePolicy::before).
+        // Обычные пользователи получают свою компанию через /api/profiles/me
+        // либо точечный view(). Список компаний закрыт, чтобы избежать утечки тенантов.
+        return false;
     }
 
     public function view(User $user, Company $company): bool
