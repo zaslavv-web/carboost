@@ -1,6 +1,12 @@
 # rtfm_web — SPA (React + Vite)
 
-> Статус: **каркас (stage 1)**. Код физически ещё в корне: `src/`, `index.html`, `vite.config.ts`, `public/`, `package.json`. Переезд в `apps/web/` — stage 2 плана.
+> **Статус:** документационный указатель. Код физически живёт в корне репозитория (`/src`, `/index.html`, `/vite.config.ts`, `/public`, `/package.json`) и **останется там**. Причины и условия возможного будущего переезда — см. `docs/ADR-001-frontend-lives-in-root.md`.
+>
+> Кратко: Lovable-платформа авто-деплоит фронт из корневого Vite-проекта. Физический перенос в `apps/web/` сломает пайплайн Lovable → GitHub → прод. Логически же весь фронт-контракт (переменные окружения, инфопотоки, точки входа) описывается в этом файле, а не в корневом README.
+>
+> **Как работать:**
+> - через Lovable — как обычно, изменения коммитятся автоматически;
+> - локально — `bun install && bun dev` из корня, PR в GitHub, деплой тот же.
 
 ## 1. Назначение
 Single-page-application для 5 ролей (Employee / Manager / HRD / Company Admin / Superadmin) + публичный лендинг. Ходит на core-API через `src/integrations/laravel/client.ts` и в Supabase (Lovable Cloud) через `src/integrations/supabase/client.ts` (автоген).

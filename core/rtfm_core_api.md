@@ -1,6 +1,13 @@
 # rtfm_core_api — Корневой API
 
-> Статус: **каркас (stage 1)**. Код физически в `backend-laravel/`. Переименование в `core/` — stage 3 плана (`.lovable/plan.md`).
+> **Статус:** документационный указатель. Код физически живёт в `/backend-laravel/` и **останется там**. Причины и условия возможного будущего переименования — см. `docs/ADR-001-frontend-lives-in-root.md`.
+>
+> Кратко: продовый деплой (`deploy/deploy-laravel.sh`), `docker-compose*.yml` и GitHub Actions жёстко ссылаются на путь `backend-laravel/`. Одномоментное переименование = риск положить прод. Логический контракт API (эндпоинты, домены, секреты, инфопотоки, roadmap) описывается здесь и является источником правды; папка `backend-laravel/` — реализация.
+>
+> **Как работать:**
+> - редактировать код API — в `/backend-laravel/`;
+> - редактировать контракт/документацию/список секретов — в этом файле и `core/.env.example`;
+> - при добавлении нового эндпоинта: сначала фиксируем в разделе 6 (Roadmap) этого файла, затем реализуем.
 
 ## 1. Назначение
 Ядро мультитенантной HR-tech платформы Growth Peak: аутентификация, роли/RLS, домены Career/Assessment/Leaves/Support, реестр компаний и должностей, оркестрация вызовов к сервисам (`services/ai`, `services/chat`, `services/analytics`, `services/automation`, `services/notifications`, `services/gamification`, `services/ingest`).
