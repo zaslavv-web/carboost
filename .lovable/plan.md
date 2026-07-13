@@ -90,13 +90,12 @@
 
 ## 5. Порядок работ (этапы)
 
-1. **Каркас.** Создать пустые папки `core/`, `services/*/`, `apps/web/`, заготовки `rtfm_*.md` по шаблону (без переезда кода). Обновить корневой `README.md` как карту репо.
-2. **Frontend переезд.** Перенести `src/`, `public/`, `index.html`, `vite.config.ts`, `tsconfig*.json`, `tailwind.config.ts`, `postcss.config.js`, `package.json`, `bun.lock`, `eslint.config.js`, `playwright*.ts`, `vitest.config.ts` в `apps/web/`. Обновить пути в CI и деплое. Заполнить `rtfm_web.md`.
-3. **Core переезд.** Переименовать `backend-laravel/` → `core/`. Обновить `docker-compose*.yml`, `deploy/*.conf`, `scripts/*`. Заполнить `rtfm_core_api.md` (включая полный список эндпоинтов из `routes/api.php` и roadmap-раздел).
-4. **Разрезание на services (внутри core).** Внутри `core/` разложить контроллеры/сервисы по подпапкам `Http/Controllers/Api/<Domain>/` и `Services/<Domain>/`, разнести маршруты по `routes/api/<domain>.php` с `Route::group`. Namespace-и — `App\Domain\Ai`, `App\Domain\Chat`, и т.д. Так каждый сервис уже физически изолирован в коде, при этом деплой пока единый.
-5. **Вынос кода в `services/<name>/`.** Для каждого домена: перенести соответствующие подпапки из `core/app/Domain/<X>` и `core/routes/api/<x>.php` в `services/<name>/`, оформить как самостоятельный Laravel-модуль (composer package, autoload PSR-4). Core регистрирует их как provider-ы. Заполнить `rtfm_<name>.md` каждого сервиса.
-6. `**.env` → env vars.** Реализовать пункт 4: `.gitignore`, `.env.example`, чистка индекса, шаблоны systemd/compose, ротация секретов, обновление документации.
-7. **Проверки.** Прогнать `composer test`, `bun test`, `bunx tsgo --noEmit`, `bun run build`, smoke E2E; убедиться, что приложение стартует при пустом `.env` и заданных env-vars.
+1. **Каркас.** ✅ Созданы `core/`, `services/*/`, `apps/web/` с `rtfm_*.md` и `.env.example` по шаблону. Корневой `README.md` обновлён как карта репо.
+2. **Стратегия расположения кода.** ✅ Принято ADR-001 (`docs/ADR-001-frontend-lives-in-root.md`): фронт остаётся в корне репо, ядро — в `backend-laravel/`. Папки `apps/web/` и `core/` — документационные указатели, чтобы не ломать Lovable-пайплайн авто-деплоя и продовый `deploy/deploy-laravel.sh`. Физический переезд — только при переходе на монорепо-режим Lovable или отказе от Lovable-редактирования.
+3. **Разрезание на domain-модули (внутри `backend-laravel/`).** Разложить контроллеры/сервисы по подпапкам `Http/Controllers/Api/<Domain>/` и `Services/<Domain>/`, разнести маршруты по `routes/api/<domain>.php` с `Route::group`. Namespace — `App\Domain\Ai`, `App\Domain\Chat`, и т.д. Изоляция в коде, единый деплой.
+4. **Постепенное наполнение `services/<name>/`.** Для каждого домена: скопировать/перенести соответствующие подпапки в `services/<name>/src/` как самостоятельный Laravel-модуль (composer package, PSR-4). Core регистрирует их через provider-ы. Заполнять `rtfm_<name>.md` по мере переноса.
+5. **`.env` → env vars.** Реализовать пункт 4: `.gitignore`, `.env.example`, чистка индекса, шаблоны systemd/compose, ротация секретов, обновление документации.
+6. **Проверки.** Прогнать `composer test`, `bun test`, `bunx tsgo --noEmit`, `bun run build`, smoke E2E; убедиться, что приложение стартует при пустом `.env` и заданных env-vars.
 
 ## 6. Технические детали (для разработчика)
 
