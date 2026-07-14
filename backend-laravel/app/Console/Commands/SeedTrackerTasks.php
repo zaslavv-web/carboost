@@ -319,7 +319,7 @@ class SeedTrackerTasks extends Command
             $sid = (string) Str::uuid();
             $starts = now()->subDays(7)->startOfDay();
             $ends   = now()->addDays(7)->endOfDay();
-            DB::table('tracker_sprints')->insert([
+            $row = [
                 'id' => $sid,
                 'company_id' => $this->companyId,
                 'project_id' => $projectId,
@@ -327,11 +327,16 @@ class SeedTrackerTasks extends Command
                 'goal' => "Демо-спринт, двухнедельный цикл. [{$this->marker}]",
                 'status' => 'active',
                 'position' => $i,
-                'starts_at' => Schema::hasColumn('tracker_sprints', 'starts_at') ? $starts : null,
-                'ends_at' => Schema::hasColumn('tracker_sprints', 'ends_at') ? $ends : null,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ];
+            // Реальные имена колонок из миграции 0019 — start_date/end_date.
+            if (Schema::hasColumn('tracker_sprints', 'start_date')) $row['start_date'] = $starts;
+            if (Schema::hasColumn('tracker_sprints', 'end_date'))   $row['end_date']   = $ends;
+            // Fallback на альтернативные имена, если БД мигрирована иначе.
+            if (Schema::hasColumn('tracker_sprints', 'starts_at'))  $row['starts_at']  = $starts;
+            if (Schema::hasColumn('tracker_sprints', 'ends_at'))    $row['ends_at']    = $ends;
+            DB::table('tracker_sprints')->insert($row);
             $sprints[] = ['id' => $sid, 'project_id' => $projectId];
             $counter++;
         }
