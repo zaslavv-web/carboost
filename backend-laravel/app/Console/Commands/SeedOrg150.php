@@ -38,6 +38,7 @@ class SeedOrg150 extends Command
     protected $description = 'Заливает 150 демо-пользователей в существующую компанию (1 БЮ + 30 отделов).';
 
     private string $companyId;
+    private ?string $ownerUserId = null;
     private string $marker;
     private string $emailDomain;
     private array $rowsCsv = [];
@@ -51,9 +52,13 @@ class SeedOrg150 extends Command
         $dryRun            = (bool) $this->option('dry-run');
 
         // ── 1. Найти компанию ────────────────────────────────────────────────
-        $this->companyId = $this->resolveCompanyId();
+        [$this->companyId, $this->ownerUserId] = $this->resolveCompanyId();
         if ($this->companyId === '') {
             $this->error('Не удалось найти компанию. Укажи --owner-email или --company-id.');
+            return self::FAILURE;
+        }
+        if ($this->ownerUserId === null) {
+            $this->error('Не найден пользователь-владелец для created_by у позиций. Укажи --owner-email существующего company_admin/hrd компании.');
             return self::FAILURE;
         }
         $companyName = (string) DB::table('companies')->where('id', $this->companyId)->value('name');
