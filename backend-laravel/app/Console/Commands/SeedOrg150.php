@@ -283,7 +283,7 @@ class SeedOrg150 extends Command
                 $row['department'] = $deptName;
             }
             if (Schema::hasColumn('positions', 'created_by')) {
-                $row['created_by'] = null;
+                $row['created_by'] = $this->ownerUserId;
             }
             if (Schema::hasColumn('positions', 'profile_status')) {
                 $row['profile_status'] = 'approved';
