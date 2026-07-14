@@ -150,7 +150,9 @@ const App = () => (
                 <Route path="/support" element={<Support />} />
                 <Route path="/scenarios" element={<Scenarios />} />
                 <Route path="/hr-policies" element={<HRPolicies />} />
+                <Route path="/hr-documents" element={<HrDocumentsPersonal />} />
                 <Route path="/positions" element={<Positions />} />
+                <Route path="/career-tracks" element={<CareerTracksManagement />} />
                 <Route path="/career-tracks-mgmt" element={<CareerTracksManagement />} />
                 <Route path="/career-reviews" element={<CareerReviews />} />
                 <Route path="/gamification" element={<GamificationManagement />} />
