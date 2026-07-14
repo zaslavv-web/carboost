@@ -219,6 +219,12 @@ export default function PulseSurveys() {
                   </DialogTrigger>
                   <AddQuestionDialog onSubmit={(v) => addQuestion.mutate(v)} />
                 </Dialog>
+                <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => setImportOpen(true)}>
+                  <Upload className="w-3 h-3 mr-1" />Импорт CSV
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => setAssignOpen(true)}>
+                  <Users className="w-3 h-3 mr-1" />Назначить
+                </Button>
                 <Button size="sm" variant="ghost" className="shrink-0" onClick={() => remove.mutate(currentSurvey.id)}>
                   <Trash2 className="w-3 h-3" />
                 </Button>
@@ -226,6 +232,13 @@ export default function PulseSurveys() {
             )}
           </CardHeader>
           <CardContent className="space-y-3">
+            {currentSurvey && isHR && audience && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Users className="w-3 h-3" />
+                Охват: <strong className="text-foreground">{audience.count}</strong> сотр.
+                {audience.count === 0 && <span>· назначьте аудиторию, чтобы опрос увидели</span>}
+              </div>
+            )}
             {!currentSurvey && <p className="text-sm text-muted-foreground">Слева выберите опрос</p>}
             {currentSurvey && questions.length === 0 && <p className="text-sm text-muted-foreground">Добавьте вопросы</p>}
             {questions.map((q, i) => (
