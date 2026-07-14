@@ -154,18 +154,20 @@ export default function PulseSurveys() {
   }, [questions, responses]);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <Activity className="w-6 h-6 text-primary" />
+            <Activity className="w-6 h-6 text-primary shrink-0" />
             Pulse-опросы
           </h1>
           <p className="text-sm text-muted-foreground">Замеры вовлеченности, eNPS и настроений</p>
         </div>
         {isHR && (
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-2" />Новый опрос</Button></DialogTrigger>
+            <DialogTrigger asChild>
+              <Button className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" />Новый опрос</Button>
+            </DialogTrigger>
             <CreateSurveyDialog onSubmit={(v) => create.mutate(v)} />
           </Dialog>
         )}
@@ -179,9 +181,9 @@ export default function PulseSurveys() {
             {surveys.map((s) => (
               <button key={s.id} onClick={() => setSelected(s.id)}
                 className={`w-full text-left p-3 rounded-lg border transition-colors ${selected === s.id ? "border-primary bg-primary/5" : "hover:bg-muted"}`}>
-                <div className="flex items-center justify-between">
-                  <span className="font-medium truncate">{s.title}</span>
-                  <Badge variant={s.status === "running" ? "default" : "outline"}>{s.status}</Badge>
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <span className="font-medium truncate min-w-0">{s.title}</span>
+                  <Badge variant={s.status === "running" ? "default" : "outline"} className="shrink-0">{s.status}</Badge>
                 </div>
               </button>
             ))}
@@ -189,25 +191,27 @@ export default function PulseSurveys() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">{currentSurvey?.title ?? "Выберите опрос"}</CardTitle>
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 space-y-0">
+            <CardTitle className="text-base truncate min-w-0">{currentSurvey?.title ?? "Выберите опрос"}</CardTitle>
             {currentSurvey && isHR && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 {currentSurvey.status === "draft" && (
-                  <Button size="sm" onClick={() => setStatus.mutate({ id: currentSurvey.id, status: "running" })}>
+                  <Button size="sm" className="flex-1 sm:flex-none" onClick={() => setStatus.mutate({ id: currentSurvey.id, status: "running" })}>
                     <Play className="w-3 h-3 mr-1" />Запустить
                   </Button>
                 )}
                 {currentSurvey.status === "running" && (
-                  <Button size="sm" variant="outline" onClick={() => setStatus.mutate({ id: currentSurvey.id, status: "closed" })}>
+                  <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => setStatus.mutate({ id: currentSurvey.id, status: "closed" })}>
                     <Square className="w-3 h-3 mr-1" />Закрыть
                   </Button>
                 )}
                 <Dialog open={qOpen} onOpenChange={setQOpen}>
-                  <DialogTrigger asChild><Button size="sm" variant="outline"><Plus className="w-3 h-3 mr-1" />Вопрос</Button></DialogTrigger>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline" className="flex-1 sm:flex-none"><Plus className="w-3 h-3 mr-1" />Вопрос</Button>
+                  </DialogTrigger>
                   <AddQuestionDialog onSubmit={(v) => addQuestion.mutate(v)} />
                 </Dialog>
-                <Button size="sm" variant="ghost" onClick={() => remove.mutate(currentSurvey.id)}>
+                <Button size="sm" variant="ghost" className="shrink-0" onClick={() => remove.mutate(currentSurvey.id)}>
                   <Trash2 className="w-3 h-3" />
                 </Button>
               </div>
