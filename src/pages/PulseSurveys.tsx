@@ -264,6 +264,17 @@ export default function PulseSurveys() {
           </CardContent>
         </Card>
       </div>
+
+      <ImportQuestionsDialog surveyId={selected} open={importOpen} onOpenChange={setImportOpen} />
+      <AssignAudienceDialog
+        surveyId={selected}
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        onInviteEmail={(email) => {
+          setAssignOpen(false);
+          navigate(`/bulk-invite?email=${encodeURIComponent(email)}`);
+        }}
+      />
     </div>
   );
 }
