@@ -272,7 +272,7 @@ export default function PulseSurveys() {
         onOpenChange={setAssignOpen}
         onInviteEmail={(email) => {
           setAssignOpen(false);
-          navigate(`/bulk-invite?email=${encodeURIComponent(email)}`);
+          navigate(`/invitations?email=${encodeURIComponent(email)}`);
         }}
       />
     </div>
