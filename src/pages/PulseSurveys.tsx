@@ -58,6 +58,10 @@ export default function PulseSurveys() {
   const [selected, setSelected] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [qOpen, setQOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const navigate = useNavigate();
+  const { data: audience } = useAudience(selected);
 
   const { data: surveys = [] } = useQuery({
     queryKey: ["pulse-surveys", companyId],
