@@ -212,15 +212,17 @@ class RpcController extends Controller
                 }
 
                 $token = Str::random(48);
+                $requestedRole = $invite['requested_role'] ?? 'employee';
+                if (!in_array($requestedRole, ['employee', 'manager', 'hrd', 'company_admin'], true)) {
+                    $requestedRole = 'employee';
+                }
                 $row = [
                     'company_id'      => $companyId,
                     'email'           => $email,
                     'full_name'       => trim((string) ($invite['full_name'] ?? '')) ?: null,
                     'position_id'     => $invite['position_id'] ?? null,
                     'department'      => trim((string) ($invite['department'] ?? '')) ?: null,
-                    'requested_role'  => in_array(($invite['requested_role'] ?? 'employee'), ['employee', 'manager', 'hrd', 'company_admin'], true)
-                        ? $invite['requested_role']
-                        : 'employee',
+                    'requested_role'  => $requestedRole,
                     'status'          => 'pending',
                     'invited_by'      => method_exists($actor, 'domainUserId') ? $actor->domainUserId() : $actor->id,
                     'token'           => $token,
