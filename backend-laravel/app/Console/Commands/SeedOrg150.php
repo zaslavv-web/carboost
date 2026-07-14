@@ -38,6 +38,7 @@ class SeedOrg150 extends Command
     protected $description = 'Заливает 150 демо-пользователей в существующую компанию (1 БЮ + 30 отделов).';
 
     private string $companyId;
+    private ?string $ownerUserId = null;
     private string $marker;
     private string $emailDomain;
     private array $rowsCsv = [];
@@ -51,9 +52,13 @@ class SeedOrg150 extends Command
         $dryRun            = (bool) $this->option('dry-run');
 
         // ── 1. Найти компанию ────────────────────────────────────────────────
-        $this->companyId = $this->resolveCompanyId();
+        [$this->companyId, $this->ownerUserId] = $this->resolveCompanyId();
         if ($this->companyId === '') {
             $this->error('Не удалось найти компанию. Укажи --owner-email или --company-id.');
+            return self::FAILURE;
+        }
+        if ($this->ownerUserId === null) {
+            $this->error('Не найден пользователь-владелец для created_by у позиций. Укажи --owner-email существующего company_admin/hrd компании.');
             return self::FAILURE;
         }
         $companyName = (string) DB::table('companies')->where('id', $this->companyId)->value('name');
@@ -140,20 +145,34 @@ class SeedOrg150 extends Command
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    private function resolveCompanyId(): string
+    private function resolveCompanyId(): array
     {
         $direct = (string) $this->option('company-id');
         if ($direct !== '') {
-            return DB::table('companies')->where('id', $direct)->exists() ? $direct : '';
+            if (!DB::table('companies')->where('id', $direct)->exists()) {
+                return ['', null];
+            }
+            // подберём владельца компании: company_admin → hrd → любой профиль
+            $ownerId = DB::table('user_roles')
+                ->join('profiles', 'profiles.user_id', '=', 'user_roles.user_id')
+                ->where('profiles.company_id', $direct)
+                ->whereIn('user_roles.role', ['company_admin', 'hrd'])
+                ->orderByRaw("case user_roles.role when 'company_admin' then 0 when 'hrd' then 1 else 2 end")
+                ->value('user_roles.user_id');
+            if (!$ownerId) {
+                $ownerId = DB::table('profiles')->where('company_id', $direct)->value('user_id');
+            }
+            return [$direct, $ownerId ? (string) $ownerId : null];
         }
+
         $email = strtolower((string) $this->option('owner-email'));
-        if ($email === '') return '';
+        if ($email === '') return ['', null];
 
         $userId = DB::table('users')->where('email', $email)->value('id');
-        if (!$userId) return '';
+        if (!$userId) return ['', null];
 
         $cid = DB::table('profiles')->where('user_id', (string) $userId)->value('company_id');
-        return $cid ? (string) $cid : '';
+        return $cid ? [(string) $cid, (string) $userId] : ['', null];
     }
 
     private function resetSeed(): void
@@ -264,7 +283,7 @@ class SeedOrg150 extends Command
                 $row['department'] = $deptName;
             }
             if (Schema::hasColumn('positions', 'created_by')) {
-                $row['created_by'] = null;
+                $row['created_by'] = $this->ownerUserId;
             }
             if (Schema::hasColumn('positions', 'profile_status')) {
                 $row['profile_status'] = 'approved';
