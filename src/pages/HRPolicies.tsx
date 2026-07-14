@@ -18,8 +18,11 @@ const statusIcons: Record<string, React.ReactNode> = {
   pending: <Clock className="w-4 h-4 text-muted-foreground" />,
   processing: <Loader2 className="w-4 h-4 text-primary animate-spin" />,
   completed: <CheckCircle className="w-4 h-4 text-success" />,
+  processed: <CheckCircle className="w-4 h-4 text-success" />,
   failed: <XCircle className="w-4 h-4 text-destructive" />,
 };
+
+const isProcessed = (status?: string | null) => status === "completed" || status === "processed";
 
 const DocumentBlock = ({ docType }: { docType: DocType }) => {
   const { user } = useAuth();
@@ -52,6 +55,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
     pending: t("hrPolicies.statusPending"),
     processing: t("hrPolicies.statusProcessing"),
     completed: t("hrPolicies.statusCompleted"),
+    processed: t("hrPolicies.statusCompleted"),
     failed: t("hrPolicies.statusFailed"),
   };
 
@@ -218,7 +222,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  {doc.processing_status === "completed" && (
+                      {isProcessed(doc.processing_status) && (
                     <>
                       <Button
                         variant="ghost"
@@ -267,6 +271,16 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
                       <ul className="list-disc list-inside text-sm text-foreground space-y-1">
                         {doc.extracted_data.key_points.map((p: string, i: number) => (
                           <li key={i}>{p}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {doc.extracted_data.sections?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{t("hrPolicies.keyPoints")}</p>
+                      <ul className="list-disc list-inside text-sm text-foreground space-y-1">
+                        {doc.extracted_data.sections.map((section: any, i: number) => (
+                          <li key={i}>{section.title ? `${section.title}: ` : ""}{section.content}</li>
                         ))}
                       </ul>
                     </div>
