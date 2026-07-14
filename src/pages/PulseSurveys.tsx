@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
-import { Activity, Plus, Play, Square, Trash2, BarChart3 } from "lucide-react";
+import { Activity, Plus, Play, Square, Trash2, BarChart3, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { ImportQuestionsDialog } from "@/components/pulse/ImportQuestionsDialog";
+import { AssignAudienceDialog } from "@/components/pulse/AssignAudienceDialog";
+import { useAudience } from "@/hooks/usePulseTargeting";
+import { useNavigate } from "react-router-dom";
 
 type Survey = {
   id: string;
