@@ -145,20 +145,34 @@ class SeedOrg150 extends Command
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    private function resolveCompanyId(): string
+    private function resolveCompanyId(): array
     {
         $direct = (string) $this->option('company-id');
         if ($direct !== '') {
-            return DB::table('companies')->where('id', $direct)->exists() ? $direct : '';
+            if (!DB::table('companies')->where('id', $direct)->exists()) {
+                return ['', null];
+            }
+            // подберём владельца компании: company_admin → hrd → любой профиль
+            $ownerId = DB::table('user_roles')
+                ->join('profiles', 'profiles.user_id', '=', 'user_roles.user_id')
+                ->where('profiles.company_id', $direct)
+                ->whereIn('user_roles.role', ['company_admin', 'hrd'])
+                ->orderByRaw("case user_roles.role when 'company_admin' then 0 when 'hrd' then 1 else 2 end")
+                ->value('user_roles.user_id');
+            if (!$ownerId) {
+                $ownerId = DB::table('profiles')->where('company_id', $direct)->value('user_id');
+            }
+            return [$direct, $ownerId ? (string) $ownerId : null];
         }
+
         $email = strtolower((string) $this->option('owner-email'));
-        if ($email === '') return '';
+        if ($email === '') return ['', null];
 
         $userId = DB::table('users')->where('email', $email)->value('id');
-        if (!$userId) return '';
+        if (!$userId) return ['', null];
 
         $cid = DB::table('profiles')->where('user_id', (string) $userId)->value('company_id');
-        return $cid ? (string) $cid : '';
+        return $cid ? [(string) $cid, (string) $userId] : ['', null];
     }
 
     private function resetSeed(): void
