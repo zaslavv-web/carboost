@@ -1,45 +1,91 @@
+## Данные
 
-## Что чиним
+### Миграция БД (Laravel)
 
-По скриншотам — два места, где заголовки и кнопки не помещаются в мобильную ширину.
+**Новая таблица `pulse_survey_targets**` — многозначный таргетинг одного опроса:
 
-### 1. `src/pages/AiSettings.tsx` — карточка «Конфигурация»
+- `survey_id` (uuid, fk)
+- `company_id` (uuid)
+- `target_type` enum: `department` | `subdivision` | `position` | `user`
+- `target_ref` (uuid) — id departments/positions/profiles
+- unique(`survey_id`, `target_type`, `target_ref`)
 
-Проблема: `CardHeader` держит заголовок и переключатель «Расширенный режим» в одном ряду `flex items-start justify-between gap-4`. На узком экране лейбл свитча упирается в правый край и обрезается.
+**Новая таблица `pulse_survey_invitees**` — «посписочные» email, которых ещё нет в системе:
 
-Правка (строки 153–166):
-- Обернуть в `flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3`.
-- Свитчу дать перенос на новую строку на мобилке: `self-start` вместо `shrink-0`.
-- В `<label>` разрешить `flex-wrap`, чтобы «Расширенный режим» переносилось при нехватке места.
+- `survey_id`, `company_id`, `email`, `status` (`pending` | `resolved` | `invited`), `resolved_user_id` nullable
 
-Хедер страницы (строки 141–149) уже нормальный, но иконка+текст на очень узких экранах жмётся — добавить `flex-wrap` и `min-w-0` для параграфа, `break-words`.
+**Существующая `pulse_surveys**`: значение `audience` расширяется — `company` | `department` | `subdivision` | `position` | `roster` | `mixed`. Поле `audience_ref` больше не используется для multi-таргетинга (оставляем для обратной совместимости).
 
-### 2. `src/pages/PulseSurveys.tsx`
+GRANT на обе новые таблицы + RLS.
 
-Проблема A — верхний хедер (строки 158–172): `flex items-center justify-between` без переноса. Кнопка «Новый опрос» отжимает заголовок.
+### Про «отделы vs подразделения»
 
-Правка: `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`. Кнопке на мобилке дать `w-full sm:w-auto`.
+Физически используем существующий `departments` с `parent_id`:
 
-Проблема B — `CardHeader` детальной карточки (строки 192–215): `flex flex-row items-center justify-between` держит `CardTitle` и группу из 3–4 кнопок в одну строку. На мобилке кнопки «Закрыть / + Вопрос / корзина» наезжают на название («NPS сотрудников»).
+- **Подразделение** = department **верхнего уровня** (`parent_id IS NULL`). Охват = сам department + все дочерние (рекурсивно).
+- **Отдел** = department **с parent_id** (дочерний). Охват = только он сам.
 
-Правка:
-- Хедер: `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2`.
-- Группа кнопок: `flex flex-wrap gap-2` + `w-full sm:w-auto`, у каждой кнопки `flex-1 sm:flex-none` чтобы аккуратно занимали строку на телефоне.
-- `CardTitle` — добавить `truncate` и `min-w-0`.
+Это позволяет иметь «две сущности» без дублирующей таблицы. В UI показываем два разных списка: подразделения (корневые) и отделы (листья/дочерние).
 
-Проблема C — контейнер страницы (строка 157): `p-6` слишком широкий на мобилке. Меняем на `p-4 md:p-6`.
+## Backend (Laravel)
 
-Проблема D — карточка списка «Опросы» (строки 179–187): в кнопке `flex items-center justify-between` заголовок опроса и бадж статуса встают в один ряд без `min-w-0`, из-за чего `truncate` на `span` не срабатывает и бадж отжимается. Добавить `gap-2 min-w-0` и `shrink-0` баджу.
+Новый контроллер `PulseSurveyController` с endpoints:
+
+- `POST /api/pulse-surveys/{id}/questions/import` — принимает multipart CSV. Парсит колонки `title, kind, options, is_required`. `kind` валидируется, `options` парсится через `;`, `is_required` = `1/0`. Создаёт `pulse_survey_questions` пачкой с корректным `order_index`. Возвращает `{ imported, skipped, errors[] }`.
+- `POST /api/pulse-surveys/{id}/targets` — тело `{ targets: [{type, ref}, ...] }`. Атомарная замена существующих таргетов.
+- `POST /api/pulse-surveys/{id}/roster/resolve` — тело `{ emails: string[] }`. Возвращает `{ found: [{email, user_id, full_name}], not_found: string[] }` — без записи в БД, для preview.
+- `POST /api/pulse-surveys/{id}/roster/commit` — тело `{ user_ids: uuid[], external_emails: string[] }`. Внутренних добавляет в `pulse_survey_targets` как `user`. Внешние email — в `pulse_survey_invitees`.
+- `GET /api/pulse-surveys/{id}/audience` — вычисленный список eligible `user_id` из объединения таргетов (department = сам + рекурсивные дети через CTE, subdivision = корневой + все дети, position = все `profiles.position_id`, user = напрямую). Нужно для отображения «Охват: N сотрудников».
+
+Все методы требуют `hrd | company_admin | superadmin` через `AuthUserService::guard()` и фильтр по `company_id`.
+
+## Frontend
+
+### `src/pages/PulseSurveys.tsx`
+
+Добавить в правую карточку опроса две новые кнопки рядом с «+ Вопрос»:
+
+- **«Импорт CSV»** — открывает `ImportQuestionsDialog`.
+- **«Назначить»** — открывает `AssignAudienceDialog`.
+
+Показывать под заголовком карточки бейдж «Охват: N сотрудников» из `/audience`.
+
+### `ImportQuestionsDialog` (новый компонент)
+
+- `<input type="file" accept=".csv">` + hint формата: `title, kind, options, is_required`.
+- Preview первых 10 строк в таблице.
+- Кнопка «Импортировать» → отправляет multipart на backend.
+- Toast с результатом `{imported, skipped, errors}`.
+- Шаблон скачивания: генерируем на клиенте `Blob` с примером.
+
+### `AssignAudienceDialog` (новый компонент)
+
+Табы:
+
+1. **Подразделения** — чекбоксы по корневым departments (`parent_id IS NULL`) с счётчиком сотрудников.
+2. **Отделы** — чекбоксы по дочерним departments, группировка по родителю.
+3. **Должности** — чекбоксы по `positions`.
+4. **Посписочно** — chip-input email (Enter/Tab/запятая/paste). Кнопка «Проверить» → `POST /roster/resolve` → показывает:
+  - блок «Найдены (N)» с именами;
+  - блок «Не найдены (M)» — красный алерт с текстом *«Сотрудник с адресом X не найден. Что сделать?»* и на каждый email две кнопки: **«Создать сотрудника»** (открывает существующий `bulk-invite` flow с предзаполненным email) и **«Исправить адрес»** (возвращает email в input для правки).
+
+Внизу — сводный «Охват: N сотрудников» + кнопка «Сохранить назначение», которая шлёт `/targets` + `/roster/commit`.
+
+### Хуки
+
+`src/hooks/usePulseTargeting.ts` — оборачивает вышеупомянутые endpoints через TanStack Query.
 
 ## Что не трогаем
 
-- Диалоги `CreateSurveyDialog` / `AddQuestionDialog` — они и так через shadcn Dialog, на мобилке уже адаптивны.
-- Логика запросов, API, локали — только классы Tailwind.
-- Компоненты `AnswerControl` — там уже `flex-wrap`.
+- Логику `pulse_survey_responses` и алгоритм статистики — назначения на неё не влияют пока (запись ответов доступна тем, кто в `audience`; фильтрацию можно докрутить в следующем шаге).
+- Мобильную вёрстку кнопок — уже адаптивна из прошлой правки.
+- Существующее поле `audience/audience_ref` — не удаляем, только перестаём читать при новых опросах.
 
 ## Проверка
 
-После правок вручную посмотрю обе страницы через Playwright на viewport 375×812 (iPhone), убеждаюсь, что:
-- «Расширенный режим» виден целиком рядом со свитчем или под ним;
-- «Новый опрос» не перекрывает заголовок Pulse;
-- Кнопки действий над опросом (Запустить/Закрыть/+ Вопрос/удалить) не заходят на название карточки.
+1. Миграция применяется, `pulse_survey_targets` и `pulse_survey_invitees` появляются.
+2. Загрузка CSV с 5 вопросами создаёт 5 записей `pulse_survey_questions`.
+3. Назначение по подразделению «Продажи» показывает 12 сотрудников (сумма из дочерних отделов).
+4. Ввод несуществующего email `foo@bar.com` показывает алерт «Не найден» с кнопками действий.
+5. `/audience` возвращает объединённый уникальный список без дубликатов.  
+  
