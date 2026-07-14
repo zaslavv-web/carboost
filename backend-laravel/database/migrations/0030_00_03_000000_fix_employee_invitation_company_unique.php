@@ -36,7 +36,6 @@ return new class extends Migration {
 
         Schema::table('employee_invitations', function (Blueprint $table) {
             $table->index('company_id', 'employee_invitations_company_id_index');
-            $table->unique(['company_id', 'email', 'status'], 'employee_invitations_company_email_status_unique');
         });
     }
 
@@ -47,7 +46,6 @@ return new class extends Migration {
         }
 
         Schema::table('employee_invitations', function (Blueprint $table) {
-            $table->dropUnique('employee_invitations_company_email_status_unique');
             $table->dropIndex('employee_invitations_company_id_index');
             $table->unique('company_id');
         });
