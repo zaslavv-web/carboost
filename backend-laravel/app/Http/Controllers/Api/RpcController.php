@@ -90,6 +90,10 @@ class RpcController extends Controller
             return $this->submitPricingInquiry($payload);
         }
 
+        if ($name === 'bulk_invite_employees') {
+            return $this->bulkInviteEmployees($request, $payload);
+        }
+
 
         $args = [];
         $placeholders = [];
@@ -155,6 +159,95 @@ class RpcController extends Controller
         } catch (Throwable $e) {
             return response()->json(['error' => self::localize($e->getMessage())], 422);
         }
+    }
+
+    private function bulkInviteEmployees(Request $request, array $payload)
+    {
+        $actor = $request->user();
+        if (!$actor) {
+            return response()->json(['error' => 'Не авторизован'], 401);
+        }
+
+        if (!$actor->hasRole(['hrd', 'company_admin', 'superadmin', 'manager'])) {
+            return response()->json(['error' => 'Недостаточно прав'], 403);
+        }
+
+        $companyId = method_exists($actor, 'companyId') ? $actor->companyId() : null;
+        if (!$companyId) {
+            return response()->json(['error' => 'Не указана компания'], 422);
+        }
+
+        $invites = $payload['_invites'] ?? $payload['invites'] ?? [];
+        if (!is_array($invites)) {
+            return response()->json(['error' => 'Некорректный список приглашений'], 422);
+        }
+
+        $created = 0;
+        $skipped = 0;
+        $errors = [];
+
+        DB::transaction(function () use ($invites, $actor, $companyId, &$created, &$skipped, &$errors) {
+            foreach ($invites as $i => $invite) {
+                if (!is_array($invite)) {
+                    $skipped++;
+                    continue;
+                }
+
+                $email = strtolower(trim((string) ($invite['email'] ?? '')));
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $skipped++;
+                    $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => 'Некорректный email'];
+                    continue;
+                }
+
+                $exists = DB::table('employee_invitations')
+                    ->where('company_id', $companyId)
+                    ->where('email', $email)
+                    ->whereIn('status', ['pending', 'claimed'])
+                    ->exists();
+
+                if ($exists) {
+                    $skipped++;
+                    continue;
+                }
+
+                $token = Str::random(48);
+                $row = [
+                    'company_id'      => $companyId,
+                    'email'           => $email,
+                    'full_name'       => trim((string) ($invite['full_name'] ?? '')) ?: null,
+                    'position_id'     => $invite['position_id'] ?? null,
+                    'department'      => trim((string) ($invite['department'] ?? '')) ?: null,
+                    'requested_role'  => in_array(($invite['requested_role'] ?? 'employee'), ['employee', 'manager', 'hrd', 'company_admin'], true)
+                        ? $invite['requested_role']
+                        : 'employee',
+                    'status'          => 'pending',
+                    'invited_by'      => method_exists($actor, 'domainUserId') ? $actor->domainUserId() : $actor->id,
+                    'token'           => $token,
+                    'token_hash'      => hash('sha256', $token),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ];
+
+                if (Schema::hasColumn('employee_invitations', 'id') && !$this->idColumnIsInteger('employee_invitations')) {
+                    $row['id'] = (string) Str::uuid();
+                }
+
+                try {
+                    DB::table('employee_invitations')->insert($row);
+                    $created++;
+                } catch (Throwable $e) {
+                    $skipped++;
+                    $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => self::localize($e->getMessage())];
+                }
+            }
+        });
+
+        return response()->json(['data' => [
+            'created' => $created,
+            'skipped' => $skipped,
+            'errors'  => $errors,
+        ]]);
     }
 
     private function verifyUser(object $profile)

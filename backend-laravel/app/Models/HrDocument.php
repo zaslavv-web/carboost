@@ -22,4 +22,13 @@ class HrDocument extends Model
         'valid_until'     => 'date',
         'is_confidential' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $m) {
+            if (empty($m->created_by) && ($u = auth()->user())) {
+                $m->created_by = $u->id;
+            }
+        });
+    }
 }
