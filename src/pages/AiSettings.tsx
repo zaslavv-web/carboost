@@ -138,11 +138,11 @@ export default function AiSettingsPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="rounded-full bg-primary/10 p-3"><Brain className="h-6 w-6 text-primary" /></div>
-        <div>
-          <h1 className="text-2xl font-bold">AI-провайдер</h1>
-          <p className="text-sm text-muted-foreground">
+      <div className="flex items-start gap-3 flex-wrap">
+        <div className="rounded-full bg-primary/10 p-3 shrink-0"><Brain className="h-6 w-6 text-primary" /></div>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold break-words">AI-провайдер</h1>
+          <p className="text-sm text-muted-foreground break-words">
             По умолчанию используется протестированная нами модель. Менять провайдера и ключ нужно только для закрытого контура.
           </p>
         </div>
@@ -150,8 +150,8 @@ export default function AiSettingsPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div className="min-w-0">
               <CardTitle>Конфигурация</CardTitle>
               <CardDescription>
                 {advancedMode
@@ -159,7 +159,7 @@ export default function AiSettingsPage() {
                   : "Базовый режим: всё работает на наших настройках. Включите расширенный режим, чтобы подключить свою модель."}
               </CardDescription>
             </div>
-            <label className="flex items-center gap-2 text-sm shrink-0">
+            <label className="flex items-center gap-2 text-sm self-start flex-wrap">
               <Switch checked={advancedMode} onCheckedChange={setAdvancedMode} />
               <span className="text-muted-foreground">Расширенный режим</span>
             </label>
