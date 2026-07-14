@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
-import { Activity, Plus, Play, Square, Trash2, BarChart3 } from "lucide-react";
+import { Activity, Plus, Play, Square, Trash2, BarChart3, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { ImportQuestionsDialog } from "@/components/pulse/ImportQuestionsDialog";
+import { AssignAudienceDialog } from "@/components/pulse/AssignAudienceDialog";
+import { useAudience } from "@/hooks/usePulseTargeting";
+import { useNavigate } from "react-router-dom";
 
 type Survey = {
   id: string;
@@ -54,6 +58,10 @@ export default function PulseSurveys() {
   const [selected, setSelected] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [qOpen, setQOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const navigate = useNavigate();
+  const { data: audience } = useAudience(selected);
 
   const { data: surveys = [] } = useQuery({
     queryKey: ["pulse-surveys", companyId],
@@ -211,6 +219,12 @@ export default function PulseSurveys() {
                   </DialogTrigger>
                   <AddQuestionDialog onSubmit={(v) => addQuestion.mutate(v)} />
                 </Dialog>
+                <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => setImportOpen(true)}>
+                  <Upload className="w-3 h-3 mr-1" />Импорт CSV
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => setAssignOpen(true)}>
+                  <Users className="w-3 h-3 mr-1" />Назначить
+                </Button>
                 <Button size="sm" variant="ghost" className="shrink-0" onClick={() => remove.mutate(currentSurvey.id)}>
                   <Trash2 className="w-3 h-3" />
                 </Button>
@@ -218,6 +232,13 @@ export default function PulseSurveys() {
             )}
           </CardHeader>
           <CardContent className="space-y-3">
+            {currentSurvey && isHR && audience && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Users className="w-3 h-3" />
+                Охват: <strong className="text-foreground">{audience.count}</strong> сотр.
+                {audience.count === 0 && <span>· назначьте аудиторию, чтобы опрос увидели</span>}
+              </div>
+            )}
             {!currentSurvey && <p className="text-sm text-muted-foreground">Слева выберите опрос</p>}
             {currentSurvey && questions.length === 0 && <p className="text-sm text-muted-foreground">Добавьте вопросы</p>}
             {questions.map((q, i) => (
@@ -243,6 +264,17 @@ export default function PulseSurveys() {
           </CardContent>
         </Card>
       </div>
+
+      <ImportQuestionsDialog surveyId={selected} open={importOpen} onOpenChange={setImportOpen} />
+      <AssignAudienceDialog
+        surveyId={selected}
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        onInviteEmail={(email) => {
+          setAssignOpen(false);
+          navigate(`/invitations?email=${encodeURIComponent(email)}`);
+        }}
+      />
     </div>
   );
 }

@@ -387,6 +387,16 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::patch ('/initiatives/{id}/review',[\App\Http\Controllers\Api\InitiativeController::class, 'review']);
         Route::delete('/initiatives/{id}',       [\App\Http\Controllers\Api\InitiativeController::class, 'destroy']);
 
+        // ---- Pulse-опросы: массовые операции + таргетинг ----
+        Route::post ('/pulse-surveys/{id}/questions/bulk',   [\App\Http\Controllers\Api\PulseSurveyController::class, 'bulkQuestions']);
+        Route::get  ('/pulse-surveys/{id}/targets',          [\App\Http\Controllers\Api\PulseSurveyController::class, 'listTargets']);
+        Route::post ('/pulse-surveys/{id}/targets',          [\App\Http\Controllers\Api\PulseSurveyController::class, 'saveTargets']);
+        Route::post ('/pulse-surveys/{id}/roster/resolve',   [\App\Http\Controllers\Api\PulseSurveyController::class, 'resolveRoster']);
+        Route::post ('/pulse-surveys/{id}/roster/commit',    [\App\Http\Controllers\Api\PulseSurveyController::class, 'commitRoster']);
+        Route::get  ('/pulse-surveys/{id}/audience',         [\App\Http\Controllers\Api\PulseSurveyController::class, 'audience']);
+
+
+
         // ---- Wave 6: Integrations (webhooks + iCal) ----
         Route::get   ('/webhooks/events',              [\App\Http\Controllers\Api\WebhookController::class, 'events']);
         Route::get   ('/webhooks',                     [\App\Http\Controllers\Api\WebhookController::class, 'index']);
