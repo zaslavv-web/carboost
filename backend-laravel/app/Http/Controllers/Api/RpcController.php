@@ -173,8 +173,31 @@ class RpcController extends Controller
         }
 
         $companyId = method_exists($actor, 'companyId') ? $actor->companyId() : null;
+        // Fallback: если у профиля утерян company_id — пытаемся вытащить через должность/отдел
         if (!$companyId) {
-            return response()->json(['error' => 'Не указана компания'], 422);
+            $actorDomainId = method_exists($actor, 'domainUserId') ? $actor->domainUserId() : $actor->id;
+            $prof = DB::table('profiles')->where('user_id', $actorDomainId)->first();
+            if ($prof) {
+                if (!empty($prof->position_id)) {
+                    $companyId = DB::table('positions')->where('id', $prof->position_id)->value('company_id');
+                }
+                if (!$companyId && !empty($prof->department_id)) {
+                    $companyId = DB::table('departments')->where('id', $prof->department_id)->value('company_id');
+                }
+                if ($companyId) {
+                    // самолечение: дописать company_id обратно в профиль, чтобы больше не всплывало
+                    DB::table('profiles')->where('user_id', $actorDomainId)->update([
+                        'company_id' => $companyId,
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
+        if (!$companyId) {
+            return response()->json([
+                'error' => 'У вашего профиля не указана компания. Обратитесь к администратору или запустите: php artisan org:fix-company-links --company-name=<Ваша компания>',
+                'code'  => 'missing_company',
+            ], 422);
         }
 
         $invites = $payload['_invites'] ?? $payload['invites'] ?? [];
