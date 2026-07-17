@@ -396,7 +396,25 @@ class SeedOrg150 extends Command
             if (Schema::hasColumn('profiles', 'role_readiness')) {
                 $update['role_readiness'] = random_int(30, 90);
             }
-            DB::table('profiles')->where('user_id', $uid)->update($update);
+            // upsert: гарантируем наличие профиля и принудительно прописываем company_id
+            $exists = DB::table('profiles')->where('user_id', $uid)->exists();
+            if ($exists) {
+                DB::table('profiles')->where('user_id', $uid)->update($update);
+            } else {
+                $insert = array_merge($update, [
+                    'user_id'    => $uid,
+                    'created_at' => now(),
+                ]);
+                if (Schema::hasColumn('profiles', 'id')) {
+                    $insert['id'] = (string) Str::uuid();
+                }
+                DB::table('profiles')->insert($insert);
+            }
+            // страховка: если company_id по какой-то причине не сохранился — дожать прямым апдейтом
+            DB::table('profiles')->where('user_id', $uid)->whereNull('company_id')->update([
+                'company_id' => $this->companyId,
+                'updated_at' => now(),
+            ]);
 
             $this->rowsCsv[] = [$email, $password, $full, $role, $deptName, $positionTitle, $isHead ? '1' : '0'];
             $seq++;
