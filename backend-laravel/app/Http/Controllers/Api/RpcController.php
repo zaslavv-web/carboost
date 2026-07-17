@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Mail\DemoRequestSubmitted;
+use App\Mail\EmployeeInvited;
+use App\Services\EmailConfigService;
+use Illuminate\Support\Facades\Log;
 use App\Mail\PricingInquirySubmitted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
