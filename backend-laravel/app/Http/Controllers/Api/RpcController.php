@@ -189,7 +189,7 @@ class RpcController extends Controller
                 if (!empty($prof->position_id)) {
                     $companyId = DB::table('positions')->where('id', $prof->position_id)->value('company_id');
                 }
-                if (!$companyId && !empty($prof->department_id)) {
+                if (!$companyId && property_exists($prof, 'department_id') && !empty($prof->department_id)) {
                     $companyId = DB::table('departments')->where('id', $prof->department_id)->value('company_id');
                 }
                 if ($companyId) {
@@ -214,14 +214,16 @@ class RpcController extends Controller
         }
 
         $created = 0;
+        $updated = 0;
         $skipped = 0;
         $errors = [];
         $pendingSends = []; // [ [row, rawToken] ]
 
-        DB::transaction(function () use ($invites, $actor, $companyId, &$created, &$skipped, &$errors, &$pendingSends) {
+        DB::transaction(function () use ($invites, $actor, $companyId, &$created, &$updated, &$skipped, &$errors, &$pendingSends) {
             foreach ($invites as $i => $invite) {
                 if (!is_array($invite)) {
                     $skipped++;
+                    $errors[] = ['row' => $i + 1, 'email' => null, 'error' => 'Некорректная строка приглашения'];
                     continue;
                 }
 
@@ -232,14 +234,16 @@ class RpcController extends Controller
                     continue;
                 }
 
-                $exists = DB::table('employee_invitations')
+                $existing = DB::table('employee_invitations')
                     ->where('company_id', $companyId)
                     ->where('email', $email)
                     ->whereIn('status', ['pending', 'claimed'])
-                    ->exists();
+                    ->orderByDesc('created_at')
+                    ->first();
 
-                if ($exists) {
+                if ($existing && $existing->status === 'claimed') {
                     $skipped++;
+                    $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => 'Пользователь уже принял приглашение'];
                     continue;
                 }
 
@@ -263,6 +267,23 @@ class RpcController extends Controller
                     'updated_at'      => now(),
                 ];
 
+                if ($existing && $existing->status === 'pending') {
+                    $update = $row;
+                    unset($update['company_id'], $update['email'], $update['status'], $update['invited_by'], $update['created_at']);
+
+                    try {
+                        DB::table('employee_invitations')->where('id', $existing->id)->update($update);
+                        $row['id'] = $existing->id;
+                        $row['created_at'] = $existing->created_at;
+                        $updated++;
+                        $pendingSends[] = ['row' => $row, 'token' => $token, 'index' => $i + 1];
+                    } catch (Throwable $e) {
+                        $skipped++;
+                        $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => self::localize($e->getMessage())];
+                    }
+                    continue;
+                }
+
                 if (Schema::hasColumn('employee_invitations', 'id') && !$this->idColumnIsInteger('employee_invitations')) {
                     $row['id'] = (string) Str::uuid();
                 }
@@ -285,6 +306,7 @@ class RpcController extends Controller
         $inviterName = $this->resolveActorName($actor);
 
         foreach ($pendingSends as $send) {
+            $mailError = null;
             $ok = $this->sendInvitationMail($send['row'], $send['token'], $companyName, $inviterName, $mailError);
             if ($ok) {
                 $mailed++;
@@ -299,6 +321,7 @@ class RpcController extends Controller
 
         return response()->json(['data' => [
             'created' => $created,
+            'updated' => $updated,
             'mailed'  => $mailed,
             'skipped' => $skipped,
             'errors'  => $errors,
