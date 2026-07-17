@@ -10,18 +10,12 @@ use Illuminate\Support\Str;
 /**
  * Восстанавливает profiles.company_id для пользователей, у которых он утерян.
  *
- * Стратегия — попробовать несколько источников, от самого достоверного к менее:
+ * Порядок резолва компании:
  *   1) positions.company_id по profiles.position_id
- *   2) departments.company_id по profiles.department_id
- *   3) employee_invitations.company_id по claimed_user_id / email
- *   4) tracker_project_members / user_roles.company_id (если есть колонка)
- *   5) --fallback-company-id / --company-name — явное указание для «сирот»
- *
- * Дополнительно создаёт строку profiles, если её вообще нет.
- *
- * Пример:
- *   php artisan org:fix-company-links --dry-run
- *   php artisan org:fix-company-links --company-name=AIGuild
+ *   2) departments.company_id по positions.department_id (через profiles.position_id)
+ *   3) team_members: компания менеджера сотрудника
+ *   4) employee_invitations.company_id по claimed_user_id / email
+ *   5) --company-id / --company-name — явное указание для «сирот»
  */
 class FixCompanyLinks extends Command
 {
@@ -47,12 +41,13 @@ class FixCompanyLinks extends Command
             }
         }
 
-        // Собираем кандидатов
+        // Собираем кандидатов (только реально существующие в profiles колонки)
         $usersQ = DB::table('users as u')
             ->leftJoin('profiles as p', 'p.user_id', '=', 'u.id')
-            ->select('u.id', 'u.email', 'u.meta', 'p.company_id as p_company', 'p.position_id', 'p.department_id')
+            ->select('u.id', 'u.email', 'u.meta', 'p.company_id as p_company', 'p.position_id')
             ->where(function ($q) {
-                $q->whereNull('p.company_id')->orWhere('p.company_id', '');
+                $q->whereNull('p.company_id')
+                  ->orWhereRaw("COALESCE(NULLIF(CAST(p.company_id AS CHAR), ''), '') = ''");
             });
 
         if ($onlyMarker) {
@@ -62,21 +57,43 @@ class FixCompanyLinks extends Command
         $rows = $usersQ->get();
         $this->info("Кандидатов на починку: {$rows->count()}");
 
-        $hasEmpTable = Schema::hasTable('employee_invitations');
-        $stats = ['positions' => 0, 'departments' => 0, 'invitations' => 0, 'fallback' => 0, 'created_profile' => 0, 'unresolved' => 0];
+        $hasEmpTable  = Schema::hasTable('employee_invitations');
+        $hasTeam      = Schema::hasTable('team_members');
+        $hasPositions = Schema::hasTable('positions');
+        $hasDepts     = Schema::hasTable('departments');
+        $posHasDeptId = $hasPositions && Schema::hasColumn('positions', 'department_id');
+
+        $stats = [
+            'positions' => 0, 'departments' => 0, 'team_members' => 0,
+            'invitations' => 0, 'fallback' => 0,
+            'created_profile' => 0, 'unresolved' => 0,
+        ];
 
         foreach ($rows as $r) {
             $cid = null;
             $via = null;
 
-            if ($r->position_id) {
+            if ($r->position_id && $hasPositions) {
                 $cid = DB::table('positions')->where('id', $r->position_id)->value('company_id');
                 if ($cid) $via = 'positions';
+
+                if (!$cid && $posHasDeptId && $hasDepts) {
+                    $deptId = DB::table('positions')->where('id', $r->position_id)->value('department_id');
+                    if ($deptId) {
+                        $cid = DB::table('departments')->where('id', $deptId)->value('company_id');
+                        if ($cid) $via = 'departments';
+                    }
+                }
             }
-            if (!$cid && $r->department_id) {
-                $cid = DB::table('departments')->where('id', $r->department_id)->value('company_id');
-                if ($cid) $via = 'departments';
+
+            if (!$cid && $hasTeam) {
+                $managerId = DB::table('team_members')->where('employee_id', $r->id)->value('manager_id');
+                if ($managerId) {
+                    $cid = DB::table('profiles')->where('user_id', $managerId)->value('company_id');
+                    if ($cid) $via = 'team_members';
+                }
             }
+
             if (!$cid && $hasEmpTable) {
                 $cid = DB::table('employee_invitations')
                     ->where(function ($q) use ($r) {
@@ -85,6 +102,7 @@ class FixCompanyLinks extends Command
                     ->value('company_id');
                 if ($cid) $via = 'invitations';
             }
+
             if (!$cid && $fallbackCompanyId) {
                 $cid = $fallbackCompanyId;
                 $via = 'fallback';
