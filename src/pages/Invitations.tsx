@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Upload, Plus, Trash2, Mail, Users, FileSpreadsheet, Loader2, X } from "lucide-react";
+import { Upload, Plus, Trash2, Mail, Users, FileSpreadsheet, Loader2, X, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
