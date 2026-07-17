@@ -98,6 +98,10 @@ class RpcController extends Controller
             return $this->bulkInviteEmployees($request, $payload);
         }
 
+        if ($name === 'resend_invitation') {
+            return $this->resendInvitation($request, $payload);
+        }
+
 
         $args = [];
         $placeholders = [];
