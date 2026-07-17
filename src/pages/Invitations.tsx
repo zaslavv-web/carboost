@@ -70,16 +70,23 @@ const Invitations = () => {
     },
     onSuccess: (res: any) => {
       const created = res?.created ?? 0;
+      const updated = res?.updated ?? res?.resent ?? 0;
       const mailed = res?.mailed ?? 0;
       const skipped = res?.skipped ?? 0;
-      if (created > 0 && mailed < created) {
+      const actionable = created + updated;
+      const firstError = Array.isArray(res?.errors) && res.errors.length > 0
+        ? `${res.errors[0].email || "строка " + res.errors[0].row}: ${res.errors[0].error}`
+        : null;
+
+      if (actionable === 0) {
+        toast.error(firstError || `Приглашения не созданы${skipped ? `, пропущено: ${skipped}` : ""}`);
+      } else if (mailed < actionable) {
         toast.warning(
-          `Создано приглашений: ${created}, отправлено писем: ${mailed}. Часть писем не ушла — используйте «Отправить повторно».`
+          `Создано: ${created}, обновлено: ${updated}, отправлено писем: ${mailed}. Часть писем не ушла — используйте «Отправить повторно».`
         );
       } else {
-        toast.success(
-          `Создано: ${created}, отправлено писем: ${mailed}${skipped ? `, пропущено: ${skipped}` : ""}`
-        );
+        const prefix = created === 0 && updated > 0 ? "Приглашение отправлено повторно" : `Создано: ${created}, обновлено: ${updated}`;
+        toast.success(`${prefix}, отправлено писем: ${mailed}${skipped ? `, пропущено: ${skipped}` : ""}`);
       }
       if (Array.isArray(res?.errors) && res.errors.length > 0) {
         const first = res.errors.slice(0, 3).map((e: any) => `${e.email}: ${e.error}`).join("; ");
