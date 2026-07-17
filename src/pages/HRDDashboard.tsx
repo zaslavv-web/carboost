@@ -756,7 +756,14 @@ const HRDDashboard = () => {
         <div className="p-6 border-b border-border">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <h3 className="font-semibold text-foreground">{t("hrdDashboard.table.title")}</h3>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button
+                size="sm"
+                onClick={() => (window.location.href = "/invitations")}
+                className="gradient-primary text-primary-foreground"
+              >
+                <Mail className="w-4 h-4 mr-1.5" /> Добавить нового сотрудника
+              </Button>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input

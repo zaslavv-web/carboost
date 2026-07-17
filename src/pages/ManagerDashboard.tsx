@@ -177,12 +177,20 @@ const ManagerDashboard = () => {
           <h1 className="text-2xl font-bold text-foreground">{t("managerDashboard.title")}</h1>
           <p className="text-muted-foreground mt-1">{t("managerDashboard.subtitle")}</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          <UserPlus className="w-4 h-4" /> {t("managerDashboard.addToTeam")}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => (window.location.href = "/invitations")}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            <UserPlus className="w-4 h-4" /> Добавить нового сотрудника
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-foreground text-sm font-medium hover:bg-secondary/80 transition-colors"
+          >
+            <UserPlus className="w-4 h-4" /> {t("managerDashboard.addToTeam")}
+          </button>
+        </div>
       </div>
 
       {/* Metrics */}
