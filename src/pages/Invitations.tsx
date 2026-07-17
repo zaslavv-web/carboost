@@ -45,6 +45,7 @@ const Invitations = () => {
 
   const [draft, setDraft] = useState<InviteRow[]>([{ email: "" }]);
   const [parsing, setParsing] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<{ emails: string[] } | null>(null);
 
   const { data: positions = [] } = useQuery({
     queryKey: ["positions_for_invite", companyId],
