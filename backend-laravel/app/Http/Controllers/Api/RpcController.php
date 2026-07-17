@@ -223,6 +223,7 @@ class RpcController extends Controller
             foreach ($invites as $i => $invite) {
                 if (!is_array($invite)) {
                     $skipped++;
+                    $errors[] = ['row' => $i + 1, 'email' => null, 'error' => 'Некорректная строка приглашения'];
                     continue;
                 }
 
@@ -269,12 +270,17 @@ class RpcController extends Controller
                 if ($existing && $existing->status === 'pending') {
                     $update = $row;
                     unset($update['company_id'], $update['email'], $update['status'], $update['invited_by'], $update['created_at']);
-                    DB::table('employee_invitations')->where('id', $existing->id)->update($update);
 
-                    $row['id'] = $existing->id;
-                    $row['created_at'] = $existing->created_at;
-                    $updated++;
-                    $pendingSends[] = ['row' => $row, 'token' => $token, 'index' => $i + 1];
+                    try {
+                        DB::table('employee_invitations')->where('id', $existing->id)->update($update);
+                        $row['id'] = $existing->id;
+                        $row['created_at'] = $existing->created_at;
+                        $updated++;
+                        $pendingSends[] = ['row' => $row, 'token' => $token, 'index' => $i + 1];
+                    } catch (Throwable $e) {
+                        $skipped++;
+                        $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => self::localize($e->getMessage())];
+                    }
                     continue;
                 }
 
