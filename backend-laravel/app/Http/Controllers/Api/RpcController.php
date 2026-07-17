@@ -39,6 +39,7 @@ class RpcController extends Controller
         'register_company'               => ['_name' => 'text'],
         'find_company_by_name'           => ['_name' => 'text'],
         'bulk_invite_employees'          => ['_invites' => 'jsonb'],
+        'resend_invitation'              => ['_invitation_id' => 'text'],
         'submit_employee_questionnaire'  => [
             '_questionnaire_id' => 'uuid', '_position_id' => 'uuid',
             '_other_position_title' => 'text', '_answers' => 'jsonb',
