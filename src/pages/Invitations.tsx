@@ -74,23 +74,33 @@ const Invitations = () => {
       const mailed = res?.mailed ?? 0;
       const skipped = res?.skipped ?? 0;
       const actionable = created + updated;
-      const firstError = Array.isArray(res?.errors) && res.errors.length > 0
-        ? `${res.errors[0].email || "строка " + res.errors[0].row}: ${res.errors[0].error}`
+      const errList: Array<{ email?: string; row?: number; error: string }> = Array.isArray(res?.errors) ? res.errors : [];
+      const firstError = errList[0]
+        ? `${errList[0].email || "строка " + errList[0].row}: ${errList[0].error}`
         : null;
 
       if (actionable === 0) {
-        toast.error(firstError || `Приглашения не созданы${skipped ? `, пропущено: ${skipped}` : ""}`);
+        // Ничего не создали и не обновили — показываем конкретную причину и что делать
+        if (firstError) {
+          toast.error(`Приглашение не создано. ${firstError}. Исправьте адрес или роль и попробуйте снова.`);
+        } else if (skipped > 0) {
+          toast.error(`Пропущено ${skipped} — проверьте, что все email введены корректно.`);
+        } else {
+          toast.error("Приглашение не создано. Проверьте адрес и попробуйте снова.");
+        }
       } else if (mailed < actionable) {
+        const failed = errList.find((e) => /письмо не отправлено/i.test(e.error))?.error || firstError;
         toast.warning(
-          `Создано: ${created}, обновлено: ${updated}, отправлено писем: ${mailed}. Часть писем не ушла — используйте «Отправить повторно».`
+          `Создано: ${created}, обновлено: ${updated}. Запись в базе есть, но письмо не ушло${failed ? ` (${failed})` : ""}. Нажмите «Отправить повторно» в списке ниже.`,
+          { duration: 8000 }
         );
       } else {
         const prefix = created === 0 && updated > 0 ? "Приглашение отправлено повторно" : `Создано: ${created}, обновлено: ${updated}`;
         toast.success(`${prefix}, отправлено писем: ${mailed}${skipped ? `, пропущено: ${skipped}` : ""}`);
       }
-      if (actionable > 0 && Array.isArray(res?.errors) && res.errors.length > 0) {
-        const first = res.errors.slice(0, 3).map((e: any) => `${e.email}: ${e.error}`).join("; ");
-        toast.error(`Ошибки: ${first}${res.errors.length > 3 ? "…" : ""}`);
+      if (actionable > 0 && errList.length > 0) {
+        const first = errList.slice(0, 3).map((e) => `${e.email}: ${e.error}`).join("; ");
+        toast.error(`Есть проблемы: ${first}${errList.length > 3 ? "…" : ""}`);
       }
       setDraft([{ email: "" }]);
       queryClient.invalidateQueries({ queryKey: ["invitations", companyId] });

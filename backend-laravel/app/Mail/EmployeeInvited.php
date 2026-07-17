@@ -4,8 +4,6 @@ namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 class EmployeeInvited extends Mailable
@@ -22,16 +20,24 @@ class EmployeeInvited extends Mailable
         public ?string $department = null,
     ) {}
 
-    public function envelope(): Envelope
+    /**
+     * Классический build() используется намеренно вместо envelope()/content()
+     * с именованными параметрами Content(htmlString:/textString:) — эти поля
+     * появились только в поздних минорных релизах Laravel 10/11 и падают
+     * с "Unknown named parameter $textString" на текущей версии проекта.
+     */
+    public function build(): self
     {
         $subject = $this->companyName
             ? 'Приглашение в «' . $this->companyName . '» — Пик Роста'
             : 'Приглашение в Пик Роста';
 
-        return new Envelope(subject: $subject);
+        return $this
+            ->subject($subject)
+            ->html($this->renderHtml());
     }
 
-    public function content(): Content
+    private function renderHtml(): string
     {
         $e = fn ($v) => htmlspecialchars((string) $v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
@@ -63,7 +69,7 @@ class EmployeeInvited extends Mailable
 
         $safeUrl = $e($this->inviteUrl);
 
-        $html = '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>Приглашение — Пик Роста</title></head>'
+        return '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>Приглашение — Пик Роста</title></head>'
             . '<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">'
             . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 0;">'
             . '<tr><td align="center">'
@@ -89,12 +95,5 @@ class EmployeeInvited extends Mailable
             . '</td></tr>'
             . '</table>'
             . '</td></tr></table></body></html>';
-
-        $text = ($this->recipientName ? "Здравствуйте, {$this->recipientName}!\n\n" : "Здравствуйте!\n\n")
-            . 'Вас пригласили в «Пик Роста»'
-            . ($this->companyName ? " (компания {$this->companyName})" : '')
-            . ".\n\nСсылка для завершения регистрации:\n{$this->inviteUrl}\n";
-
-        return new Content(htmlString: $html, textString: $text);
     }
 }

@@ -228,9 +228,26 @@ class RpcController extends Controller
                 }
 
                 $email = strtolower(trim((string) ($invite['email'] ?? '')));
+                if ($email === '') {
+                    $skipped++;
+                    $errors[] = ['row' => $i + 1, 'email' => null, 'error' => 'Пустой email — укажите адрес получателя'];
+                    continue;
+                }
                 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     $skipped++;
-                    $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => 'Некорректный email'];
+                    $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => 'Некорректный email: проверьте формат (пример: name@example.com)'];
+                    continue;
+                }
+                // Проверка доменной части: MX или A-запись. Если домена нет —
+                // письмо гарантированно не дойдёт, лучше сразу сказать об этом.
+                $domain = substr(strrchr($email, '@') ?: '', 1);
+                if ($domain === '' || (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A'))) {
+                    $skipped++;
+                    $errors[] = [
+                        'row' => $i + 1,
+                        'email' => $email,
+                        'error' => "Домен «{$domain}» не принимает почту (нет MX/A-записи). Проверьте правильность адреса.",
+                    ];
                     continue;
                 }
 

@@ -1,98 +1,73 @@
-## Проблема
+## Диагноз (точный)
 
-`mysql` без явных кредов не находит пароль. Пароль лежит в `.env` (`DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`, `DB_HOST`). Нужно либо передавать их в mysql, либо гонять запросы через artisan tinker.
+`storage/logs/laravel.log`:
 
-## Вариант A — mysql с паролем из .env (одна строка)
-
-```bash
-cd /home/gro7659365/growth-peak.pro/docs/backend
-set -a; source <(grep -E '^DB_(HOST|PORT|DATABASE|USERNAME|PASSWORD)=' .env | sed 's/^/export /'); set +a
-alias mysqldb='mysql -h"$DB_HOST" -P"${DB_PORT:-3306}" -u"$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE"'
-
-EMAIL="ivan.ivanov@aiguild.demo"   # подставьте реальный email, который вы пытались пригласить
-
-# 1) Найти запись во всех таблицах, где есть колонка *email*/*mail*
-mysqldb -N -e "
-  SELECT CONCAT('SELECT ''', table_name, ''' AS tbl, COUNT(*) AS n FROM \`', table_name, '\` WHERE \`', column_name, '\` = ''${EMAIL}'' UNION ALL')
-  FROM information_schema.columns
-  WHERE table_schema='${DB_DATABASE}'
-    AND (column_name LIKE '%email%' OR column_name LIKE '%mail%');
-" | sed '$ s/UNION ALL$/;/' > /tmp/scan.sql
-mysqldb < /tmp/scan.sql
+```
+Unknown named parameter $textString at app/Mail/EmployeeInvited.php:98
 ```
 
-## Вариант B — точечные запросы
+В строке 98:
 
-```bash
-mysqldb -e "
-  SELECT 'users' t, id, email, created_at FROM users WHERE email='${EMAIL}'
-  UNION ALL SELECT 'profiles', CAST(user_id AS CHAR), email, updated_at FROM profiles WHERE email='${EMAIL}'
-  UNION ALL SELECT 'employee_invitations', CAST(id AS CHAR), email, status FROM employee_invitations WHERE email='${EMAIL}';
-"
-
-# Схема таблицы приглашений
-mysqldb -e "SHOW CREATE TABLE employee_invitations\G"
-mysqldb -e "SHOW INDEX FROM employee_invitations;"
+```php
+return new Content(htmlString: $html, textString: $text);
 ```
 
-## Вариант C — без mysql, через Laravel
+Установленный `Illuminate\Mail\Mailables\Content` в этом проекте не имеет свойств `htmlString`/`textString` (это Laravel 10.x до определённого патча / 9.x). Из-за исключения:
 
-```bash
-php artisan tinker --execute="
-  \$e='${EMAIL}';
-  print_r([
-    'users'  => DB::table('users')->where('email',\$e)->count(),
-    'profiles' => DB::table('profiles')->where('email',\$e)->count(),
-    'invites' => DB::table('employee_invitations')->where('email',\$e)->get(['id','company_id','status','created_at'])->toArray(),
-  ]);
-"
+- `sendInvitationMail()` ловит `Throwable` → возвращает `false`, `mailed` = 0;
+- запись в `employee_invitations` при этом **уже создана/обновлена** (что и видно в БД: `pending`, `updated_at 20:15:17`);
+- бэк отдаёт `created:1, mailed:0, errors:[{email:"…", error:"Письмо не отправлено: Unknown named parameter $textString"}]`;
+- фронт при `actionable=1, mailed=0` должен показать **warning** «часть писем не ушла», но пользователь видит «Приглашения не созданы».
 
-ответ:
+Проверил ветку в `Invitations.tsx:83-86` — она уже корректна. Значит фронт-часть в порядке; путаницу создавал именно провал письма. Но пользователь всё равно воспринимает это как «ничего не работает», поэтому текст сообщения улучшим.
+
+## Что чиню
+
+### 1. `backend-laravel/app/Mail/EmployeeInvited.php` — уходим от `Content` совсем
+
+Использую классический `build()` с `->html($html)->subject(...)`. Метод `Mailable::html(string)` доступен во всех современных Laravel (9+) и не требует view-файла. Отдельный plain-text опустим — Symfony Mailer сам сформирует текстовую часть из HTML; это гораздо надёжнее, чем зависеть от версии `Content`.
+
+```php
+public function build()
+{
+    // ...тот же расчёт $safeUrl и $html...
+    return $this->subject($this->companyName
+        ? "Приглашение в «Пик Роста» — {$this->companyName}"
+        : 'Приглашение в «Пик Роста»'
+    )->html($html);
+}
 ```
 
-[gro7659365@gro7659365 backend]$ mysql "$DB" -e "SHOW CREATE TABLE employee_invitations\G"
+Удаляю метод `content()`, `envelope()` при необходимости оставляю пустым или удаляю (Laravel допускает `build()` как альтернативу).
 
-ERROR 1045 (28000): Access denied for user 'gro7659365'@'localhost' (using password: NO)
+### 2. `src/pages/Invitations.tsx` — точнее текст тоста
 
-[gro7659365@gro7659365 backend]$ mysql "$DB" -e "SHOW INDEX FROM employee_invitations;"
+- Заменю «Приглашения не созданы» на «Не удалось создать приглашения» и всегда буду показывать `firstError` (сейчас показывается только при `actionable=0`).
+- В warning-ветке добавлю подсказку «строка в базе создана, письмо не ушло — попробуйте кнопку „Отправить повторно“».
 
-ERROR 1045 (28000): Access denied for user 'gro7659365'@'localhost' (using password: NO)
+### 3. `RpcController::sendInvitationMail` — расширяю лог
 
-[gro7659365@gro7659365 backend]$ mysql "$DB" -e "
+Добавлю в `Log::error('Invitation mail failed', …)` поле `class`, `file`, `line` — чтобы будущие сбои конверта диагностировались с одного взгляда без stack-trace.
 
->   SELECT status, COUNT(*) FROM employee_invitations
+## Проверка
 
->   WHERE email='${EMAIL}' GROUP BY status;
+Синтаксис PHP-файла проверю через `php -l` (в sandbox nix-shell). Ожидаемый результат после `git pull` + `php artisan optimize:clear` на проде:
 
-> "
+- клик «Пригласить» → тост «Создано: 1, отправлено писем: 1»;
+- в `employee_invitations` статус `pending`, письмо приходит на `muxtar2005@gmail.com`;
+- в логе нет `Unknown named parameter`.
 
-ERROR 1045 (28000): Access denied for user 'gro7659365'@'localhost' (using password: NO)
+## Оставшиеся хвосты (не в этом фиксе, только фиксирую)
 
-[gro7659365@gro7659365 backend]$ php artisan tinker --execute="
+- `profiles.email` отсутствует — где-то в коде на это будет тянуть. Уже видно в `PeopleAnalyticsController`/некоторых RPC. Отдельной задачей: добавить колонку `email` в `profiles` (миграция) **или** переключить эти места на JOIN `users.email`.   
+сразу найди и исправь
+- Тексты приглашения выводят кириллицу; при `->html()` charset берётся из конфига `mail.markdown`/`mailer` — на проде проверим Content-Type в присланном письме, при необходимости добавлю `headers()` с `text/html; charset=utf-8`.
 
->   \$e='${EMAIL}';
-
->   print_r([
-
->     'users'  => DB::table('users')->where('email',\$e)->count(),
-
->     'profiles' => DB::table('profiles')->where('email',\$e)->count(),
-
->     'invites' => DB::table('employee_invitations')->where('email',\$e)->get(['id','company_id','status','created_at'])->toArray(),
-
->   ]);
-
-> "
-
-   Illuminate\Database\QueryException  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'where clause' (Connection: mysql, SQL: select count(*) as aggregate from `profiles` where `email` = [test@example.com](mailto:test@example.com)).
+Приступаю к правкам сразу после подтверждения.  
+  
+Перепроверь:  
+1) текст ошибки должен содержать явное указание пользователю что нужно поправить чтобы случился успешный успех  
+2) на кнопках установлены рабобтающие процессы - если барахлит отправка писем нужно определить причину и ее починить  
+3) если проблема в самом адресе - выдать сообщение пользователю что он пытается добиться не добиваемого
 
 &nbsp;
-
-## Что мне нужно от вас
-
-1. Реальный email, который вы пытались пригласить (я тестировал шаблон `ivan.ivanov@aiguild.demo`).  
-muxtar2005@gmail.com
-2. Ответ команды B (три `UNION ALL` + `SHOW CREATE TABLE employee_invitations`).
-3. Ответ POST `/api/rpc/bulk_invite_employees` из DevTools → Network → вкладка Response при следующей попытке.
-
-По этим данным определю, какая из 10 гипотез (уникальный индекс, NOT NULL, кэш, залипшие pending и т.д.) сработала, и выкачу точечный фикс.
