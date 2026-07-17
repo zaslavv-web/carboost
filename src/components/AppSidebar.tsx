@@ -198,6 +198,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         ]},
         { key: "hr", label: S("hr"), entries: [
           { icon: Users, label: t("nav.myTeam"), path: "/team" },
+          { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
           leaves,
           { icon: FileJson, label: "HR-документы", path: "/hr-documents-personal" },
           {
