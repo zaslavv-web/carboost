@@ -416,6 +416,23 @@ const Invitations = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!pendingConfirm} onOpenChange={(o) => !o && setPendingConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Приглашение уже отправлялось</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingConfirm && pendingConfirm.emails.length === 1
+                ? `Пользователю с e-mail ${pendingConfirm.emails[0]} приглашение уже отправлялось. Отправить повторно?`
+                : `Следующим пользователям приглашение уже отправлялось: ${pendingConfirm?.emails.join(", ")}. Отправить повторно?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Нет</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResend}>Да, отправить повторно</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
