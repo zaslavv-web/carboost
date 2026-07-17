@@ -342,7 +342,7 @@ const Invitations = () => {
         </div>
 
         <Button
-          onClick={() => sendMutation.mutate(draft)}
+          onClick={() => sendMutation.mutate({ invites: draft })}
           disabled={sendMutation.isPending}
           className="w-full sm:w-auto"
         >
