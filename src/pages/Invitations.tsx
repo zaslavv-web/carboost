@@ -5,11 +5,29 @@ import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Upload, Plus, Trash2, Mail, Users, FileSpreadsheet, Loader2, X, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { formatDistanceToNow } from "date-fns";
 import { getDateLocale } from "@/lib/dateLocale";
 import { useTranslation } from "react-i18next";
+
+interface InviteResult {
+  row?: number;
+  email?: string | null;
+  status: "created" | "resent" | "pending_exists" | "claimed" | "invalid_email" | "mail_failed" | "error";
+  error?: string;
+  invitation_id?: string;
+}
 
 interface InviteRow {
   email: string;
