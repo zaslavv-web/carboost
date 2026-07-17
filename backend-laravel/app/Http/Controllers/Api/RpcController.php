@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Mail\DemoRequestSubmitted;
+use App\Mail\EmployeeInvited;
+use App\Services\EmailConfigService;
+use Illuminate\Support\Facades\Log;
 use App\Mail\PricingInquirySubmitted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +39,7 @@ class RpcController extends Controller
         'register_company'               => ['_name' => 'text'],
         'find_company_by_name'           => ['_name' => 'text'],
         'bulk_invite_employees'          => ['_invites' => 'jsonb'],
+        'resend_invitation'              => ['_invitation_id' => 'text'],
         'submit_employee_questionnaire'  => [
             '_questionnaire_id' => 'uuid', '_position_id' => 'uuid',
             '_other_position_title' => 'text', '_answers' => 'jsonb',
@@ -92,6 +96,10 @@ class RpcController extends Controller
 
         if ($name === 'bulk_invite_employees') {
             return $this->bulkInviteEmployees($request, $payload);
+        }
+
+        if ($name === 'resend_invitation') {
+            return $this->resendInvitation($request, $payload);
         }
 
 
@@ -208,8 +216,9 @@ class RpcController extends Controller
         $created = 0;
         $skipped = 0;
         $errors = [];
+        $pendingSends = []; // [ [row, rawToken] ]
 
-        DB::transaction(function () use ($invites, $actor, $companyId, &$created, &$skipped, &$errors) {
+        DB::transaction(function () use ($invites, $actor, $companyId, &$created, &$skipped, &$errors, &$pendingSends) {
             foreach ($invites as $i => $invite) {
                 if (!is_array($invite)) {
                     $skipped++;
@@ -261,6 +270,7 @@ class RpcController extends Controller
                 try {
                     DB::table('employee_invitations')->insert($row);
                     $created++;
+                    $pendingSends[] = ['row' => $row, 'token' => $token, 'index' => $i + 1];
                 } catch (Throwable $e) {
                     $skipped++;
                     $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => self::localize($e->getMessage())];
@@ -268,12 +278,157 @@ class RpcController extends Controller
             }
         });
 
+        // Отправка писем после коммита. Ошибки почты не откатывают запись —
+        // остаётся возможность «отправить повторно».
+        $mailed = 0;
+        $companyName = DB::table('companies')->where('id', $companyId)->value('name');
+        $inviterName = $this->resolveActorName($actor);
+
+        foreach ($pendingSends as $send) {
+            $ok = $this->sendInvitationMail($send['row'], $send['token'], $companyName, $inviterName, $mailError);
+            if ($ok) {
+                $mailed++;
+            } else {
+                $errors[] = [
+                    'row'   => $send['index'],
+                    'email' => $send['row']['email'],
+                    'error' => 'Письмо не отправлено: ' . ($mailError ?: 'unknown'),
+                ];
+            }
+        }
+
         return response()->json(['data' => [
             'created' => $created,
+            'mailed'  => $mailed,
             'skipped' => $skipped,
             'errors'  => $errors,
         ]]);
     }
+
+    /** Повторная отправка приглашения (перегенерирует токен). */
+    private function resendInvitation(Request $request, array $payload)
+    {
+        $actor = $request->user();
+        if (!$actor) {
+            return response()->json(['error' => 'Не авторизован'], 401);
+        }
+        if (!$actor->hasRole(['hrd', 'company_admin', 'superadmin', 'manager'])) {
+            return response()->json(['error' => 'Недостаточно прав'], 403);
+        }
+
+        $id = (string) ($payload['_invitation_id'] ?? $payload['invitation_id'] ?? '');
+        if ($id === '') {
+            return response()->json(['error' => 'Не указан идентификатор приглашения'], 422);
+        }
+
+        $inv = DB::table('employee_invitations')->where('id', $id)->first();
+        if (!$inv) {
+            return response()->json(['error' => 'Приглашение не найдено'], 404);
+        }
+
+        $actorCompanyId = method_exists($actor, 'companyId') ? $actor->companyId() : null;
+        if (!$actor->hasRole('superadmin') && (string) $inv->company_id !== (string) $actorCompanyId) {
+            return response()->json(['error' => 'Недостаточно прав'], 403);
+        }
+        if ($inv->status !== 'pending') {
+            return response()->json(['error' => 'Приглашение уже обработано'], 422);
+        }
+
+        $token = Str::random(48);
+        DB::table('employee_invitations')->where('id', $id)->update([
+            'token'      => $token,
+            'token_hash' => hash('sha256', $token),
+            'updated_at' => now(),
+        ]);
+
+        $row = (array) $inv;
+        $row['token'] = $token;
+
+        $companyName = DB::table('companies')->where('id', $inv->company_id)->value('name');
+        $inviterName = $this->resolveActorName($actor);
+        $mailError = null;
+        $ok = $this->sendInvitationMail($row, $token, $companyName, $inviterName, $mailError);
+
+        return response()->json(['data' => [
+            'mailed' => $ok ? 1 : 0,
+            'error'  => $ok ? null : $mailError,
+        ]]);
+    }
+
+    private function resolveActorName($actor): ?string
+    {
+        if (!$actor) return null;
+        $domainId = method_exists($actor, 'domainUserId') ? $actor->domainUserId() : $actor->id;
+        $prof = DB::table('profiles')->where('user_id', $domainId)->first();
+        $name = trim((string) ($prof->full_name ?? ''));
+        if ($name !== '') return $name;
+        return $actor->email ?? null;
+    }
+
+    /**
+     * Отправка письма-приглашения. Возвращает true при успехе,
+     * иначе записывает причину в $error и false. Не бросает исключений.
+     */
+    private function sendInvitationMail(array $row, string $rawToken, ?string $companyName, ?string $inviterName, ?string &$error = null): bool
+    {
+        $error = null;
+        $frontend = rtrim((string) (config('services.frontend.url')
+            ?: env('FRONTEND_URL')
+            ?: config('app.url')
+            ?: ''), '/');
+        if ($frontend === '') {
+            $frontend = 'https://growth-peak.pro';
+        }
+
+        $url = $frontend . '/complete-registration?token=' . urlencode($rawToken)
+            . '&email=' . urlencode((string) $row['email']);
+
+        try {
+            $mailable = new EmployeeInvited(
+                recipientEmail: (string) $row['email'],
+                inviteUrl: $url,
+                recipientName: $row['full_name'] ?? null,
+                companyName: $companyName ?: null,
+                inviterName: $inviterName ?: null,
+                positionTitle: !empty($row['position_id'])
+                    ? DB::table('positions')->where('id', $row['position_id'])->value('title')
+                    : null,
+                department: $row['department'] ?? null,
+            );
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+            Log::error('Invitation mailable build failed', ['email' => $row['email'] ?? null, 'error' => $error]);
+            return false;
+        }
+
+        $mailConfig = app(EmailConfigService::class);
+        try {
+            $mailConfig->autoRepairActiveSettings();
+            $mailConfig->apply();
+            Mail::to($row['email'])->send($mailable);
+            Log::info('Invitation mail sent', ['email' => $row['email']]);
+            return true;
+        } catch (Throwable $e) {
+            if (EmailConfigService::shouldFallbackToRuntimeEnv($e)) {
+                try {
+                    $mailConfig->applyRuntimeEnv();
+                    Mail::to($row['email'])->send($mailable);
+                    Log::info('Invitation mail sent via runtime env fallback', ['email' => $row['email']]);
+                    return true;
+                } catch (Throwable $retry) {
+                    $error = $retry->getMessage();
+                    Log::error('Invitation mail failed (runtime env retry)', ['email' => $row['email'], 'error' => $error]);
+                    report($retry);
+                    return false;
+                }
+            }
+            $error = $e->getMessage();
+            Log::error('Invitation mail failed', ['email' => $row['email'], 'error' => $error]);
+            report($e);
+            return false;
+        }
+    }
+
 
     private function verifyUser(object $profile)
     {

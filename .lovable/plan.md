@@ -1,42 +1,47 @@
-## Проблема
+## Диагноз (проверено в коде)
 
-`FixCompanyLinks` селектит `p.department_id`, которого нет в таблице `profiles` (там есть только текстовое `department`, а `department_id` живёт, например, в `team_members`/`departments.head_user_id`, но не в профиле). Отсюда `SQLSTATE 42S22`.
+В `RpcController::bulkInviteEmployees` (`backend-laravel/app/Http/Controllers/Api/RpcController.php`, стр. 164–275) при приглашении сотрудника:
 
-Плюс в SQL из ошибки видно вторую проблему: `p.company_id = ''` — пустая строка попадает в биндинг как `""`, что на MySQL с uuid-колонкой валидно, но условие `orWhere('p.company_id', '')` лучше заменить на явную проверку, чтобы не падать в других БД.
+1. Создаётся запись в `employee_invitations` c токеном.
+2. Возвращается `{ created, skipped, errors }`.
+3. **Никакой Mailable/Notification не отправляется** — почта не уходит вообще.
 
-## Что поправить в `backend-laravel/app/Console/Commands/FixCompanyLinks.php`
+Фронт видит `created > 0` и показывает «приглашение отправлено», но фактически письма нет. Существующие `DemoRequestSubmitted` / `PricingInquirySubmitted` работают через `notifySales()` + `EmailConfigService`, для приглашений аналога нет.
 
-1. Убрать `p.department_id` из `select(...)`.
-2. Резолвить отдел иначе (по убыванию достоверности):
-   - `positions.department_id` → `departments.company_id` (через `p.position_id`);
-   - `team_members`: найти менеджера сотрудника, взять его `profiles.company_id`;
-   - `employee_invitations` по `claimed_user_id`/`email`;
-   - fallback `--company-id` / `--company-name`.
-3. Заменить `orWhere('p.company_id', '')` на безопасный вариант:
-   ```php
-   ->where(function ($q) {
-       $q->whereNull('p.company_id')
-         ->orWhereRaw("COALESCE(NULLIF(CAST(p.company_id AS CHAR), ''), '') = ''");
-   })
-   ```
-4. Ветку `departments` для резолва оставить, но брать `department_id` из `positions` (а не из профиля), т.к. в профиле его нет.
-5. Мелочи: не вставлять `department_id` в profiles при создании новой строки (колонка не существует) — только `company_id`, `user_id`, `full_name`, `is_verified`, `requested_role`.
+## Что сделать (бэк)
 
-## Проверка после правки
+1. Создать `app/Mail/EmployeeInvited.php` (Mailable, `ShouldQueue`-опционально, но по аналогии с sales-письмами — синхронно с try/catch, чтобы ошибка почты не ломала API-ответ). В письмо передать:
+  - имя приглашающего и название компании;
+  - опционально ФИО/должность;
+  - ссылку вида `{APP_URL}/complete-registration?token={raw_token}&email={email}`;
+  - срок действия (если задан).
+2. Создать шаблон `resources/views/emails/employee_invited.blade.php` (простая брендированная вёрстка «Пик Роста» (если у компании нет своего фирменного оформления. Если есть - наследовать из него, кнопка-ссылка, plaintext-фоллбек).
+3. В `bulkInviteEmployees` после успешного `insert` собирать список отправок и после `DB::transaction` — для каждого приглашения вызывать общий приватный метод `sendInvitationMail($row, $rawToken, $actor)`, реализованный по образцу `notifySales()`:
+  - `EmailConfigService::autoRepairActiveSettings()` + `apply()`;
+  - `Mail::to($email)->send(new EmployeeInvited(...))`;
+  - при провале — `applyRuntimeEnv()` retry;
+  - при финальной ошибке — писать её в `errors[]` ответа и в лог, `created` не откатывать (запись есть, ссылку можно «переотправить»).
+4. Добавить в ответ `bulkInviteEmployees` поле `mailed` (сколько писем реально отправлено), чтобы фронт мог различать «создано» и «отправлено».
+5. Добавить RPC `resend_invitation` (`{invitation_id}`) — берёт запись, генерирует новую пару token/token_hash, обновляет `updated_at`, шлёт письмо тем же путём. Роуты и allowlist уже есть в `RpcController::MUTATIONS`.
+6. Проверить `config('mail.from.address')` и `APP_URL` в `.env` продакшена (документировать в ответе, что должны быть выставлены на `growth-peak.pro`).
 
-На проде:
+## Что сделать (фронт, минимально)
 
-```bash
-cd /home/gro7659365/growth-peak.pro/docs/backend
-git pull
-php artisan optimize:clear
-php artisan org:fix-company-links --dry-run --company-name=AIGuild
-# если список ок:
-php artisan org:fix-company-links --company-name=AIGuild
-```
-
-Затем повторить приглашение из-под Дарьи Захаровой — 422 «Не указана компания» должен уйти.
+1. `src/pages/Invitations.tsx` (или компонент, показывающий тост после bulk-invite): использовать новое поле `mailed` — показывать «Создано N, отправлено писем M, ошибок K». Если `mailed < created` — тост-предупреждение «часть писем не ушла, попробуйте «Отправить повторно»».
+2. В таблице приглашений — кнопка «Отправить повторно» на записях со `status='pending'`, вызывает `resend_invitation`.
 
 ## Технические детали
 
-Схема (`0002_00_37_..._create_profiles_table.php`) подтверждает: в `profiles` есть `company_id`, `position_id`, `department` (text) — но **нет** `department_id`. Резолв через `positions.department_id → departments.company_id` уже даёт нужную компанию, отдельный шаг «по department_id профиля» просто не нужен.
+- Не трогаем `EmailConfigService`, `AppServiceProvider::mail.extend('unisender_go')` и Transport — используем существующий стек.
+- Токен: в БД хранится `token_hash = sha256(token)`, письмо содержит raw `token` (он уже возвращается локально в `bulkInviteEmployees` — надо аккуратно пробрасывать до `sendInvitationMail`, наружу в API не отдавать).
+- Ошибки почты идут в `errors[]` с `row/email/error`, HTTP 200 сохраняется.
+- Логи: `Log::info('Invitation mail sent', ...)`, `Log::error('Invitation mail failed', ...)` — далее видны в `storage/logs/laravel.log`.
+
+## Проверка после деплоя
+
+```
+git pull
+php artisan optimize:clear
+```
+
+UI: HRD → «Добавить нового сотрудника» → пригласить один тестовый email → проверить `laravel.log` (строка `Invitation mail sent`) и почтовый ящик получателя. Если письма нет — прислать хвост `storage/logs/laravel.log`.

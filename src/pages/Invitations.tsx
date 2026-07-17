@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Upload, Plus, Trash2, Mail, Users, FileSpreadsheet, Loader2, X } from "lucide-react";
+import { Upload, Plus, Trash2, Mail, Users, FileSpreadsheet, Loader2, X, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -69,8 +69,37 @@ const Invitations = () => {
       return data as any;
     },
     onSuccess: (res: any) => {
-      toast.success(t("invitations.toastSent", { created: res.created, skipped: res.skipped }));
+      const created = res?.created ?? 0;
+      const mailed = res?.mailed ?? 0;
+      const skipped = res?.skipped ?? 0;
+      if (created > 0 && mailed < created) {
+        toast.warning(
+          `Создано приглашений: ${created}, отправлено писем: ${mailed}. Часть писем не ушла — используйте «Отправить повторно».`
+        );
+      } else {
+        toast.success(
+          `Создано: ${created}, отправлено писем: ${mailed}${skipped ? `, пропущено: ${skipped}` : ""}`
+        );
+      }
+      if (Array.isArray(res?.errors) && res.errors.length > 0) {
+        const first = res.errors.slice(0, 3).map((e: any) => `${e.email}: ${e.error}`).join("; ");
+        toast.error(`Ошибки: ${first}${res.errors.length > 3 ? "…" : ""}`);
+      }
       setDraft([{ email: "" }]);
+      queryClient.invalidateQueries({ queryKey: ["invitations", companyId] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const resendMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await laravelRpc("resend_invitation" as any, { _invitation_id: id });
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: (res: any) => {
+      if (res?.mailed) toast.success("Письмо отправлено повторно");
+      else toast.error(`Не удалось отправить: ${res?.error || "неизвестная ошибка"}`);
       queryClient.invalidateQueries({ queryKey: ["invitations", companyId] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -289,13 +318,23 @@ const Invitations = () => {
                     </td>
                     <td className="py-2">
                       {inv.status === "pending" && (
-                        <button
-                          onClick={() => cancelMutation.mutate(inv.id)}
-                          className="p-1 rounded hover:bg-destructive/10 text-destructive"
-                          title={t("invitations.cancelTitle")}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => resendMutation.mutate(inv.id)}
+                            disabled={resendMutation.isPending}
+                            className="p-1 rounded hover:bg-primary/10 text-primary disabled:opacity-50"
+                            title="Отправить повторно"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => cancelMutation.mutate(inv.id)}
+                            className="p-1 rounded hover:bg-destructive/10 text-destructive"
+                            title={t("invitations.cancelTitle")}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
