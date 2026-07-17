@@ -5,11 +5,29 @@ import { laravelRpc } from "@/integrations/laravel/rpc";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Upload, Plus, Trash2, Mail, Users, FileSpreadsheet, Loader2, X, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { formatDistanceToNow } from "date-fns";
 import { getDateLocale } from "@/lib/dateLocale";
 import { useTranslation } from "react-i18next";
+
+interface InviteResult {
+  row?: number;
+  email?: string | null;
+  status: "created" | "resent" | "pending_exists" | "claimed" | "invalid_email" | "mail_failed" | "error";
+  error?: string;
+  invitation_id?: string;
+}
 
 interface InviteRow {
   email: string;
@@ -27,6 +45,7 @@ const Invitations = () => {
 
   const [draft, setDraft] = useState<InviteRow[]>([{ email: "" }]);
   const [parsing, setParsing] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<{ emails: string[] } | null>(null);
 
   const { data: positions = [] } = useQuery({
     queryKey: ["positions_for_invite", companyId],
@@ -59,54 +78,90 @@ const Invitations = () => {
   });
 
   const sendMutation = useMutation({
-    mutationFn: async (invites: InviteRow[]) => {
-      const cleaned = invites
+    mutationFn: async (payload: { invites: InviteRow[]; force?: boolean }) => {
+      const cleaned = payload.invites
         .map((i) => ({ ...i, email: i.email.trim().toLowerCase() }))
-        .filter((i) => i.email.includes("@"));
+        .filter((i) => i.email.length > 0);
       if (cleaned.length === 0) throw new Error(t("invitations.errorNoValidEmail"));
-      const { data, error } = await laravelRpc("bulk_invite_employees" as any, { _invites: cleaned });
+      const { data, error } = await laravelRpc("bulk_invite_employees" as any, {
+        _invites: cleaned,
+        _force_resend: !!payload.force,
+      });
       if (error) throw error;
-      return data as any;
+      return { data: data as any, force: !!payload.force };
     },
-    onSuccess: (res: any) => {
-      const created = res?.created ?? 0;
-      const updated = res?.updated ?? res?.resent ?? 0;
-      const mailed = res?.mailed ?? 0;
-      const skipped = res?.skipped ?? 0;
-      const actionable = created + updated;
-      const errList: Array<{ email?: string; row?: number; error: string }> = Array.isArray(res?.errors) ? res.errors : [];
-      const firstError = errList[0]
-        ? `${errList[0].email || "строка " + errList[0].row}: ${errList[0].error}`
-        : null;
+    onSuccess: ({ data: res, force }) => {
+      const results: InviteResult[] = Array.isArray(res?.results) ? res.results : [];
 
-      if (actionable === 0) {
-        // Ничего не создали и не обновили — показываем конкретную причину и что делать
-        if (firstError) {
-          toast.error(`Приглашение не создано. ${firstError}. Исправьте адрес или роль и попробуйте снова.`);
-        } else if (skipped > 0) {
-          toast.error(`Пропущено ${skipped} — проверьте, что все email введены корректно.`);
-        } else {
-          toast.error("Приглашение не создано. Проверьте адрес и попробуйте снова.");
-        }
-      } else if (mailed < actionable) {
-        const failed = errList.find((e) => /письмо не отправлено/i.test(e.error))?.error || firstError;
+      // Диагностика по каждому email — как просил пользователь
+      const invalids = results.filter((r) => r.status === "invalid_email");
+      const claimed = results.filter((r) => r.status === "claimed");
+      const pendingExists = results.filter((r) => r.status === "pending_exists");
+      const created = results.filter((r) => r.status === "created");
+      const resent = results.filter((r) => r.status === "resent");
+      const mailFailed = results.filter((r) => r.status === "mail_failed");
+      const otherErrors = results.filter((r) => r.status === "error");
+
+      // 4) e-mail введен некорректно
+      invalids.forEach((r) => {
+        toast.error(
+          `${r.email || "—"}: Вы ошиблись при написании электронной почты, проверьте правильность написания и повторите попытку`
+        );
+      });
+
+      // 3) пользователь уже авторизован
+      claimed.forEach((r) => {
+        toast.error(`Пользователь с e-mail ${r.email} уже авторизован в системе`);
+      });
+
+      // 1) успешное создание
+      created.forEach((r) => {
+        toast.success(`Приглашение отправлено: ${r.email}`);
+      });
+
+      // Успешная повторная отправка (после подтверждения)
+      resent.forEach((r) => {
+        toast.success(`Приглашение отправлено повторно: ${r.email}`);
+      });
+
+      // Письмо не ушло, но запись создана
+      mailFailed.forEach((r) => {
         toast.warning(
-          `Создано: ${created}, обновлено: ${updated}. Запись в базе есть, но письмо не ушло${failed ? ` (${failed})` : ""}. Нажмите «Отправить повторно» в списке ниже.`,
+          `${r.email}: запись сохранена, но письмо не ушло${r.error ? ` (${r.error})` : ""}. Нажмите «Отправить повторно» в списке ниже.`,
           { duration: 8000 }
         );
+      });
+
+      // Прочие ошибки
+      otherErrors.forEach((r) => {
+        toast.error(`${r.email || "строка " + r.row}: ${r.error || "ошибка"}`);
+      });
+
+      // 2) уже есть pending — показываем confirm-диалог (только если это не повторный вызов)
+      if (!force && pendingExists.length > 0) {
+        setPendingConfirm({ emails: pendingExists.map((r) => r.email!).filter(Boolean) });
       } else {
-        const prefix = created === 0 && updated > 0 ? "Приглашение отправлено повторно" : `Создано: ${created}, обновлено: ${updated}`;
-        toast.success(`${prefix}, отправлено писем: ${mailed}${skipped ? `, пропущено: ${skipped}` : ""}`);
+        // Очищаем черновик только если это финальный ответ и нет открытого диалога
+        if (created.length + resent.length + mailFailed.length > 0) {
+          setDraft([{ email: "" }]);
+        }
       }
-      if (actionable > 0 && errList.length > 0) {
-        const first = errList.slice(0, 3).map((e) => `${e.email}: ${e.error}`).join("; ");
-        toast.error(`Есть проблемы: ${first}${errList.length > 3 ? "…" : ""}`);
-      }
-      setDraft([{ email: "" }]);
+
       queryClient.invalidateQueries({ queryKey: ["invitations", companyId] });
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const confirmResend = () => {
+    if (!pendingConfirm) return;
+    const invites = draft.filter((d) =>
+      pendingConfirm.emails.includes(d.email.trim().toLowerCase())
+    );
+    setPendingConfirm(null);
+    if (invites.length > 0) {
+      sendMutation.mutate({ invites, force: true });
+    }
+  };
 
   const resendMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -287,7 +342,7 @@ const Invitations = () => {
         </div>
 
         <Button
-          onClick={() => sendMutation.mutate(draft)}
+          onClick={() => sendMutation.mutate({ invites: draft })}
           disabled={sendMutation.isPending}
           className="w-full sm:w-auto"
         >
@@ -361,6 +416,23 @@ const Invitations = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!pendingConfirm} onOpenChange={(o) => !o && setPendingConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Приглашение уже отправлялось</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingConfirm && pendingConfirm.emails.length === 1
+                ? `Пользователю с e-mail ${pendingConfirm.emails[0]} приглашение уже отправлялось. Отправить повторно?`
+                : `Следующим пользователям приглашение уже отправлялось: ${pendingConfirm?.emails.join(", ")}. Отправить повторно?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Нет</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResend}>Да, отправить повторно</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
