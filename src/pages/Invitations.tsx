@@ -88,7 +88,7 @@ const Invitations = () => {
         const prefix = created === 0 && updated > 0 ? "Приглашение отправлено повторно" : `Создано: ${created}, обновлено: ${updated}`;
         toast.success(`${prefix}, отправлено писем: ${mailed}${skipped ? `, пропущено: ${skipped}` : ""}`);
       }
-      if (Array.isArray(res?.errors) && res.errors.length > 0) {
+      if (actionable > 0 && Array.isArray(res?.errors) && res.errors.length > 0) {
         const first = res.errors.slice(0, 3).map((e: any) => `${e.email}: ${e.error}`).join("; ");
         toast.error(`Ошибки: ${first}${res.errors.length > 3 ? "…" : ""}`);
       }
