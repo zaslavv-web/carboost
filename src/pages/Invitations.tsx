@@ -318,13 +318,23 @@ const Invitations = () => {
                     </td>
                     <td className="py-2">
                       {inv.status === "pending" && (
-                        <button
-                          onClick={() => cancelMutation.mutate(inv.id)}
-                          className="p-1 rounded hover:bg-destructive/10 text-destructive"
-                          title={t("invitations.cancelTitle")}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => resendMutation.mutate(inv.id)}
+                            disabled={resendMutation.isPending}
+                            className="p-1 rounded hover:bg-primary/10 text-primary disabled:opacity-50"
+                            title="Отправить повторно"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => cancelMutation.mutate(inv.id)}
+                            className="p-1 rounded hover:bg-destructive/10 text-destructive"
+                            title={t("invitations.cancelTitle")}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
