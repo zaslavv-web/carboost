@@ -300,6 +300,7 @@ class RpcController extends Controller
         $inviterName = $this->resolveActorName($actor);
 
         foreach ($pendingSends as $send) {
+            $mailError = null;
             $ok = $this->sendInvitationMail($send['row'], $send['token'], $companyName, $inviterName, $mailError);
             if ($ok) {
                 $mailed++;
