@@ -213,41 +213,39 @@ class RpcController extends Controller
             return response()->json(['error' => 'Некорректный список приглашений'], 422);
         }
 
+        $forceResend = (bool) ($payload['_force_resend'] ?? $payload['force_resend'] ?? false);
+
         $created = 0;
         $updated = 0;
         $skipped = 0;
         $errors = [];
-        $pendingSends = []; // [ [row, rawToken] ]
+        $results = []; // [{email, status: created|resent|pending_exists|claimed|invalid_email|error, error?}]
+        $pendingSends = []; // [ [row, rawToken, index] ]
 
-        DB::transaction(function () use ($invites, $actor, $companyId, &$created, &$updated, &$skipped, &$errors, &$pendingSends) {
+        DB::transaction(function () use ($invites, $actor, $companyId, $forceResend, &$created, &$updated, &$skipped, &$errors, &$results, &$pendingSends) {
             foreach ($invites as $i => $invite) {
                 if (!is_array($invite)) {
                     $skipped++;
                     $errors[] = ['row' => $i + 1, 'email' => null, 'error' => 'Некорректная строка приглашения'];
+                    $results[] = ['row' => $i + 1, 'email' => null, 'status' => 'invalid_email', 'error' => 'Некорректная строка приглашения'];
                     continue;
                 }
 
                 $email = strtolower(trim((string) ($invite['email'] ?? '')));
-                if ($email === '') {
+                if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     $skipped++;
-                    $errors[] = ['row' => $i + 1, 'email' => null, 'error' => 'Пустой email — укажите адрес получателя'];
+                    $msg = 'Вы ошиблись при написании электронной почты, проверьте правильность написания и повторите попытку';
+                    $errors[] = ['row' => $i + 1, 'email' => $email ?: null, 'error' => $msg];
+                    $results[] = ['row' => $i + 1, 'email' => $email ?: null, 'status' => 'invalid_email', 'error' => $msg];
                     continue;
                 }
-                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $skipped++;
-                    $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => 'Некорректный email: проверьте формат (пример: name@example.com)'];
-                    continue;
-                }
-                // Проверка доменной части: MX или A-запись. Если домена нет —
-                // письмо гарантированно не дойдёт, лучше сразу сказать об этом.
+                // Проверка доменной части: MX или A-запись.
                 $domain = substr(strrchr($email, '@') ?: '', 1);
                 if ($domain === '' || (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A'))) {
                     $skipped++;
-                    $errors[] = [
-                        'row' => $i + 1,
-                        'email' => $email,
-                        'error' => "Домен «{$domain}» не принимает почту (нет MX/A-записи). Проверьте правильность адреса.",
-                    ];
+                    $msg = 'Вы ошиблись при написании электронной почты, проверьте правильность написания и повторите попытку';
+                    $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => $msg];
+                    $results[] = ['row' => $i + 1, 'email' => $email, 'status' => 'invalid_email', 'error' => $msg];
                     continue;
                 }
 
@@ -260,7 +258,14 @@ class RpcController extends Controller
 
                 if ($existing && $existing->status === 'claimed') {
                     $skipped++;
-                    $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => 'Пользователь уже принял приглашение'];
+                    $results[] = ['row' => $i + 1, 'email' => $email, 'status' => 'claimed'];
+                    continue;
+                }
+
+                if ($existing && $existing->status === 'pending' && !$forceResend) {
+                    // Не трогаем запись, не шлём письмо — ждём подтверждения от пользователя
+                    $skipped++;
+                    $results[] = ['row' => $i + 1, 'email' => $email, 'status' => 'pending_exists', 'invitation_id' => $existing->id];
                     continue;
                 }
 
@@ -285,18 +290,20 @@ class RpcController extends Controller
                 ];
 
                 if ($existing && $existing->status === 'pending') {
+                    // forceResend === true
                     $update = $row;
                     unset($update['company_id'], $update['email'], $update['status'], $update['invited_by'], $update['created_at']);
-
                     try {
                         DB::table('employee_invitations')->where('id', $existing->id)->update($update);
                         $row['id'] = $existing->id;
                         $row['created_at'] = $existing->created_at;
                         $updated++;
-                        $pendingSends[] = ['row' => $row, 'token' => $token, 'index' => $i + 1];
+                        $pendingSends[] = ['row' => $row, 'token' => $token, 'index' => $i + 1, 'kind' => 'resent'];
                     } catch (Throwable $e) {
                         $skipped++;
-                        $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => self::localize($e->getMessage())];
+                        $msg = self::localize($e->getMessage());
+                        $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => $msg];
+                        $results[] = ['row' => $i + 1, 'email' => $email, 'status' => 'error', 'error' => $msg];
                     }
                     continue;
                 }
@@ -308,16 +315,17 @@ class RpcController extends Controller
                 try {
                     DB::table('employee_invitations')->insert($row);
                     $created++;
-                    $pendingSends[] = ['row' => $row, 'token' => $token, 'index' => $i + 1];
+                    $pendingSends[] = ['row' => $row, 'token' => $token, 'index' => $i + 1, 'kind' => 'created'];
                 } catch (Throwable $e) {
                     $skipped++;
-                    $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => self::localize($e->getMessage())];
+                    $msg = self::localize($e->getMessage());
+                    $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => $msg];
+                    $results[] = ['row' => $i + 1, 'email' => $email, 'status' => 'error', 'error' => $msg];
                 }
             }
         });
 
-        // Отправка писем после коммита. Ошибки почты не откатывают запись —
-        // остаётся возможность «отправить повторно».
+        // Отправка писем после коммита.
         $mailed = 0;
         $companyName = DB::table('companies')->where('id', $companyId)->value('name');
         $inviterName = $this->resolveActorName($actor);
@@ -327,11 +335,22 @@ class RpcController extends Controller
             $ok = $this->sendInvitationMail($send['row'], $send['token'], $companyName, $inviterName, $mailError);
             if ($ok) {
                 $mailed++;
+                $results[] = [
+                    'row'    => $send['index'],
+                    'email'  => $send['row']['email'],
+                    'status' => $send['kind'] === 'resent' ? 'resent' : 'created',
+                ];
             } else {
                 $errors[] = [
                     'row'   => $send['index'],
                     'email' => $send['row']['email'],
                     'error' => 'Письмо не отправлено: ' . ($mailError ?: 'unknown'),
+                ];
+                $results[] = [
+                    'row'    => $send['index'],
+                    'email'  => $send['row']['email'],
+                    'status' => 'mail_failed',
+                    'error'  => $mailError ?: 'unknown',
                 ];
             }
         }
@@ -342,6 +361,7 @@ class RpcController extends Controller
             'mailed'  => $mailed,
             'skipped' => $skipped,
             'errors'  => $errors,
+            'results' => $results,
         ]]);
     }
 
