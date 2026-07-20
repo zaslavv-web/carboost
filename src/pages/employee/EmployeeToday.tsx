@@ -150,7 +150,7 @@ const EmployeeToday = () => {
             ) : (
               <div className="space-y-2">
                 {dashboardVisible.map((t) => (
-                  <TaskRow key={t.id} task={t} onOpen={openInspector} />
+                  <TaskRow key={t.id} task={t} onOpen={() => navigate("/tracker/my-backlog")} />
                 ))}
               </div>
             )}
