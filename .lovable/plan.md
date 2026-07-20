@@ -1,59 +1,48 @@
-## Что произошло
+## Что происходит
 
-На сервере в `/home/gro7659365/growth-peak.pro/docs/backend` лежит репозиторий `zaslavv-web/carboost` — это **Laravel-бэкенд** (`backend-laravel`). В нём есть свой мини-Vite для Blade-ассетов админки, отсюда вывод:
+Вы находитесь в `docs/backend` — это Laravel-приложение (там только `package.json` для Blade-ассетов, нет `vite.config.ts`, нет папки `deploy/`).
 
+React-фронтенд (тот, где лежит `vite.config.ts`, `src/`, `deploy/deploy-frontend.sh`) — это **отдельный корень репозитория Lovable**. Судя по прошлому `git pull`, на сервере он тоже склонирован, просто в другом месте — надо его найти.
+
+## План
+
+### Шаг 1. Найти корень React-репо на сервере
+
+```bash
+cd ~
+find /home/gro7659365 -maxdepth 6 -name vite.config.ts 2>/dev/null
 ```
-public/build/manifest.json
-public/build/assets/app-*.css   20 kB
-public/build/assets/app-*.js    46 kB
-✓ 55 modules transformed
+
+Ожидаем одну строку вида `/home/gro7659365/.../vite.config.ts`. Каталог, где она лежит, — искомый корень (там же будут `package.json`, `src/`, `deploy/`, `.git`).
+
+Если находок **нет** — репо Lovable на сервер ещё не клонировали. Тогда клонируем рядом с Laravel:
+
+```bash
+cd /home/gro7659365/growth-peak.pro
+git clone <URL_репозитория_Lovable> frontend
+cd frontend
 ```
 
-Это НЕ React-фронтенд Growth Peak (в нём ~2000+ модулей и артефакт в `dist/`). React-фронт лежит в отдельном Lovable-проекте и публикуется **через Lovable Hosting**, а не через git pull на вашем сервере. Домен `growth-peak.pro` привязан как custom domain к Lovable-публикации (`carboost.lovable.app`).
+а это где взять?
 
-Поэтому все правки последних дней (Today-режим, кнопка «Режим Today», снятие allowlist в `src/lib/hrdUiMode.ts` и т.д.) **на прод не попадут через сервер** — там просто нет исходников React-фронта.
+(URL — тот же, откуда обычно делаете `git pull`; если не помните — скажите, подскажу как посмотреть через `git remote -v` в любом из существующих чекаутов.)
 
-## Что нужно сделать
+### Шаг 2. Обновить и задеплоить
 
-### 1. Опубликовать фронт через Lovable
+Из найденного корня React-репо:
 
-В редакторе Lovable нажать **Publish → Update**. После этого:
+```bash
+git pull
+ls vite.config.ts deploy/deploy-frontend.sh   # обе строки должны найтись
+WEB_ROOT=/usr/share/nginx/html bash deploy/deploy-frontend.sh
+```
 
-- `carboost.lovable.app` обновится сразу,
-- `growth-peak.pro` (custom domain) подтянет ту же сборку автоматически.
+Скрипт сам выполнит `npm install`, `npm run build` и атомарно подменит `dist/` в `WEB_ROOT` с бэкапом предыдущей версии.
 
-Никакой сборки на сервере для фронта делать не нужно.
+### Шаг 3. Проверить
 
-### 2. Сборку в `docs/backend` на сервере откатить/игнорировать
+Открыть `https://growth-peak.pro` под HRD → в классическом сайдбаре внизу над «Выйти» должна появиться кнопка «Режим Today».
 
-То, что вы собрали (`public/build/*`), — это ассеты Blade-страниц Laravel (страницы логина, писем и т.п.), они безопасны, но никак не влияют на HRD-интерфейс. Оставить как есть можно, ничего не ломает.
+## Что мне нужно от вас сейчас
 
-### 3. Проверка после Publish
-
-Зайти под `growthpeak@yandex.ru` на `https://growth-peak.pro`:
-
-- при первом заходе — модалка выбора режима (Today / Классический),
-- в классическом сайдбаре внизу — кнопка «Режим Today»,
-- на `/today` — Inbox + KPI + StudioRail с «домиком».
-
-Если Publish уже нажимали, но изменений нет — сбросить `localStorage.hrd_ui_mode` в браузере и обновить страницу (модалка появится заново).
-
-## Технические детали
-
-- Репо на GitHub `zaslavv-web/carboost` = Laravel backend + deploy-конфиги. Свой `package.json` внутри `backend-laravel/` собирает Blade-ассеты в `public/build/`, это ожидаемо.
-- Lovable-проект (этот) = React SPA, публикуется Lovable Hosting. Custom domain `growth-peak.pro` настроен в Project Settings → Domains.
-- Frontend-изменения требуют клика **Update** в диалоге Publish; backend/edge — деплоятся автоматически, но у вас бэкенд свой (Laravel на сервере) и обновляется через `git pull` в `backend-laravel/` + `php artisan migrate` (что вы и делали ранее для RPC/миграций).
-
-## Итоговый чеклист
-
-1. Нажать Publish → Update в Lovable.
-2. Открыть `https://growth-peak.pro` под HRD — убедиться, что модалка/Today/кнопка «Режим Today» появились.
-3. Ничего дополнительно на сервере для фронта делать не нужно.
-
-это что за новости?!  
-А поддерживать я это как буду?
-
-переделывай  
-Lovable - ВСПОМОГАТЕЛЬНЫЙ инструмент, а не замена нормальной разработке
-
-&nbsp;
+Запустите шаг 1 (`find ...`) и пришлите вывод — от него зависит, деплоим из существующего каталога или сначала клонируем.
