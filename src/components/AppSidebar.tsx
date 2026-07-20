@@ -14,7 +14,10 @@ import {
   ShoppingBag, Store, Rocket, Mail, Heart, Activity, ClipboardCheck,
   Banknote, CalendarDays, Star, AlertOctagon, TimerReset, Palette, Brain,
   BookText, GraduationCap, Crosshair, BookOpen, Sparkles, Newspaper, Webhook,
+  ArrowLeftRight,
 } from "lucide-react";
+import { isTodayCanary, writeHrdUiMode } from "@/lib/hrdUiMode";
+
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { useBranding } from "@/contexts/BrandingContext";
 
@@ -48,7 +51,7 @@ const ROW_IDLE =
 const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const role = usePrimaryRole();
   const { data: profile } = useUserProfile();
   const { t } = useTranslation();
@@ -496,7 +499,17 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       </nav>
 
       {/* Bottom: sign out */}
-      <div className="p-2 border-t border-sidebar-border shrink-0">
+      <div className="p-2 border-t border-sidebar-border shrink-0 space-y-1">
+        {role === "hrd" && isTodayCanary(user?.email) && (
+          <button
+            onClick={() => { writeHrdUiMode("today"); window.location.href = "/today"; }}
+            title={collapsed ? "Режим Today" : undefined}
+            className={`w-full flex items-center gap-2.5 pl-3 pr-2 py-2 rounded-md text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors ${collapsed ? "justify-center" : ""}`}
+          >
+            <ArrowLeftRight className="w-[18px] h-[18px] flex-shrink-0" />
+            {!collapsed && <span className="flex-1 text-left">Режим Today</span>}
+          </button>
+        )}
         <button
           onClick={() => setLogoutOpen(true)}
           className={`w-full flex items-center gap-2.5 pl-3 pr-2 py-2 rounded-md text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors ${collapsed ? "justify-center" : ""}`}
@@ -504,6 +517,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
           {!collapsed && <span className="flex-1 text-left">{t("actions.signOut")}</span>}
         </button>
+
       </div>
 
       <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
