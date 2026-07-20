@@ -48,8 +48,15 @@ jobs:
           echo "✅ dist собран, размер:"
           du -sh dist
 
+      - name: Check SSH secret
+        run: |
+          if [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
+            echo "::error::DEPLOY_SSH_KEY is not set"
+            exit 1
+          fi
+
       - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.10.1
+        uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
