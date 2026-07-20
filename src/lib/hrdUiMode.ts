@@ -9,14 +9,14 @@
 export type HrdUiMode = "today" | "classic";
 
 /** Emails allowed to see the Today experience. Extend cautiously. */
-const ALLOWLIST = new Set<string>([
-  "growthpeak@yandex.ru",
-]);
-
 const STORAGE_KEY = "hrd_ui_mode";
 
+/**
+ * Today-режим включён для всех HRD. Функция оставлена для совместимости
+ * с существующими вызовами и просто проверяет наличие email.
+ */
 export const isTodayCanary = (email: string | null | undefined): boolean =>
-  !!email && ALLOWLIST.has(email.trim().toLowerCase());
+  !!email;
 
 export const readHrdUiMode = (): HrdUiMode | null => {
   try {
