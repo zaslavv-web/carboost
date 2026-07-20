@@ -1,46 +1,85 @@
-## Диагноз
+## Что настраиваем
 
-Ваш серверный git-репо `/home/gro7659365/growth-peak.pro/docs/backend` — это **только Laravel-бэкенд**. React-фронтенд Lovable в нём отсутствует (нет ни `vite.config.ts`, ни `src/`, ни `deploy/`). То есть на сервер он никогда не клонировался — фронт всё это время раздавался как собранный `dist/` (положенный туда либо через Lovable Publish, либо вручную).
+GitHub Actions workflow `deploy-frontend.yml` в репо `zaslavv-web/carboost`. На каждый push в `main`:
 
-Значит вариантов два: подключить репо Lovable к серверу и деплоить оттуда, **или** оставить публикацию через Lovable.
+1. `actions/checkout@v4`
+2. `actions/setup-node@v4` (Node 20)
+3. `npm ci`
+4. `npm run build` (Vite → `dist/`)
+5. `rsync -az --delete dist/ $DEPLOY_USER@$DEPLOY_HOST:$WEB_ROOT/` через `webfactory/ssh-agent` с приватным ключом из `DEPLOY_SSH_KEY`
+6. Атомарность через staging-каталог: сначала `rsync` в `$WEB_ROOT.new`, потом remote-`mv` (перезапуск nginx не требуется — на shared-хостинге он и не разрешён).
 
-## Вариант A (рекомендуемый) — клонировать Lovable-репо рядом и деплоить своим скриптом
+## Секреты в GitHub (Settings → Secrets and variables → Actions)
 
-Lovable-проекты можно подключить к GitHub — тогда весь код фронта живёт в вашем репозитории, и его можно `git clone`/`git pull` на сервер. Если GitHub ещё не подключён к этому Lovable-проекту:
+- `DEPLOY_SSH_KEY` — приватный ключ (у вас уже есть, подтверждено).
+- `DEPLOY_HOST` = `ssh.gro7659365.nichost.ru`
+- `DEPLOY_USER` = `gro7659365`
+- `WEB_ROOT` = **определяется по методологии ниже** и добавляется как secret.
 
-1. В редакторе Lovable (правый верх) → **GitHub → Connect to GitHub** → выбрать организацию/репозиторий. Lovable создаст репо и начнёт пушить туда каждый коммит.
-2. Скопировать URL созданного репо (например `https://github.com/<owner>/growth-peak-frontend.git`).
-3. На сервере:
-  ```bash
-   cd /home/gro7659365/growth-peak.pro
-   git clone <URL> frontend
-   cd frontend
-   ls vite.config.ts deploy/deploy-frontend.sh   # обе должны найтись
-   WEB_ROOT=/usr/share/nginx/html bash deploy/deploy-frontend.sh
-  ```
-4. Дальше обновления: `cd ~/growth-peak.pro/frontend && git pull && WEB_ROOT=/usr/share/nginx/html bash deploy/deploy-frontend.sh`.
+Если пришлёте значение `WEB_ROOT` — я захардкодю его в workflow (проще). Иначе оставлю через secret.
 
-Если GitHub уже подключён — сразу пропустите к шагу 2 (URL в Lovable → GitHub).
+## Методология выбора WEB_ROOT (nichost shared hosting)
 
-## Вариант B — оставить деплой фронта через Lovable Publish
+Не могу решить за вас без SSH — на nichost DocumentRoot зависит от того, как оформлен домен. Три быстрых проверки, сделайте одну — этого достаточно:
 
-Ничего на сервере не делаем. Нажатие **Publish → Update** в редакторе Lovable выкатывает актуальную сборку на `https://growth-peak.pro` (домен уже привязан к Lovable Hosting). Кнопка «Режим Today» в тот же момент становится доступна всем HRD.
+**Способ 1 — панель nichost.**
+Личный кабинет → Веб-сервер → Домены → `growth-peak.pro` → поле «Каталог сайта». Скопировать путь. Типично для nichost: `/home/gro7659365/growth-peak.pro/docs` или `/home/gro7659365/growth-peak.pro/www`.
 
-## Что мне нужно от вас
+**Способ 2 — SSH, 1 команда.**
 
-Выберите путь:
+```bash
+grep -riE 'server_name|root|DocumentRoot' ~/growth-peak.pro ~/.nginx 2>/dev/null | grep -iE 'growth-peak|root|Document' | head
+```
 
-- **A** — я подскажу конкретные шаги подключения GitHub в Lovable и точные команды `git clone` под ваш URL.
-- **B** — просто нажимаете Publish → Update в Lovable, я подтверждаю, что изменения применились.
-
-## Технический контекст
-
-- Скрипт `deploy/deploy-frontend.sh` живёт в Lovable-репо (я его создавал в прошлых итерациях). Без клона Lovable-репо на сервер его физически не существует в `docs/backend` — поэтому `ls` его и не находит.
-- Laravel-репо на сервере остаётся как есть: миграции/бэкенд деплоятся через него, фронт — отдельным путём.
-
-У меня ощущение что мы опять тратим кучу токенов в пустоту.  
-По шагам:  
-1) задеплой на сервер фронт и пропиши по нему все пути - сделать это можно через подключенный гит - как ты помнишь, мы настраивали автодеплой - проверь если он слетел, то это нужно срочно чинить  
-2) проверь что весь фронт лежит на сервере и он автономен - мы можем менять код проекта без лавабл, а можем с ним через гит и автодеплой
+Ищем строку вида `root /home/gro7659365/growth-peak.pro/docs;` или аналогичную.
 
 &nbsp;
+
+[gro7659365@gro7659365 ~]$ grep -riE 'server_name|root|DocumentRoot' ~/[growth-peak.pro](http://growth-peak.pro) ~/.nginx 2>/dev/null | grep -iE 'growth-peak|root|Document' | head
+
+/home/gro7659365/[growth-peak.pro/docs/index.html](http://growth-peak.pro/docs/index.html):    <div id="root"></div>
+
+/home/gro7659365/[growth-peak.pro/docs/backend/app/Http/Controllers/Api/PulseSurveyController.php](http://growth-peak.pro/docs/backend/app/Http/Controllers/Api/PulseSurveyController.php):        // Собираем имена для subdivision (root + all descendants)
+
+/home/gro7659365/[growth-peak.pro/docs/backend/app/Http/Controllers/Api/PulseSurveyController.php](http://growth-peak.pro/docs/backend/app/Http/Controllers/Api/PulseSurveyController.php):        foreach ($subdivisionRefs as $rootId) {
+
+/home/gro7659365/[growth-peak.pro/docs/backend/app/Http/Controllers/Api/PulseSurveyController.php](http://growth-peak.pro/docs/backend/app/Http/Controllers/Api/PulseSurveyController.php):            $stack = [$rootId];
+
+/home/gro7659365/[growth-peak.pro/docs/backend/app/README-frontend-auth.md](http://growth-peak.pro/docs/backend/app/README-frontend-auth.md):   root.render(<Provider><App /></Provider>);
+
+/home/gro7659365/[growth-peak.pro/docs/backend/bootstrap/cache/config.php](http://growth-peak.pro/docs/backend/bootstrap/cache/config.php):        'root' => '/home/gro7659365/[growth-peak.pro/docs/backend/storage/app](http://growth-peak.pro/docs/backend/storage/app)',
+
+/home/gro7659365/[growth-peak.pro/docs/backend/bootstrap/cache/config.php](http://growth-peak.pro/docs/backend/bootstrap/cache/config.php):        'root' => '/home/gro7659365/[growth-peak.pro/docs/backend/storage/app/public](http://growth-peak.pro/docs/backend/storage/app/public)',
+
+/home/gro7659365/[growth-peak.pro/docs/backend/bootstrap/cache/config.php](http://growth-peak.pro/docs/backend/bootstrap/cache/config.php):        'root' => '/home/gro7659365/[growth-peak.pro/docs/backend/storage/app/public/avatars](http://growth-peak.pro/docs/backend/storage/app/public/avatars)',
+
+/home/gro7659365/[growth-peak.pro/docs/backend/bootstrap/cache/config.php](http://growth-peak.pro/docs/backend/bootstrap/cache/config.php):        'root' => '/home/gro7659365/[growth-peak.pro/docs/backend/storage/app/public/reward-images](http://growth-peak.pro/docs/backend/storage/app/public/reward-images)',
+
+/home/gro7659365/[growth-peak.pro/docs/backend/bootstrap/cache/config.php](http://growth-peak.pro/docs/backend/bootstrap/cache/config.php):        'root' => '/home/gro7659365/[growth-peak.pro/docs/backend/storage/app/public/shop-products](http://growth-peak.pro/docs/backend/storage/app/public/shop-products)',
+
+&nbsp;
+
+**Способ 3 — от текущего фронта.**
+Если сейчас на `https://growth-peak.pro/` открывается React-приложение — команды на сервере:
+
+```bash
+ls -la ~/growth-peak.pro/docs/index.html 2>/dev/null && echo "-> WEB_ROOT=~/growth-peak.pro/docs"
+ls -la ~/growth-peak.pro/www/index.html 2>/dev/null && echo "-> WEB_ROOT=~/growth-peak.pro/www"
+ls -la ~/growth-peak.pro/public_html/index.html 2>/dev/null && echo "-> WEB_ROOT=~/growth-peak.pro/public_html"
+```
+
+Тот путь, где нашёлся `index.html` с ассетами React, — и есть WEB_ROOT.
+
+Важный момент: если Laravel-бэкенд отдаётся с `~/growth-peak.pro/docs/backend/public` через reverse-proxy или symlink, `dist/` должен лежать НЕ там, а на один уровень выше — там, где сейчас работает SPA. Иначе rsync с `--delete` затрёт Laravel. Первую выкатку сделаю **без `--delete**`, чтобы это стало заметно до того, как что-то удалится.
+
+## Мой рабочий план (build-режим)
+
+1. Создать `.github/workflows/deploy-frontend.yml` со сценарием выше. Параметр WEB_ROOT — из GitHub secret (безопасно), захардкодю только если пришлёте значение.
+2. Дописать в `DEPLOYMENT.md` раздел «Автодеплой через GitHub Actions» с описанием секретов, ручного запуска (`workflow_dispatch`) и rollback (переключить `WEB_ROOT` обратно на `.bak`).
+3. Первый прогон запустите вручную через **Actions → Deploy Frontend → Run workflow** — по логам сразу увидим, работает ли SSH и правильный ли путь.
+
+## Что подтвердить перед стартом
+
+1. `WEB_ROOT` — либо пришлёте значение, либо подтвердите «оставь через secret, я сам добавлю».
+2. Первую выкатку делаем **без `--delete**` (безопасно, могут остаться устаревшие файлы) → после успешной проверки переключаем на `--delete`. ОК?
+3. Ветка для деплоя — `main`. Подтвердите (в Lovable-репо у нас `main`, но в вашем GitHub может быть другая ветка по умолчанию).
