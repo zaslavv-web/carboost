@@ -5,7 +5,6 @@ import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile, useEffectiveUserId } from "@/hooks/useUserProfile";
 import { useTasks, useUpdateTask, type TrackerTask } from "@/hooks/tracker";
 import { UrgencyBadge, TaskStatusBadge } from "@/components/tracker/Badges";
-import { useTrackerProject } from "@/contexts/TrackerProjectContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import ProgressRing from "@/components/ProgressRing";
