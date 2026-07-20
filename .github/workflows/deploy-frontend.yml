@@ -1,0 +1,80 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'backend-laravel/**'
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+    inputs:
+      enable_delete:
+        description: 'Использовать rsync --delete (удалять на сервере файлы, которых нет в dist/). НЕ включайте на первом прогоне.'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
+env:
+  DEPLOY_HOST: ssh.gro7659365.nichost.ru
+  DEPLOY_USER: gro7659365
+  WEB_ROOT: /home/gro7659365/growth-peak.pro/docs
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build (vite → dist/)
+        run: bun run build
+
+      - name: Sanity check dist/
+        run: |
+          test -f dist/index.html || { echo "❌ dist/index.html не собран"; exit 1; }
+          echo "✅ dist собран, размер:"
+          du -sh dist
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Trust host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy (rsync, backend/ исключён)
+        run: |
+          DELETE_FLAG=""
+          if [ "${{ github.event.inputs.enable_delete }}" = "true" ]; then
+            DELETE_FLAG="--delete --delete-excluded"
+            echo "⚠️  Режим --delete включён"
+          else
+            echo "ℹ️  --delete выключен (безопасный режим первого прогона)"
+          fi
+          rsync -avz \
+            $DELETE_FLAG \
+            --exclude 'backend' \
+            --exclude 'backend/' \
+            --exclude '.htaccess' \
+            dist/ "$DEPLOY_USER@$DEPLOY_HOST:$WEB_ROOT/"
+
+      - name: Post-deploy check
+        run: |
+          echo "✅ Deploy завершён"
+          echo "Проверка: https://growth-peak.pro/ (может потребоваться Ctrl+Shift+R)"
