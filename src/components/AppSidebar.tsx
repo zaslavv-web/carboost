@@ -14,7 +14,10 @@ import {
   ShoppingBag, Store, Rocket, Mail, Heart, Activity, ClipboardCheck,
   Banknote, CalendarDays, Star, AlertOctagon, TimerReset, Palette, Brain,
   BookText, GraduationCap, Crosshair, BookOpen, Sparkles, Newspaper, Webhook,
+  ArrowLeftRight,
 } from "lucide-react";
+import { isTodayCanary, writeHrdUiMode } from "@/lib/hrdUiMode";
+
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { useBranding } from "@/contexts/BrandingContext";
 
