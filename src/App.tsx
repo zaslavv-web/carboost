@@ -95,6 +95,7 @@ import ComfortCompany from "@/pages/analytics/comfort/ComfortCompany";
 import ComfortDepartment from "@/pages/analytics/comfort/ComfortDepartment";
 import ComfortEmployee from "@/pages/analytics/comfort/ComfortEmployee";
 import Initiatives from "@/pages/Initiatives";
+import HrdToday from "@/pages/hrd/Today";
 import { Navigate } from "react-router-dom";
 
 
@@ -131,6 +132,7 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route element={<ProtectedAppShell />}>
                 <Route path="/dashboard" element={<RoleDashboard />} />
+                <Route path="/today" element={<HrdToday />} />
                 <Route path="/complete-registration" element={<CompleteRegistration />} />
                 <Route path="/assessment" element={<Assessment />} />
                 <Route path="/passport" element={<Passport />} />
