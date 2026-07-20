@@ -4,6 +4,7 @@ import { usePrimaryRole } from "@/hooks/useUserProfile";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "./AppLayout";
 import MobileEmployeeLayout from "./MobileEmployeeLayout";
+import MobileHrdLayout from "./MobileHrdLayout";
 import HrdTodayLayout from "./hrd/HrdTodayLayout";
 import FirstLoginModePicker from "./hrd/FirstLoginModePicker";
 import ErrorBoundary from "./ErrorBoundary";
@@ -14,7 +15,8 @@ import { isTodayCanary, readHrdUiMode } from "@/lib/hrdUiMode";
  * that depend on the loaded role (so they can't be encoded as static <Route> guards).
  *
  *  - Employees on mobile (< 768px) get a dedicated mobile shell.
- *  - Allowlisted HRDs in Today-mode get the streamlined Today shell.
+ *  - HRD on mobile get a Today-first mobile shell (mirrors the desktop Today mode).
+ *  - Allowlisted HRDs in Today-mode get the streamlined Today shell on desktop.
  *  - `/users` is admin-only — HRD / managers / employees are redirected to /dashboard.
  *  - For HRD/admin, `/employees` is folded into `/dashboard` (single rich screen).
  */
@@ -36,25 +38,34 @@ const RoleAwareLayout = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const isHrdCanary = role === "hrd" && !isMobile && isTodayCanary(user?.email);
-  const mode = isHrdCanary ? readHrdUiMode() : null;
+  const hrdTodayEligible = role === "hrd" && isTodayCanary(user?.email);
+  const mode = hrdTodayEligible ? readHrdUiMode() : null;
 
-  // Canary HRD on /dashboard with Today mode → redirect to /today.
-  if (isHrdCanary && mode === "today" && location.pathname === "/dashboard") {
+  // HRD on mobile with Today mode → Today shell on mobile, redirect /dashboard → /today.
+  const isMobileHrdToday = isMobile && hrdTodayEligible && mode === "today";
+  if (isMobileHrdToday && location.pathname === "/dashboard") {
     return <Navigate to="/today" replace />;
   }
 
-  const layout = isHrdCanary && mode === "today"
-    ? <HrdTodayLayout />
-    : isMobile && role === "employee"
-      ? <MobileEmployeeLayout />
-      : <AppLayout />;
+  // HRD on desktop with Today mode → desktop Today shell, redirect /dashboard → /today.
+  const isDesktopHrdToday = !isMobile && hrdTodayEligible && mode === "today";
+  if (isDesktopHrdToday && location.pathname === "/dashboard") {
+    return <Navigate to="/today" replace />;
+  }
+
+  const layout = isMobileHrdToday
+    ? <MobileHrdLayout />
+    : isDesktopHrdToday
+      ? <HrdTodayLayout />
+      : isMobile && role === "employee"
+        ? <MobileEmployeeLayout />
+        : <AppLayout />;
 
   return (
     <ErrorBoundary>
       {layout}
       {/* Canary mode picker: appears on first visit regardless of chosen shell. */}
-      {isHrdCanary && mode === null && (
+      {hrdTodayEligible && mode === null && (
         <FirstLoginModePicker
           onPick={(picked) => {
             if (picked === "today") window.location.href = "/today";
@@ -67,3 +78,4 @@ const RoleAwareLayout = () => {
 };
 
 export default RoleAwareLayout;
+
