@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "./AppLayout";
 import MobileEmployeeLayout from "./MobileEmployeeLayout";
 import HrdTodayLayout from "./hrd/HrdTodayLayout";
+import FirstLoginModePicker from "./hrd/FirstLoginModePicker";
 import ErrorBoundary from "./ErrorBoundary";
 import { isTodayCanary, readHrdUiMode } from "@/lib/hrdUiMode";
 
@@ -35,20 +36,34 @@ const RoleAwareLayout = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Canary Today-mode for allowlisted HRDs. Mobile employees keep their shell.
-  const canaryTodayHrd =
-    role === "hrd" &&
-    !isMobile &&
-    isTodayCanary(user?.email) &&
-    readHrdUiMode() === "today";
+  const isHrdCanary = role === "hrd" && !isMobile && isTodayCanary(user?.email);
+  const mode = isHrdCanary ? readHrdUiMode() : null;
 
-  const layout = canaryTodayHrd
+  // Canary HRD on /dashboard with Today mode → redirect to /today.
+  if (isHrdCanary && mode === "today" && location.pathname === "/dashboard") {
+    return <Navigate to="/today" replace />;
+  }
+
+  const layout = isHrdCanary && mode === "today"
     ? <HrdTodayLayout />
     : isMobile && role === "employee"
       ? <MobileEmployeeLayout />
       : <AppLayout />;
 
-  return <ErrorBoundary>{layout}</ErrorBoundary>;
+  return (
+    <ErrorBoundary>
+      {layout}
+      {/* Canary mode picker: appears on first visit regardless of chosen shell. */}
+      {isHrdCanary && mode === null && (
+        <FirstLoginModePicker
+          onPick={(picked) => {
+            if (picked === "today") window.location.href = "/today";
+            else window.location.reload();
+          }}
+        />
+      )}
+    </ErrorBoundary>
+  );
 };
 
 export default RoleAwareLayout;
