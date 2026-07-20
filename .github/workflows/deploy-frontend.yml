@@ -53,10 +53,20 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      - name: Trust host key
+      - name: Trust host key (включая ssh-rsa для legacy серверов)
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 700 ~/.ssh
+          ssh-keyscan -t rsa,ecdsa,ed25519 -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          cat > ~/.ssh/config <<EOF
+          Host $DEPLOY_HOST
+            HostName $DEPLOY_HOST
+            User $DEPLOY_USER
+            HostKeyAlgorithms +ssh-rsa
+            PubkeyAcceptedAlgorithms +ssh-rsa
+            PubkeyAcceptedKeyTypes +ssh-rsa
+          EOF
+          chmod 600 ~/.ssh/config
 
       - name: Deploy (rsync, backend/ исключён)
         run: |
@@ -68,6 +78,7 @@ jobs:
             echo "ℹ️  --delete выключен (безопасный режим первого прогона)"
           fi
           rsync -avz \
+            -e "ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa" \
             $DELETE_FLAG \
             --exclude 'backend' \
             --exclude 'backend/' \
