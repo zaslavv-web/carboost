@@ -32,7 +32,7 @@ const EmployeeToday = () => {
   const navigate = useNavigate();
   const uid = useEffectiveUserId();
   const { data: profile } = useUserProfile();
-  const { openInspector } = useTrackerProject();
+
 
   const { data: tasks = [], isLoading: tasksLoading } = useTasks({ assignee_id: uid ?? undefined });
 
