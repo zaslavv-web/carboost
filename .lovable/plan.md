@@ -1,136 +1,59 @@
-## Что реально происходит
+## Что произошло
 
-Вы сейчас в `/home/gro7659365/growth-peak.pro/docs`, но по ошибкам видно:
-
-- это **не git-репозиторий**: `fatal: not a git repository`;
-- там **нет frontend-проекта**: отсутствует `package.json`;
-- `npm ci` здесь не подходит: по официальной документации npm он работает только при наличии `package-lock.json` / `npm-shrinkwrap.json`, а в текущем каталоге их нет.
-
-**Do I know what the issue is?** Да: команды запускаются не из каталога, где лежит исходный frontend-проект. Нужно сначала найти реальный каталог с `.git` и `package.json`, а уже потом ставить зависимости и собирать.
-
-## Что сделать на сервере
-
-### 1. Найти, где лежит frontend-проект
-
-Выполните:
-
-```bash
-cd /home/gro7659365
-
-find . -maxdepth 5 -name package.json -o -name .git 2>/dev/null
-```
-
-Нужен каталог, в котором одновременно есть:
-
-```text
-package.json
-.git/
-src/
-vite.config.ts
-```
-
-Если `find` покажет, например:
-
-```text
-./growth-peak.pro/repo/package.json
-./growth-peak.pro/repo/.git
-```
-
-значит рабочий каталог будет:
-
-```bash
-cd /home/gro7659365/growth-peak.pro/repo
-```
-
-### 2. Проверить, что это правильный каталог
-
-Внутри найденного каталога выполнить:
-
-```bash
-pwd
-ls -la
-git status --short
-ls package.json vite.config.ts src
-```
-
-Если `package.json`, `vite.config.ts` и `src` видны — это frontend-корень.
-
-### 3. Обновить код
-
-```bash
-git pull
-```
-
-Если снова будет конфликт по `README.md`, как раньше, сначала:
-
-```bash
-git checkout -- README.md
-git pull
-```
-
-### 4. Установить зависимости
-
-Так как `package-lock.json` может отсутствовать, используем не `npm ci`, а:
-
-```bash
-npm install
-```
-
-### 5. Собрать frontend
-
-```bash
-npm run build
-```
-
-После успешной сборки должна появиться/обновиться папка:
-
-```text
-dist/
-```
-
-## Если `dist` собирается не там, откуда раздаёт сайт
-
-Тогда нужно скопировать собранный frontend в web-root. Это зависит от структуры сервера. После сборки проверьте:
-
-```bash
-ls -la dist
-ls -la /home/gro7659365/growth-peak.pro/docs
-```
-
-Если `/docs` — это публичная папка сайта, а сборка лежит в другом каталоге, команда будет примерно такая:
-
-```bash
-rsync -av --delete dist/ /home/gro7659365/growth-peak.pro/docs/
-```
-
-Но выполнять `rsync --delete` стоит только после подтверждения, что `/docs` действительно публичная папка фронта, а backend не лежит внутри неё критично для сайта.
-
-## Что не делать
-
-- Не запускать `npm run build` из `/docs`, если там нет `package.json`.
-- Не запускать `npm ci`, если нет `package-lock.json`.
-- Не трогать Laravel, миграции и базу — это изменение только frontend.
-
-## Минимальный следующий шаг
-
-Пришлите вывод этой команды:
-
-```bash
-cd /home/gro7659365 && find . -maxdepth 5 -name package.json -o -name .git 2>/dev/null
-
-[gro7659365@gro7659365 ~]$ find . -maxdepth 5 -name package.json -o -name .git 2>/dev/null
-./growth-peak.pro/docs/backend/.git
-./growth-peak.pro/docs/backend/package.json
-./.nvm/.git
-./.nvm/package.json
+На сервере в `/home/gro7659365/growth-peak.pro/docs/backend` лежит репозиторий `zaslavv-web/carboost` — это **Laravel-бэкенд** (`backend-laravel`). В нём есть свой мини-Vite для Blade-ассетов админки, отсюда вывод:
 
 ```
+public/build/manifest.json
+public/build/assets/app-*.css   20 kB
+public/build/assets/app-*.js    46 kB
+✓ 55 modules transformed
+```
 
-По нему я скажу точный `cd ...` и финальные команды.
+Это НЕ React-фронтенд Growth Peak (в нём ~2000+ модулей и артефакт в `dist/`). React-фронт лежит в отдельном Lovable-проекте и публикуется **через Lovable Hosting**, а не через git pull на вашем сервере. Домен `growth-peak.pro` привязан как custom domain к Lovable-публикации (`carboost.lovable.app`).
 
-View History
+Поэтому все правки последних дней (Today-режим, кнопка «Режим Today», снятие allowlist в `src/lib/hrdUiMode.ts` и т.д.) **на прод не попадут через сервер** — там просто нет исходников React-фронта.
 
-&nbsp;
+## Что нужно сделать
 
-Troubleshooting docs
+### 1. Опубликовать фронт через Lovable
+
+В редакторе Lovable нажать **Publish → Update**. После этого:
+
+- `carboost.lovable.app` обновится сразу,
+- `growth-peak.pro` (custom domain) подтянет ту же сборку автоматически.
+
+Никакой сборки на сервере для фронта делать не нужно.
+
+### 2. Сборку в `docs/backend` на сервере откатить/игнорировать
+
+То, что вы собрали (`public/build/*`), — это ассеты Blade-страниц Laravel (страницы логина, писем и т.п.), они безопасны, но никак не влияют на HRD-интерфейс. Оставить как есть можно, ничего не ломает.
+
+### 3. Проверка после Publish
+
+Зайти под `growthpeak@yandex.ru` на `https://growth-peak.pro`:
+
+- при первом заходе — модалка выбора режима (Today / Классический),
+- в классическом сайдбаре внизу — кнопка «Режим Today»,
+- на `/today` — Inbox + KPI + StudioRail с «домиком».
+
+Если Publish уже нажимали, но изменений нет — сбросить `localStorage.hrd_ui_mode` в браузере и обновить страницу (модалка появится заново).
+
+## Технические детали
+
+- Репо на GitHub `zaslavv-web/carboost` = Laravel backend + deploy-конфиги. Свой `package.json` внутри `backend-laravel/` собирает Blade-ассеты в `public/build/`, это ожидаемо.
+- Lovable-проект (этот) = React SPA, публикуется Lovable Hosting. Custom domain `growth-peak.pro` настроен в Project Settings → Domains.
+- Frontend-изменения требуют клика **Update** в диалоге Publish; backend/edge — деплоятся автоматически, но у вас бэкенд свой (Laravel на сервере) и обновляется через `git pull` в `backend-laravel/` + `php artisan migrate` (что вы и делали ранее для RPC/миграций).
+
+## Итоговый чеклист
+
+1. Нажать Publish → Update в Lovable.
+2. Открыть `https://growth-peak.pro` под HRD — убедиться, что модалка/Today/кнопка «Режим Today» появились.
+3. Ничего дополнительно на сервере для фронта делать не нужно.
+
+это что за новости?!  
+А поддерживать я это как буду?
+
+переделывай  
+Lovable - ВСПОМОГАТЕЛЬНЫЙ инструмент, а не замена нормальной разработке
+
 &nbsp;
