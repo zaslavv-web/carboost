@@ -43,7 +43,7 @@ export const useHrdInbox = () => {
   const probationsQ = useQuery({
     queryKey: ["hrd-inbox", "probations", companyId],
     queryFn: async () => {
-      const list = await probationApi.list({ status: "active" });
+      const list = await probationApi.list("all", "active");
       return list ?? [];
     },
     enabled: !!companyId,
