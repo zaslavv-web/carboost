@@ -1,33 +1,15 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Users, BarChart3, GraduationCap, PartyPopper, Settings2, ArrowLeftRight, Bell } from "lucide-react";
+import { ArrowLeftRight, Bell } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { writeHrdUiMode } from "@/lib/hrdUiMode";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
-
-/** Studio entry points — first route inside each studio is used as its landing. */
-export const STUDIOS = [
-  { key: "today",     to: "/today",           icon: Home,          label: "Today" },
-  { key: "people",    to: "/users",           icon: Users,         label: "People — сотрудники, треки, паспорт" },
-  { key: "analytics", to: "/analytics",       icon: BarChart3,     label: "Analytics — риски, комфорт, продукт" },
-  { key: "learning",  to: "/university",      icon: GraduationCap, label: "Learning — обучение, IDP, адаптация" },
-  { key: "culture",   to: "/feed",            icon: PartyPopper,   label: "Culture — признание, магазин, пульс" },
-  { key: "ops",       to: "/hr-policies",     icon: Settings2,     label: "Ops — политики, документы, поддержка" },
-] as const;
+import { STUDIOS, STUDIO_MATCH, TODAY_ENTRY, type StudioKey } from "@/lib/hrdStudios";
 
 /**
- * Compact 56px-wide studio rail. Highlights the active studio group by matching
- * the current URL against a small allow-list of routes per studio.
+ * Компактный 56px рейл. Сверху отдельно «Today» (домашний экран ежедневной работы),
+ * ниже разделитель и 5 студий глубокой работы.
  */
-const STUDIO_MATCH: Record<string, RegExp> = {
-  today:     /^\/today/,
-  people:    /^\/(users|passport|skills-matrix|positions|career-tracks|idp|career-reviews|employees|team)/,
-  analytics: /^\/(analytics|risk-analytics|people-analytics|product-analytics|dashboard)/,
-  learning:  /^\/(university|onboarding|adaptation-plans|probation|assessment)/,
-  culture:   /^\/(feed|recognition|gamification|shop|pulse-surveys|communities)/,
-  ops:       /^\/(hr-policies|hr-documents|leaves|disciplinary|invitations|support|settings|ai-settings|integrations|email-settings|company-branding|rag-documents)/,
-};
-
 const StudioRail = () => {
   const { pathname } = useLocation();
   const unread = useUnreadNotifications();
@@ -37,11 +19,35 @@ const StudioRail = () => {
     window.location.href = "/dashboard";
   };
 
+  const todayActive = pathname === "/today";
+  const TodayIcon = TODAY_ENTRY.icon;
+
   return (
     <TooltipProvider delayDuration={100}>
       <aside className="w-14 shrink-0 border-r border-border/60 bg-card/40 flex flex-col items-center py-3 gap-1">
+        {/* Home — визуально отделена от студий */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <NavLink
+              to={TODAY_ENTRY.to}
+              className={cn(
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-colors",
+                todayActive
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+              )}
+              aria-label={TODAY_ENTRY.label}
+            >
+              <TodayIcon className="w-5 h-5" />
+            </NavLink>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>{TODAY_ENTRY.label}</TooltipContent>
+        </Tooltip>
+
+        <div className="h-px w-6 bg-border/60 my-2" />
+
         {STUDIOS.map((s) => {
-          const active = STUDIO_MATCH[s.key].test(pathname);
+          const active = STUDIO_MATCH[s.key as StudioKey].test(pathname);
           return (
             <Tooltip key={s.key}>
               <TooltipTrigger asChild>
