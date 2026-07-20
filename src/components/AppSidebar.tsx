@@ -51,7 +51,7 @@ const ROW_IDLE =
 const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const role = usePrimaryRole();
   const { data: profile } = useUserProfile();
   const { t } = useTranslation();
