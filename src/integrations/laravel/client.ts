@@ -32,6 +32,55 @@ export interface LaravelInvokeResult<T = any> {
 }
 
 
+/**
+ * Лёгкая перепроверка Sanctum-токена в обход обычного `request()`, чтобы
+ * не зациклиться при 401 и не тащить лишние заголовки. Возвращает `true`,
+ * если токен всё ещё валиден (сервер вернул 2xx на `/auth/me`).
+ *
+ * Кэшируем результат на короткое окно, чтобы серия параллельных 401 не
+ * породила лавину параллельных проверок.
+ */
+let revalidateInflight: Promise<boolean> | null = null;
+let revalidateCachedAt = 0;
+let revalidateCached = false;
+async function revalidateToken(token: string): Promise<boolean> {
+  const now = Date.now();
+  if (now - revalidateCachedAt < 2000) return revalidateCached;
+  if (revalidateInflight) return revalidateInflight;
+  revalidateInflight = (async () => {
+    try {
+      const apiUrl = new URL(`${BASE_URL}/auth/me`, window.location.origin);
+      const sameOrigin = apiUrl.origin === window.location.origin;
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 6000);
+      try {
+        const res = await fetch(apiUrl.toString(), {
+          method: "GET",
+          headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+          credentials: sameOrigin ? "same-origin" : "omit",
+          signal: controller.signal,
+        });
+        // Валидным считаем 2xx. 401/419 → токен реально не годится.
+        // Любые 5xx/сеть — не рвём сессию, доверяем существующему токену.
+        if (res.ok) return true;
+        if (res.status === 401 || res.status === 419) return false;
+        return true;
+      } finally {
+        window.clearTimeout(timer);
+      }
+    } catch {
+      // Сеть/таймаут — не разлогиниваем.
+      return true;
+    }
+  })().then((ok) => {
+    revalidateCached = ok;
+    revalidateCachedAt = Date.now();
+    revalidateInflight = null;
+    return ok;
+  });
+  return revalidateInflight;
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},
@@ -100,7 +149,15 @@ async function request<T>(
           ? body.error_code
           : undefined;
       if (token && (res.status === 401 || res.status === 419)) {
-        notifyAuthSessionExpired(String(message), res.status);
+        // Не выкидываем пользователя сразу: конкретный endpoint мог вернуть 401
+        // по ошибке policy/middleware, а токен на самом деле валиден.
+        // Перепроверяем через /auth/me — рвём сессию только если и она вернула 401/419.
+        if (path !== "/auth/me") {
+          const stillValid = await revalidateToken(token);
+          if (!stillValid) notifyAuthSessionExpired(String(message), res.status);
+        } else {
+          notifyAuthSessionExpired(String(message), res.status);
+        }
       }
       return { data: null, error: { message: String(message), status: res.status, code } };
     }
