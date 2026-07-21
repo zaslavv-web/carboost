@@ -100,7 +100,15 @@ async function request<T>(
           ? body.error_code
           : undefined;
       if (token && (res.status === 401 || res.status === 419)) {
-        notifyAuthSessionExpired(String(message), res.status);
+        // Не выкидываем пользователя сразу: конкретный endpoint мог вернуть 401
+        // по ошибке policy/middleware, а токен на самом деле валиден.
+        // Перепроверяем через /auth/me — рвём сессию только если и она вернула 401/419.
+        if (path !== "/auth/me") {
+          const stillValid = await revalidateToken(token);
+          if (!stillValid) notifyAuthSessionExpired(String(message), res.status);
+        } else {
+          notifyAuthSessionExpired(String(message), res.status);
+        }
       }
       return { data: null, error: { message: String(message), status: res.status, code } };
     }
