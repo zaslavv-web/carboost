@@ -11,6 +11,7 @@ use App\Models\TeamMember;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -52,48 +53,69 @@ class PerformanceController extends Controller
         if (!$this->isHr($request->user())) abort(403);
         $cycle = PerformanceCycle::findOrFail($id);
 
-        return DB::transaction(function () use ($cycle, $request) {
-            $cycle->update(['status' => 'open']);
+        $cycle->update(['status' => 'open']);
 
-            // Авто-создание reviews для всех сотрудников компании.
-            // ВАЖНО: в public.profiles нет колонки is_active — фильтруем по наличию user_id.
-            $employees = Profile::query()
-                ->where('company_id', $cycle->company_id)
-                ->whereNotNull('user_id')
-                ->get(['user_id']);
+        // Авто-создание reviews для всех сотрудников компании.
+        // ВАЖНО: в public.profiles нет колонки is_active — фильтруем по наличию user_id.
+        // Не держим всю операцию в одной транзакции: ошибка по одному сотруднику или notification
+        // не должна откатывать открытие цикла и уже созданные reviews.
+        $employees = Profile::query()
+            ->where('company_id', $cycle->company_id)
+            ->whereNotNull('user_id')
+            ->get(['user_id']);
 
-            $created = 0;
-            $errors  = [];
-            foreach ($employees as $emp) {
-                try {
-                    $managerId = TeamMember::query()
-                        ->where('employee_id', $emp->user_id)
-                        ->value('manager_id');
-                    PerformanceReview::firstOrCreate(
-                        ['cycle_id' => $cycle->id, 'user_id' => $emp->user_id],
-                        [
-                            'company_id' => $cycle->company_id,
-                            'manager_id' => $managerId,
-                            'status'     => 'draft',
-                        ],
-                    );
-                    $this->notify($emp->user_id, $cycle->company_id,
-                        'Открыт цикл оценки: ' . $cycle->title,
-                        'Заполните самооценку до ' . optional($cycle->deadline)->format('d.m.Y'),
-                        'performance_review',
-                    );
+        $created = 0;
+        $existing = 0;
+        $reviewErrors = [];
+        $notificationErrors = [];
+
+        foreach ($employees as $emp) {
+            try {
+                $managerId = TeamMember::query()
+                    ->where('employee_id', $emp->user_id)
+                    ->value('manager_id');
+
+                $review = PerformanceReview::firstOrCreate(
+                    ['cycle_id' => $cycle->id, 'user_id' => $emp->user_id],
+                    [
+                        'company_id' => $cycle->company_id,
+                        'manager_id' => $managerId,
+                        'status'     => 'draft',
+                    ],
+                );
+
+                if ($review->wasRecentlyCreated) {
                     $created++;
-                } catch (\Throwable $e) {
-                    $errors[] = ['user_id' => $emp->user_id, 'error' => $e->getMessage()];
+                } else {
+                    $existing++;
                 }
+            } catch (\Throwable $e) {
+                $reviewErrors[] = ['user_id' => $emp->user_id, 'error' => $e->getMessage()];
+                continue;
             }
 
-            return response()->json([
-                'ok' => true,
-                'reviews_created' => $created,
-                'errors' => $errors,
-            ]);
-        });
+            try {
+                $notificationError = $this->notify($emp->user_id, $cycle->company_id,
+                    'Открыт цикл оценки: ' . $cycle->title,
+                    'Заполните самооценку до ' . optional($cycle->deadline)->format('d.m.Y'),
+                    'performance_review',
+                );
+
+                if ($notificationError) {
+                    $notificationErrors[] = ['user_id' => $emp->user_id, 'error' => $notificationError];
+                }
+            } catch (\Throwable $e) {
+                $notificationErrors[] = ['user_id' => $emp->user_id, 'error' => $e->getMessage()];
+            }
+        }
+
+        return response()->json([
+            'ok' => true,
+            'reviews_created' => $created,
+            'reviews_existing' => $existing,
+            'review_errors' => $reviewErrors,
+            'notification_errors' => $notificationErrors,
+        ]);
 
     }
 
@@ -209,14 +231,26 @@ class PerformanceController extends Controller
         if ($this->isManagerOf($user, $r->user_id)) return;
         abort(403);
     }
-    private function notify(string $userId, ?string $companyId, string $title, string $description, string $type): void
+    private function notify(string $userId, ?string $companyId, string $title, string $description, string $type): ?string
     {
-        DB::table('notifications')->insert([
+        if (!Schema::hasTable('notifications')) {
+            return 'notifications table does not exist';
+        }
+
+        $payload = [
             'id' => (string) Str::uuid(),
             'user_id' => $userId, 'company_id' => $companyId,
             'title' => $title, 'description' => $description,
             'notification_type' => $type, 'is_read' => false,
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
+            'created_at' => now(),
+        ];
+
+        if (Schema::hasColumn('notifications', 'updated_at')) {
+            $payload['updated_at'] = now();
+        }
+
+        DB::table('notifications')->insert($payload);
+
+        return null;
     }
 }
