@@ -11,6 +11,7 @@ class PerformanceCycle extends Model
     use HasUuids, BelongsToCompany;
 
     protected $table = 'performance_cycles';
+    public $timestamps = false;
     protected $fillable = [
         'company_id', 'title', 'period_start', 'period_end',
         'deadline', 'status', 'weights', 'created_by',
