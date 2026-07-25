@@ -51,6 +51,7 @@
     "roles": {
       "employee": "Employee",
       "manager": "Manager",
+      "hr": "HR",
       "hrd": "HRD",
       "company_admin": "Company Admin",
       "superadmin": "Superadmin"
