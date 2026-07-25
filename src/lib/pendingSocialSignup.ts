@@ -1,4 +1,4 @@
-export type RequestedAppRole = "employee" | "manager" | "hrd";
+export type RequestedAppRole = "employee" | "manager" | "hr" | "hrd";
 
 /**
  * Translation keys for each role. Use `t(label, { ns: "auth" })` at the call
@@ -7,6 +7,7 @@ export type RequestedAppRole = "employee" | "manager" | "hrd";
 export const ROLE_OPTIONS: Array<{ value: RequestedAppRole; labelKey: string }> = [
   { value: "employee", labelKey: "auth:roles.employee" },
   { value: "manager", labelKey: "auth:roles.manager" },
+  { value: "hr", labelKey: "auth:roles.hr" },
   { value: "hrd", labelKey: "auth:roles.hrd" },
 ];
 
@@ -22,7 +23,7 @@ const MAX_PENDING_AGE_MS = 1000 * 60 * 30;
 const canUseStorage = () => typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 
 export const isRequestedAppRole = (value: string | null | undefined): value is RequestedAppRole => {
-  return value === "employee" || value === "manager" || value === "hrd";
+  return value === "employee" || value === "manager" || value === "hr" || value === "hrd";
 };
 
 export const savePendingSocialSignup = (payload: Omit<PendingSocialSignup, "createdAt">) => {

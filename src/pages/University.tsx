@@ -40,7 +40,7 @@ export default function University() {
   const qc = useQueryClient();
   const role = usePrimaryRole();
   const { data: profile } = useUserProfile();
-  const canAuthor = ["hrd", "company_admin", "superadmin"].includes(role);
+  const canAuthor = ["hr", "hrd", "company_admin", "superadmin"].includes(role);
   const [search, setSearch] = useState("");
 
   const { data: catalog } = useQuery({

@@ -51,6 +51,7 @@
     "roles": {
       "employee": "Сотрудник",
       "manager": "Руководитель",
+      "hr": "HR",
       "hrd": "HRD",
       "company_admin": "Админ компании",
       "superadmin": "Суперадмин"

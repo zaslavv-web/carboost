@@ -60,7 +60,7 @@ const HrDocumentsPersonal = () => {
   const role = usePrimaryRole();
   const { data: profile } = useUserProfile();
   const qc = useQueryClient();
-  const isHr = role === "hrd" || role === "company_admin" || role === "superadmin";
+  const isHr = role === "hr" || role === "hrd" || role === "company_admin" || role === "superadmin";
   const [tab, setTab] = useState<"mine" | "all" | "expiring">(isHr ? "all" : "mine");
   const [dialogOpen, setDialogOpen] = useState(false);
 

@@ -37,7 +37,7 @@ const CompanyBrandingPage = () => {
   const { branding, refetch } = useBranding();
   const companyId = profile?.company_id ?? null;
 
-  const canEdit = role === "hrd" || role === "company_admin" || role === "superadmin";
+  const canEdit = role === "hr" || role === "hrd" || role === "company_admin" || role === "superadmin";
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoDarkUrl, setLogoDarkUrl] = useState<string | null>(null);

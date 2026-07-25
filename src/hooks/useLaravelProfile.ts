@@ -16,6 +16,7 @@ const ROLE_PRIORITY: AppRole[] = [
   "superadmin",
   "company_admin",
   "hrd",
+  "hr",
   "manager",
   "employee",
 ];

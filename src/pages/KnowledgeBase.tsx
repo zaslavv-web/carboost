@@ -31,7 +31,7 @@ export default function KnowledgeBase() {
   const { data: profile } = useUserProfile();
   const role = usePrimaryRole();
   const companyId = profile?.company_id ?? null;
-  const canEdit = ["hrd", "company_admin", "superadmin"].includes(role);
+  const canEdit = ["hr", "hrd", "company_admin", "superadmin"].includes(role);
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedCat, setSelectedCat] = useState<string | null>(null);

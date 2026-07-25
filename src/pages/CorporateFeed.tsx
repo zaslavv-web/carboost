@@ -41,7 +41,7 @@ export default function CorporateFeed() {
   const role = usePrimaryRole();
   const companyId = profile?.company_id ?? null;
   const userId = profile?.user_id ?? null;
-  const canPost = ["hrd", "company_admin", "manager", "superadmin"].includes(role);
+  const canPost = ["hr", "hrd", "company_admin", "manager", "superadmin"].includes(role);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -135,7 +135,7 @@ export default function CorporateFeed() {
                   {KIND_LABEL[p.kind]}
                 </Badge>
                 <span>{new Date(p.created_at).toLocaleString("ru-RU")}</span>
-                {(role === "hrd" || role === "superadmin" || p.author_id === userId) && (
+                {(role === "hr" || role === "hrd" || role === "superadmin" || p.author_id === userId) && (
                   <Button size="icon" variant="ghost" className="ml-auto h-6 w-6" onClick={() => removePost.mutate(p.id)}>
                     <Trash2 className="w-3 h-3" />
                   </Button>
