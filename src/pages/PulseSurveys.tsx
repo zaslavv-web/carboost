@@ -53,7 +53,7 @@ export default function PulseSurveys() {
   const role = usePrimaryRole();
   const companyId = profile?.company_id ?? null;
   const userId = profile?.user_id ?? null;
-  const isHR = ["hrd", "company_admin", "superadmin"].includes(role);
+  const isHR = ["hr", "hrd", "company_admin", "superadmin"].includes(role);
   const qc = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);

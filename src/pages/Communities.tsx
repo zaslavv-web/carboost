@@ -32,7 +32,7 @@ export default function Communities() {
   const role = usePrimaryRole();
   const companyId = profile?.company_id ?? null;
   const userId = profile?.user_id ?? null;
-  const canCreate = ["hrd", "company_admin", "manager", "superadmin"].includes(role);
+  const canCreate = ["hr", "hrd", "company_admin", "manager", "superadmin"].includes(role);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
 

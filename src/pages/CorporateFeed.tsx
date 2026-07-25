@@ -41,7 +41,7 @@ export default function CorporateFeed() {
   const role = usePrimaryRole();
   const companyId = profile?.company_id ?? null;
   const userId = profile?.user_id ?? null;
-  const canPost = ["hrd", "company_admin", "manager", "superadmin"].includes(role);
+  const canPost = ["hr", "hrd", "company_admin", "manager", "superadmin"].includes(role);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);

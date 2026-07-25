@@ -30,7 +30,7 @@ const REASON_LABELS: Record<string, string> = {
 
 const UserSimilarEmployees = ({ userId }: { userId: string }) => {
   const realRole = useRealPrimaryRole();
-  const canGlobal = ["superadmin", "hrd", "company_admin"].includes(realRole);
+  const canGlobal = ["superadmin", "hr", "hrd", "company_admin"].includes(realRole);
   const [scope, setScope] = useState<"company" | "global">("company");
 
   const { data, isLoading, error } = useQuery({

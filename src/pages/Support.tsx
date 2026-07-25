@@ -197,7 +197,7 @@ const Support = () => {
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
 
-  const isAdmin = ["superadmin", "hrd", "company_admin"].includes(role);
+  const isAdmin = ["superadmin", "hr", "hrd", "company_admin"].includes(role);
 
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ["support_tickets", user?.id],
