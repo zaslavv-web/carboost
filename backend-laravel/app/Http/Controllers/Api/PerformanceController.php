@@ -310,10 +310,31 @@ class PerformanceController extends Controller
         if ($data['role'] === 'manager' && !$this->isManagerOf($user, $review->user_id) && !$this->isHr($user)) abort(403);
 
         try {
-            $fb = PerformanceReviewFeedback::updateOrCreate(
-                ['review_id' => $reviewId, 'reviewer_id' => $userId, 'role' => $data['role']],
-                $data + ['submitted_at' => now()],
-            );
+            $keys = ['review_id' => $reviewId, 'reviewer_id' => $userId, 'role' => $data['role']];
+            $feedbackPayload = $this->filterExistingColumns('performance_review_feedback', $keys + $data + [
+                'id' => (string) Str::uuid(),
+                'submitted_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            if (isset($feedbackPayload['competency_scores']) && is_array($feedbackPayload['competency_scores'])) {
+                $feedbackPayload['competency_scores'] = json_encode($feedbackPayload['competency_scores'], JSON_UNESCAPED_UNICODE);
+            }
+
+            $existingFeedbackId = DB::table('performance_review_feedback')
+                ->where('review_id', $reviewId)
+                ->where('reviewer_id', $userId)
+                ->where('role', $data['role'])
+                ->value('id');
+
+            if ($existingFeedbackId) {
+                unset($feedbackPayload['id'], $feedbackPayload['review_id'], $feedbackPayload['reviewer_id'], $feedbackPayload['role'], $feedbackPayload['created_at']);
+                DB::table('performance_review_feedback')->where('id', $existingFeedbackId)->update($feedbackPayload);
+            } else {
+                DB::table('performance_review_feedback')->insert($feedbackPayload);
+                $existingFeedbackId = $feedbackPayload['id'] ?? null;
+            }
+            $fb = PerformanceReviewFeedback::find($existingFeedbackId);
         } catch (\Throwable $e) {
             return $this->diagnosticError('submit_feedback', $e, ['review_id' => $reviewId]);
         }
@@ -357,11 +378,15 @@ class PerformanceController extends Controller
             'updated_at' => now(),
         ]);
         DB::table('performance_reviews')->where('id', $review->id)->update($payload);
-        $this->notify($review->user_id, $review->company_id,
-            'Performance review закрыт',
-            'Итоговая оценка: ' . round($final, 2),
-            'performance_review',
-        );
+        try {
+            $this->notify($review->user_id, $review->company_id,
+                'Performance review закрыт',
+                'Итоговая оценка: ' . round($final, 2),
+                'performance_review',
+            );
+        } catch (\Throwable) {
+            // Финализацию не роняем из-за уведомлений.
+        }
         return response()->json($review->fresh('feedback'));
     }
 
