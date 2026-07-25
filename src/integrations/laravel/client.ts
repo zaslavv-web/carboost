@@ -28,7 +28,7 @@ export const laravelAuth = {
 
 export interface LaravelInvokeResult<T = any> {
   data: T | null;
-  error: { message: string; status?: number; code?: string } | null;
+  error: { message: string; status?: number; code?: string; step?: string; diagnostics?: unknown } | null;
 }
 
 
@@ -148,6 +148,14 @@ async function request<T>(
         body && typeof body === "object" && typeof body.error_code === "string"
           ? body.error_code
           : undefined;
+      const step =
+        body && typeof body === "object" && typeof body.step === "string"
+          ? body.step
+          : undefined;
+      const diagnostics =
+        body && typeof body === "object" && "diagnostics" in body
+          ? body.diagnostics
+          : undefined;
       if (token && (res.status === 401 || res.status === 419)) {
         // Не выкидываем пользователя сразу: конкретный endpoint мог вернуть 401
         // по ошибке policy/middleware, а токен на самом деле валиден.
@@ -159,7 +167,7 @@ async function request<T>(
           notifyAuthSessionExpired(String(message), res.status);
         }
       }
-      return { data: null, error: { message: String(message), status: res.status, code } };
+      return { data: null, error: { message: String(message), status: res.status, code, step, diagnostics } };
     }
 
     return { data: body as T, error: null };

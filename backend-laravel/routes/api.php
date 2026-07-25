@@ -284,6 +284,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::get   ('/performance-cycles',                [\App\Http\Controllers\Api\PerformanceController::class, 'indexCycles']);
         Route::post  ('/performance-cycles',                [\App\Http\Controllers\Api\PerformanceController::class, 'storeCycle']);
         Route::patch ('/performance-cycles/{id}',           [\App\Http\Controllers\Api\PerformanceController::class, 'updateCycle']);
+        Route::get   ('/performance-cycles/{id}/open-preflight', [\App\Http\Controllers\Api\PerformanceController::class, 'openCyclePreflight']);
         Route::post  ('/performance-cycles/{id}/open',      [\App\Http\Controllers\Api\PerformanceController::class, 'openCycle']);
         Route::post  ('/performance-cycles/{id}/close',     [\App\Http\Controllers\Api\PerformanceController::class, 'closeCycle']);
         Route::get   ('/performance-reviews',               [\App\Http\Controllers\Api\PerformanceController::class, 'indexReviews']);

@@ -43,6 +43,27 @@ export interface PerformanceReview {
   feedback?: PerformanceReviewFeedback[];
 }
 
+export interface PerformanceOpenResult {
+  ok: boolean;
+  reviews_created?: number;
+  reviews_existing?: number;
+  review_errors?: Array<{ user_id?: string; error: string }>;
+  notification_errors?: Array<{ user_id?: string; error: string }>;
+  step?: string;
+  message?: string;
+  diagnostics?: unknown;
+}
+
+export interface PerformanceOpenPreflight {
+  ok: boolean;
+  cycle_id: string;
+  company_id?: string | null;
+  employees_count: number;
+  existing_reviews: number;
+  schema?: Record<string, string[]>;
+  notifications_schema?: string[];
+}
+
 // ---- Probation ----
 export interface ProbationCriterion {
   id: string;
@@ -128,7 +149,8 @@ export const performanceApi = {
   listCycles: async () => unwrap(await must(laravel.get<Paginated<PerformanceCycle>>("/performance-cycles"))),
   createCycle: (p: Partial<PerformanceCycle>) => laravel.post<PerformanceCycle>("/performance-cycles", p),
   updateCycle: (id: string, p: Partial<PerformanceCycle>) => laravel.patch<PerformanceCycle>(`/performance-cycles/${id}`, p),
-  openCycle: (id: string) => laravel.post(`/performance-cycles/${id}/open`),
+  openCyclePreflight: (id: string) => laravel.get<PerformanceOpenPreflight>(`/performance-cycles/${id}/open-preflight`),
+  openCycle: (id: string) => laravel.post<PerformanceOpenResult>(`/performance-cycles/${id}/open`),
   closeCycle: (id: string) => laravel.post(`/performance-cycles/${id}/close`),
   listReviews: async (scope: "mine" | "team" | "all" = "mine", cycleId?: string) => {
     const qs = new URLSearchParams({ scope });
