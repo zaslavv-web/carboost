@@ -55,33 +55,46 @@ class PerformanceController extends Controller
         return DB::transaction(function () use ($cycle, $request) {
             $cycle->update(['status' => 'open']);
 
-            // Авто-создание reviews для всех сотрудников компании
+            // Авто-создание reviews для всех сотрудников компании.
+            // ВАЖНО: в public.profiles нет колонки is_active — фильтруем по наличию user_id.
             $employees = Profile::query()
                 ->where('company_id', $cycle->company_id)
-                ->where('is_active', true)
+                ->whereNotNull('user_id')
                 ->get(['user_id']);
 
+            $created = 0;
+            $errors  = [];
             foreach ($employees as $emp) {
-                $managerId = TeamMember::query()
-                    ->where('employee_id', $emp->user_id)
-                    ->value('manager_id');
-                PerformanceReview::firstOrCreate(
-                    ['cycle_id' => $cycle->id, 'user_id' => $emp->user_id],
-                    [
-                        'company_id' => $cycle->company_id,
-                        'manager_id' => $managerId,
-                        'status'     => 'draft',
-                    ],
-                );
-                $this->notify($emp->user_id, $cycle->company_id,
-                    'Открыт цикл оценки: ' . $cycle->title,
-                    'Заполните самооценку до ' . optional($cycle->deadline)->format('d.m.Y'),
-                    'performance_review',
-                );
+                try {
+                    $managerId = TeamMember::query()
+                        ->where('employee_id', $emp->user_id)
+                        ->value('manager_id');
+                    PerformanceReview::firstOrCreate(
+                        ['cycle_id' => $cycle->id, 'user_id' => $emp->user_id],
+                        [
+                            'company_id' => $cycle->company_id,
+                            'manager_id' => $managerId,
+                            'status'     => 'draft',
+                        ],
+                    );
+                    $this->notify($emp->user_id, $cycle->company_id,
+                        'Открыт цикл оценки: ' . $cycle->title,
+                        'Заполните самооценку до ' . optional($cycle->deadline)->format('d.m.Y'),
+                        'performance_review',
+                    );
+                    $created++;
+                } catch (\Throwable $e) {
+                    $errors[] = ['user_id' => $emp->user_id, 'error' => $e->getMessage()];
+                }
             }
 
-            return response()->json(['ok' => true, 'reviews_created' => count($employees)]);
+            return response()->json([
+                'ok' => true,
+                'reviews_created' => $created,
+                'errors' => $errors,
+            ]);
         });
+
     }
 
     public function closeCycle(string $id, Request $request): JsonResponse
