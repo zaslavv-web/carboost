@@ -53,7 +53,14 @@ class PerformanceController extends Controller
         if (!$this->isHr($request->user())) abort(403);
         $cycle = PerformanceCycle::findOrFail($id);
 
-        $cycle->update(['status' => 'open']);
+        // Обновляем через query builder: на бою есть исторический schema drift,
+        // и Eloquent timestamps могут падать, если в конкретной таблице нет updated_at.
+        $cycleUpdate = ['status' => 'open'];
+        if (Schema::hasColumn('performance_cycles', 'updated_at')) {
+            $cycleUpdate['updated_at'] = now();
+        }
+        DB::table('performance_cycles')->where('id', $cycle->id)->update($cycleUpdate);
+        $cycle->status = 'open';
 
         // Авто-создание reviews для всех сотрудников компании.
         // ВАЖНО: в public.profiles нет колонки is_active — фильтруем по наличию user_id.
@@ -71,23 +78,35 @@ class PerformanceController extends Controller
 
         foreach ($employees as $emp) {
             try {
-                $managerId = TeamMember::query()
+                $managerId = DB::table('team_members')
                     ->where('employee_id', $emp->user_id)
                     ->value('manager_id');
 
-                $review = PerformanceReview::firstOrCreate(
-                    ['cycle_id' => $cycle->id, 'user_id' => $emp->user_id],
-                    [
+                $alreadyExists = DB::table('performance_reviews')
+                    ->where('cycle_id', $cycle->id)
+                    ->where('user_id', $emp->user_id)
+                    ->exists();
+
+                if ($alreadyExists) {
+                    $existing++;
+                } else {
+                    $reviewPayload = [
+                        'id' => (string) Str::uuid(),
+                        'cycle_id' => $cycle->id,
+                        'user_id' => $emp->user_id,
                         'company_id' => $cycle->company_id,
                         'manager_id' => $managerId,
-                        'status'     => 'draft',
-                    ],
-                );
+                        'status' => 'draft',
+                    ];
+                    if (Schema::hasColumn('performance_reviews', 'created_at')) {
+                        $reviewPayload['created_at'] = now();
+                    }
+                    if (Schema::hasColumn('performance_reviews', 'updated_at')) {
+                        $reviewPayload['updated_at'] = now();
+                    }
 
-                if ($review->wasRecentlyCreated) {
+                    DB::table('performance_reviews')->insert($reviewPayload);
                     $created++;
-                } else {
-                    $existing++;
                 }
             } catch (\Throwable $e) {
                 $reviewErrors[] = ['user_id' => $emp->user_id, 'error' => $e->getMessage()];
