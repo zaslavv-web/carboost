@@ -504,7 +504,7 @@ class RpcController extends Controller
 
     private function assignRole($actor, object $profile, string $role)
     {
-        $allowed = ['employee', 'manager', 'hrd', 'company_admin', 'superadmin'];
+        $allowed = ['employee', 'manager', 'hr', 'hrd', 'company_admin', 'superadmin'];
         if (!in_array($role, $allowed, true)) {
             return response()->json(['error' => 'Недопустимая роль'], 422);
         }
