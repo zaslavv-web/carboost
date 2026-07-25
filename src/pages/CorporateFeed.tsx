@@ -135,7 +135,7 @@ export default function CorporateFeed() {
                   {KIND_LABEL[p.kind]}
                 </Badge>
                 <span>{new Date(p.created_at).toLocaleString("ru-RU")}</span>
-                {(role === "hrd" || role === "superadmin" || p.author_id === userId) && (
+                {(role === "hr" || role === "hrd" || role === "superadmin" || p.author_id === userId) && (
                   <Button size="icon" variant="ghost" className="ml-auto h-6 w-6" onClick={() => removePost.mutate(p.id)}>
                     <Trash2 className="w-3 h-3" />
                   </Button>

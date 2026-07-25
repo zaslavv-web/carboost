@@ -34,7 +34,7 @@ const RoleAwareLayout = () => {
 
   // Merge /employees into /dashboard for HRD-level roles — one canonical screen.
   const isEmployeesRoute = location.pathname === "/employees";
-  if (isEmployeesRoute && (role === "hrd" || role === "company_admin" || role === "superadmin")) {
+  if (isEmployeesRoute && (role === "hr" || role === "hrd" || role === "company_admin" || role === "superadmin")) {
     return <Navigate to="/dashboard" replace />;
   }
 

@@ -47,7 +47,7 @@ const Performance = () => {
   const { t } = useTranslation("performance");
   const role = usePrimaryRole();
   const qc = useQueryClient();
-  const isHr = role === "hrd" || role === "company_admin" || role === "superadmin";
+  const isHr = role === "hr" || role === "hrd" || role === "company_admin" || role === "superadmin";
   const isManager = isHr || role === "manager";
   const [tab, setTab] = useState<"mine" | "team" | "cycles">("mine");
 

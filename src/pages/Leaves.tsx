@@ -42,7 +42,7 @@ const Leaves = () => {
   const role = usePrimaryRole();
   const { data: profile } = useUserProfile();
   const qc = useQueryClient();
-  const isHr = role === "hrd" || role === "company_admin" || role === "superadmin";
+  const isHr = role === "hr" || role === "hrd" || role === "company_admin" || role === "superadmin";
   const isManagerOrHr = isHr || role === "manager";
 
   const [tab, setTab] = useState<"mine" | "inbox" | "balances" | "calendar" | "types">("mine");
