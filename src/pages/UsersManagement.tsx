@@ -27,6 +27,7 @@ const UsersManagement = () => {
   const roleLabelMap: Record<string, string> = {
     employee: t("users.roleEmployee"),
     manager: t("users.roleManager"),
+    hr: t("users.roleHr"),
     hrd: t("users.roleHrd"),
     company_admin: t("users.roleCompanyAdmin"),
     superadmin: t("users.roleSuperadmin"),
@@ -35,6 +36,7 @@ const UsersManagement = () => {
   const roleBadge: Record<string, { label: string; cls: string }> = {
     employee: { label: t("users.roleEmployee"), cls: "bg-secondary text-secondary-foreground" },
     manager: { label: t("users.roleManager"), cls: "bg-info/10 text-info" },
+    hr: { label: t("users.roleHr"), cls: "bg-warning/10 text-warning" },
     hrd: { label: t("users.roleHrd"), cls: "bg-warning/10 text-warning" },
     company_admin: { label: t("users.roleCompanyAdmin"), cls: "bg-primary/10 text-primary" },
     superadmin: { label: t("users.roleSuperadmin"), cls: "bg-destructive/10 text-destructive" },
