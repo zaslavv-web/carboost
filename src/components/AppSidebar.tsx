@@ -122,7 +122,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       ];
     }
 
-    if (role === "hrd") {
+    if (role === "hrd" || role === "hr") {
       return [
         { key: "myWork", label: S("myWork"), entries: [myProfile, tracker] },
         { key: "communication", label: S("communication"), entries: [chats, feed, communities, { icon: Heart, label: t("nav.recognitionFeed"), path: "/recognition" }] },
