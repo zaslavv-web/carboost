@@ -1,37 +1,45 @@
 ## Диагноз
 
-При нажатии «Открыть цикл» на бою падает 500. Причина — в `backend-laravel/app/Http/Controllers/Api/PerformanceController.php::openCycle()` идёт запрос:
+500 возникает на `POST /api/performance-cycles/{id}/open` уже после создания цикла.
 
-```php
-Profile::query()
-    ->where('company_id', $cycle->company_id)
-    ->where('is_active', true)   // ← колонки нет
-    ->get(['user_id']);
-```
+Что подтверждено по текущему репозиторию и доступной схеме:
 
-Подтверждено запросом к БД: таблица `public.profiles` содержит колонки `id, user_id, full_name, position, department, avatar_url, hire_date, overall_score, role_readiness, created_at, updated_at, is_verified, requested_role, position_id, company_id, pending_position_id`. Колонки `is_active` нет → Postgres 42703 → 500.
+- В коде `openCycle()` уже убран старый фильтр `profiles.is_active`, поэтому текущая причина не обязательно та же, что была первой.
+- В доступной схеме `notifications` нет колонки `updated_at`, а текущий `PerformanceController::notify()` вставляет `updated_at`.
+- Если такой SQL падает внутри `DB::transaction()`, PostgreSQL помечает всю транзакцию как aborted. Даже если PHP ловит exception в `try/catch`, дальнейший commit может завершиться 500. Это хорошо объясняет симптом: цикл есть, но открыть его невозможно.
 
-Именно поэтому сам цикл создаётся (в `storeCycle` этой колонки не касаются, а `company_id` подставляется трейтом `BelongsToCompany`), но «войти в него» (open) — нельзя.
+## План исправления
 
-## Что делаю
+1. Переписать `PerformanceController::openCycle()` так, чтобы один сбой по сотруднику или уведомлению не ронял весь запрос:
+   - убрать общий `DB::transaction()` вокруг всего открытия цикла;
+   - сначала перевести цикл в `open`;
+   - затем создавать/находить `performance_reviews` по сотрудникам в обычном autocommit-режиме;
+   - ошибки по отдельным сотрудникам складывать в `review_errors[]`, а не превращать весь endpoint в 500.
 
-Правлю `openCycle()` — заменяю `is_active` на реально существующий признак «активного сотрудника»:
+2. Сделать уведомления безопасными:
+   - вынести отправку/создание notification из критического пути открытия цикла;
+   - перед вставкой проверять, есть ли в таблице `notifications.updated_at`;
+   - если колонки нет — не вставлять её;
+   - если notification не создалось — вернуть это в `notification_errors[]`, но сам цикл и reviews оставить созданными.
 
-- убираю фильтр `is_active`;
-- добавляю осмысленный `whereNotNull('user_id')` и фильтрацию по существованию пользователя в `users`;
-- (опционально) добавляю фильтр «не заблокирован» через `whereNotIn('user_id', function ($q) { $q->select('user_id')->from('user_roles')->where('role', 'disabled'); })` — только если такая роль реально используется. Проверю по данным и, если нет, оставлю без него.
+3. Сделать ответ API диагностичным:
+   - `ok: true` при успешном открытии цикла;
+   - `reviews_created`;
+   - `reviews_existing`;
+   - `review_errors`;
+   - `notification_errors`.
 
-Также добавлю guard: обернуть цикл создания reviews в per-employee `try/catch`, чтобы одна битая запись не роняла всю операцию, и вернуть в ответ `errors[]`.
+4. Проверка после правки:
+   - локально: проверить PHP-синтаксис изменённого контроллера;
+   - на бою после деплоя: повторить `POST /api/performance-cycles/a2560ea4-eacf-4edb-a5f0-b04de4632ca4/open`;
+   - ожидаемый результат: HTTP 200, статус цикла `open`, созданные draft reviews; возможные проблемы уведомлений должны быть видны в JSON, но не должны давать 500.
 
-## Проверка после правки
+## Технические файлы
 
-1. `curl -X POST /api/performance-cycles/{id}/open` под HRD `growthpeak@yandex.ru` → 200, `reviews_created > 0`.
-2. `SELECT count(*) FROM performance_reviews WHERE cycle_id = :id` — совпадает с числом активных профилей компании.
-3. В UI: цикл переходит в статус `open`, вкладка «Мои оценки» у сотрудников этой компании показывает draft.
+- Основная правка: `backend-laravel/app/Http/Controllers/Api/PerformanceController.php`.
+- Миграция не обязательна: фикс будет работать и со старой схемой `notifications` без `updated_at`.
 
-## Технические детали
-
-- Файл правки: `backend-laravel/app/Http/Controllers/Api/PerformanceController.php`, метод `openCycle` (строки ~50–85).
-- Миграций не требуется.
-- Никаких изменений во фронте — API-контракт сохраняется.
-- Деплой: `git pull` в `docs/backend` на бою + `php artisan config:clear` (миграции не нужны).
+<presentation-actions>
+  <presentation-open-history>View History</presentation-open-history>
+  <presentation-link url="https://docs.lovable.dev/tips-tricks/troubleshooting">Troubleshooting docs</presentation-link>
+</presentation-actions>
