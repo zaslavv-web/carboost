@@ -7,8 +7,6 @@ use Carbon\Carbon;
 use App\Models\PerformanceCycle;
 use App\Models\PerformanceReview;
 use App\Models\PerformanceReviewFeedback;
-use App\Models\Profile;
-use App\Models\TeamMember;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +21,13 @@ class PerformanceController extends Controller
     // ===== Cycles =====
     public function indexCycles(Request $request): JsonResponse
     {
-        return response()->json(PerformanceCycle::query()->orderByDesc('period_start')->paginate(50));
+        $q = DB::table('performance_cycles');
+        if (Schema::hasColumn('performance_cycles', 'period_start')) {
+            $q->orderByDesc('period_start');
+        } else {
+            $q->orderByDesc('id');
+        }
+        return response()->json($q->paginate(50));
     }
 
     public function storeCycle(Request $request): JsonResponse
@@ -258,13 +262,16 @@ class PerformanceController extends Controller
     public function indexReviews(Request $request): JsonResponse
     {
         $user = $request->user();
+        $userId = $this->domainUserId($user);
         $scope = $request->get('scope', 'mine'); // mine|team|all
         $q = PerformanceReview::query()->with('cycle');
 
         if ($scope === 'mine') {
-            $q->where('user_id', $user->getAuthIdentifier());
+            $q->where('user_id', $userId);
         } elseif ($scope === 'team') {
-            $ids = TeamMember::where('manager_id', $user->getAuthIdentifier())->pluck('employee_id');
+            $ids = Schema::hasTable('team_members') && Schema::hasColumn('team_members', 'manager_id') && Schema::hasColumn('team_members', 'employee_id')
+                ? DB::table('team_members')->where('manager_id', $userId)->pluck('employee_id')
+                : collect();
             $q->whereIn('user_id', $ids);
         } elseif ($scope === 'all' && !$this->isHr($user)) {
             abort(403);
@@ -297,13 +304,14 @@ class PerformanceController extends Controller
             'comments'          => 'nullable|string|max:5000',
         ]);
         $review = PerformanceReview::findOrFail($reviewId);
+        $userId = $this->domainUserId($user);
 
-        if ($data['role'] === 'self' && $review->user_id !== $user->getAuthIdentifier()) abort(403);
+        if ($data['role'] === 'self' && $review->user_id !== $userId) abort(403);
         if ($data['role'] === 'manager' && !$this->isManagerOf($user, $review->user_id) && !$this->isHr($user)) abort(403);
 
         try {
             $fb = PerformanceReviewFeedback::updateOrCreate(
-                ['review_id' => $reviewId, 'reviewer_id' => $user->getAuthIdentifier(), 'role' => $data['role']],
+                ['review_id' => $reviewId, 'reviewer_id' => $userId, 'role' => $data['role']],
                 $data + ['submitted_at' => now()],
             );
         } catch (\Throwable $e) {
@@ -330,12 +338,14 @@ class PerformanceController extends Controller
 
     public function finalize(string $id, Request $request): JsonResponse
     {
-        if (!$this->isHr($request->user()) && !$this->isManagerOf($request->user(), PerformanceReview::find($id)?->user_id ?? '')) {
+        $reviewForAccess = DB::table('performance_reviews')->where('id', $id)->first();
+        if (!$reviewForAccess) abort(404);
+        if (!$this->isHr($request->user()) && !$this->isManagerOf($request->user(), (string) ($reviewForAccess->user_id ?? ''))) {
             abort(403);
         }
         $data = $request->validate(['summary' => 'nullable|string|max:5000']);
         $review = PerformanceReview::with('cycle')->findOrFail($id);
-        $w = $review->cycle->weights ?: ['self' => 0.2, 'manager' => 0.5, 'peer' => 0.3];
+        $w = $review->cycle?->weights ?: ['self' => 0.2, 'manager' => 0.5, 'peer' => 0.3];
         $final = ((float)$review->self_score) * (float)($w['self'] ?? 0)
                + ((float)$review->manager_score) * (float)($w['manager'] ?? 0)
                + ((float)$review->peer_score) * (float)($w['peer'] ?? 0);
@@ -366,11 +376,11 @@ class PerformanceController extends Controller
         if (!Schema::hasTable('team_members') || !Schema::hasColumn('team_members', 'manager_id') || !Schema::hasColumn('team_members', 'employee_id')) {
             return false;
         }
-        return DB::table('team_members')->where('manager_id', $user->getAuthIdentifier())->where('employee_id', $employeeId)->exists();
+        return DB::table('team_members')->where('manager_id', $this->domainUserId($user))->where('employee_id', $employeeId)->exists();
     }
     private function assertCanViewReview($user, PerformanceReview $r): void
     {
-        if ($r->user_id === $user->getAuthIdentifier()) return;
+        if ($r->user_id === $this->domainUserId($user)) return;
         if ($this->isHr($user)) return;
         if ($this->isManagerOf($user, $r->user_id)) return;
         abort(403);
@@ -411,12 +421,25 @@ class PerformanceController extends Controller
         } catch (\Throwable) {
             // fall through
         }
-        $userId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->getAuthIdentifier();
+        $userId = $this->domainUserId($user);
         if (Schema::hasTable('profiles') && Schema::hasColumn('profiles', 'company_id') && Schema::hasColumn('profiles', 'user_id')) {
             $companyId = DB::table('profiles')->where('user_id', $userId)->value('company_id');
             return $companyId ? (string) $companyId : null;
         }
         return null;
+    }
+
+    private function domainUserId($user): string
+    {
+        if (!$user) return '';
+        try {
+            if (method_exists($user, 'domainUserId')) {
+                return (string) $user->domainUserId();
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+        return (string) $user->getAuthIdentifier();
     }
 
     private function cycleEmployees(?string $companyId)
