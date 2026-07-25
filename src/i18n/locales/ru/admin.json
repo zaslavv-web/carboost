@@ -52,6 +52,7 @@
     "roleEmployee": "Сотрудник",
     "roleManager": "Руководитель",
     "roleHrd": "HRD",
+    "roleHr": "HR",
     "roleCompanyAdmin": "Админ компании",
     "roleSuperadmin": "Суперадмин",
     "fullNamePlaceholder": "Иванов Иван",

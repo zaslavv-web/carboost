@@ -52,6 +52,7 @@
     "roleEmployee": "Employee",
     "roleManager": "Manager",
     "roleHrd": "HRD",
+    "roleHr": "HR",
     "roleCompanyAdmin": "Company Admin",
     "roleSuperadmin": "Superadmin",
     "fullNamePlaceholder": "Jane Smith",
