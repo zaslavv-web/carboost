@@ -103,27 +103,37 @@ class PerformanceController extends Controller
     {
         if (!$this->isHr($request->user())) abort(403);
 
-        $cycle = DB::table('performance_cycles')->where('id', $id)->first();
-        if (!$cycle) abort(404);
+        try {
+            $cycle = DB::table('performance_cycles')->where('id', $id)->first();
+            if (!$cycle) {
+                return response()->json(['ok' => false, 'step' => 'find_cycle', 'message' => 'Цикл оценки не найден.'], 404);
+            }
 
-        $companyId = $cycle->company_id ?? $this->currentCompanyId($request->user());
-        $employees = $this->cycleEmployees($companyId);
+            $companyId = $cycle->company_id ?? $this->currentCompanyId($request->user());
+            $employees = $this->cycleEmployees($companyId);
 
-        return response()->json([
-            'ok' => true,
-            'cycle_id' => $id,
-            'company_id' => $companyId,
-            'employees_count' => $employees->count(),
-            'existing_reviews' => $this->countExistingReviews($id),
-            'schema' => $this->performanceSchemaDiagnostics(),
-            'notifications_schema' => $this->tableColumns('notifications'),
-        ]);
+            return response()->json([
+                'ok' => true,
+                'cycle_id' => $id,
+                'company_id' => $companyId,
+                'employees_count' => $employees->count(),
+                'existing_reviews' => $this->countExistingReviews($id),
+                'schema' => $this->performanceSchemaDiagnostics(),
+                'notifications_schema' => $this->tableColumns('notifications'),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->diagnosticError('open_preflight', $e, [
+                'cycle_id' => $id,
+                'schema' => $this->performanceSchemaDiagnostics(),
+            ]);
+        }
     }
 
     public function openCycle(string $id, Request $request): JsonResponse
     {
         if (!$this->isHr($request->user())) abort(403);
 
+        $step = 'start';
         $cycle = null;
         $created = 0;
         $existing = 0;
@@ -131,9 +141,13 @@ class PerformanceController extends Controller
         $notificationErrors = [];
 
         try {
+            $step = 'find_cycle';
             $cycle = DB::table('performance_cycles')->where('id', $id)->first();
-            if (!$cycle) abort(404);
+            if (!$cycle) {
+                return response()->json(['ok' => false, 'step' => $step, 'message' => 'Цикл оценки не найден.'], 404);
+            }
 
+            $step = 'schema_preflight';
             $missing = $this->missingRequiredColumns([
                 'performance_cycles' => ['id', 'status'],
                 'profiles' => ['user_id', 'company_id'],
@@ -145,9 +159,10 @@ class PerformanceController extends Controller
                     'step' => 'schema_preflight',
                     'message' => 'В схеме базы не хватает обязательных колонок для открытия цикла оценки.',
                     'diagnostics' => ['missing_columns' => $missing, 'schema' => $this->performanceSchemaDiagnostics()],
-                ], 500);
+                ], 422);
             }
 
+            $step = 'resolve_company';
             $companyId = $cycle->company_id ?? $this->currentCompanyId($request->user());
             if (!$companyId) {
                 return response()->json([
@@ -158,15 +173,20 @@ class PerformanceController extends Controller
                 ], 422);
             }
 
+            $step = 'update_cycle_status';
             $cycleUpdate = $this->filterExistingColumns('performance_cycles', [
                 'status' => 'open',
                 'company_id' => $companyId,
                 'updated_at' => now(),
             ]);
-            DB::table('performance_cycles')->where('id', $id)->update($cycleUpdate);
+            if ($cycleUpdate) {
+                DB::table('performance_cycles')->where('id', $id)->update($cycleUpdate);
+            }
 
+            $step = 'load_employees';
             $employees = $this->cycleEmployees($companyId);
 
+            $step = 'create_reviews';
             foreach ($employees as $emp) {
                 $userId = (string) ($emp->user_id ?? '');
                 if ($userId === '') {
@@ -220,7 +240,7 @@ class PerformanceController extends Controller
                 }
             }
         } catch (\Throwable $e) {
-            return $this->diagnosticError('open_cycle', $e, [
+            return $this->diagnosticError($step, $e, [
                 'cycle_id' => $id,
                 'cycle_company_id' => $cycle->company_id ?? null,
                 'created' => $created,
