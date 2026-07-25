@@ -241,7 +241,7 @@ const CycleManager = ({ cycles, onChange }: { cycles: PerformanceCycle[]; onChan
 
   const openCycle = async (id: string) => {
     const preflight = await performanceApi.openCyclePreflight(id);
-    if (preflight.error) { toast.error(formatApiError(preflight.error)); return; }
+    if (preflight.error && preflight.error.status !== 404) { toast.error(formatApiError(preflight.error)); return; }
 
     const { data, error } = await performanceApi.openCycle(id);
     if (error) { toast.error(formatApiError(error)); return; }
