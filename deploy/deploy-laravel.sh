@@ -88,6 +88,7 @@ $PHP_BIN artisan config:cache
 $PHP_BIN artisan route:clear
 $PHP_BIN artisan route:cache
 $PHP_BIN artisan route:list --path=admin/users || true
+$PHP_BIN artisan route:list --path=performance-cycles || true
 $PHP_BIN artisan view:cache
 $PHP_BIN artisan event:cache
 
@@ -98,7 +99,11 @@ sudo supervisorctl update    || true
 sudo supervisorctl restart laravel-worker:* 2>/dev/null || true
 sudo supervisorctl restart laravel-reverb   2>/dev/null || true
 
-echo "==> nginx reload"
-sudo nginx -t && sudo systemctl reload nginx
+echo "==> nginx reload (если доступно)"
+if command -v sudo >/dev/null 2>&1 && command -v nginx >/dev/null 2>&1; then
+  sudo nginx -t && sudo systemctl reload nginx || true
+else
+  echo "==> nginx reload skipped"
+fi
 
 echo "==> done"

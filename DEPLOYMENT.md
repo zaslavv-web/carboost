@@ -36,7 +36,13 @@ Workflow: `.github/workflows/deploy-frontend.yml`.
 
 ## Деплой бэкенда
 
-`deploy/deploy-laravel.sh` — composer install, миграции, кеши. Запускается в каталоге Laravel-приложения (обычно `/var/www/api` или `backend-laravel/`).
+Workflow: `.github/workflows/deploy-backend.yml`.
+
+**Что делает:** при push изменений в `backend-laravel/**` синхронизирует Laravel-код в `/home/gro7659365/growth-peak.pro/docs/backend`, выполняет `composer install`, `php artisan migrate --force`, очищает и пересобирает route/config cache. Это критично для новых API-маршрутов вроде `/api/performance-cycles/{id}/open-preflight`.
+
+**Ручной запуск:** GitHub → Actions → «Deploy Backend» → Run workflow. Обычно `run_migrations = true`, `enable_delete = false`.
+
+`deploy/deploy-laravel.sh` — запасной ручной путь: composer install, миграции, кеши. Запускается в каталоге Laravel-приложения (обычно `/var/www/api`, `/home/gro7659365/growth-peak.pro/docs/backend` или `backend-laravel/`).
 
 См. также `docker-compose.yml` для контейнерного запуска и `deploy/` для конфигов nginx / php-fpm.
 

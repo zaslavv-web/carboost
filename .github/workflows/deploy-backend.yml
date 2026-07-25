@@ -1,0 +1,126 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend-laravel/**'
+      - 'deploy/deploy-laravel.sh'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+    inputs:
+      run_migrations:
+        description: 'Run php artisan migrate --force'
+        required: true
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+      enable_delete:
+        description: 'Use rsync --delete for backend code. Keep false unless server copy is clean.'
+        required: true
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+env:
+  DEPLOY_HOST: ssh.gro7659365.nichost.ru
+  DEPLOY_USER: gro7659365
+  BACKEND_ROOT: /home/gro7659365/growth-peak.pro/docs/backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check SSH secret
+        run: |
+          if [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
+            echo "::error::DEPLOY_SSH_KEY is not set"
+            exit 1
+          fi
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Trust host key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -t ssh-rsa -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -t rsa,ecdsa,ed25519 -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          cat > ~/.ssh/config <<EOF
+          Host $DEPLOY_HOST
+            HostName $DEPLOY_HOST
+            User $DEPLOY_USER
+            HostKeyAlgorithms +ssh-rsa
+            PubkeyAcceptedAlgorithms +ssh-rsa
+            PubkeyAcceptedKeyTypes +ssh-rsa
+            CASignatureAlgorithms +ssh-rsa
+            RequiredRSASize 1024
+            StrictHostKeyChecking accept-new
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Upload backend code
+        run: |
+          DELETE_FLAG=""
+          if [ "${{ github.event.inputs.enable_delete }}" = "true" ]; then
+            DELETE_FLAG="--delete --delete-excluded"
+            echo "⚠️  Backend --delete enabled"
+          else
+            echo "ℹ️  Backend --delete disabled"
+          fi
+
+          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$BACKEND_ROOT'"
+
+          rsync -avz \
+            -e "ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o StrictHostKeyChecking=accept-new" \
+            $DELETE_FLAG \
+            --exclude '.env' \
+            --exclude 'vendor/' \
+            --exclude 'storage/' \
+            --exclude 'bootstrap/cache/*.php' \
+            backend-laravel/ "$DEPLOY_USER@$DEPLOY_HOST:$BACKEND_ROOT/"
+
+      - name: Install, migrate, refresh Laravel caches
+        run: |
+          RUN_MIGRATIONS="${{ github.event.inputs.run_migrations }}"
+          if [ -z "$RUN_MIGRATIONS" ]; then RUN_MIGRATIONS="true"; fi
+
+          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' RUN_MIGRATIONS='$RUN_MIGRATIONS' GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$BACKEND_ROOT"
+
+          php -v
+          composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-audit
+
+          php artisan optimize:clear || true
+          php artisan config:clear || true
+          php artisan cache:clear || true
+
+          if [ "$RUN_MIGRATIONS" = "true" ]; then
+            php artisan migrate --force
+          else
+            echo "ℹ️  migrations skipped"
+          fi
+
+          php artisan route:clear || true
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache || true
+          php artisan event:cache || true
+
+          printf '%s\n' "${GITHUB_SHA:-unknown}" > VERSION
+          php artisan route:list --path=performance-cycles || true
+          REMOTE
+
+      - name: Public health check
+        run: |
+          curl -fsS https://growth-peak.pro/api/health
