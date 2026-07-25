@@ -92,7 +92,7 @@ const UsersManagement = () => {
       const roleMap = new Map<string, AppRole>();
       for (const r of rolesRes.data) {
         const current = roleMap.get(r.user_id);
-        const priority: Record<string, number> = { superadmin: 5, company_admin: 4, hrd: 3, manager: 2, employee: 1 };
+        const priority: Record<string, number> = { superadmin: 5, company_admin: 4, hrd: 3, hr: 3, manager: 2, employee: 1 };
         if (!current || priority[r.role as string] > (priority[current] || 0)) {
           roleMap.set(r.user_id, r.role as AppRole);
         }
