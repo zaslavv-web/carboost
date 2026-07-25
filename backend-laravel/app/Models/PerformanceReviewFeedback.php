@@ -10,6 +10,7 @@ class PerformanceReviewFeedback extends Model
     use HasUuids;
 
     protected $table = 'performance_review_feedback';
+    public $timestamps = false;
     protected $fillable = [
         'review_id', 'reviewer_id', 'role',
         'competency_scores', 'overall_score',

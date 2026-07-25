@@ -11,6 +11,7 @@ class PerformanceReview extends Model
     use HasUuids, BelongsToCompany;
 
     protected $table = 'performance_reviews';
+    public $timestamps = false;
     protected $fillable = [
         'cycle_id', 'user_id', 'company_id', 'manager_id', 'status',
         'self_score', 'manager_score', 'peer_score', 'final_score',

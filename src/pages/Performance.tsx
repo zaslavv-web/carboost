@@ -37,6 +37,12 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   closed: "outline",
 };
 
+const formatApiError = (error: { message: string; status?: number; step?: string } | null) => {
+  if (!error) return "Ошибка запроса";
+  const prefix = [error.status ? String(error.status) : null, error.step].filter(Boolean).join(" · ");
+  return prefix ? `${prefix}: ${error.message}` : error.message;
+};
+
 const Performance = () => {
   const { t } = useTranslation("performance");
   const role = usePrimaryRole();
@@ -153,7 +159,7 @@ const FeedbackDialog = ({ review, role }: { review: PerformanceReview; role: "se
       overall_score: Number(overall) || null,
       strengths, improvements, comments,
     } as any);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(formatApiError(error)); return; }
     toast.success(t("messages.feedbackSaved"));
     qc.invalidateQueries({ queryKey: ["perf"] });
     setOpen(false);
@@ -192,7 +198,7 @@ const FinalizeDialog = ({ review }: { review: PerformanceReview }) => {
 
   const submit = async () => {
     const { error } = await performanceApi.finalize(review.id, summary);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(formatApiError(error)); return; }
     toast.success(t("messages.finalized"));
     qc.invalidateQueries({ queryKey: ["perf"] });
     setOpen(false);
@@ -229,18 +235,30 @@ const CycleManager = ({ cycles, onChange }: { cycles: PerformanceCycle[]; onChan
       title, period_start: ps, period_end: pe, deadline: deadline || undefined,
       weights: { self: +ws, manager: +wm, peer: +wp },
     } as any);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(formatApiError(error)); return; }
     toast.success("OK"); setOpen(false); setTitle(""); onChange();
   };
 
   const openCycle = async (id: string) => {
-    const { error } = await performanceApi.openCycle(id);
-    if (error) { toast.error(error.message); return; }
-    toast.success(t("messages.cycleOpened")); onChange();
+    const preflight = await performanceApi.openCyclePreflight(id);
+    if (preflight.error) { toast.error(formatApiError(preflight.error)); return; }
+
+    const { data, error } = await performanceApi.openCycle(id);
+    if (error) { toast.error(formatApiError(error)); return; }
+
+    const reviewErrors = data?.review_errors?.length ?? 0;
+    const notificationErrors = data?.notification_errors?.length ?? 0;
+    const message = `Создано: ${data?.reviews_created ?? 0}, уже было: ${data?.reviews_existing ?? 0}`;
+    if (reviewErrors > 0 || notificationErrors > 0) {
+      toast.warning(`${message}. Ошибки reviews: ${reviewErrors}, уведомлений: ${notificationErrors}`);
+    } else {
+      toast.success(`${t("messages.cycleOpened")} · ${message}`);
+    }
+    onChange();
   };
   const closeCycle = async (id: string) => {
     const { error } = await performanceApi.closeCycle(id);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(formatApiError(error)); return; }
     toast.success(t("messages.cycleClosed")); onChange();
   };
 
