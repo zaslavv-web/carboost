@@ -7,7 +7,7 @@ class RoleSeeder extends Seeder
 {
     public function run(): void
     {
-        $roles = ['employee', 'manager', 'hrd', 'company_admin', 'superadmin'];
+        $roles = ['employee', 'manager', 'hr', 'hrd', 'company_admin', 'superadmin'];
         $now   = now();
         foreach ($roles as $role) {
             DB::table('roles')->updateOrInsert(

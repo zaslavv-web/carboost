@@ -126,16 +126,26 @@ class User extends Authenticatable
             return false;
         }
 
+        // HR имеет тот же уровень доступа, что и HRD (подчинение только
+        // организационное). Поэтому любой запрос на роль 'hrd' удовлетворяется
+        // и наличием роли 'hr' — и наоборот, чтобы политики, написанные под
+        // одну из формулировок, работали для обеих ролей.
+        $expanded = $expectedRoles->flatMap(function ($role) {
+            if ($role === 'hrd') return ['hrd', 'hr'];
+            if ($role === 'hr')  return ['hr', 'hrd'];
+            return [$role];
+        })->unique()->values();
+
         $domainRoles = DB::table('user_roles')
             ->where('user_id', $this->domainUserId())
             ->pluck('role')
             ->map(fn ($role) => (string) $role);
 
-        if ($domainRoles->intersect($expectedRoles)->isNotEmpty()) {
+        if ($domainRoles->intersect($expanded)->isNotEmpty()) {
             return true;
         }
 
-        return $this->hasSpatieRole($roles, $guard);
+        return $this->hasSpatieRole($expanded->all(), $guard);
     }
 
     /** Верифицирован ли пользователь суперадмином */

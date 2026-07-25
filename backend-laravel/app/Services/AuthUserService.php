@@ -218,7 +218,7 @@ class AuthUserService
 
     private function normalizeRole(?string $role): string
     {
-        return in_array($role, ['employee', 'manager', 'hrd', 'company_admin', 'superadmin'], true)
+        return in_array($role, ['employee', 'manager', 'hr', 'hrd', 'company_admin', 'superadmin'], true)
             ? $role
             : 'employee';
     }
