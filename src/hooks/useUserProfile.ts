@@ -4,7 +4,7 @@ import { laravelDb } from "@/integrations/laravel/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 
-export type AppRole = "employee" | "manager" | "hrd" | "company_admin" | "superadmin";
+export type AppRole = "employee" | "manager" | "hr" | "hrd" | "company_admin" | "superadmin";
 
 export interface UserProfile {
   id: string;
@@ -101,6 +101,7 @@ export const usePrimaryRole = (): AppRole => {
   if (roles.includes("superadmin")) return "superadmin";
   if (roles.includes("company_admin")) return "company_admin";
   if (roles.includes("hrd")) return "hrd";
+  if (roles.includes("hr")) return "hr";
   if (roles.includes("manager")) return "manager";
   return "employee";
 };
@@ -119,9 +120,18 @@ export const useRealPrimaryRole = (): AppRole => {
   if (roles.includes("superadmin")) return "superadmin";
   if (roles.includes("company_admin")) return "company_admin";
   if (roles.includes("hrd")) return "hrd";
+  if (roles.includes("hr")) return "hr";
   if (roles.includes("manager")) return "manager";
   return "employee";
 };
+
+/**
+ * HR-уровень доступа: HR подчиняется HRD, но по правам эквивалентен ему.
+ * Используйте этот хелпер вместо `role === 'hrd'`, чтобы страницы, доступные
+ * HRD, автоматически открывались и для HR.
+ */
+export const isHrLevelRole = (role: AppRole | null | undefined): boolean =>
+  role === "hr" || role === "hrd" || role === "company_admin" || role === "superadmin";
 
 
 export const useAllProfiles = () => {

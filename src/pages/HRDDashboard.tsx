@@ -50,6 +50,7 @@ const useRoleBadge = () => {
   const roleBadge: Record<AppRole, { label: string; cls: string }> = {
     employee: { label: t("hrdDashboard.roles.employee"), cls: "bg-secondary text-secondary-foreground" },
     manager: { label: t("hrdDashboard.roles.manager"), cls: "bg-info/10 text-info" },
+    hr: { label: t("hrdDashboard.roles.hr"), cls: "bg-warning/10 text-warning" },
     hrd: { label: t("hrdDashboard.roles.hrd"), cls: "bg-warning/10 text-warning" },
     company_admin: { label: t("hrdDashboard.roles.company_admin"), cls: "bg-primary/10 text-primary" },
     superadmin: { label: t("hrdDashboard.roles.superadmin"), cls: "bg-destructive/10 text-destructive" },
