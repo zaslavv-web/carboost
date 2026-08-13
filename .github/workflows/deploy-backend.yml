@@ -178,7 +178,7 @@ jobs:
           cd "$BACKEND_ROOT"
 
           cat > public/.user.ini <<'INI'
-memory_limit = 256M
+memory_limit = 1024M
 post_max_size = 64M
 upload_max_filesize = 64M
 max_execution_time = 120
@@ -201,8 +201,8 @@ INI
               echo "::error::Backend вернул HTML вместо JSON — сломан autoload/vendor на сервере"
               exit 1;;
           esac
-          if ! echo "$BODY" | grep -q '"memory_limit":"256M"'; then
-            echo "::error::memory_limit не равен 256M: $BODY"
+          if echo "$BODY" | grep -q '"memory_limit":"256M"'; then
+            echo "::error::memory_limit всё ещё 256M (на этом хостинге Zend MM режет память кусками по 64M — нужен 1024M): $BODY"
             exit 1
           fi
           if ! echo "$BODY" | grep -q '"status":"ok"'; then
