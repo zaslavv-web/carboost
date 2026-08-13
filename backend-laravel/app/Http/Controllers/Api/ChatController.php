@@ -100,31 +100,80 @@ class ChatController extends Controller
         }
 
         $conversationIds = $conversations->pluck('id')->all();
+        $this->memoryCheckpoint('conversations', count($conversationIds));
 
-        $participants = DB::table('chat_participants')
+        // Жёсткий потолок: сначала считаем, сколько строк участников придётся
+        // поднять. Раздутая таблица (легаси-импорт, повторные сидеры) может
+        // вернуть сотни тысяч строк — тогда endpoint падал по memory_limit
+        // ещё до try/catch. При превышении лимита показываем участников только
+        // для direct-чатов, в групповых достаточно счётчика.
+        $participantsTotal = (int) DB::table('chat_participants')
             ->whereIn('conversation_id', $conversationIds)
-            ->get(['conversation_id', 'user_id', 'role'])
-            ->groupBy('conversation_id');
+            ->count();
+
+        $participantIds = $conversationIds;
+        $participantsTruncated = false;
+        if ($participantsTotal > self::MAX_PARTICIPANT_ROWS) {
+            $participantsTruncated = true;
+            $participantIds = $conversations
+                ->where('type', 'direct')
+                ->pluck('id')
+                ->all();
+            \Log::warning('chat.index participants truncated', [
+                'user_id' => $userId,
+                'rows'    => $participantsTotal,
+            ]);
+        }
+
+        $participants = empty($participantIds)
+            ? collect()
+            : DB::table('chat_participants')
+                ->whereIn('conversation_id', $participantIds)
+                ->distinct()
+                ->orderBy('conversation_id')
+                ->limit(self::MAX_PARTICIPANT_ROWS)
+                ->get(['conversation_id', 'user_id', 'role'])
+                ->groupBy('conversation_id');
+
+        $participantCounts = DB::table('chat_participants')
+            ->whereIn('conversation_id', $conversationIds)
+            ->groupBy('conversation_id')
+            ->selectRaw('conversation_id, COUNT(DISTINCT user_id) AS n')
+            ->pluck('n', 'conversation_id');
+
+        $this->memoryCheckpoint('participants', $participants->count());
 
         // Последние сообщения берём ограниченным окном. joinSub с MAX(created_at)
         // оказался несовместим с версией MySQL на боевом shared-hosting и ронял
-        // весь endpoint. Окно ограничивает память и сохраняет один пакетный
-        // запрос вместо N+1; тело сообщения обрезаем — в списке нужен превью.
+        // весь endpoint. Тело обрезаем на стороне SQL — иначе в память едет
+        // полный текст всех выбранных сообщений.
         $lastMessages = DB::table('chat_messages')
             ->whereIn('conversation_id', $conversationIds)
             ->whereNull('deleted_at')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->limit(300)
-            ->get(['id', 'conversation_id', 'sender_id', 'body', 'created_at'])
+            ->limit(self::MAX_MESSAGE_ROWS)
+            ->selectRaw('id, conversation_id, sender_id, LEFT(body, 200) AS body, created_at')
+            ->get()
             ->unique('conversation_id')
             ->keyBy('conversation_id');
 
+        $this->memoryCheckpoint('messages', $lastMessages->count());
 
-        $peerUserIds = $participants->collapse()->pluck('user_id')->filter()->unique()->all();
-        $profiles = DB::table('profiles')->whereIn('user_id', $peerUserIds)
-            ->get(['user_id', 'full_name', 'avatar_url', 'is_support'])
-            ->keyBy('user_id');
+        $peerUserIds = array_slice(
+            $participants->collapse()->pluck('user_id')->filter()->unique()->values()->all(),
+            0,
+            self::MAX_PROFILE_ROWS
+        );
+        $profiles = empty($peerUserIds)
+            ? collect()
+            : DB::table('profiles')->whereIn('user_id', $peerUserIds)
+                ->limit(self::MAX_PROFILE_ROWS)
+                ->get(['user_id', 'full_name', 'avatar_url', 'is_support'])
+                ->keyBy('user_id');
+
+        $this->memoryCheckpoint('profiles', $profiles->count());
+
 
         // Все счётчики непрочитанного — одним GROUP BY запросом.
         $unreadCounts = DB::table('chat_messages as m')
