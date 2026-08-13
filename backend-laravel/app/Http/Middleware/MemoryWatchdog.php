@@ -33,33 +33,40 @@ class MemoryWatchdog
     {
         $bootMb  = defined('APP_BOOT_MEM') ? APP_BOOT_MEM / 1048576 : null;
         $entryMb = memory_get_usage(true) / 1048576;
+        // Реальный расход PHP: на этом хостинге memory_get_usage(true)
+        // округляется до кусков Zend MM по 64 МБ и сильно завышает картину.
+        $entryPhpMb = memory_get_usage(false) / 1048576;
 
-        if ($entryMb >= self::BASELINE_WARN_MB) {
+        if ($entryPhpMb >= self::BASELINE_WARN_MB) {
             Log::warning('api_memory_baseline', [
-                'uri'      => $request->getRequestUri(),
-                'boot_mb'  => $bootMb === null ? null : round($bootMb, 1),
-                'entry_mb' => round($entryMb, 1),
-                'limit'    => ini_get('memory_limit'),
+                'uri'          => $request->getRequestUri(),
+                'boot_mb'      => $bootMb === null ? null : round($bootMb, 1),
+                'entry_mb'     => round($entryMb, 1),
+                'entry_php_mb' => round($entryPhpMb, 1),
+                'limit'        => ini_get('memory_limit'),
             ]);
         }
 
         $response = $next($request);
 
-        $peakMb = memory_get_peak_usage(true) / 1048576;
-        if ($peakMb >= self::WARN_MB) {
+        $peakMb    = memory_get_peak_usage(true) / 1048576;
+        $peakPhpMb = memory_get_peak_usage(false) / 1048576;
+        if ($peakPhpMb >= self::WARN_MB) {
             Log::warning('api_memory_high', [
-                'uri'        => $request->getRequestUri(),
-                'method'     => $request->method(),
-                'user_id'    => optional($request->user())->getAuthIdentifier(),
-                'status'     => $response->getStatusCode(),
-                'boot_mb'    => $bootMb === null ? null : round($bootMb, 1),
-                'entry_mb'   => round($entryMb, 1),
-                'handler_mb' => round($peakMb - $entryMb, 1),
-                'peak_mb'    => round($peakMb, 1),
-                'limit'      => ini_get('memory_limit'),
+                'uri'         => $request->getRequestUri(),
+                'method'      => $request->method(),
+                'user_id'     => optional($request->user())->getAuthIdentifier(),
+                'status'      => $response->getStatusCode(),
+                'boot_mb'     => $bootMb === null ? null : round($bootMb, 1),
+                'entry_mb'    => round($entryMb, 1),
+                'handler_mb'  => round($peakMb - $entryMb, 1),
+                'peak_mb'     => round($peakMb, 1),
+                'peak_php_mb' => round($peakPhpMb, 1),
+                'limit'       => ini_get('memory_limit'),
             ]);
         }
 
         return $response;
     }
+
 }
