@@ -43,7 +43,12 @@ class ChatController extends Controller
         $companyId = $this->userCompanyId();
         $isSuper = $this->isSuperadmin();
 
-        $convoIds = ChatParticipant::where('user_id', $userId)->pluck('conversation_id');
+        // Ограничиваем рабочий набор до последних диалогов. Раньше endpoint
+        // загружал в PHP все сообщения всех диалогов, а затем выполнял отдельный
+        // COUNT для каждого диалога. На боевой базе это исчерпывало 64 МБ и
+        // лимит MySQL-соединений уже при обычной авторизации.
+        $convoIds = ChatParticipant::where('user_id', $userId)
+            ->select('conversation_id');
 
         $conversations = ChatConversation::query()
             ->whereIn('id', $convoIds)
@@ -51,19 +56,35 @@ class ChatController extends Controller
             ->when(!$isSuper && $companyId, fn ($q) => $q->where('company_id', $companyId))
             ->orderByDesc('last_message_at')
             ->orderByDesc('updated_at')
+            ->limit(100)
             ->get();
 
-        $participants = ChatParticipant::whereIn('conversation_id', $conversations->pluck('id'))
+        if ($conversations->isEmpty()) {
+            return response()->json(['data' => []]);
+        }
+
+        $conversationIds = $conversations->pluck('id')->all();
+
+        $participants = ChatParticipant::whereIn('conversation_id', $conversationIds)
             ->get()
             ->groupBy('conversation_id');
 
-        $lastMessages = ChatMessage::query()
-            ->whereIn('conversation_id', $conversations->pluck('id'))
+        // Только одно последнее сообщение на диалог вместо полной истории.
+        $latestMessageDates = DB::table('chat_messages')
+            ->selectRaw('conversation_id, MAX(created_at) AS latest_created_at')
+            ->whereIn('conversation_id', $conversationIds)
             ->whereNull('deleted_at')
-            ->orderByDesc('created_at')
-            ->get()
-            ->groupBy('conversation_id')
-            ->map(fn ($g) => $g->first());
+            ->groupBy('conversation_id');
+
+        $lastMessages = ChatMessage::query()
+            ->joinSub($latestMessageDates, 'latest', function ($join) {
+                $join->on('chat_messages.conversation_id', '=', 'latest.conversation_id')
+                    ->on('chat_messages.created_at', '=', 'latest.latest_created_at');
+            })
+            ->orderByDesc('chat_messages.id')
+            ->get(['chat_messages.*'])
+            ->unique('conversation_id')
+            ->keyBy('conversation_id');
 
         $myParticipants = $participants->map(
             fn ($g) => $g->firstWhere('user_id', $userId)
@@ -74,21 +95,25 @@ class ChatController extends Controller
             ->get(['user_id', 'full_name', 'avatar_url', 'position_id', 'company_id', 'is_support'])
             ->keyBy('user_id');
 
-        $data = $conversations->map(function (ChatConversation $c) use ($participants, $lastMessages, $myParticipants, $userId, $profiles) {
-            $convParticipants = $participants[$c->id] ?? collect();
-            $me = $myParticipants[$c->id] ?? null;
-            $lastMsg = $lastMessages[$c->id] ?? null;
+        // Все счётчики непрочитанного — одним GROUP BY запросом.
+        $unreadCounts = DB::table('chat_messages as m')
+            ->join('chat_participants as p', function ($join) use ($userId) {
+                $join->on('p.conversation_id', '=', 'm.conversation_id')
+                    ->where('p.user_id', '=', $userId);
+            })
+            ->whereIn('m.conversation_id', $conversationIds)
+            ->whereNull('m.deleted_at')
+            ->where('m.sender_id', '!=', $userId)
+            ->where(function ($query) {
+                $query->whereNull('p.last_read_at')
+                    ->orWhereColumn('m.created_at', '>', 'p.last_read_at');
+            })
+            ->groupBy('m.conversation_id')
+            ->pluck(DB::raw('COUNT(*)'), 'm.conversation_id');
 
-            $unread = 0;
-            if ($lastMsg) {
-                $unreadQuery = ChatMessage::where('conversation_id', $c->id)
-                    ->whereNull('deleted_at')
-                    ->where('sender_id', '!=', $userId);
-                if ($me && $me->last_read_at) {
-                    $unreadQuery->where('created_at', '>', $me->last_read_at);
-                }
-                $unread = $unreadQuery->count();
-            }
+        $data = $conversations->map(function (ChatConversation $c) use ($participants, $lastMessages, $unreadCounts, $userId, $profiles) {
+            $convParticipants = $participants[$c->id] ?? collect();
+            $lastMsg = $lastMessages[$c->id] ?? null;
 
             $peerProfile = null;
             $peerIsSupport = false;
@@ -126,7 +151,7 @@ class ChatController extends Controller
                     'body'       => $lastMsg->body,
                     'created_at' => optional($lastMsg->created_at)->toIso8601String(),
                 ] : null,
-                'unread_count'    => $unread,
+                'unread_count'    => (int) ($unreadCounts[$c->id] ?? 0),
             ];
         })->values();
 
