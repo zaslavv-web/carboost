@@ -129,12 +129,20 @@ class DbController extends Controller
     ];
 
 
+    /** Сколько строк отдаём, если клиент не передал limit/range. */
+    protected const DEFAULT_ROWS = 500;
+
+    /** Абсолютный потолок строк на один запрос. */
+    protected const MAX_ROWS = 1000;
+
     protected const OPS = [
         'eq' => '=', 'neq' => '!=',
         'gt' => '>', 'gte' => '>=',
         'lt' => '<', 'lte' => '<=',
         'like' => 'like', 'ilike' => 'ilike',
     ];
+
+
 
     public function index(Request $request, string $table)
     {
