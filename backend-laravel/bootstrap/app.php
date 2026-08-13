@@ -32,6 +32,55 @@ if (PHP_SAPI !== 'cli') {
     }
 }
 
+/**
+ * Фатальные ошибки PHP (memory_limit, max_execution_time, ошибки автолоадера)
+ * происходят ВНЕ обработчика исключений Laravel: try/catch в контроллере и
+ * withExceptions их не видят, клиент получает голый 500 с HTML.
+ *
+ * Здесь для /api/* перехватываем фатал на shutdown: пишем строку в лог
+ * (URI + пик памяти + место падения) и отдаём валидный JSON с error_id,
+ * чтобы фронт не считал ответ «сервер отдал HTML» и не выкидывал в логин.
+ */
+if (PHP_SAPI !== 'cli') {
+    register_shutdown_function(function () {
+        $error = error_get_last();
+        if (!$error || !in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) {
+            return;
+        }
+
+        $uri = $_SERVER['REQUEST_URI'] ?? '';
+        if (strpos($uri, '/api/') === false) {
+            return;
+        }
+
+        $errorId = substr(bin2hex(random_bytes(4)), 0, 8);
+        $line = sprintf(
+            "[%s] production.ERROR: api_fatal {\"error_id\":\"%s\",\"uri\":\"%s\",\"message\":%s,\"file\":\"%s:%d\",\"peak_memory\":\"%sMB\",\"memory_limit\":\"%s\"}\n",
+            date('Y-m-d H:i:s'),
+            $errorId,
+            $uri,
+            json_encode($error['message'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $error['file'],
+            $error['line'],
+            round(memory_get_peak_usage(true) / 1048576, 1),
+            ini_get('memory_limit'),
+        );
+        @file_put_contents(dirname(__DIR__) . '/storage/logs/laravel.log', $line, FILE_APPEND);
+
+        if (!headers_sent()) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+        }
+        echo json_encode([
+            'message'    => 'Внутренняя ошибка сервера. Код: ' . $errorId,
+            'error_code' => 'server_fatal',
+            'error_id'   => $errorId,
+        ], JSON_UNESCAPED_UNICODE);
+    });
+}
+
+
+
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withProviders([
