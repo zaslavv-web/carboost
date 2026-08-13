@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -48,12 +47,21 @@ class AnalyticsController extends Controller
             'session'    => 'nullable|array',
         ]);
 
-        $user = Auth::guard('sanctum')->user();
-        $userId    = $user?->id;
-        $companyId = $user && method_exists($user, 'companyId') ? $user->companyId() : null;
-        $role      = $userId
-            ? (DB::table('user_roles')->where('user_id', $userId)->value('role'))
+        $user = $request->user('sanctum');
+        $userId = $user?->id;
+
+        // Раньше companyId() и чтение роли запускали несколько дополнительных
+        // SELECT/SHOW COLUMNS после Sanctum. Для фоновой телеметрии это быстро
+        // исчерпывало max_user_connections. Получаем оба значения одним JOIN.
+        $identity = $userId
+            ? DB::table('profiles as p')
+                ->leftJoin('user_roles as ur', 'ur.user_id', '=', 'p.user_id')
+                ->where('p.user_id', $userId)
+                ->select('p.company_id', 'ur.role')
+                ->first()
             : null;
+        $companyId = $identity?->company_id;
+        $role = $identity?->role;
         $imp       = $request->attributes->get('impersonator');
         $impersonator = $imp?->id;
 
@@ -91,48 +99,44 @@ class AnalyticsController extends Controller
 
         DB::table('analytics_events')->insert($rows);
 
-        // upsert сессии (legкий агрегат)
+        // Один атомарный upsert вместо SELECT + UPDATE/INSERT: фоновая
+        // телеметрия держит дефицитное MySQL-соединение минимальное время.
         if (!empty($payload['session']) && !empty($payload['session']['id'])) {
             $s = $payload['session'];
             $sid = $s['id'];
-            $existing = DB::table('analytics_sessions')->where('id', $sid)->first();
-            $base = [
-                'user_id'      => $userId,
-                'company_id'   => $companyId,
-                'role'         => $role,
-                'last_seen_at' => $now,
-                'ua'           => $ua,
-                'locale'       => $s['locale'] ?? null,
-                'app_version'  => $s['app_version'] ?? null,
-                'device'       => $s['device'] ?? null,
-                'viewport'     => $s['viewport'] ?? null,
-                'updated_at'   => $now,
-            ];
             $pages  = count(array_filter($rows, fn($r) => $r['event_type'] === 'page_view'));
             $errors = count(array_filter($rows, fn($r) => in_array($r['event_type'], ['js_error', 'api_error'], true)));
-            if ($existing) {
-                DB::table('analytics_sessions')->where('id', $sid)->update(array_merge($base, [
-                    'pages_count'  => (int)$existing->pages_count + $pages,
-                    'events_count' => (int)$existing->events_count + count($rows),
-                    'errors_count' => (int)$existing->errors_count + $errors,
-                    'exit_route'   => $s['route'] ?? $existing->exit_route,
-                    'ended_at'     => !empty($s['ended']) ? $now : $existing->ended_at,
-                    'ended_reason' => $s['ended_reason'] ?? $existing->ended_reason,
-                ]));
-            } else {
-                DB::table('analytics_sessions')->insert(array_merge($base, [
-                    'id'           => $sid,
-                    'started_at'   => isset($s['started_at']) ? \Carbon\Carbon::parse($s['started_at']) : $now,
-                    'entry_route'  => $s['route'] ?? null,
-                    'exit_route'   => $s['route'] ?? null,
-                    'pages_count'  => $pages,
-                    'events_count' => count($rows),
-                    'errors_count' => $errors,
-                    'ended_at'     => !empty($s['ended']) ? $now : null,
-                    'ended_reason' => $s['ended_reason'] ?? null,
-                    'created_at'   => $now,
-                ]));
-            }
+            $endedAt = !empty($s['ended']) ? $now : null;
+
+            DB::statement(
+                'INSERT INTO analytics_sessions
+                    (id, user_id, company_id, role, started_at, last_seen_at, ended_at,
+                     ended_reason, pages_count, events_count, errors_count, entry_route,
+                     exit_route, device, viewport, ua, locale, app_version, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    user_id = VALUES(user_id), company_id = VALUES(company_id), role = VALUES(role),
+                    last_seen_at = VALUES(last_seen_at),
+                    ended_at = COALESCE(VALUES(ended_at), ended_at),
+                    ended_reason = COALESCE(VALUES(ended_reason), ended_reason),
+                    pages_count = pages_count + VALUES(pages_count),
+                    events_count = events_count + VALUES(events_count),
+                    errors_count = errors_count + VALUES(errors_count),
+                    exit_route = COALESCE(VALUES(exit_route), exit_route),
+                    device = VALUES(device), viewport = VALUES(viewport), ua = VALUES(ua),
+                    locale = VALUES(locale), app_version = VALUES(app_version),
+                    updated_at = VALUES(updated_at)',
+                [
+                    $sid, $userId, $companyId, $role,
+                    isset($s['started_at']) ? \Carbon\Carbon::parse($s['started_at']) : $now,
+                    $now, $endedAt, $s['ended_reason'] ?? null,
+                    $pages, count($rows), $errors,
+                    $s['route'] ?? null, $s['route'] ?? null,
+                    $s['device'] ?? null, $s['viewport'] ?? null, $ua,
+                    $s['locale'] ?? null, $s['app_version'] ?? null,
+                    $now, $now,
+                ],
+            );
         }
 
         return response()->json(['ok' => true, 'received' => count($rows)], 202);
