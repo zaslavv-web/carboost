@@ -287,6 +287,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
 
     // Owner-only лёгкие чтения для оболочки сотрудника. Проверка профиля
     // выполняется одним запросом внутри контроллера, без generic CRUD/schema path.
+    Route::get('/employee/today', [\App\Http\Controllers\Api\EmployeeReadController::class, 'today']);
     Route::get('/employee/tasks', [\App\Http\Controllers\Api\EmployeeReadController::class, 'tasks']);
     Route::get('/employee/notifications', [\App\Http\Controllers\Api\EmployeeReadController::class, 'notifications']);
 
