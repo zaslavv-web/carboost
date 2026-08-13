@@ -139,6 +139,8 @@ class ProfileController extends Controller
                 'per_page' => $perPage,
                 'has_more' => $hasMore,
             ])->header('X-Profile-Read-Path', 'raw-chunked-v2');
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Illuminate\Database\QueryException $e) {
             if (preg_match('/max_user_connections|max_connections_per_hour|Too many connections|server has gone away|Connection refused/i', $e->getMessage())) {
                 throw $e;
