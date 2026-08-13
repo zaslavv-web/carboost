@@ -40,6 +40,28 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(MessageSending::class, [AttachMonitoringBcc::class, 'handle']);
 
+        // Диагностика нагрузки на БД: считаем SQL-запросы на HTTP-запрос.
+        // Включается точечно (SQL_QUERY_LOG=true в .env) и пишет одну строку
+        // в лог на запрос — нужно, чтобы измерить эффект мемоизации прав.
+        if (filter_var(RuntimeEnv::get('SQL_QUERY_LOG') ?: env('SQL_QUERY_LOG', false), FILTER_VALIDATE_BOOL)) {
+            $stats = new \stdClass();
+            $stats->count = 0;
+            $stats->timeMs = 0.0;
+            DB::listen(function ($query) use ($stats) {
+                $stats->count++;
+                $stats->timeMs += (float) $query->time;
+            });
+            app()->terminating(function () use ($stats) {
+                Log::info('sql_profile', [
+                    'path'    => request()->path(),
+                    'user'    => optional(auth()->user())->getAuthIdentifier(),
+                    'queries' => $stats->count,
+                    'time_ms' => round($stats->timeMs, 1),
+                ]);
+            });
+        }
+
+
 
         // Регистрируем кастомный HTTP-API драйвер Unisender Go как полноценный mailer.
         Mail::extend('unisender_go', function (array $config) {
