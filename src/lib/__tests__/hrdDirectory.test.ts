@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const get = vi.fn();
-const limit = vi.fn();
-const order = vi.fn(() => ({ limit }));
-const select = vi.fn(() => ({ order }));
-const from = vi.fn(() => ({ select }));
+const { get, limit, order, select, from } = vi.hoisted(() => {
+  const get = vi.fn();
+  const limit = vi.fn();
+  const order = vi.fn(() => ({ limit }));
+  const select = vi.fn(() => ({ order }));
+  const from = vi.fn(() => ({ select }));
+  return { get, limit, order, select, from };
+});
 
 vi.mock("@/integrations/laravel/client", () => ({ laravel: { get } }));
 vi.mock("@/integrations/laravel/db", () => ({ laravelDb: { from } }));
