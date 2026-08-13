@@ -81,7 +81,7 @@ const UsersManagement = () => {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users_list"],
     queryFn: async () => {
-      const response = await laravel.get<{ data: any[] }>("/profiles?per_page=500");
+      const response = await laravel.get<{ data: any[] }>("/profiles?per_page=200");
       if (response.error) throw response.error;
 
       return (response.data?.data || []).map((profile: any) => {
