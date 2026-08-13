@@ -42,9 +42,32 @@ jobs:
       - name: Build (vite → dist/)
         run: bun run build
 
+      - name: Stamp version.json
+        run: |
+          SHA="${GITHUB_SHA::7}"
+          printf '{"version":"%s","built_at":"%s"}\n' "$SHA" "$(date -u +%FT%TZ)" > dist/version.json
+          cat dist/version.json
+
+      - name: Cache headers (.htaccess для dist)
+        run: |
+          cat > dist/.htaccess.cache <<'EOF'
+          # Managed by deploy-frontend workflow
+          <IfModule mod_headers.c>
+            <FilesMatch "^(index\.html|version\.json|manifest\.json)$">
+              Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+              Header set Pragma "no-cache"
+            </FilesMatch>
+            <FilesMatch "\.(js|css|woff2?|png|jpg|jpeg|svg|webp)$">
+              Header set Cache-Control "public, max-age=31536000, immutable"
+            </FilesMatch>
+          </IfModule>
+          EOF
+          cat dist/.htaccess.cache
+
       - name: Sanity check dist/
         run: |
           test -f dist/index.html || { echo "❌ dist/index.html не собран"; exit 1; }
+          test -f dist/version.json || { echo "❌ dist/version.json не создан"; exit 1; }
           echo "✅ dist собран, размер:"
           du -sh dist
 
