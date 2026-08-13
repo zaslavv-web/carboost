@@ -97,6 +97,9 @@ class User extends Authenticatable
     /** @var object|false|null строка profiles: null = не читали, false = нет строки */
     private object|false|null $memoProfileRow = null;
 
+    /** Защита от рекурсии hasRole() ↔ Spatie::hasRole() (см. hasRole()). */
+    private bool $checkingSpatieRole = false;
+
     /** Сбрасывает мемоизацию (после self-heal, смены ролей и т.п.). */
     public function forgetDomainMemo(): void
     {
