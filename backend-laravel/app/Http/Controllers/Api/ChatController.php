@@ -428,10 +428,11 @@ class ChatController extends Controller
         $isSuper = $this->isSuperadmin();
         $q = trim((string) $request->get('q', ''));
 
-        $hasSupportColumn = \Illuminate\Support\Facades\Schema::hasColumn('profiles', 'is_support');
+        $hasSupportColumn = $this->profilesHaveSupportFlag();
 
-        // Базовый запрос
-        $query = Profile::query()->where('user_id', '!=', $userId);
+        // Читаем raw-запросом: у Profile глобальный CompanyScope, который на
+        // каждый билд запроса заново дёргает роли/компанию пользователя.
+        $query = DB::table('profiles')->where('user_id', '!=', $userId);
 
         if ($isSuper) {
             // Суперадмин ищет по всей платформе — исключая саму техподдержку из общего списка
@@ -504,12 +505,28 @@ class ChatController extends Controller
         return response()->json(['data' => $contacts]);
     }
 
+    /**
+     * Наличие колонки profiles.is_support. Schema::hasColumn выполняет
+     * интроспекцию (SHOW COLUMNS) на каждый вызов — кэшируем в рамках запроса.
+     */
+    private function profilesHaveSupportFlag(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            try {
+                $has = \Illuminate\Support\Facades\Schema::hasColumn('profiles', 'is_support');
+            } catch (\Throwable) {
+                $has = false;
+            }
+        }
+        return $has;
+    }
+
     private function buildSupportContacts(string $q): array
     {
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('profiles', 'is_support')) {
+        if (!$this->profilesHaveSupportFlag()) {
             return [];
         }
-        $query = Profile::query()->where('is_support', true);
         if ($q !== '') {
             // Если ищут — поддержку показываем только если запрос подходит к названию.
             $needle = mb_strtolower($q);
@@ -518,15 +535,16 @@ class ChatController extends Controller
                 return [];
             }
         }
-        return $query->limit(3)->get(['user_id', 'full_name', 'avatar_url'])->map(fn ($r) => [
-            'user_id'      => $r->user_id,
-            'full_name'    => $r->full_name ?: 'Техподдержка',
-            'avatar_url'   => $r->avatar_url,
-            'department'   => null,
-            'email'        => null,
-            'company_name' => null,
-            'is_support'   => true,
-        ])->values()->all();
+        return DB::table('profiles')->where('is_support', true)
+            ->limit(3)->get(['user_id', 'full_name', 'avatar_url'])->map(fn ($r) => [
+                'user_id'      => $r->user_id,
+                'full_name'    => $r->full_name ?: 'Техподдержка',
+                'avatar_url'   => $r->avatar_url,
+                'department'   => null,
+                'email'        => null,
+                'company_name' => null,
+                'is_support'   => true,
+            ])->values()->all();
     }
 
     private function ensureMember(string $conversationId): ChatConversation
@@ -539,23 +557,50 @@ class ChatController extends Controller
         return $conv;
     }
 
+    /**
+     * Проверка членства без Eloquent — для read-only путей (лента сообщений),
+     * которым сам объект диалога не нужен.
+     */
+    private function ensureMemberRaw(string $conversationId): void
+    {
+        $exists = DB::table('chat_conversations')->where('id', $conversationId)->exists();
+        abort_unless($exists, 404, 'Диалог не найден');
+
+        $member = DB::table('chat_participants')
+            ->where('conversation_id', $conversationId)
+            ->where('user_id', auth()->id())
+            ->exists();
+        abort_unless($member, 403, 'Нет доступа к этому диалогу');
+    }
+
     public function messages(Request $request, string $id): JsonResponse
     {
-        $this->ensureMember($id);
+        $this->ensureMemberRaw($id);
         $limit = min((int) $request->get('limit', 50), 200);
         $before = $request->get('before');
 
-        $q = ChatMessage::where('conversation_id', $id)
+        // Raw-запросы: ChatMessage/ChatMessageReaction тянут за собой
+        // hydration моделей и глобальные scope на каждую строку.
+        $q = DB::table('chat_messages')
+            ->where('conversation_id', $id)
             ->whereNull('deleted_at')
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->limit($limit);
         if ($before) $q->where('created_at', '<', $before);
 
-        $msgs = $q->get();
-        $reactions = ChatMessageReaction::whereIn('message_id', $msgs->pluck('id'))
-            ->get()->groupBy('message_id');
+        $msgs = $q->get(['id', 'conversation_id', 'sender_id', 'body', 'reply_to_id', 'created_at']);
 
-        $data = $msgs->map(function ($m) use ($reactions) {
+        $messageIds = $msgs->pluck('id')->all();
+        $reactions = empty($messageIds)
+            ? collect()
+            : DB::table('chat_message_reactions')
+                ->whereIn('message_id', $messageIds)
+                ->limit(1000)
+                ->get(['message_id', 'emoji', 'user_id'])
+                ->groupBy('message_id');
+
+        $data = $msgs->map(function (object $m) use ($reactions) {
             $rs = ($reactions[$m->id] ?? collect())
                 ->groupBy('emoji')
                 ->map(fn ($g) => [
@@ -568,14 +613,15 @@ class ChatController extends Controller
                 'conversation_id' => $m->conversation_id,
                 'sender_id'       => $m->sender_id,
                 'body'            => $m->body,
-                'reply_to_id'     => $m->reply_to_id,
-                'created_at'      => optional($m->created_at)->toIso8601String(),
+                'reply_to_id'     => $m->reply_to_id ?? null,
+                'created_at'      => $this->isoDate($m->created_at),
                 'reactions'       => $rs,
             ];
         })->reverse()->values();
 
         return response()->json(['data' => $data]);
     }
+
 
     public function sendMessage(Request $request, string $id): JsonResponse
     {
