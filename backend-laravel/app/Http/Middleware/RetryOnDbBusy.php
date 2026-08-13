@@ -15,10 +15,9 @@ use Symfony\Component\HttpFoundation\Response;
  * пользователь видит «всё сломалось», хотя база жива.
  *
  * Middleware:
- *  1) для идемпотентных запросов (GET/HEAD) повторяет обработку с короткой
- *     паузой — почти всегда соединение освобождается за десятки миллисекунд;
- *  2) если повторы не помогли, отдаёт честный 503 c кодом `db_busy`
- *     и заголовком Retry-After вместо 500.
+ * Не повторяет запрос внутри PHP-процесса: при исчерпанном лимите такой worker
+ * только дольше остаётся занятым и усиливает очередь. Сразу отдаёт честный 503
+ * c кодом `db_busy` и заголовком Retry-After вместо 500.
  */
 class RetryOnDbBusy
 {
@@ -34,32 +33,22 @@ class RetryOnDbBusy
         'Connection refused',
     ];
 
-    private const MAX_ATTEMPTS = 3;
-
     public function handle(Request $request, Closure $next): Response
     {
-        $idempotent = in_array($request->getMethod(), ['GET', 'HEAD'], true);
-        $attempts = $idempotent ? self::MAX_ATTEMPTS : 1;
-
-        for ($attempt = 1; ; $attempt++) {
-            try {
-                return $next($request);
-            } catch (QueryException $e) {
-                if (!$this->isBusy($e) || $attempt >= $attempts) {
-                    if (!$this->isBusy($e)) {
-                        throw $e;
-                    }
-                    return $this->busyResponse($request, $e);
-                }
-
-                // Освобождаем текущее (возможно, полуоткрытое) соединение и ждём.
-                try {
-                    DB::disconnect();
-                } catch (\Throwable) {
-                    // ignore
-                }
-                usleep(120_000 * $attempt); // 120ms, 240ms
+        try {
+            return $next($request);
+        } catch (QueryException $e) {
+            if (!$this->isBusy($e)) {
+                throw $e;
             }
+
+            try {
+                DB::disconnect();
+            } catch (\Throwable) {
+                // ignore
+            }
+
+            return $this->busyResponse($request, $e);
         }
     }
 

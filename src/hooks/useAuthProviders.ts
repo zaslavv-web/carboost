@@ -22,7 +22,7 @@ export const useAuthProviders = () => {
       return res.data;
     },
     staleTime: 10 * 60 * 1000,
-    retry: 1,
+    retry: false,
   });
 
   return {
