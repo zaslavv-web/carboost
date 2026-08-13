@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserProfile, useEffectiveUserId } from "@/hooks/useUserProfile";
-import { useUpdateTask } from "@/hooks/tracker";
+import { useUpdateTask, type TrackerTask } from "@/hooks/tracker";
 import { useEmployeeTodayData } from "@/hooks/useNotificationInbox";
 import { UrgencyBadge, TaskStatusBadge } from "@/components/tracker/Badges";
 import { Card, CardContent } from "@/components/ui/card";
