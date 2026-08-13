@@ -39,9 +39,35 @@ class ChatController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        // Список чатов — вспомогательный виджет. Любая его ошибка не должна
+        // ронять страницу и выкидывать пользователя в авторизацию, поэтому
+        // отдаём пустой список + error_id, а полный стек уходит в лог.
+        try {
+            return $this->buildIndex();
+        } catch (\Throwable $e) {
+            $errorId = substr(bin2hex(random_bytes(4)), 0, 8);
+            \Log::error('chat.index failed', [
+                'error_id' => $errorId,
+                'user_id'  => auth()->id(),
+                'message'  => $e->getMessage(),
+                'file'     => $e->getFile() . ':' . $e->getLine(),
+            ]);
+
+            return response()->json([
+                'data'     => [],
+                'degraded' => true,
+                'error_id' => $errorId,
+            ]);
+        }
+    }
+
+    private function buildIndex(): JsonResponse
+    {
         $userId = auth()->id();
         $companyId = $this->userCompanyId();
         $isSuper = $this->isSuperadmin();
+
+
 
         // Ограничиваем рабочий набор до последних диалогов. Раньше endpoint
         // загружал в PHP все сообщения всех диалогов, а затем выполнял отдельный
@@ -56,8 +82,8 @@ class ChatController extends Controller
             ->when(!$isSuper && $companyId, fn ($q) => $q->where('company_id', $companyId))
             ->orderByDesc('last_message_at')
             ->orderByDesc('updated_at')
-            ->limit(100)
-            ->get();
+            ->limit(50)
+            ->get(['id', 'type', 'title', 'company_id', 'last_message_at', 'updated_at']);
 
         if ($conversations->isEmpty()) {
             return response()->json(['data' => []]);
@@ -66,22 +92,23 @@ class ChatController extends Controller
         $conversationIds = $conversations->pluck('id')->all();
 
         $participants = ChatParticipant::whereIn('conversation_id', $conversationIds)
-            ->get()
+            ->get(['conversation_id', 'user_id', 'role'])
             ->groupBy('conversation_id');
 
         // Последние сообщения берём ограниченным окном. joinSub с MAX(created_at)
         // оказался несовместим с версией MySQL на боевом shared-hosting и ронял
-        // весь endpoint. Окно в 500 строк ограничивает память и сохраняет один
-        // пакетный запрос вместо N+1.
+        // весь endpoint. Окно ограничивает память и сохраняет один пакетный
+        // запрос вместо N+1; тело сообщения обрезаем — в списке нужен превью.
         $lastMessages = ChatMessage::query()
             ->whereIn('conversation_id', $conversationIds)
             ->whereNull('deleted_at')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->limit(500)
-            ->get()
+            ->limit(300)
+            ->get(['id', 'conversation_id', 'sender_id', 'body', 'created_at'])
             ->unique('conversation_id')
             ->keyBy('conversation_id');
+
 
         $peerUserIds = $participants->flatten()->pluck('user_id')->unique()->all();
         $profiles = Profile::whereIn('user_id', $peerUserIds)
@@ -142,7 +169,7 @@ class ChatController extends Controller
                 'last_message'    => $lastMsg ? [
                     'id'         => $lastMsg->id,
                     'sender_id'  => $lastMsg->sender_id,
-                    'body'       => $lastMsg->body,
+                    'body'       => mb_substr((string) $lastMsg->body, 0, 200),
                     'created_at' => optional($lastMsg->created_at)->toIso8601String(),
                 ] : null,
                 'unread_count'    => (int) ($unreadCounts[$c->id] ?? 0),
@@ -155,21 +182,33 @@ class ChatController extends Controller
     public function unreadCount(): JsonResponse
     {
         $userId = auth()->id();
-        $total = DB::table('chat_messages as m')
-            ->join('chat_participants as p', function ($join) use ($userId) {
-                $join->on('p.conversation_id', '=', 'm.conversation_id')
-                    ->where('p.user_id', '=', $userId);
-            })
-            ->whereNull('m.deleted_at')
-            ->where('m.sender_id', '!=', $userId)
-            ->where(function ($query) {
-                $query->whereNull('p.last_read_at')
-                    ->orWhereColumn('m.created_at', '>', 'p.last_read_at');
-            })
-            ->count();
+
+        try {
+            $total = DB::table('chat_messages as m')
+                ->join('chat_participants as p', function ($join) use ($userId) {
+                    $join->on('p.conversation_id', '=', 'm.conversation_id')
+                        ->where('p.user_id', '=', $userId);
+                })
+                ->whereNull('m.deleted_at')
+                ->where('m.sender_id', '!=', $userId)
+                ->where(function ($query) {
+                    $query->whereNull('p.last_read_at')
+                        ->orWhereColumn('m.created_at', '>', 'p.last_read_at');
+                })
+                ->count();
+        } catch (\Throwable $e) {
+            $errorId = substr(bin2hex(random_bytes(4)), 0, 8);
+            \Log::error('chat.unreadCount failed', [
+                'error_id' => $errorId,
+                'user_id'  => $userId,
+                'message'  => $e->getMessage(),
+            ]);
+            return response()->json(['unread' => 0, 'degraded' => true, 'error_id' => $errorId]);
+        }
 
         return response()->json(['unread' => (int) $total]);
     }
+
 
     public function store(Request $request): JsonResponse
     {

@@ -47,13 +47,16 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     queryKey: ["chats", "list"],
     queryFn: async () => {
       const res = await chatApi.list();
-      if (res.error) throw new Error(res.error.message);
+      // Ошибка списка чатов не должна ронять страницу: отдаём пустой список.
+      if (res.error) return [];
       return res.data?.data ?? [];
     },
     enabled,
+    retry: false,
     refetchInterval: enabled && pageVisible ? 30_000 : false,
     refetchOnWindowFocus: false,
   });
+
 
   const conversations = data ?? [];
   const unreadTotal = useMemo(
