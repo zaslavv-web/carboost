@@ -564,66 +564,103 @@ class DbController extends Controller
 
     public function update(Request $request, string $table)
     {
-        $model = self::resolve($table);
-        $query = $model::query();
-        $applied = $this->applyFilters($query, $request);
-        $values = $request->input('values', []);
-        if (! $values) {
-            return response()->json(['error' => 'Нет данных для обновления'], 422);
-        }
-        if ($applied === 0 || empty($query->getQuery()->wheres)) {
-            \Illuminate\Support\Facades\Log::warning('DbController mass update blocked', [
-                'table' => $table, 'query' => $request->server('QUERY_STRING'),
+        try {
+            $model = self::resolve($table);
+            $query = $model::query();
+            $applied = $this->applyFilters($query, $request);
+            $values = $request->input('values', []);
+            if (! $values) {
+                return response()->json(['error' => 'Нет данных для обновления'], 422);
+            }
+            if ($applied === 0 || empty($query->getQuery()->wheres)) {
+                \Illuminate\Support\Facades\Log::warning('DbController mass update blocked', [
+                    'table' => $table, 'query' => $request->server('QUERY_STRING'),
+                ]);
+                return response()->json([
+                    'error' => 'Отказ: массовое обновление без фильтров запрещено',
+                    'code'  => 'mass_mutation_blocked',
+                ], 422);
+            }
+            $rows = $query->get();
+            foreach ($rows as $row) {
+                $this->authorizeAny('update', $row);
+                $row->fill($values);
+                $row->save();
+            }
+            return response()->json(['data' => $rows->fresh()]);
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($this->isDatabaseBusy($e)) {
+                throw $e;
+            }
+            \Illuminate\Support\Facades\Log::warning('DbController update failed', [
+                'table' => $table, 'sqlstate' => $e->getCode(), 'msg' => $e->getMessage(),
             ]);
             return response()->json([
-                'error' => 'Отказ: массовое обновление без фильтров запрещено',
-                'code'  => 'mass_mutation_blocked',
+                'error' => 'Не удалось сохранить изменения',
+                'details' => $e->getMessage(),
+                'sqlstate' => $e->getCode(),
             ], 422);
+        } catch (\Throwable $e) {
+            return $this->serverError('db_update_failed', $table, $request, $e);
         }
-        $rows = $query->get();
-        foreach ($rows as $row) {
-            $this->authorizeAny('update', $row);
-            $row->fill($values);
-            $row->save();
-        }
-        return response()->json(['data' => $rows->fresh()]);
     }
 
     public function destroy(Request $request, string $table)
     {
-        $model = self::resolve($table);
-        $query = $model::query();
-        $applied = $this->applyFilters($query, $request);
-        if ($applied === 0 || empty($query->getQuery()->wheres)) {
-            \Illuminate\Support\Facades\Log::warning('DbController mass delete blocked', [
-                'table' => $table, 'query' => $request->server('QUERY_STRING'),
-            ]);
-            return response()->json([
-                'error' => 'Отказ: массовое удаление без фильтров запрещено',
-                'code'  => 'mass_mutation_blocked',
-            ], 422);
-        }
-        // Extra safeguard for high-blast-radius tables: require an explicit id filter.
-        $requireIdFilter = ['companies'];
-        if (in_array($table, $requireIdFilter, true)) {
-            $hasIdFilter = false;
-            foreach ($query->getQuery()->wheres as $w) {
-                if (($w['column'] ?? null) === 'id') { $hasIdFilter = true; break; }
-            }
-            if (! $hasIdFilter) {
+        try {
+            $model = self::resolve($table);
+            $query = $model::query();
+            $applied = $this->applyFilters($query, $request);
+            if ($applied === 0 || empty($query->getQuery()->wheres)) {
+                \Illuminate\Support\Facades\Log::warning('DbController mass delete blocked', [
+                    'table' => $table, 'query' => $request->server('QUERY_STRING'),
+                ]);
                 return response()->json([
-                    'error' => "Отказ: удаление из '$table' требует фильтр по id",
-                    'code'  => 'id_filter_required',
+                    'error' => 'Отказ: массовое удаление без фильтров запрещено',
+                    'code'  => 'mass_mutation_blocked',
                 ], 422);
             }
+            // Extra safeguard for high-blast-radius tables: require an explicit id filter.
+            $requireIdFilter = ['companies'];
+            if (in_array($table, $requireIdFilter, true)) {
+                $hasIdFilter = false;
+                foreach ($query->getQuery()->wheres as $w) {
+                    if (($w['column'] ?? null) === 'id') { $hasIdFilter = true; break; }
+                }
+                if (! $hasIdFilter) {
+                    return response()->json([
+                        'error' => "Отказ: удаление из '$table' требует фильтр по id",
+                        'code'  => 'id_filter_required',
+                    ], 422);
+                }
+            }
+            $rows = $query->get();
+            foreach ($rows as $row) {
+                $this->authorizeAny('delete', $row);
+                $row->delete();
+            }
+            return response()->json(['data' => ['deleted' => $rows->count()]]);
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($this->isDatabaseBusy($e)) {
+                throw $e;
+            }
+            \Illuminate\Support\Facades\Log::warning('DbController delete failed', [
+                'table' => $table, 'sqlstate' => $e->getCode(), 'msg' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'error' => 'Не удалось удалить запись',
+                'details' => $e->getMessage(),
+                'sqlstate' => $e->getCode(),
+            ], 422);
+        } catch (\Throwable $e) {
+            return $this->serverError('db_destroy_failed', $table, $request, $e);
         }
-        $rows = $query->get();
-        foreach ($rows as $row) {
-            $this->authorizeAny('delete', $row);
-            $row->delete();
-        }
-        return response()->json(['data' => ['deleted' => $rows->count()]]);
     }
+
 
     /** ---- helpers ---- */
 
