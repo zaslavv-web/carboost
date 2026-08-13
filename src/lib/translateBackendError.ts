@@ -6,6 +6,8 @@ interface BackendError {
   code?: string;
   details?: string;
   hint?: string;
+  /** Короткий код инцидента от бэкенда — по нему ошибка ищется в логах. */
+  error_id?: string;
 }
 
 const t = (key: string) => i18n.t(key, { ns: "errors" });
@@ -30,6 +32,15 @@ export function translateBackendError(
     typeof err === "object" && !(err instanceof Error)
       ? (err as BackendError).code
       : undefined;
+
+  const errorId =
+    typeof err === "object" && !(err instanceof Error)
+      ? (err as BackendError).error_id
+      : undefined;
+
+  // Ошибка сервера с кодом инцидента — показываем код, чтобы поддержка
+  // нашла точную строку в логе без переписки «а что было на экране».
+  if (errorId) return `${t("generic.serverError")} (${errorId})`;
 
   // ── Auth errors ────────────────────────────────────────────────────────────
   if (/invalid login credentials/i.test(msg))

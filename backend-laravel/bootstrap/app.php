@@ -107,6 +107,42 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 503)->header('Retry-After', '3');
             }
         });
+
+        // Любая необработанная ошибка на /api/* получает короткий error_id.
+        // Тот же error_id пишется в лог вместе с URI, пользователем и пиком
+        // памяти — по скриншоту из браузера строка лога находится за один grep.
+        $exceptions->render(function (\Throwable $e, $request) {
+            if (! ($request->is('api/*') || $request->expectsJson())) {
+                return null;
+            }
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
+                || $e instanceof \Illuminate\Validation\ValidationException
+                || $e instanceof \Illuminate\Auth\AuthenticationException
+                || $e instanceof \Illuminate\Auth\Access\AuthorizationException
+                || $e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+                return null; // штатные 4xx отдаёт сам Laravel
+            }
+
+            $errorId = substr((string) \Illuminate\Support\Str::uuid(), 0, 8);
+
+            \Illuminate\Support\Facades\Log::error('api_error', [
+                'error_id'    => $errorId,
+                'uri'         => $request->getRequestUri(),
+                'method'      => $request->method(),
+                'user_id'     => optional($request->user())->getAuthIdentifier(),
+                'exception'   => get_class($e),
+                'message'     => $e->getMessage(),
+                'file'        => $e->getFile() . ':' . $e->getLine(),
+                'peak_memory' => round(memory_get_peak_usage(true) / 1048576, 1) . 'MB',
+            ]);
+
+            return response()->json([
+                'message'    => 'Внутренняя ошибка сервера. Код: ' . $errorId,
+                'error_code' => 'server_error',
+                'error_id'   => $errorId,
+            ], 500);
+        });
     })
+
 
     ->create();

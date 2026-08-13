@@ -28,7 +28,7 @@ export const laravelAuth = {
 
 export interface LaravelInvokeResult<T = any> {
   data: T | null;
-  error: { message: string; status?: number; code?: string; step?: string; diagnostics?: unknown } | null;
+  error: { message: string; status?: number; code?: string; step?: string; error_id?: string; diagnostics?: unknown } | null;
 }
 
 
@@ -195,6 +195,10 @@ async function rawRequest<T>(
         body && typeof body === "object" && typeof body.step === "string"
           ? body.step
           : undefined;
+      const errorId =
+        body && typeof body === "object" && typeof body.error_id === "string"
+          ? body.error_id
+          : undefined;
       const diagnostics =
         body && typeof body === "object" && "diagnostics" in body
           ? body.diagnostics
@@ -210,7 +214,7 @@ async function rawRequest<T>(
           notifyAuthSessionExpired(String(message), res.status);
         }
       }
-      return { data: null, error: { message: String(message), status: res.status, code, step, diagnostics } };
+      return { data: null, error: { message: String(message), status: res.status, code, step, error_id: errorId, diagnostics } };
     }
 
     return { data: body as T, error: null };

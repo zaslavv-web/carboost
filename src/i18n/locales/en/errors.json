@@ -19,6 +19,7 @@
     "invalidFormat": "Invalid format"
   },
   "generic": {
-    "unknown": "An unexpected error occurred. Please try again"
+    "unknown": "An unexpected error occurred. Please try again",
+    "serverError": "Internal server error. Share this code with support"
   }
 }
