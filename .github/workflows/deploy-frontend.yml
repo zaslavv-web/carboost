@@ -29,7 +29,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -55,10 +55,17 @@ jobs:
             exit 1
           fi
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+      - name: Setup SSH (нативный ssh-agent, без Node-экшенов)
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
 
       - name: Trust host key (включая ssh-rsa для legacy серверов)
         run: |
