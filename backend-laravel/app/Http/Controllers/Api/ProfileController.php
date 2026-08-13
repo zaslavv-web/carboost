@@ -62,12 +62,100 @@ class ProfileController extends Controller
         return response()->json($this->withRoles($profile));
     }
 
+    /**
+     * GET /profiles/me — устойчивая версия.
+     *
+     * Никаких eager-relations и firstOrFail: у части учёток (созданных через
+     * приглашение) связки users/profiles/companies могут быть неконсистентны,
+     * и Eloquent падал с 500 → фронт вис на «Загружаем личный кабинет…».
+     * Здесь читаем строки напрямую, каждый доп. блок — best effort.
+     */
     public function me(): JsonResponse
     {
         $user = auth()->user();
+        if (!$user) {
+            return response()->json(['message' => 'Не авторизован'], 401);
+        }
+
         $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
-        $profile = Profile::with(['user', 'company'])->where('user_id', $domainUserId)->firstOrFail();
-        return response()->json($this->withRoles($profile));
+
+        try {
+            $row = DB::table('profiles')->where('user_id', $domainUserId)->first();
+
+            // Фолбэк: профиль мог быть привязан к auth-id, а не к domain-id.
+            if (!$row && (string) $user->getAuthIdentifier() !== (string) $domainUserId) {
+                $row = DB::table('profiles')->where('user_id', $user->getAuthIdentifier())->first();
+            }
+
+            // Самовосстановление: профиля нет — создаём минимальный.
+            if (!$row) {
+                try {
+                    app(\App\Services\AuthUserService::class)->repairDomainRowsForLogin($user);
+                    $row = DB::table('profiles')->where('user_id', $domainUserId)->first();
+                } catch (\Throwable $e) {
+                    \Log::warning('profiles/me self-heal failed', [
+                        'user_id' => $domainUserId,
+                        'reason'  => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            if (!$row) {
+                return response()->json(['message' => 'Профиль не найден', 'code' => 'profile_missing'], 404);
+            }
+
+            return response()->json($this->presentRow($row));
+        } catch (\Throwable $e) {
+            \Log::error('profiles/me failed', [
+                'user_id' => $domainUserId,
+                'error'   => $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => 'Не удалось загрузить профиль',
+                'code'    => 'profile_load_failed',
+                'detail'  => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /** Собирает payload профиля из сырой строки, каждый блок — best effort. */
+    private function presentRow(object $row): array
+    {
+        $payload = (array) $row;
+        $payload['is_verified'] = (bool) ($payload['is_verified'] ?? false);
+
+        try {
+            $payload['roles'] = DB::table('user_roles')
+                ->where('user_id', $row->user_id)
+                ->pluck('role')
+                ->values()
+                ->all();
+        } catch (\Throwable) {
+            $payload['roles'] = [];
+        }
+
+        try {
+            $u = DB::table('users')->where('id', $row->user_id)->first();
+            $payload['email'] = $u->email ?? null;
+            $payload['user']  = $u ? [
+                'id'    => $u->id,
+                'email' => $u->email,
+                'meta'  => is_string($u->meta ?? null) ? json_decode($u->meta, true) : ($u->meta ?? null),
+            ] : null;
+        } catch (\Throwable) {
+            $payload['email'] = null;
+            $payload['user']  = null;
+        }
+
+        try {
+            $payload['company'] = ($row->company_id ?? null)
+                ? DB::table('companies')->where('id', $row->company_id)->first()
+                : null;
+        } catch (\Throwable) {
+            $payload['company'] = null;
+        }
+
+        return $payload;
     }
 
     private function withRoles(Profile $profile): array
@@ -81,6 +169,7 @@ class ProfileController extends Controller
         $payload['email'] = DB::table('users')->where('id', $profile->user_id)->value('email');
         return $payload;
     }
+
 
     public function update(Request $request, string $id): JsonResponse
     {
