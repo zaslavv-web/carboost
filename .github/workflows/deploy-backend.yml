@@ -152,6 +152,27 @@ jobs:
           php artisan route:list --path=performance-cycles || true
           REMOTE
 
+      - name: Set PHP runtime limits via .user.ini
+        run: |
+          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$BACKEND_ROOT"
+
+          cat > public/.user.ini <<'INI'
+memory_limit = 256M
+post_max_size = 64M
+upload_max_filesize = 64M
+max_execution_time = 120
+INI
+
+          chmod 644 public/.user.ini
+          echo ".user.ini written:"
+          cat public/.user.ini
+
+          echo "CLI memory_limit: $(php -r 'echo ini_get(\"memory_limit\");')"
+          echo "FPM memory_limit (via web): $(curl -fsS -H 'Accept: application/json' https://growth-peak.pro/api/health | grep -o '"memory_limit":"[^"]*"' || echo 'unknown')"
+          REMOTE
+
       - name: Public health check
         run: |
           BODY="$(curl -fsS -H 'Accept: application/json' https://growth-peak.pro/api/health)"
@@ -161,3 +182,7 @@ jobs:
               echo "::error::Backend вернул HTML вместо JSON — сломан autoload/vendor на сервере"
               exit 1;;
           esac
+          if ! echo "$BODY" | grep -q '"memory_limit":"256M"'; then
+            echo "::error::memory_limit не равен 256M: $BODY"
+            exit 1
+          fi

@@ -58,6 +58,8 @@ Route::get('/health', function () {
         $checks['redis'] = 'skipped';
     }
 
+    $checks['memory_limit'] = ini_get('memory_limit');
+
     $ok = $checks['db'] === 'ok' && ($checks['redis'] === 'ok' || $checks['redis'] === 'skipped');
     return response()->json(['status' => $ok ? 'ok' : 'degraded', 'checks' => $checks], $ok ? 200 : 503);
 });
