@@ -25,6 +25,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // API stateless — никаких CSRF/session кук в API-группе
         $middleware->validateCsrfTokens(except: ['api/*']);
 
+        // Ретрай + честный 503 вместо 500, когда шаред-хостинг упирается
+        // в лимит одновременных подключений MySQL (max_user_connections).
+        $middleware->api(prepend: [
+            \App\Http\Middleware\RetryOnDbBusy::class,
+        ]);
+
+
         // Доверяем заголовкам X-Forwarded-* от nginx/CDN, иначе request->ip()
         // возвращает IP внутреннего прокси (приватный) и GeoIP не работает.
         $middleware->trustProxies(
@@ -59,5 +66,22 @@ return Application::configure(basePath: dirname(__DIR__))
                 return response()->json(['message' => 'Unauthenticated.'], 401);
             }
         });
+
+        // Лимит соединений MySQL (max_user_connections) — это перегрузка,
+        // а не ошибка приложения: отдаём 503 + Retry-After, чтобы фронт
+        // мог мягко повторить, а не показывать «сломано».
+        $exceptions->render(function (\Illuminate\Database\QueryException $e, $request) {
+            $busy = preg_match(
+                '/max_user_connections|max_connections_per_hour|Too many connections|too many clients|SQLSTATE\[0800[46]\]|server has gone away/i',
+                $e->getMessage(),
+            );
+            if ($busy && ($request->is('api/*') || $request->expectsJson())) {
+                return response()->json([
+                    'message'    => 'База данных временно перегружена. Повторите через несколько секунд.',
+                    'error_code' => 'db_busy',
+                ], 503)->header('Retry-After', '3');
+            }
+        });
     })
+
     ->create();

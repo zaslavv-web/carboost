@@ -81,10 +81,39 @@ async function revalidateToken(token: string): Promise<boolean> {
   return revalidateInflight;
 }
 
-async function request<T>(
+/**
+ * Ограничитель параллелизма.
+ *
+ * Хостинг ограничивает число одновременных подключений MySQL: когда экран
+ * стартует и разом уходит 8-10 запросов, часть из них падает с 503/500.
+ * Держим не больше MAX_CONCURRENT запросов «в полёте» — остальные ждут
+ * в очереди миллисекунды, зато ни один не теряется.
+ */
+const MAX_CONCURRENT = 4;
+let inFlight = 0;
+const waiters: Array<() => void> = [];
+
+function acquireSlot(): Promise<void> {
+  if (inFlight < MAX_CONCURRENT) {
+    inFlight++;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => waiters.push(resolve));
+}
+
+function releaseSlot() {
+  const next = waiters.shift();
+  if (next) next();
+  else inFlight--;
+}
+
+const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
+
+async function rawRequest<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<LaravelInvokeResult<T>> {
+
   const token = laravelAuth.getToken();
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -189,6 +218,55 @@ async function request<T>(
     window.clearTimeout(timeout);
   }
 }
+
+/**
+ * Публичная обёртка: очередь параллелизма + мягкий ретрай, когда база
+ * временно перегружена (503 `db_busy` от бэкенда или 500 при исчерпании
+ * лимита подключений MySQL на idempotent-запросах).
+ */
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<LaravelInvokeResult<T>> {
+  const method = (init.method || "GET").toUpperCase();
+  const idempotent = method === "GET" || method === "HEAD";
+  const maxAttempts = idempotent ? 3 : 2;
+
+  for (let attempt = 1; ; attempt++) {
+    await acquireSlot();
+    let result: LaravelInvokeResult<T>;
+    try {
+      result = await rawRequest<T>(path, init);
+    } finally {
+      releaseSlot();
+    }
+
+    const status = result.error?.status;
+    const overloaded =
+      result.error?.code === "db_busy" ||
+      status === 503 ||
+      (idempotent && status === 500);
+
+    if (!overloaded || attempt >= maxAttempts) {
+      if (overloaded) {
+        return {
+          data: null,
+          error: {
+            ...result.error!,
+            message:
+              "Сервис временно перегружен: база данных не успевает обрабатывать запросы. Повторите через несколько секунд.",
+            code: "db_busy",
+          },
+        };
+      }
+      return result;
+    }
+
+    await sleep(400 * attempt + Math.random() * 200);
+  }
+}
+
+
 
 /** Invoke a Laravel AI endpoint at `/ai/{name}` with `{ body }`. */
 export function aiInvoke<T = any>(
