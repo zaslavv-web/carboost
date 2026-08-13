@@ -25,6 +25,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // API stateless — никаких CSRF/session кук в API-группе
         $middleware->validateCsrfTokens(except: ['api/*']);
 
+        // Ретрай + честный 503 вместо 500, когда шаред-хостинг упирается
+        // в лимит одновременных подключений MySQL (max_user_connections).
+        $middleware->api(prepend: [
+            \App\Http\Middleware\RetryOnDbBusy::class,
+        ]);
+
+
         // Доверяем заголовкам X-Forwarded-* от nginx/CDN, иначе request->ip()
         // возвращает IP внутреннего прокси (приватный) и GeoIP не работает.
         $middleware->trustProxies(
