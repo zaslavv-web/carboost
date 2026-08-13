@@ -39,9 +39,35 @@ class ChatController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        // Список чатов — вспомогательный виджет. Любая его ошибка не должна
+        // ронять страницу и выкидывать пользователя в авторизацию, поэтому
+        // отдаём пустой список + error_id, а полный стек уходит в лог.
+        try {
+            return $this->buildIndex();
+        } catch (\Throwable $e) {
+            $errorId = substr(bin2hex(random_bytes(4)), 0, 8);
+            \Log::error('chat.index failed', [
+                'error_id' => $errorId,
+                'user_id'  => auth()->id(),
+                'message'  => $e->getMessage(),
+                'file'     => $e->getFile() . ':' . $e->getLine(),
+            ]);
+
+            return response()->json([
+                'data'     => [],
+                'degraded' => true,
+                'error_id' => $errorId,
+            ]);
+        }
+    }
+
+    private function buildIndex(): JsonResponse
+    {
         $userId = auth()->id();
         $companyId = $this->userCompanyId();
         $isSuper = $this->isSuperadmin();
+
+
 
         // Ограничиваем рабочий набор до последних диалогов. Раньше endpoint
         // загружал в PHP все сообщения всех диалогов, а затем выполнял отдельный
