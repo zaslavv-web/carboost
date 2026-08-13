@@ -214,7 +214,32 @@ class User extends Authenticatable
             return true;
         }
 
-        return $this->hasSpatieRole($expanded->all(), $guard);
+        // ВАЖНО (13.08.2026, боевой инцидент 500 на всех listing-эндпоинтах):
+        // Spatie::hasRole() для массива/коллекции внутри вызывает $this->hasRole($role),
+        // то есть ЭТОТ переопределённый метод, который снова собирает массив →
+        // бесконечная рекурсия → переполнение стека → процесс PHP убивается без
+        // фатала (пустой ответ, 500 через ~9 c). Поэтому в Spatie отдаём строго
+        // по одной строке и дополнительно защищаемся флагом реентерабельности.
+        if ($this->checkingSpatieRole) {
+            return false;
+        }
+
+        $this->checkingSpatieRole = true;
+        try {
+            foreach ($expanded->all() as $role) {
+                if ($this->hasSpatieRole((string) $role, $guard)) {
+                    return true;
+                }
+            }
+        } catch (\Throwable) {
+            // Spatie — только запасной источник: его недоступность (нет таблиц,
+            // нет guard'а) не должна ронять авторизацию доменных ролей.
+            return false;
+        } finally {
+            $this->checkingSpatieRole = false;
+        }
+
+        return false;
     }
 
     /** Верифицирован ли пользователь суперадмином */
