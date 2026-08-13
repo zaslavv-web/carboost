@@ -21,11 +21,27 @@ class DiagController extends Controller
 {
     private const PROBE_LOG = 'logs/probe.jsonl';
 
+    /**
+     * Куда писать диагностические файлы. storage/logs на шаред-хостинге может
+     * быть недоступен на запись из-под веб-пользователя (владелец — CLI-юзер),
+     * и тогда все @file_put_contents молча теряются. Поэтому есть фолбэк в
+     * системный temp: лучше маркеры во временной папке, чем никаких.
+     */
+    public static function diagFile(string $name): string
+    {
+        $dir = storage_path('logs');
+        if (!is_dir($dir) || !is_writable($dir)) {
+            $dir = sys_get_temp_dir();
+        }
+
+        return rtrim($dir, '/') . '/' . basename($name);
+    }
+
     /** Записать маркер шага. Пишем сразу на диск, без буферов Laravel. */
     private function mark(string $step, array $extra = []): void
     {
         @file_put_contents(
-            storage_path(self::PROBE_LOG),
+            self::diagFile('probe.jsonl'),
             json_encode(array_merge([
                 'ts'        => date('c'),
                 'step'      => $step,
