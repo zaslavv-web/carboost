@@ -58,11 +58,23 @@ Route::get('/health', function () {
         $checks['redis'] = 'skipped';
     }
 
+    // Память ВЕБ-процесса. CLI (`php artisan diag:memory`) видит другой php.ini
+    // и другой набор загруженного кода, поэтому его 12 МБ ничего не говорят о
+    // том, почему запрос в вебе упирается в 256 МБ. Эти поля — база веба.
     $checks['memory_limit'] = ini_get('memory_limit');
+    $checks['sapi']         = PHP_SAPI;
+    $checks['boot_mb']      = defined('APP_BOOT_MEM') ? round(APP_BOOT_MEM / 1048576, 1) : null;
+    $checks['usage_mb']     = round(memory_get_usage(true) / 1048576, 1);
+    $checks['peak_mb']      = round(memory_get_peak_usage(true) / 1048576, 1);
+    // APP_DEBUG в проде — частая причина взрывного расхода памяти: Laravel
+    // начинает собирать полные трейсы с объектами и рендерить Ignition.
+    $checks['app_debug']    = (bool) config('app.debug');
+    $checks['opcache']      = function_exists('opcache_get_status') && @opcache_get_status(false) ? 'on' : 'off';
 
     $ok = $checks['db'] === 'ok' && ($checks['redis'] === 'ok' || $checks['redis'] === 'skipped');
     return response()->json(['status' => $ok ? 'ok' : 'degraded', 'checks' => $checks], $ok ? 200 : 503);
 });
+
 
 // Аудит 2026-07-01: добавлен throttle на все публичные endpoint'ы (брутфорс/спам).
 // 10/min на auth-эндпоинты — с учётом IP и логина; 30/min на публичные RPC и ingest.
