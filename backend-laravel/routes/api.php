@@ -285,6 +285,11 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // и был единственным местом, где запрос падал в 500 до контроллера.
     Route::get('/chats/unread-count', [\App\Http\Controllers\Api\ChatController::class, 'unreadCount']);
 
+    // Owner-only лёгкие чтения для оболочки сотрудника. Проверка профиля
+    // выполняется одним запросом внутри контроллера, без generic CRUD/schema path.
+    Route::get('/employee/tasks', [\App\Http\Controllers\Api\EmployeeReadController::class, 'tasks']);
+    Route::get('/employee/notifications', [\App\Http\Controllers\Api\EmployeeReadController::class, 'notifications']);
+
     // Диагностика памяти ВНУТРИ настоящего HTTP-запроса (не CLI): показывает,
     // сколько занято на входе в маршрут, после резолва пользователя Sanctum,
     // после чтения профиля и после того самого запроса unread-count.

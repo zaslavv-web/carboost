@@ -37,6 +37,21 @@ class DbController extends Controller
     /** Максимальный JSON-бюджет одного list-ответа. */
     protected const RAW_RESPONSE_BYTES = 4 * 1024 * 1024;
 
+    /** Колонки горячих таблиц: исключают Schema::getColumnListing() из GET. */
+    protected const HOT_TABLE_COLUMNS = [
+        'notifications' => [
+            'id', 'user_id', 'title', 'description', 'notification_type',
+            'is_read', 'company_id', 'created_at', 'updated_at',
+        ],
+        'tracker_tasks' => [
+            'id', 'company_id', 'project_id', 'sprint_id', 'author_id',
+            'assignee_id', 'parent_task_id', 'type', 'title', 'description',
+            'status', 'workflow_status_id', 'urgency', 'priority', 'story_points',
+            'estimate_minutes', 'labels', 'order_index', 'due_at', 'start_at',
+            'jira_key', 'completed_at', 'last_notified_at', 'created_at', 'updated_at',
+        ],
+    ];
+
     /** table_name => Model::class (must use BelongsToCompany trait) */
     protected const MODEL_MAP = [
         'profiles'                 => \App\Models\Profile::class,
@@ -310,7 +325,8 @@ class DbController extends Controller
         /** @var \Illuminate\Database\Eloquent\Model $instance */
         $instance = new $model();
         $tableName = $instance->getTable();
-        $columns = \Illuminate\Support\Facades\Schema::getColumnListing($tableName);
+        $columns = self::HOT_TABLE_COLUMNS[$tableName]
+            ?? \Illuminate\Support\Facades\Schema::getColumnListing($tableName);
 
         $query = \Illuminate\Support\Facades\DB::table($tableName);
         $this->applyFilters($query, $request);

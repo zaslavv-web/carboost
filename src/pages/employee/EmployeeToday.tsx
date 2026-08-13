@@ -2,8 +2,10 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
+import { laravel } from "@/integrations/laravel/client";
 import { useUserProfile, useEffectiveUserId } from "@/hooks/useUserProfile";
-import { useTasks, useUpdateTask, type TrackerTask } from "@/hooks/tracker";
+import { useUpdateTask, type TrackerTask } from "@/hooks/tracker";
+import { useNotificationInbox } from "@/hooks/useNotificationInbox";
 import { UrgencyBadge, TaskStatusBadge } from "@/components/tracker/Badges";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,34 +36,20 @@ const EmployeeToday = () => {
   const { data: profile } = useUserProfile();
 
 
-  const { data: tasks = [], isLoading: tasksLoading } = useTasks({ assignee_id: uid ?? undefined });
-
-  // Inbox: непрочитанные уведомления (упоминания, назначения, запросы от HR/руководителя)
-  const { data: inbox = [], isLoading: inboxLoading } = useQuery({
-    queryKey: ["employee_today_inbox", uid],
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery({
+    queryKey: ["employee_today_tasks", uid],
     enabled: !!uid,
-    refetchInterval: 60_000,
+    retry: 0,
     queryFn: async () => {
-      const { data, error } = await laravelDb
-        .from("notifications")
-        .select("id,title,description,notification_type,created_at,is_read")
-        .eq("user_id", uid!)
-        .eq("is_read", false)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      if (error) return [];
-      return (data ?? []).map((n: any) => ({
-        id: n.id as string,
-        title: (n.title ?? null) as string | null,
-        body: (n.description ?? null) as string | null,
-        url: null as string | null,
-        created_at: n.created_at as string,
-        is_read: Boolean(n.is_read),
-        type: (n.notification_type ?? null) as string | null,
-      }));
-
+      const { data, error } = await laravel.get<{ data: TrackerTask[] }>("/employee/tasks");
+      if (error) throw new Error(error.message);
+      return data?.data ?? [];
     },
   });
+
+  // Inbox: непрочитанные уведомления (упоминания, назначения, запросы от HR/руководителя)
+  const { data: inboxData, isLoading: inboxLoading } = useNotificationInbox();
+  const inbox = inboxData?.notifications ?? [];
 
   const { activeTasks, todayTasks, overdueTasks } = useMemo(() => {
     const active = tasks.filter((t) => !isClosed(t.status));
@@ -77,10 +65,11 @@ const EmployeeToday = () => {
     queryKey: ["today_competencies", uid],
     enabled: !!uid,
     queryFn: async () => {
+      if (!uid) return [];
       const { data, error } = await laravelDb
         .from("competencies")
         .select("skill_value")
-        .eq("user_id", uid!)
+        .eq("user_id", uid)
         .limit(200);
       if (error) return [];
       return data ?? [];
@@ -90,10 +79,11 @@ const EmployeeToday = () => {
     queryKey: ["today_goals", uid],
     enabled: !!uid,
     queryFn: async () => {
+      if (!uid) return [];
       const { data, error } = await laravelDb
         .from("career_goals")
         .select("id,title,is_completed")
-        .eq("user_id", uid!)
+        .eq("user_id", uid)
         .limit(100);
       if (error) return [];
       return (data ?? []) as Array<{ id: string; title: string; is_completed: boolean }>;

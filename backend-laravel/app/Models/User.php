@@ -234,6 +234,13 @@ class User extends Authenticatable
         if ($value === null || $value === '') return false;
         if (DB::getDriverName() !== 'mysql') return true;
 
+        // Оба ключа — идентификатор пользователя во всех поддерживаемых схемах.
+        // Не выполняем SHOW COLUMNS на каждом новом Apache worker: на боевом
+        // хостинге один metadata round-trip резервирует сотни мегабайт Zend MM.
+        if ($column === 'user_id' && in_array($table, ['profiles', 'user_roles'], true)) {
+            return true;
+        }
+
         $cacheKey = $table . '.' . $column;
         if (!array_key_exists($cacheKey, self::$columnNumericCache)) {
             try {

@@ -1,27 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { laravelDb } from "@/integrations/laravel/db";
-import { useAuth } from "@/contexts/AuthContext";
+import { useNotificationInbox } from "@/hooks/useNotificationInbox";
 
 /**
  * Возвращает количество непрочитанных уведомлений текущего пользователя.
  * Используется индикатором (красная точка) в шапке.
  */
 export function useUnreadNotifications() {
-  const { user, authReady } = useAuth();
-  const { data = 0 } = useQuery({
-    queryKey: ["notifications", "unread-count", user?.id],
-    enabled: authReady && !!user,
-    refetchInterval: 60_000,
-    queryFn: async () => {
-      // count+head: сервер возвращает только число, без выгрузки строк
-      const { count, error } = await laravelDb
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user!.id)
-        .eq("is_read", false);
-      if (error) return 0;
-      return count ?? 0;
-    },
-  });
-  return data as number;
+  const { data } = useNotificationInbox();
+  return data?.unreadCount ?? 0;
 }
