@@ -17,9 +17,17 @@ use Illuminate\Support\Facades\DB;
 
 class ChatController extends Controller
 {
+    /** Потолки на объём данных в списке чатов — защита от memory_limit. */
+    private const MAX_PARTICIPANT_ROWS = 2000;
+    private const MAX_MESSAGE_ROWS     = 300;
+    private const MAX_PROFILE_ROWS     = 500;
+    /** Порог, после которого пишем предупреждение о расходе памяти. */
+    private const MEMORY_WARN_MB       = 64;
+
     public function __construct(private ChatPermissionService $permissions)
     {
     }
+
 
     private function userCompanyId(): ?string
     {
