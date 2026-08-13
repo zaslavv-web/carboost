@@ -89,14 +89,36 @@ const ConversationView = ({ conversationId }: { conversationId: string }) => {
     const res = await chatApi.send(conversationId, body, replyTo?.id ?? null);
     if (res.error) return false;
     setReplyTo(null);
-    queryClient.invalidateQueries({ queryKey: ["chat", "messages", conversationId] });
+    // Отправленное сообщение дописываем в кэш — перечитывать всю ленту не нужно.
+    const created = res.data?.data;
+    if (created) {
+      queryClient.setQueryData<ChatMessage[]>(["chat", "messages", conversationId], (prev) =>
+        (prev ?? []).some((m) => m.id === created.id) ? prev ?? [] : [...(prev ?? []), created],
+      );
+    }
     refresh();
     return true;
   };
 
   const handleReact = async (messageId: string, emoji: string) => {
-    await chatApi.toggleReaction(conversationId, messageId, emoji);
-    queryClient.invalidateQueries({ queryKey: ["chat", "messages", conversationId] });
+    const res = await chatApi.toggleReaction(conversationId, messageId, emoji);
+    if (res.error) return;
+    // Локальное обновление реакции вместо полного перезапроса ленты.
+    const toggled = res.data?.toggled;
+    queryClient.setQueryData<ChatMessage[]>(["chat", "messages", conversationId], (prev) =>
+      (prev ?? []).map((m) => {
+        if (m.id !== messageId) return m;
+        const others = m.reactions.filter((r) => r.emoji !== emoji);
+        const current = m.reactions.find((r) => r.emoji === emoji);
+        const userIds = new Set(current?.user_ids ?? []);
+        if (toggled === "off") userIds.delete(user?.id ?? "");
+        else userIds.add(user?.id ?? "");
+        const next = userIds.size
+          ? [...others, { emoji, count: userIds.size, user_ids: [...userIds] }]
+          : others;
+        return { ...m, reactions: next };
+      }),
+    );
   };
 
   return (
