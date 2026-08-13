@@ -18,33 +18,82 @@ class ProfileController extends Controller
     {
         $this->authorize('viewAny', Profile::class);
 
-        $query = Profile::query()->with(['user', 'company']);
-        if ($request->boolean('unverified')) {
-            $query->where('is_verified', false);
+        $user = $request->user();
+        $isSuperadmin = $user && $user->hasRole('superadmin');
+        $companyId = $isSuperadmin
+            ? $request->string('company_id')->trim()->toString()
+            : ($user?->companyId() ?? '');
+
+        if (!$isSuperadmin && $companyId === '') {
+            return response()->json([
+                'message' => 'У пользователя не указана компания',
+                'code' => 'company_missing',
+            ], 422);
         }
-        if ($companyId = $request->get('company_id')) {
-            $query->where('company_id', $companyId);
+
+        // Каталог сотрудников — горячий путь HRD/admin. Здесь намеренно нет
+        // Eloquent, eager loading и paginate(): прежняя реализация создавала
+        // модели Profile/User/Company для каждой строки и отдельный COUNT(*),
+        // а фронт параллельно повторно читал profiles и user_roles через /db.
+        $query = DB::table('profiles as p')
+            ->leftJoin('users as u', 'u.id', '=', 'p.user_id')
+            ->select([
+                'p.id', 'p.user_id', 'p.full_name', 'p.position',
+                'p.position_id', 'p.pending_position_id', 'p.department',
+                'p.overall_score', 'p.role_readiness', 'p.is_verified',
+                'p.requested_role', 'p.company_id', 'p.avatar_url',
+                'p.hire_date', 'p.created_at', 'p.updated_at', 'u.email',
+            ]);
+
+        if ($companyId !== '') {
+            $query->where('p.company_id', $companyId);
+        }
+        if ($request->boolean('unverified')) {
+            $query->where('p.is_verified', false);
         }
         if ($search = trim((string) $request->get('search', ''))) {
             $like = '%' . $search . '%';
             $query->where(function ($q) use ($like) {
-                $q->where('full_name', 'like', $like)
-                  ->orWhereIn('user_id', function ($sub) use ($like) {
-                      $sub->select('id')->from('users')->where('email', 'like', $like);
-                  });
+                $q->where('p.full_name', 'like', $like)
+                    ->orWhere('u.email', 'like', $like);
             });
         }
-        $paginated = $query->paginate(min((int) $request->get('per_page', 50), 200));
-        // подмешиваем email
-        $items = collect($paginated->items());
-        $userIds = $items->pluck('user_id')->filter()->unique()->all();
-        $emails = DB::table('users')->whereIn('id', $userIds)->pluck('email', 'id');
-        $paginated->getCollection()->transform(function ($p) use ($emails) {
-            $arr = $p->toArray();
-            $arr['email'] = $emails[$p->user_id] ?? null;
-            return $arr;
+
+        $perPage = max(1, min((int) $request->get('per_page', 200), 500));
+        $page = max(1, (int) $request->get('page', 1));
+        $rows = $query
+            ->orderBy('p.full_name')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage + 1)
+            ->get();
+        $hasMore = $rows->count() > $perPage;
+        $rows = $rows->take($perPage)->values();
+
+        $userIds = $rows->pluck('user_id')->filter()->unique()->values()->all();
+        $rolesByUser = empty($userIds)
+            ? collect()
+            : DB::table('user_roles')
+                ->whereIn('user_id', $userIds)
+                ->get(['user_id', 'role'])
+                ->groupBy('user_id');
+
+        $data = $rows->map(function ($row) use ($rolesByUser) {
+            $item = (array) $row;
+            $item['is_verified'] = (bool) $item['is_verified'];
+            $item['roles'] = $rolesByUser->get($row->user_id, collect())
+                ->pluck('role')
+                ->map(fn ($role) => (string) $role)
+                ->values()
+                ->all();
+            return $item;
         });
-        return response()->json($paginated);
+
+        return response()->json([
+            'data' => $data,
+            'current_page' => $page,
+            'per_page' => $perPage,
+            'has_more' => $hasMore,
+        ]);
     }
 
     public function show(string $id): JsonResponse
