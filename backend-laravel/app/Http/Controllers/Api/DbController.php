@@ -273,6 +273,9 @@ class DbController extends Controller
                 $created[] = $instance->fresh();
             }
         } catch (\Illuminate\Database\QueryException $e) {
+            if ($this->isDatabaseBusy($e)) {
+                throw $e;
+            }
             \Illuminate\Support\Facades\Log::warning('DbController insert failed', [
                 'table' => $table, 'sqlstate' => $e->getCode(), 'msg' => $e->getMessage(),
             ]);
