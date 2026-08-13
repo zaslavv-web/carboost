@@ -372,6 +372,9 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     Route::get('/diag/last-fatal', [\App\Http\Controllers\Api\DiagController::class, 'lastFatal']);
     // Лимиты PHP веб-SAPI и состояние пула соединений MySQL.
     Route::get('/diag/limits', [\App\Http\Controllers\Api\DiagController::class, 'limits']);
+    // Доступна ли storage/logs на запись веб-пользователю: без этого маркеры
+    // и карточки фаталов теряются молча и диагностика врёт «фаталов не было».
+    Route::get('/diag/write-test', [\App\Http\Controllers\Api\DiagController::class, 'writeTest']);
 
 
 

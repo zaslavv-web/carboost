@@ -21,11 +21,27 @@ class DiagController extends Controller
 {
     private const PROBE_LOG = 'logs/probe.jsonl';
 
+    /**
+     * Куда писать диагностические файлы. storage/logs на шаред-хостинге может
+     * быть недоступен на запись из-под веб-пользователя (владелец — CLI-юзер),
+     * и тогда все @file_put_contents молча теряются. Поэтому есть фолбэк в
+     * системный temp: лучше маркеры во временной папке, чем никаких.
+     */
+    public static function diagFile(string $name): string
+    {
+        $dir = storage_path('logs');
+        if (!is_dir($dir) || !is_writable($dir)) {
+            $dir = sys_get_temp_dir();
+        }
+
+        return rtrim($dir, '/') . '/' . basename($name);
+    }
+
     /** Записать маркер шага. Пишем сразу на диск, без буферов Laravel. */
     private function mark(string $step, array $extra = []): void
     {
         @file_put_contents(
-            storage_path(self::PROBE_LOG),
+            self::diagFile('probe.jsonl'),
             json_encode(array_merge([
                 'ts'        => date('c'),
                 'step'      => $step,
@@ -65,7 +81,7 @@ class DiagController extends Controller
     {
         // Свежий файл маркеров на каждый прогон — иначе не отличить текущий
         // запуск от предыдущего упавшего.
-        @file_put_contents(storage_path(self::PROBE_LOG), '');
+        @file_put_contents(self::diagFile('probe.jsonl'), '');
 
         $user  = $request->user();
         $steps = [];
@@ -163,7 +179,7 @@ class DiagController extends Controller
     /** Маркеры последнего прогона db-probe — читаются даже если тот упал фаталом. */
     public function lastProbe(): JsonResponse
     {
-        $file = storage_path(self::PROBE_LOG);
+        $file = self::diagFile('probe.jsonl');
         if (!is_readable($file)) {
             return response()->json(['markers' => [], 'note' => 'probe ещё не запускался']);
         }
@@ -180,7 +196,7 @@ class DiagController extends Controller
     /** Последние фатальные ошибки целиком (сообщение, место, память, время). */
     public function lastFatal(Request $request): JsonResponse
     {
-        $file  = storage_path('logs/api-fatals.jsonl');
+        $file  = self::diagFile('api-fatals.jsonl');
         $limit = min(50, max(1, (int) $request->query('limit', 10)));
         if (!is_readable($file)) {
             return response()->json(['fatals' => [], 'note' => 'файл появится после первого фатала на обновлённом коде']);
@@ -199,6 +215,37 @@ class DiagController extends Controller
         $fatals = array_map(fn ($l) => json_decode($l, true) ?: ['raw' => mb_substr($l, 0, 500)], $lines);
 
         return response()->json(['fatals' => $fatals, 'count' => count($fatals)]);
+    }
+
+    /**
+     * Проверка записи диагностических файлов. Если storage/logs недоступен
+     * веб-пользователю, все маркеры и карточки фаталов теряются молча — и
+     * пустой /diag/last-fatal ошибочно выглядит как «фаталов не было».
+     */
+    public function writeTest(): JsonResponse
+    {
+        $storage = storage_path('logs');
+        $target  = self::diagFile('write-test.txt');
+        $ok      = @file_put_contents($target, 'ok ' . date('c') . "\n") !== false;
+
+        return response()->json([
+            'process_user'      => function_exists('posix_getpwuid') && function_exists('posix_geteuid')
+                ? (posix_getpwuid(posix_geteuid())['name'] ?? null)
+                : (get_current_user() ?: null),
+            'storage_logs'      => $storage,
+            'storage_exists'    => is_dir($storage),
+            'storage_writable'  => is_dir($storage) && is_writable($storage),
+            'chosen_dir'        => dirname($target),
+            'write_ok'          => $ok,
+            'existing'          => array_values(array_filter([
+                'probe.jsonl'      => is_readable(self::diagFile('probe.jsonl')) ? @filesize(self::diagFile('probe.jsonl')) : null,
+                'api-fatals.jsonl' => is_readable(self::diagFile('api-fatals.jsonl')) ? @filesize(self::diagFile('api-fatals.jsonl')) : null,
+            ], fn ($v) => $v !== null)),
+            'files'             => [
+                'probe.jsonl'      => self::diagFile('probe.jsonl'),
+                'api-fatals.jsonl' => self::diagFile('api-fatals.jsonl'),
+            ],
+        ]);
     }
 
     /** Лимиты PHP и состояние пула соединений MySQL. */

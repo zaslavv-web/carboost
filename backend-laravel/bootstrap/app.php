@@ -78,6 +78,13 @@ if (PHP_SAPI !== 'cli') {
             return;
         }
 
+        // storage/logs может быть недоступен веб-пользователю на шаред-хостинге:
+        // тогда пишем во временную папку, иначе фаталы теряются молча.
+        $logDir = dirname(__DIR__) . '/storage/logs';
+        if (!is_dir($logDir) || !is_writable($logDir)) {
+            $logDir = sys_get_temp_dir();
+        }
+
         $errorId = substr(bin2hex(random_bytes(4)), 0, 8);
         $line = sprintf(
             "[%s] production.ERROR: api_fatal {\"error_id\":\"%s\",\"uri\":\"%s\",\"message\":%s,\"file\":\"%s:%d\",\"peak_memory\":\"%sMB\",\"memory_limit\":\"%s\"}\n",
@@ -90,13 +97,13 @@ if (PHP_SAPI !== 'cli') {
             round(memory_get_peak_usage(true) / 1048576, 1),
             ini_get('memory_limit'),
         );
-        @file_put_contents(dirname(__DIR__) . '/storage/logs/laravel.log', $line, FILE_APPEND);
+        @file_put_contents($logDir . '/laravel.log', $line, FILE_APPEND);
 
         // Счётчик фаталов для /api/health: одна строка "timestamp uri" на падение.
         // Пишем файлом, а не через Cache — на shutdown после OOM контейнер Laravel
         // уже может быть непригоден, а file_put_contents ничего не аллоцирует сверх строки.
         @file_put_contents(
-            dirname(__DIR__) . '/storage/logs/api-fatals.log',
+            $logDir . '/api-fatals.log',
             time() . ' ' . str_replace(["\n", "\r"], '', substr($uri, 0, 200)) . "\n",
             FILE_APPEND
         );
@@ -105,7 +112,7 @@ if (PHP_SAPI !== 'cli') {
         // пик памяти, лимиты и сколько запрос прожил. Без этого по счётчику
         // в /api/health нельзя отличить OOM от таймаута выполнения.
         @file_put_contents(
-            dirname(__DIR__) . '/storage/logs/api-fatals.jsonl',
+            $logDir . '/api-fatals.jsonl',
             json_encode([
                 'ts'            => date('c'),
                 'error_id'      => $errorId,
