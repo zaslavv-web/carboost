@@ -308,11 +308,18 @@ class Tracker {
       },
       body,
       keepalive: true,
-    }).catch(() => {
-      // молча игнорируем — телеметрия не должна ломать UX
-    });
+    })
+      .then((res) => {
+        // 503 (db_busy) / 5xx — замолкаем на минуту, чтобы не усиливать нагрузку.
+        if (res.status >= 500) this.mutedUntil = Date.now() + 60_000;
+      })
+      .catch(() => {
+        // молча игнорируем — телеметрия не должна ломать UX
+        this.mutedUntil = Date.now() + 30_000;
+      });
   }
 }
+
 
 const tracker = new Tracker();
 
