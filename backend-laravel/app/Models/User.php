@@ -119,6 +119,11 @@ class User extends Authenticatable
                 ->pluck('role')
                 ->map(fn ($role) => (string) $role)
                 ->all();
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($this->isDatabaseBusy($e)) {
+                throw $e;
+            }
+            $this->memoDomainRoles = [];
         } catch (\Throwable) {
             $this->memoDomainRoles = [];
         }
@@ -137,6 +142,11 @@ class User extends Authenticatable
         }
         try {
             $row = DB::table('profiles')->where('user_id', $this->domainUserId())->first();
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($this->isDatabaseBusy($e)) {
+                throw $e;
+            }
+            $row = null;
         } catch (\Throwable) {
             $row = null;
         }
@@ -233,12 +243,26 @@ class User extends Authenticatable
                     || str_contains($type, 'decimal')
                     || str_contains($type, 'float')
                     || str_contains($type, 'double');
+            } catch (\Illuminate\Database\QueryException $e) {
+                if ($this->isDatabaseBusy($e)) {
+                    throw $e;
+                }
+                return true;
             } catch (\Throwable) {
                 return true;
             }
         }
 
         return !self::$columnNumericCache[$cacheKey] || is_numeric($value);
+    }
+
+    /** Ошибку лимита подключений нельзя маскировать как «нет роли/профиля». */
+    private function isDatabaseBusy(\Illuminate\Database\QueryException $e): bool
+    {
+        return (bool) preg_match(
+            '/max_user_connections|max_connections_per_hour|Too many connections|too many clients|SQLSTATE\[0800[46]\]|server has gone away|Connection refused/i',
+            $e->getMessage(),
+        );
     }
 
 

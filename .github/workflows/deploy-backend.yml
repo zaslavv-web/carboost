@@ -164,6 +164,9 @@ jobs:
           $ARTISAN event:cache || true
 
           printf '%s\n' "${GITHUB_SHA:-unknown}" > VERSION
+          # Обновление timestamp фронт-контроллера заставляет OPcache с
+          # validate_timestamps подхватить новые классы после rsync.
+          touch public/index.php
           $ARTISAN route:list --path=performance-cycles || true
 
           REMOTE
@@ -200,5 +203,9 @@ INI
           esac
           if ! echo "$BODY" | grep -q '"memory_limit":"256M"'; then
             echo "::error::memory_limit не равен 256M: $BODY"
+            exit 1
+          fi
+          if ! echo "$BODY" | grep -q '"status":"ok"'; then
+            echo "::error::Backend health degraded: $BODY"
             exit 1
           fi

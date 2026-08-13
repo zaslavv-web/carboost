@@ -31,6 +31,12 @@ use Illuminate\Support\Facades\Gate;
  */
 class DbController extends Controller
 {
+    /** Размер порции сырого чтения: ограничивает пик памяти до сборки ответа. */
+    protected const RAW_CHUNK_ROWS = 25;
+
+    /** Максимальный JSON-бюджет одного list-ответа. */
+    protected const RAW_RESPONSE_BYTES = 4 * 1024 * 1024;
+
     /** table_name => Model::class (must use BelongsToCompany trait) */
     protected const MODEL_MAP = [
         'profiles'                 => \App\Models\Profile::class,
@@ -340,51 +346,74 @@ class DbController extends Controller
 
         $limit = self::DEFAULT_ROWS;
         $probe = true; // берём +1 строку, чтобы понять что выборка усечена
+        $baseOffset = 0;
         if ($request->filled('range')) {
             [$from, $to] = array_map('intval', explode('-', (string) $request->query('range')));
             $limit = max(1, min(self::MAX_ROWS, $to - $from + 1));
-            $query->skip($from);
+            $baseOffset = max(0, $from);
             $probe = false;
         } elseif ($request->filled('limit')) {
             $limit = max(1, min(self::MAX_ROWS, (int) $request->query('limit')));
             $probe = false;
         }
-        $query->take($probe ? $limit + 1 : $limit);
-
         if ($request->boolean('single') || $request->boolean('maybeSingle')) {
             $row = $query->first();
             if (! $row && $request->boolean('single')) {
                 return response()->json(['error' => 'Запись не найдена'], 404);
             }
-            return response()->json([
+            return $this->rawJsonResponse([
                 'data'  => $row ? $this->castRawRow($row, $instance) : null,
                 'count' => $count,
             ]);
         }
 
-        $raw = $query->get();
+        // Важно: не вызываем get() даже с limit=501. Для таблиц с широкими
+        // JSON-полями PDO + Collection материализуют всю выборку до того, как
+        // сработает байтовый бюджет, и PHP успевает упасть по memory_limit.
+        // Читаем небольшими SQL-порциями; прекращение цикла прекращает и
+        // последующие запросы к БД. Не используем lazy(): Query Builder требует
+        // обязательный orderBy, а универсальный bridge поддерживает запросы без него.
+        $wantedRows = $probe ? $limit + 1 : $limit;
         $truncated = false;
-        if ($probe && $raw->count() > $limit) {
-            $truncated = true;
-            $raw = $raw->take($limit);
-        }
-
-        // Бюджет по объёму: широкие JSON-колонки (профили должностей, шаги
-        // треков) могут дать десятки мегабайт даже на сотне строк. Режем по
-        // размеру, а не только по количеству строк.
-        $budget = 4 * 1024 * 1024;
         $bytes = 0;
         $data = [];
-        foreach ($raw as $row) {
-            $cast = $this->castRawRow($row, $instance);
-            $bytes += strlen(json_encode($cast, JSON_UNESCAPED_UNICODE) ?: '');
-            $data[] = $cast;
-            if ($bytes > $budget) {
-                $truncated = true;
+        $fetched = 0;
+        while ($fetched < $wantedRows) {
+            $chunkSize = min(self::RAW_CHUNK_ROWS, $wantedRows - $fetched);
+            $chunk = (clone $query)
+                ->offset($baseOffset + $fetched)
+                ->limit($chunkSize)
+                ->get();
+            if ($chunk->isEmpty()) {
+                break;
+            }
+
+            foreach ($chunk as $row) {
+                $fetched++;
+                $cast = $this->castRawRow($row, $instance);
+                $rowBytes = strlen(json_encode($cast, JSON_UNESCAPED_UNICODE) ?: '');
+
+                if (count($data) >= $limit || ($data && $bytes + $rowBytes > self::RAW_RESPONSE_BYTES)) {
+                    $truncated = true;
+                    break 2;
+                }
+
+                $data[] = $cast;
+                $bytes += $rowBytes;
+                // Одна строка сама может быть больше бюджета. Оставляем её для
+                // совместимости, но не читаем ни одной следующей строки.
+                if ($bytes >= self::RAW_RESPONSE_BYTES) {
+                    $truncated = true;
+                    break 2;
+                }
+            }
+
+            $received = $chunk->count();
+            unset($chunk);
+            if ($received < $chunkSize) {
                 break;
             }
         }
-        unset($raw);
 
         if ($truncated) {
             \Illuminate\Support\Facades\Log::warning('db_index_truncated', [
@@ -396,11 +425,21 @@ class DbController extends Controller
             ]);
         }
 
-        return response()->json([
+        return $this->rawJsonResponse([
             'data'      => $data,
             'count'     => $count,
             'truncated' => $truncated,
         ]);
+    }
+
+    /** Маркеры позволяют по Network сразу доказать, какой backend-код отвечает. */
+    private function rawJsonResponse(array $payload)
+    {
+        $version = trim((string) @file_get_contents(base_path('VERSION'))) ?: 'unknown';
+
+        return response()->json($payload)
+            ->header('X-App-Version', $version)
+            ->header('X-Db-Read-Path', 'raw-chunked-v2');
     }
 
     /** Повторяет поведение CompanyScope для сырого query builder. */
