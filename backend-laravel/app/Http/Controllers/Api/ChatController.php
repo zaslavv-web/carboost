@@ -299,7 +299,11 @@ class ChatController extends Controller
                     $query->whereNull('p.last_read_at')
                         ->orWhereColumn('m.created_at', '>', 'p.last_read_at');
                 })
-                ->count();
+                // distinct по id сообщения: дубликаты в chat_participants
+                // иначе умножают счётчик на число дублей.
+                ->distinct()
+                ->count('m.id');
+
         } catch (\Throwable $e) {
             $errorId = substr(bin2hex(random_bytes(4)), 0, 8);
             \Log::error('chat.unreadCount failed', [
