@@ -44,20 +44,21 @@ const EmployeeToday = () => {
     queryFn: async () => {
       const { data, error } = await laravelDb
         .from("notifications")
-        .select("id,title,body,url,created_at,is_read,type")
+        .select("id,title,description,notification_type,created_at,is_read")
         .eq("user_id", uid!)
         .eq("is_read", false)
         .order("created_at", { ascending: false });
       if (error) return [];
-      return (data ?? []) as Array<{
-        id: string;
-        title: string | null;
-        body: string | null;
-        url: string | null;
-        created_at: string;
-        is_read: boolean;
-        type: string | null;
-      }>;
+      return (data ?? []).map((n: any) => ({
+        id: n.id as string,
+        title: (n.title ?? null) as string | null,
+        body: (n.description ?? null) as string | null,
+        url: null as string | null,
+        created_at: n.created_at as string,
+        is_read: Boolean(n.is_read),
+        type: (n.notification_type ?? null) as string | null,
+      }));
+
     },
   });
 
