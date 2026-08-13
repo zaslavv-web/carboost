@@ -142,7 +142,28 @@ jobs:
             dist/ "$DEPLOY_USER@$DEPLOY_HOST:$WEB_ROOT/"
 
 
+      - name: Apply cache headers to server .htaccess (идемпотентно)
+        run: |
+          SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
+          $SSH "$DEPLOY_USER@$DEPLOY_HOST" "bash -s" <<EOF
+          set -e
+          cd "$WEB_ROOT"
+          touch .htaccess
+          if grep -q 'Managed by deploy-frontend workflow' .htaccess; then
+            echo 'ℹ️  Блок кэш-заголовков уже присутствует'
+          else
+            cat .htaccess.cache .htaccess > .htaccess.new && mv .htaccess.new .htaccess
+            echo '✅ Блок кэш-заголовков добавлен в .htaccess'
+          fi
+          rm -f .htaccess.cache
+          EOF
+
       - name: Post-deploy check
         run: |
+          echo "Проверяю, что боевой сайт отдаёт свежую версию…"
+          DEPLOYED=$(curl -s --max-time 20 "https://growth-peak.pro/version.json?t=$(date +%s)" | tr -d ' \n')
+          echo "version.json: $DEPLOYED"
+          echo "$DEPLOYED" | grep -q "${GITHUB_SHA::7}" || { echo "❌ Сайт отдаёт другую версию"; exit 1; }
+          CC=$(curl -sI --max-time 20 "https://growth-peak.pro/" | tr -d '\r' | grep -i '^cache-control' || true)
+          echo "index.html $CC"
           echo "✅ Deploy завершён"
-          echo "Проверка: https://growth-peak.pro/ (может потребоваться Ctrl+Shift+R)"
