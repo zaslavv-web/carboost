@@ -224,6 +224,50 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // и был единственным местом, где запрос падал в 500 до контроллера.
     Route::get('/chats/unread-count', [\App\Http\Controllers\Api\ChatController::class, 'unreadCount']);
 
+    // Диагностика памяти ВНУТРИ настоящего HTTP-запроса (не CLI): показывает,
+    // сколько занято на входе в маршрут, после резолва пользователя Sanctum,
+    // после чтения профиля и после того самого запроса unread-count.
+    // Возвращает только цифры — ни данных компании, ни секретов.
+    Route::get('/diag/request-memory', function (\Illuminate\Http\Request $request) {
+        $mb = fn () => round(memory_get_usage(true) / 1048576, 1);
+        $stages = [];
+        $stages['route_entry'] = $mb();
+
+        $user = $request->user();
+        $stages['after_user'] = $mb();
+
+        $userId = $user?->getAuthIdentifier();
+        DB::table('profiles')->where('user_id', $userId)->first(['company_id']);
+        $stages['after_profile'] = $mb();
+
+        try {
+            DB::table('chat_messages as m')
+                ->join('chat_participants as p', function ($join) use ($userId) {
+                    $join->on('p.conversation_id', '=', 'm.conversation_id')
+                        ->where('p.user_id', '=', $userId);
+                })
+                ->whereNull('m.deleted_at')
+                ->where('m.sender_id', '!=', $userId)
+                ->distinct()
+                ->count('m.id');
+            $stages['after_unread_query'] = $mb();
+        } catch (\Throwable $e) {
+            $stages['after_unread_query'] = 'error: ' . mb_substr($e->getMessage(), 0, 200);
+        }
+
+        return response()->json([
+            'sapi'         => PHP_SAPI,
+            'memory_limit' => ini_get('memory_limit'),
+            'app_debug'    => (bool) config('app.debug'),
+            'boot_mb'      => defined('APP_BOOT_MEM') ? round(APP_BOOT_MEM / 1048576, 1) : null,
+            'stages'       => $stages,
+            'peak_mb'      => round(memory_get_peak_usage(true) / 1048576, 1),
+            'tokens'       => DB::table('personal_access_tokens')->where('tokenable_id', $userId)->count(),
+            'loaded_files' => count(get_included_files()),
+        ]);
+    });
+
+
 
     // Брендинг компании: чтение/запись доступны без has.company-гейта,
     // т.к. данные нужны на любых страницах после логина.
