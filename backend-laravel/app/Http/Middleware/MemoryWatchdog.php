@@ -13,15 +13,36 @@ use Symfony\Component\HttpFoundation\Response;
  * Фатал по memory_limit происходит вне обработчика исключений Laravel: в логе
  * остаётся только строка `api_fatal` уже по факту падения. Этот middleware
  * пишет предупреждение ЗАРАНЕЕ — как только ответ (успешный!) израсходовал
- * больше порога. Так деградация видна до того, как превратится в 500.
+ * больше порога.
+ *
+ * Важно: в логе теперь фиксируется и БАЗА — сколько памяти занято ещё до
+ * работы контроллера (после загрузки фреймворка и провайдеров). Без этого
+ * невозможно отличить «тяжёлый эндпоинт» от «тяжёлый старт приложения»:
+ * когда даже тривиальный запрос падает на аллокации 4 КБ, виновата база,
+ * а не запрос.
  */
 class MemoryWatchdog
 {
-    /** Порог в мегабайтах, после которого запрос считаем «тяжёлым». */
+    /** Порог пика в мегабайтах, после которого запрос считаем «тяжёлым». */
     private const WARN_MB = 96;
+
+    /** Порог базы: столько памяти занято ещё до контроллера. */
+    private const BASELINE_WARN_MB = 48;
 
     public function handle(Request $request, Closure $next): Response
     {
+        $bootMb  = defined('APP_BOOT_MEM') ? APP_BOOT_MEM / 1048576 : null;
+        $entryMb = memory_get_usage(true) / 1048576;
+
+        if ($entryMb >= self::BASELINE_WARN_MB) {
+            Log::warning('api_memory_baseline', [
+                'uri'      => $request->getRequestUri(),
+                'boot_mb'  => $bootMb === null ? null : round($bootMb, 1),
+                'entry_mb' => round($entryMb, 1),
+                'limit'    => ini_get('memory_limit'),
+            ]);
+        }
+
         $response = $next($request);
 
         $peakMb = memory_get_peak_usage(true) / 1048576;
@@ -31,6 +52,9 @@ class MemoryWatchdog
                 'method'     => $request->method(),
                 'user_id'    => optional($request->user())->getAuthIdentifier(),
                 'status'     => $response->getStatusCode(),
+                'boot_mb'    => $bootMb === null ? null : round($bootMb, 1),
+                'entry_mb'   => round($entryMb, 1),
+                'handler_mb' => round($peakMb - $entryMb, 1),
                 'peak_mb'    => round($peakMb, 1),
                 'limit'      => ini_get('memory_limit'),
             ]);
