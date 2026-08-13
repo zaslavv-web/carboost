@@ -120,8 +120,18 @@ jobs:
           set -euo pipefail
           cd "$BACKEND_ROOT"
 
+          # Ручной `git pull` в каталоге приложения создаёт вложенную копию
+          # $BACKEND_ROOT/backend-laravel: файлы обновляются, но Laravel их не
+          # видит (миграции «Nothing to migrate», команды «not found»), а
+          # автозагрузчик может подхватить дубли классов. Удаляем её.
+          if [ -d "backend-laravel" ]; then
+            echo "::warning::Найдена вложенная копия $BACKEND_ROOT/backend-laravel — удаляю (доставка только через этот workflow)"
+            rm -rf "backend-laravel"
+          fi
+
           php -v
           composer --version || true
+
           export COMPOSER_NO_AUDIT=1
           export COMPOSER_ALLOW_SUPERUSER=1
           # Композер на шаред-хостинге падает по памяти и оставляет битый vendor/composer

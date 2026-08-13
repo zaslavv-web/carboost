@@ -44,7 +44,23 @@ Workflow: `.github/workflows/deploy-backend.yml`.
 
 **Ручной запуск:** GitHub → Actions → «Deploy Backend» → Run workflow. Обычно `run_migrations = true`, `enable_delete = false`.
 
+> ⚠️ **Не делайте `git pull` в `/home/gro7659365/growth-peak.pro/docs/backend`.**
+> Приложение работает из этой папки, а репозиторий хранит код в подкаталоге `backend-laravel/`.
+> `git pull` создаёт вложенную копию `docs/backend/backend-laravel/`: файлы обновляются,
+> но Laravel их не видит — `php artisan migrate` пишет «Nothing to migrate», новые artisan-команды
+> «command not found». Доставка кода — только через workflow «Deploy Backend».
+> Аварийный ручной путь, если Action недоступен:
+> ```bash
+> cd /home/gro7659365/growth-peak.pro/docs/backend
+> git pull
+> rsync -a --exclude '.env' --exclude 'storage' --exclude 'vendor' backend-laravel/ ./
+> rm -rf backend-laravel
+> php artisan migrate --force && php artisan optimize:clear
+> ```
+> Workflow при каждом деплое сам удаляет вложенную копию, если она появилась.
+
 `deploy/deploy-laravel.sh` — запасной ручной путь: composer install, миграции, кеши. Запускается в каталоге Laravel-приложения (обычно `/var/www/api`, `/home/gro7659365/growth-peak.pro/docs/backend` или `backend-laravel/`).
+
 
 См. также `docker-compose.yml` для контейнерного запуска и `deploy/` для конфигов nginx / php-fpm.
 
