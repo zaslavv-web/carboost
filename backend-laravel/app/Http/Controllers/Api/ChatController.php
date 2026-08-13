@@ -169,7 +169,7 @@ class ChatController extends Controller
                 'last_message'    => $lastMsg ? [
                     'id'         => $lastMsg->id,
                     'sender_id'  => $lastMsg->sender_id,
-                    'body'       => $lastMsg->body,
+                    'body'       => mb_substr((string) $lastMsg->body, 0, 200),
                     'created_at' => optional($lastMsg->created_at)->toIso8601String(),
                 ] : null,
                 'unread_count'    => (int) ($unreadCounts[$c->id] ?? 0),
@@ -182,21 +182,33 @@ class ChatController extends Controller
     public function unreadCount(): JsonResponse
     {
         $userId = auth()->id();
-        $total = DB::table('chat_messages as m')
-            ->join('chat_participants as p', function ($join) use ($userId) {
-                $join->on('p.conversation_id', '=', 'm.conversation_id')
-                    ->where('p.user_id', '=', $userId);
-            })
-            ->whereNull('m.deleted_at')
-            ->where('m.sender_id', '!=', $userId)
-            ->where(function ($query) {
-                $query->whereNull('p.last_read_at')
-                    ->orWhereColumn('m.created_at', '>', 'p.last_read_at');
-            })
-            ->count();
+
+        try {
+            $total = DB::table('chat_messages as m')
+                ->join('chat_participants as p', function ($join) use ($userId) {
+                    $join->on('p.conversation_id', '=', 'm.conversation_id')
+                        ->where('p.user_id', '=', $userId);
+                })
+                ->whereNull('m.deleted_at')
+                ->where('m.sender_id', '!=', $userId)
+                ->where(function ($query) {
+                    $query->whereNull('p.last_read_at')
+                        ->orWhereColumn('m.created_at', '>', 'p.last_read_at');
+                })
+                ->count();
+        } catch (\Throwable $e) {
+            $errorId = substr(bin2hex(random_bytes(4)), 0, 8);
+            \Log::error('chat.unreadCount failed', [
+                'error_id' => $errorId,
+                'user_id'  => $userId,
+                'message'  => $e->getMessage(),
+            ]);
+            return response()->json(['unread' => 0, 'degraded' => true, 'error_id' => $errorId]);
+        }
 
         return response()->json(['unread' => (int) $total]);
     }
+
 
     public function store(Request $request): JsonResponse
     {
