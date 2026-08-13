@@ -80,6 +80,21 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
   // Бейдж непрочитанного использует лёгкий COUNT-endpoint, а не полный список
   // диалогов: одна агрегатная строка вместо десятков объектов с участниками.
+  // Первый запрос откладываем: сразу после логина фронт и так шлёт пачку
+  // запросов (профиль, роли, дашборд), и фоновый бейдж только добавлял
+  // параллельный PHP-воркер в самый пиковый момент.
+  const [badgeArmed, setBadgeArmed] = useState(false);
+  useEffect(() => {
+    if (!enabled) {
+      setBadgeArmed(false);
+      return;
+    }
+    const t = window.setTimeout(() => setBadgeArmed(true), 15_000);
+    return () => window.clearTimeout(t);
+  }, [enabled, user?.id]);
+
+  const badgeEnabled = enabled && badgeArmed;
+
   const { data: unreadFromBadge = 0 } = useQuery({
     queryKey: ["chats", "unread-count", user?.id],
     queryFn: async () => {
@@ -87,12 +102,13 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       if (res.error) return 0;
       return res.data?.unread ?? 0;
     },
-    enabled,
+    enabled: badgeEnabled,
     retry: false,
     staleTime: 60_000,
-    refetchInterval: enabled && pageVisible ? 120_000 : false,
+    refetchInterval: badgeEnabled && pageVisible ? 120_000 : false,
     refetchOnWindowFocus: false,
   });
+
 
   const conversations = data ?? [];
   const unreadFromList = useMemo(
