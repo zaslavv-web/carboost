@@ -82,8 +82,8 @@ class ChatController extends Controller
             ->when(!$isSuper && $companyId, fn ($q) => $q->where('company_id', $companyId))
             ->orderByDesc('last_message_at')
             ->orderByDesc('updated_at')
-            ->limit(100)
-            ->get();
+            ->limit(50)
+            ->get(['id', 'type', 'title', 'company_id', 'last_message_at', 'updated_at']);
 
         if ($conversations->isEmpty()) {
             return response()->json(['data' => []]);
@@ -92,22 +92,23 @@ class ChatController extends Controller
         $conversationIds = $conversations->pluck('id')->all();
 
         $participants = ChatParticipant::whereIn('conversation_id', $conversationIds)
-            ->get()
+            ->get(['conversation_id', 'user_id', 'role'])
             ->groupBy('conversation_id');
 
         // Последние сообщения берём ограниченным окном. joinSub с MAX(created_at)
         // оказался несовместим с версией MySQL на боевом shared-hosting и ронял
-        // весь endpoint. Окно в 500 строк ограничивает память и сохраняет один
-        // пакетный запрос вместо N+1.
+        // весь endpoint. Окно ограничивает память и сохраняет один пакетный
+        // запрос вместо N+1; тело сообщения обрезаем — в списке нужен превью.
         $lastMessages = ChatMessage::query()
             ->whereIn('conversation_id', $conversationIds)
             ->whereNull('deleted_at')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->limit(500)
-            ->get()
+            ->limit(300)
+            ->get(['id', 'conversation_id', 'sender_id', 'body', 'created_at'])
             ->unique('conversation_id')
             ->keyBy('conversation_id');
+
 
         $peerUserIds = $participants->flatten()->pluck('user_id')->unique()->all();
         $profiles = Profile::whereIn('user_id', $peerUserIds)
