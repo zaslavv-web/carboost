@@ -260,6 +260,20 @@ async function request<T>(
   }
 
   await acquireSlot();
+  // Запрос мог ждать в очереди, пока предыдущий уже получил 5xx и открыл
+  // circuit breaker. Повторная проверка не даёт накопленной очереди по одному
+  // запросу продолжить шторм после первого достоверного сигнала перегрузки.
+  if (idempotent && isBackendCircuitOpen()) {
+    releaseSlot();
+    return {
+      data: null,
+      error: {
+        message: "Сервис временно перегружен. Повторите через несколько секунд.",
+        status: 503,
+        code: "db_busy",
+      },
+    };
+  }
   let result: LaravelInvokeResult<T>;
   try {
     result = await rawRequest<T>(path, init);
