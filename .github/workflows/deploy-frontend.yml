@@ -21,9 +21,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  DEPLOY_HOST: ssh.gro7659365.nichost.ru
-  DEPLOY_USER: gro7659365
-  WEB_ROOT: /home/gro7659365/growth-peak.pro/docs
+  FALLBACK_HOST: ssh.gro7659365.nichost.ru
+  FALLBACK_USER: gro7659365
+  FALLBACK_ROOT: /home/gro7659365/growth-peak.pro/docs
 
 jobs:
   build-and-deploy:
@@ -48,22 +48,36 @@ jobs:
           echo "✅ dist собран, размер:"
           du -sh dist
 
-      - name: Check SSH secret
+      - name: Resolve deploy config
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          TARGET_DIR: ${{ secrets.TARGET_DIR }}
         run: |
-          if [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
-            echo "::error::DEPLOY_SSH_KEY is not set"
-            exit 1
-          fi
+          HOST="${SERVER_IP:-$FALLBACK_HOST}"
+          USER_NAME="${SERVER_USER:-$FALLBACK_USER}"
+          ROOT="${TARGET_DIR:-$FALLBACK_ROOT}"
+          echo "DEPLOY_HOST=$HOST" >> "$GITHUB_ENV"
+          echo "DEPLOY_USER=$USER_NAME" >> "$GITHUB_ENV"
+          echo "WEB_ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "Target: $USER_NAME@$HOST:$ROOT"
 
       - name: Setup SSH (нативный ssh-agent, без Node-экшенов)
         env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
+          KEY="${SSH_PRIVATE_KEY:-$DEPLOY_SSH_KEY}"
+          if [ -z "$KEY" ]; then
+            echo "::error::Neither SSH_PRIVATE_KEY nor DEPLOY_SSH_KEY is set"
+            exit 1
+          fi
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/deploy_key
+          ssh-add -l
           echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
           echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
 
