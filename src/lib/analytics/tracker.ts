@@ -257,9 +257,18 @@ class Tracker {
     };
   }
 
+  /** До этого времени телеметрию не отправляем (бэкенд перегружен). */
+  private mutedUntil = 0;
+
   flush(viaBeacon: boolean) {
     if (this.queue.length === 0) return;
+    if (Date.now() < this.mutedUntil) {
+      // Бэкенд перегружен — не добиваем базу телеметрией, чистим очередь.
+      this.queue.length = 0;
+      return;
+    }
     const events = this.queue.splice(0, this.queue.length);
+
     const body = JSON.stringify({
       events,
       session: {
