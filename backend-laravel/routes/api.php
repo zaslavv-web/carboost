@@ -66,12 +66,17 @@ Route::get('/health', function () {
     $checks['boot_mb']      = defined('APP_BOOT_MEM') ? round(APP_BOOT_MEM / 1048576, 1) : null;
     $checks['usage_mb']     = round(memory_get_usage(true) / 1048576, 1);
     $checks['peak_mb']      = round(memory_get_peak_usage(true) / 1048576, 1);
+    // Честный расход без округления до куска Zend MM. Если usage_mb (real)
+    // кратно 64, а usage_php — единицы мегабайт, значит память «квантуется»
+    // кусками по 64 МБ, и лимит надо держать заметно выше расхода.
+    $checks['usage_php_mb'] = round(memory_get_usage(false) / 1048576, 1);
+    $checks['peak_php_mb']  = round(memory_get_peak_usage(false) / 1048576, 1);
     // APP_DEBUG в проде — частая причина взрывного расхода памяти: Laravel
     // начинает собирать полные трейсы с объектами и рендерить Ignition.
     $checks['app_debug']    = (bool) config('app.debug');
     $checks['opcache']      = function_exists('opcache_get_status') && @opcache_get_status(false) ? 'on' : 'off';
     $checks['version']      = trim((string) @file_get_contents(base_path('VERSION'))) ?: 'unknown';
-    $checks['db_read_path'] = 'raw-chunked-v2';
+    $checks['db_read_path'] = 'raw-chunked-v3';
 
     $ok = $checks['db'] === 'ok' && ($checks['redis'] === 'ok' || $checks['redis'] === 'skipped');
     return response()->json(['status' => $ok ? 'ok' : 'degraded', 'checks' => $checks], $ok ? 200 : 503);
