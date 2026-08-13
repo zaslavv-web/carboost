@@ -124,7 +124,13 @@ jobs:
           composer --version || true
           export COMPOSER_NO_AUDIT=1
           export COMPOSER_ALLOW_SUPERUSER=1
-          composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+          # Композер на шаред-хостинге падает по памяти и оставляет битый vendor/composer
+          # (Class "Composer\Autoload\ComposerStaticInit..." not found). Даём памяти и
+          # обязательно перегенерируем автозагрузчик, затем проверяем его работоспособность.
+          COMPOSER_BIN="$(command -v composer)"
+          php -d memory_limit=-1 "$COMPOSER_BIN" install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+          php -d memory_limit=-1 "$COMPOSER_BIN" dump-autoload --no-dev --optimize --no-interaction
+          php -d memory_limit=-1 -r 'require "vendor/autoload.php"; if (!class_exists(Illuminate\Foundation\Application::class)) { fwrite(STDERR, "autoload broken\n"); exit(1);} echo "autoload OK\n";'
 
           php artisan optimize:clear || true
           php artisan config:clear || true
@@ -148,4 +154,10 @@ jobs:
 
       - name: Public health check
         run: |
-          curl -fsS https://growth-peak.pro/api/health
+          BODY="$(curl -fsS -H 'Accept: application/json' https://growth-peak.pro/api/health)"
+          echo "$BODY"
+          case "$BODY" in
+            *"Fatal error"*|*"<br"*|*"<html"*)
+              echo "::error::Backend вернул HTML вместо JSON — сломан autoload/vendor на сервере"
+              exit 1;;
+          esac
