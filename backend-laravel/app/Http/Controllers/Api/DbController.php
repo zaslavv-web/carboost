@@ -146,18 +146,29 @@ class DbController extends Controller
 
     public function index(Request $request, string $table)
     {
-        $model = self::resolve($table);
-        $this->authorizeAny('viewAny', $model);
-
-        // Быстрый путь для `select(..., { count: 'exact', head: true })`.
-        // Считаем строки сырым запросом: без Eloquent-гидрации, глобальных
-        // scope-ов и каскада служебных подзапросов (именно они на бою упирались
-        // в memory_limit и лимит соединений, отдавая 500 на счётчике уведомлений).
-        if ($request->boolean('head') && $request->query('count')) {
-            return $this->headCount($request, $model, $table);
-        }
-
         try {
+            $model = self::resolve($table);
+            $this->authorizeAny('viewAny', $model);
+
+            // Быстрый путь для `select(..., { count: 'exact', head: true })`.
+            // Считаем строки сырым запросом: без Eloquent-гидрации, глобальных
+            // scope-ов и каскада служебных подзапросов (именно они на бою упирались
+            // в memory_limit и лимит соединений, отдавая 500 на счётчике уведомлений).
+            if ($request->boolean('head') && $request->query('count')) {
+                return $this->headCount($request, $model, $table);
+            }
+
+            // Основной путь — СЫРОЙ. Eloquent гидрирует каждую строку в объект
+            // модели (+ casts, + JSON-декод, + отдельная копия original), из-за
+            // чего выборка вроде `positions?select=id,title,department` или
+            // `career_track_templates?select=*` на бою упиралась в 256 МБ
+            // (api_fatal в Eloquent\Collection). Сырые stdClass-строки дешевле
+            // на порядок. Eloquent используем только там, где реально нужны
+            // связи (`select=alias:relation(...)`).
+            if (! $this->selectUsesRelations($request)) {
+                return $this->rawIndex($request, $model, $table);
+            }
+
             $query = $model::query();
             $this->applyFilters($query, $request);
             $this->applySelect($query, $request);
@@ -220,6 +231,8 @@ class DbController extends Controller
                 'truncated' => $truncated,
             ]);
 
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e; // 403/404 из authorizeAny/resolve — не наша ошибка
         } catch (\Illuminate\Database\QueryException $e) {
             // Ошибка подключения/исчерпания лимита — не является ошибкой параметров
             // запроса. Её обязан обработать внешний RetryOnDbBusy middleware и
@@ -243,8 +256,206 @@ class DbController extends Controller
                 'error' => 'Неверные параметры запроса к таблице',
                 'code'  => 'invalid_query',
             ], 400);
+        } catch (\Throwable $e) {
+            return $this->serverError('db_index_failed', $table, $request, $e);
         }
     }
+
+    /**
+     * Единый ответ на непредвиденную ошибку: читаемый JSON с error_id и
+     * подробная строка в лог (файл/строка + пик памяти). Раньше сюда попадал
+     * «голый» 500 без тела — по нему невозможно было понять причину.
+     */
+    private function serverError(string $event, string $table, Request $request, \Throwable $e)
+    {
+        $errorId = substr(bin2hex(random_bytes(4)), 0, 8);
+        \Illuminate\Support\Facades\Log::error($event, [
+            'error_id' => $errorId,
+            'table'    => $table,
+            'query'    => $request->getQueryString(),
+            'user'     => optional($request->user())->getAuthIdentifier(),
+            'message'  => $e->getMessage(),
+            'where'    => $e->getFile() . ':' . $e->getLine(),
+            'peak_mb'  => round(memory_get_peak_usage(true) / 1048576, 1),
+            'limit'    => ini_get('memory_limit'),
+        ]);
+
+        return response()->json([
+            'data'     => null,
+            'error'    => 'Внутренняя ошибка сервера. Код: ' . $errorId,
+            'error_id' => $errorId,
+            'code'     => 'server_error',
+        ], 500);
+    }
+
+    /** Есть ли в `select` обращение к связям вида `alias:relation(cols)`. */
+    private function selectUsesRelations(Request $request): bool
+    {
+        return $request->filled('select') && str_contains((string) $request->query('select'), '(');
+    }
+
+    /**
+     * Сырая выборка через DB::table: без гидрации Eloquent и глобальных scope-ов.
+     * Мультитенантность и casts воспроизводятся вручную, поэтому формат ответа
+     * для фронта не меняется.
+     */
+    private function rawIndex(Request $request, string $model, string $table)
+    {
+        /** @var \Illuminate\Database\Eloquent\Model $instance */
+        $instance = new $model();
+        $tableName = $instance->getTable();
+        $columns = \Illuminate\Support\Facades\Schema::getColumnListing($tableName);
+
+        $query = \Illuminate\Support\Facades\DB::table($tableName);
+        $this->applyFilters($query, $request);
+        $this->applyCompanyScope($query, $instance, $tableName, $columns);
+        $this->applyOrder($query, $request);
+
+        // Проекция колонок: берём только те, что реально есть в схеме — иначе
+        // рассинхрон фронта и БД даёт SQL-ошибку на ровном месте.
+        $selected = $columns;
+        if ($request->filled('select')) {
+            $requested = array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) $request->query('select')),
+            )));
+            $requested = array_values(array_diff($requested, ['*']));
+            $valid = array_values(array_intersect($requested, $columns));
+            if ($valid) {
+                if (in_array('id', $columns, true) && ! in_array('id', $valid, true)) {
+                    $valid[] = 'id';
+                }
+                $selected = $valid;
+            }
+        }
+        $query->select(array_map(fn ($c) => $tableName . '.' . $c, $selected));
+
+        $count = null;
+        if ($request->query('count')) {
+            $count = (clone $query)->getCountForPagination();
+        }
+        if ($request->boolean('head')) {
+            return response()->json(['data' => [], 'count' => $count]);
+        }
+
+        $limit = self::DEFAULT_ROWS;
+        $probe = true; // берём +1 строку, чтобы понять что выборка усечена
+        if ($request->filled('range')) {
+            [$from, $to] = array_map('intval', explode('-', (string) $request->query('range')));
+            $limit = max(1, min(self::MAX_ROWS, $to - $from + 1));
+            $query->skip($from);
+            $probe = false;
+        } elseif ($request->filled('limit')) {
+            $limit = max(1, min(self::MAX_ROWS, (int) $request->query('limit')));
+            $probe = false;
+        }
+        $query->take($probe ? $limit + 1 : $limit);
+
+        if ($request->boolean('single') || $request->boolean('maybeSingle')) {
+            $row = $query->first();
+            if (! $row && $request->boolean('single')) {
+                return response()->json(['error' => 'Запись не найдена'], 404);
+            }
+            return response()->json([
+                'data'  => $row ? $this->castRawRow($row, $instance) : null,
+                'count' => $count,
+            ]);
+        }
+
+        $raw = $query->get();
+        $truncated = false;
+        if ($probe && $raw->count() > $limit) {
+            $truncated = true;
+            $raw = $raw->take($limit);
+        }
+
+        // Бюджет по объёму: широкие JSON-колонки (профили должностей, шаги
+        // треков) могут дать десятки мегабайт даже на сотне строк. Режем по
+        // размеру, а не только по количеству строк.
+        $budget = 4 * 1024 * 1024;
+        $bytes = 0;
+        $data = [];
+        foreach ($raw as $row) {
+            $cast = $this->castRawRow($row, $instance);
+            $bytes += strlen(json_encode($cast, JSON_UNESCAPED_UNICODE) ?: '');
+            $data[] = $cast;
+            if ($bytes > $budget) {
+                $truncated = true;
+                break;
+            }
+        }
+        unset($raw);
+
+        if ($truncated) {
+            \Illuminate\Support\Facades\Log::warning('db_index_truncated', [
+                'table' => $table,
+                'query' => $request->getQueryString(),
+                'rows'  => count($data),
+                'bytes' => $bytes,
+                'user'  => optional($request->user())->getAuthIdentifier(),
+            ]);
+        }
+
+        return response()->json([
+            'data'      => $data,
+            'count'     => $count,
+            'truncated' => $truncated,
+        ]);
+    }
+
+    /** Повторяет поведение CompanyScope для сырого query builder. */
+    private function applyCompanyScope($query, $instance, string $tableName, array $columns): void
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return;
+        }
+        if (method_exists($user, 'hasRole') && $user->hasRole('superadmin')) {
+            return;
+        }
+        $impersonator = method_exists($user, 'getAttribute') ? $user->getAttribute('impersonator') : null;
+        if ($impersonator && method_exists($impersonator, 'hasRole') && $impersonator->hasRole('superadmin')) {
+            return;
+        }
+        if (! in_array('company_id', $columns, true)) {
+            return;
+        }
+        $companyId = method_exists($user, 'companyId') ? $user->companyId() : null;
+        if (! $companyId) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
+        $query->where($tableName . '.company_id', $companyId);
+    }
+
+    /**
+     * Приводит сырую строку к тому же виду, что отдавал Eloquent: JSON-колонки
+     * декодируются, boolean/числа приводятся к нативным типам.
+     */
+    private function castRawRow($row, $instance): array
+    {
+        $out = (array) $row;
+        $casts = method_exists($instance, 'getCasts') ? $instance->getCasts() : [];
+        foreach ($out as $col => $value) {
+            $cast = $casts[$col] ?? null;
+            if ($value === null || $cast === null) {
+                continue;
+            }
+            if (in_array($cast, ['array', 'json', 'object', 'collection'], true)) {
+                $out[$col] = is_string($value) ? json_decode($value, true) : $value;
+            } elseif (in_array($cast, ['bool', 'boolean'], true)) {
+                $out[$col] = (bool) $value;
+            } elseif (in_array($cast, ['int', 'integer'], true)) {
+                $out[$col] = (int) $value;
+            } elseif (in_array($cast, ['float', 'double', 'real'], true)) {
+                $out[$col] = (float) $value;
+            } elseif (str_starts_with($cast, 'decimal:')) {
+                $out[$col] = (float) $value;
+            }
+        }
+        return $out;
+    }
+
 
     private function isDatabaseBusy(\Illuminate\Database\QueryException $e): bool
     {
