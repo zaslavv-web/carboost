@@ -226,6 +226,7 @@ async function rawRequest<T>(
           : isClosedConnection
           ? "Backend разорвал соединение. Проверьте, что Laravel/PHP-FPM запущен, миграции применены, а nginx корректно проксирует /api."
           : rawMessage,
+        code: isAbort ? "backend_timeout" : isClosedConnection ? "backend_network" : undefined,
       },
     };
   } finally {
@@ -234,9 +235,9 @@ async function rawRequest<T>(
 }
 
 /**
- * Публичная обёртка: очередь параллелизма + мягкий ретрай, когда база
- * временно перегружена (503 `db_busy` от бэкенда или 500 при исчерпании
- * лимита подключений MySQL на idempotent-запросах).
+ * Публичная обёртка: очередь параллелизма + circuit breaker. Повтор внутри
+ * одного HTTP-запроса выполняет серверный RetryOnDbBusy; браузер не создаёт
+ * второй каскад запросов при уже исчерпанном лимите MySQL.
  */
 async function request<T>(
   path: string,
@@ -244,7 +245,7 @@ async function request<T>(
 ): Promise<LaravelInvokeResult<T>> {
   const method = (init.method || "GET").toUpperCase();
   const idempotent = method === "GET" || method === "HEAD";
-  const maxAttempts = idempotent ? 3 : 2;
+  const maxAttempts = 1;
 
   // Пока база восстанавливается, фоновые GET/HEAD не должны создавать новые
   // PHP-процессы и попытки подключения. Записывающие действия пользователя
@@ -272,8 +273,9 @@ async function request<T>(
     const status = result.error?.status;
     const overloaded =
       result.error?.code === "db_busy" ||
-      status === 503 ||
-      (idempotent && status === 500);
+      result.error?.code === "backend_timeout" ||
+      result.error?.code === "backend_network" ||
+      status === 503;
 
     if (overloaded) openBackendCircuit();
 
