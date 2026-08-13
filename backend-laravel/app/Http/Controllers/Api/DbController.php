@@ -149,6 +149,14 @@ class DbController extends Controller
         $model = self::resolve($table);
         $this->authorizeAny('viewAny', $model);
 
+        // Быстрый путь для `select(..., { count: 'exact', head: true })`.
+        // Считаем строки сырым запросом: без Eloquent-гидрации, глобальных
+        // scope-ов и каскада служебных подзапросов (именно они на бою упирались
+        // в memory_limit и лимит соединений, отдавая 500 на счётчике уведомлений).
+        if ($request->boolean('head') && $request->query('count')) {
+            return $this->headCount($request, $model, $table);
+        }
+
         try {
             $query = $model::query();
             $this->applyFilters($query, $request);
@@ -165,6 +173,7 @@ class DbController extends Controller
             if ($head) {
                 return response()->json(['data' => [], 'count' => $count]);
             }
+
 
             // Предохранитель: без явного limit/range клиент раньше мог вытащить всю
             // таблицу — именно так PHP-воркер упирался в memory_limit (64 МБ) и падал,
@@ -244,6 +253,54 @@ class DbController extends Controller
             $e->getMessage(),
         );
     }
+
+    /**
+     * Сырой COUNT(*) для head-запросов. Никогда не отдаёт 500: при любой
+     * проблеме возвращает count = null и флаг degraded, чтобы бейджи/счётчики
+     * в интерфейсе не роняли экран.
+     */
+    private function headCount(Request $request, string $model, string $table)
+    {
+        try {
+            /** @var \Illuminate\Database\Eloquent\Model $instance */
+            $instance = new $model();
+            $query = \Illuminate\Support\Facades\DB::table($instance->getTable());
+            $this->applyFilters($query, $request);
+
+            // Мультитенантность: повторяем поведение CompanyScope вручную.
+            $user = auth()->user();
+            $isSuperadmin = $user && method_exists($user, 'hasRole') && $user->hasRole('superadmin');
+            $hasCompanyColumn = in_array(
+                'company_id',
+                \Illuminate\Support\Facades\Schema::getColumnListing($instance->getTable()),
+                true,
+            );
+            if (! $isSuperadmin && $hasCompanyColumn) {
+                $companyId = $user && method_exists($user, 'companyId') ? $user->companyId() : null;
+                if (! $companyId) {
+                    return response()->json(['data' => [], 'count' => 0]);
+                }
+                $query->where($instance->getTable() . '.company_id', $companyId);
+            }
+
+            return response()->json(['data' => [], 'count' => (int) $query->count()]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($this->isDatabaseBusy($e)) {
+                throw $e; // отдаст RetryOnDbBusy → 503 db_busy
+            }
+            \Illuminate\Support\Facades\Log::warning('db_head_count_failed', [
+                'table' => $table, 'msg' => $e->getMessage(),
+            ]);
+            return response()->json(['data' => [], 'count' => null, 'degraded' => true]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('db_head_count_failed', [
+                'table' => $table, 'msg' => $e->getMessage(),
+            ]);
+            return response()->json(['data' => [], 'count' => null, 'degraded' => true]);
+        }
+    }
+
+
 
 
     public function store(Request $request, string $table)
