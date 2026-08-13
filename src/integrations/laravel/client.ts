@@ -107,8 +107,6 @@ function releaseSlot() {
   else inFlight--;
 }
 
-const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
-
 const CIRCUIT_COOLDOWN_MS = 12_000;
 let circuitOpenUntil = 0;
 
@@ -245,8 +243,6 @@ async function request<T>(
 ): Promise<LaravelInvokeResult<T>> {
   const method = (init.method || "GET").toUpperCase();
   const idempotent = method === "GET" || method === "HEAD";
-  const maxAttempts = 1;
-
   // Пока база восстанавливается, фоновые GET/HEAD не должны создавать новые
   // PHP-процессы и попытки подключения. Записывающие действия пользователя
   // пропускаем, чтобы интерфейс не блокировал явную команду без обращения к API.
@@ -261,41 +257,34 @@ async function request<T>(
     };
   }
 
-  for (let attempt = 1; ; attempt++) {
-    await acquireSlot();
-    let result: LaravelInvokeResult<T>;
-    try {
-      result = await rawRequest<T>(path, init);
-    } finally {
-      releaseSlot();
-    }
-
-    const status = result.error?.status;
-    const overloaded =
-      result.error?.code === "db_busy" ||
-      result.error?.code === "backend_timeout" ||
-      result.error?.code === "backend_network" ||
-      status === 503;
-
-    if (overloaded) openBackendCircuit();
-
-    if (!overloaded || attempt >= maxAttempts) {
-      if (overloaded) {
-        return {
-          data: null,
-          error: {
-            ...result.error!,
-            message:
-              "Сервис временно перегружен: база данных не успевает обрабатывать запросы. Повторите через несколько секунд.",
-            code: "db_busy",
-          },
-        };
-      }
-      return result;
-    }
-
-    await sleep(400 * attempt + Math.random() * 200);
+  await acquireSlot();
+  let result: LaravelInvokeResult<T>;
+  try {
+    result = await rawRequest<T>(path, init);
+  } finally {
+    releaseSlot();
   }
+
+  const status = result.error?.status;
+  const overloaded =
+    result.error?.code === "db_busy" ||
+    result.error?.code === "backend_timeout" ||
+    result.error?.code === "backend_network" ||
+    status === 503;
+
+  if (!overloaded) return result;
+
+  openBackendCircuit();
+
+  return {
+    data: null,
+    error: {
+      ...result.error,
+      message:
+        "Сервис временно перегружен: база данных не успевает обрабатывать запросы. Повторите через несколько секунд.",
+      code: "db_busy",
+    },
+  };
 }
 
 
