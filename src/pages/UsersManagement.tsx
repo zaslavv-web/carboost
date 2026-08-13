@@ -81,36 +81,19 @@ const UsersManagement = () => {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users_list"],
     queryFn: async () => {
-      const [profilesRes, rolesRes, emailsRes] = await Promise.all([
-        laravelDb.from("profiles").select("*"),
-        laravelDb.from("user_roles").select("user_id, role"),
-        laravel.get<{ data: any[] } | any[]>("/profiles?per_page=500"),
-      ]);
-      if (profilesRes.error) throw profilesRes.error;
-      if (rolesRes.error) throw rolesRes.error;
+      const response = await laravel.get<{ data: any[] }>("/profiles?per_page=500");
+      if (response.error) throw response.error;
 
-      const roleMap = new Map<string, AppRole>();
-      for (const r of rolesRes.data) {
-        const current = roleMap.get(r.user_id);
+      return (response.data?.data || []).map((profile: any) => {
+        let role: AppRole = "employee";
         const priority: Record<string, number> = { superadmin: 5, company_admin: 4, hrd: 3, hr: 3, manager: 2, employee: 1 };
-        if (!current || priority[r.role as string] > (priority[current] || 0)) {
-          roleMap.set(r.user_id, r.role as AppRole);
+        for (const candidate of profile.roles || []) {
+          if (priority[candidate] > (priority[role] || 0)) {
+            role = candidate as AppRole;
+          }
         }
-      }
-
-      const emailMap = new Map<string, string>();
-      const emailItems: any[] = Array.isArray(emailsRes.data)
-        ? (emailsRes.data as any[])
-        : ((emailsRes.data as any)?.data || []);
-      for (const p of emailItems) {
-        if (p?.user_id && p?.email) emailMap.set(p.user_id, p.email);
-      }
-
-      return (profilesRes.data || []).map((p: any) => ({
-        ...p,
-        role: roleMap.get(p.user_id) || "employee",
-        email: emailMap.get(p.user_id) || null,
-      }));
+        return { ...profile, role };
+      });
     },
   });
 
