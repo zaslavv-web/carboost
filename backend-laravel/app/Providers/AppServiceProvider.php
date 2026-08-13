@@ -61,6 +61,25 @@ class AppServiceProvider extends ServiceProvider
             });
         }
 
+        // Постоянный (дешёвый) сторож медленных запросов: одна строка в лог
+        // только когда запрос идёт дольше секунды. Именно такие запросы держат
+        // соединение и разгоняют max_user_connections на shared-hosting.
+        if (! app()->runningInConsole()) {
+            DB::listen(function ($query) {
+                if ((float) $query->time < 1000) {
+                    return;
+                }
+                Log::warning('sql_slow', [
+                    'path'    => request()?->path(),
+                    'user'    => optional(auth()->user())->getAuthIdentifier(),
+                    'time_ms' => round((float) $query->time, 1),
+                    'sql'     => mb_substr($query->sql, 0, 300),
+                ]);
+            });
+        }
+
+
+
         // Диагностика фатальных ошибок (memory_limit / max_execution_time):
         // штатный логгер Laravel такие падения пишет без маршрута, поэтому
         // невозможно понять, какой именно запрос съел память. Пишем сами.
