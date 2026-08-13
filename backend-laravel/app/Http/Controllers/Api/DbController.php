@@ -39,6 +39,12 @@ class DbController extends Controller
 
     /** Колонки горячих таблиц: исключают Schema::getColumnListing() из GET. */
     protected const HOT_TABLE_COLUMNS = [
+        'positions' => [
+            'id', 'title', 'description', 'department', 'psychological_profile',
+            'competency_profile', 'created_by', 'company_id', 'profile_status',
+            'profile_version', 'profile_template', 'approved_by', 'approved_at',
+            'created_at', 'updated_at',
+        ],
         'profiles' => [
             'id', 'user_id', 'full_name', 'position', 'department', 'avatar_url',
             'hire_date', 'overall_score', 'role_readiness', 'is_verified',
@@ -479,11 +485,9 @@ class DbController extends Controller
     /** Маркеры позволяют по Network сразу доказать, какой backend-код отвечает. */
     private function rawJsonResponse(array $payload)
     {
-        $version = trim((string) @file_get_contents(base_path('VERSION'))) ?: 'unknown';
-
         return response()->json($payload)
-            ->header('X-App-Version', $version)
-            ->header('X-Db-Read-Path', 'raw-chunked-v2');
+            ->header('X-App-Version', \App\Support\AppVersion::current())
+            ->header('X-Db-Read-Path', 'raw-chunked-v4');
     }
 
     /** Повторяет поведение CompanyScope для сырого query builder. */

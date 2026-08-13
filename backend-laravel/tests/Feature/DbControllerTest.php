@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Department;
+use App\Models\Position;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 use Tests\WithDomainUsers;
 
@@ -50,6 +52,40 @@ class DbControllerTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.name', 'A');
+    }
+
+    public function test_hrd_lists_only_own_company_positions_without_metadata_queries(): void
+    {
+        $ownCompany = $this->makeCompany();
+        $otherCompany = $this->makeCompany();
+        $hrd = $this->makeUser('hrd', $ownCompany->id);
+
+        Position::create([
+            'company_id' => $ownCompany->id,
+            'created_by' => $hrd->id,
+            'title' => 'Own position',
+        ]);
+        Position::create([
+            'company_id' => $otherCompany->id,
+            'created_by' => $hrd->id,
+            'title' => 'Foreign position',
+        ]);
+
+        $metadataQueries = [];
+        DB::listen(function ($query) use (&$metadataQueries): void {
+            if (preg_match('/SHOW\s+COLUMNS|information_schema|pragma_table_info/i', $query->sql)) {
+                $metadataQueries[] = $query->sql;
+            }
+        });
+
+        $this->actingAs($hrd, 'sanctum')
+            ->getJson('/api/db/positions?select=*&order=title.asc')
+            ->assertOk()
+            ->assertHeader('X-Db-Read-Path', 'raw-chunked-v4')
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.title', 'Own position');
+
+        $this->assertSame([], $metadataQueries);
     }
 
     public function test_employee_cannot_create_department(): void

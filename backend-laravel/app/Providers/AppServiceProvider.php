@@ -98,7 +98,11 @@ class AppServiceProvider extends ServiceProvider
                         'uri'       => $request?->getPathInfo(),
                         'query'     => $request?->getQueryString(),
                         'user'      => optional($request?->user())->getAuthIdentifier(),
+                        'stage'     => $request?->attributes->get('profile_directory_stage'),
+                        'rows'      => $request?->attributes->get('profile_directory_rows'),
+                        'queries'   => $request?->attributes->get('profile_directory_queries'),
                         'peak_mb'   => round(memory_get_peak_usage(true) / 1048576, 1),
+                        'peak_php_mb' => round(memory_get_peak_usage(false) / 1048576, 1),
                         'limit'     => ini_get('memory_limit'),
                     ]);
                 } catch (\Throwable $e) {
