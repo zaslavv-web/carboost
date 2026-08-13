@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  */
 class ChatDiagnose extends Command
 {
-    protected $signature = 'chat:diagnose {user_id} {--conversations=50}';
+    protected $signature = 'chat:diagnose {user? : id или email пользователя} {--conversations=50} {--top=10 : показать самых «тяжёлых» участников чатов}';
     protected $description = 'Показать объёмы данных и пик памяти для списка чатов конкретного пользователя';
 
     private function mem(string $step): void
@@ -29,17 +29,61 @@ class ChatDiagnose extends Command
         ));
     }
 
+    /** Принимает и uuid, и email. Возвращает null, если пользователь не найден. */
+    private function resolveUserId(?string $input): ?string
+    {
+        if (! $input) {
+            return null;
+        }
+
+        if (str_contains($input, '@')) {
+            return DB::table('users')->where('email', $input)->value('id');
+        }
+
+        return DB::table('users')->where('id', $input)->value('id');
+    }
+
+    /** Кто в системе состоит в наибольшем числе диалогов — кандидаты на падение. */
+    private function showTopUsers(int $limit): void
+    {
+        $rows = DB::table('chat_participants as p')
+            ->leftJoin('users as u', 'u.id', '=', 'p.user_id')
+            ->groupBy('p.user_id', 'u.email')
+            ->selectRaw('p.user_id, u.email, COUNT(*) AS conversations')
+            ->orderByDesc('conversations')
+            ->limit($limit)
+            ->get();
+
+        $this->info('Топ пользователей по числу диалогов:');
+        foreach ($rows as $row) {
+            $this->line(sprintf('  %-40s %-35s %d диалогов', $row->user_id, $row->email ?? '—', $row->conversations));
+        }
+        $this->newLine();
+        $this->line('Запустите: php -d memory_limit=512M artisan chat:diagnose <id или email>');
+    }
+
     public function handle(): int
     {
-        $userId = (string) $this->argument('user_id');
-        $limit  = (int) $this->option('conversations');
-
+        $limit = (int) $this->option('conversations');
         $this->info("memory_limit = " . ini_get('memory_limit'));
-        $this->info("user_id = {$userId}");
+
+        $userId = $this->resolveUserId($this->argument('user'));
+        if (! $userId) {
+            if ($this->argument('user')) {
+                $this->error('Пользователь не найден: ' . $this->argument('user'));
+            }
+            $this->showTopUsers((int) $this->option('top'));
+            return self::SUCCESS;
+        }
+
+        $userId = (string) $userId;
+        $email = DB::table('users')->where('id', $userId)->value('email');
+        $this->info("user_id = {$userId} ({$email})");
 
         $isSuper = DB::table('user_roles')->where('user_id', $userId)->where('role', 'superadmin')->exists();
         $companyId = DB::table('profiles')->where('user_id', $userId)->value('company_id');
         $this->line("  superadmin = " . ($isSuper ? 'yes' : 'no') . ", company_id = " . ($companyId ?: '—'));
+
 
         $conversations = DB::table('chat_conversations as c')
             ->join('chat_participants as own', function ($join) use ($userId) {
