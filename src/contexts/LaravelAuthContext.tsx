@@ -128,7 +128,12 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (e) {
       console.error("Laravel auth refresh failed", e);
       const message = e instanceof Error ? e.message : "Не удалось восстановить сохранённую сессию.";
-      failSession("auth_refresh_failed", message);
+      // 5xx, перегрузка БД и сетевой таймаут не означают, что токен истёк.
+      // Сохраняем его, чтобы временный сбой сервиса не выбрасывал пользователя
+      // на форму входа. Реальные 401/419 уже очищаются внутри laravelAuthApi.me().
+      setUser(null);
+      setAuthStatus("failed");
+      setAuthError(message);
     } finally {
       setAuthReady(true);
       setLoading(false);

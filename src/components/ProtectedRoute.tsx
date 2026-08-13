@@ -115,8 +115,9 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   if (authStatus === "failed") {
     return (
       <FailureScreen
-        title="Сессия не восстановилась"
-        description={authError || "Сохранённые данные входа повреждены или устарели."}
+        title="Сервис временно недоступен"
+        description={authError || "Сервер не ответил, но ваша сессия сохранена."}
+        onRetry={() => window.location.reload()}
         onReset={resetSession}
       />
     );
