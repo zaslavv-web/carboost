@@ -82,6 +82,7 @@ jobs:
             PubkeyAcceptedKeyTypes +ssh-rsa
             CASignatureAlgorithms +ssh-rsa
             RequiredRSASize 1024
+            UpdateHostKeys no
             StrictHostKeyChecking accept-new
           EOF
           chmod 600 ~/.ssh/config
@@ -96,7 +97,7 @@ jobs:
             echo "ℹ️  --delete выключен (безопасный режим первого прогона)"
           fi
           rsync -avz \
-            -e "ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o StrictHostKeyChecking=accept-new" \
+            -e "ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new" \
             $DELETE_FLAG \
             --exclude 'backend' \
             --exclude 'backend/' \

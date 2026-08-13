@@ -86,10 +86,10 @@ jobs:
             echo "ℹ️  Backend --delete disabled"
           fi
 
-          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$BACKEND_ROOT'"
+          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$BACKEND_ROOT'"
 
           rsync -avz \
-            -e "ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o StrictHostKeyChecking=accept-new" \
+            -e "ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new" \
             $DELETE_FLAG \
             --exclude '.env' \
             --exclude 'vendor/' \
@@ -102,7 +102,7 @@ jobs:
           RUN_MIGRATIONS="${{ github.event.inputs.run_migrations }}"
           if [ -z "$RUN_MIGRATIONS" ]; then RUN_MIGRATIONS="true"; fi
 
-          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' RUN_MIGRATIONS='$RUN_MIGRATIONS' GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' RUN_MIGRATIONS='$RUN_MIGRATIONS' GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
           set -euo pipefail
           cd "$BACKEND_ROOT"
 
