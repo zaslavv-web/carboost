@@ -65,10 +65,11 @@ const EmployeeToday = () => {
     queryKey: ["today_competencies", uid],
     enabled: !!uid,
     queryFn: async () => {
+      if (!uid) return [];
       const { data, error } = await laravelDb
         .from("competencies")
         .select("skill_value")
-        .eq("user_id", uid!)
+        .eq("user_id", uid)
         .limit(200);
       if (error) return [];
       return data ?? [];
@@ -78,10 +79,11 @@ const EmployeeToday = () => {
     queryKey: ["today_goals", uid],
     enabled: !!uid,
     queryFn: async () => {
+      if (!uid) return [];
       const { data, error } = await laravelDb
         .from("career_goals")
         .select("id,title,is_completed")
-        .eq("user_id", uid!)
+        .eq("user_id", uid)
         .limit(100);
       if (error) return [];
       return (data ?? []) as Array<{ id: string; title: string; is_completed: boolean }>;

@@ -27,11 +27,21 @@ class EmployeeReadController extends Controller
             ->orderByDesc('created_at')
             ->limit(100)
             ->get([
-                'id', 'company_id', 'project_id', 'assignee_id', 'type', 'title',
+                'id', 'company_id', 'project_id', 'sprint_id', 'author_id',
+                'assignee_id', 'parent_task_id', 'type', 'title',
                 'status', 'workflow_status_id', 'urgency', 'priority',
-                'story_points', 'estimate_minutes', 'due_at', 'start_at',
-                'completed_at', 'created_at', 'updated_at',
+                'story_points', 'estimate_minutes', 'labels', 'order_index',
+                'due_at', 'start_at', 'jira_key', 'completed_at',
+                'created_at', 'updated_at',
             ]);
+
+        $rows->transform(function (object $row): object {
+            $row->description = null;
+            if (is_string($row->labels)) {
+                $row->labels = json_decode($row->labels, true);
+            }
+            return $row;
+        });
 
         return $this->lightResponse(['data' => $rows]);
     }
