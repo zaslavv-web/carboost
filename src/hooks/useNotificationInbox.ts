@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { laravel } from "@/integrations/laravel/client";
 import type { TrackerTask } from "@/hooks/tracker";
+import { useEffectiveUserId } from "@/hooks/useUserProfile";
 
 export interface InboxNotification {
   id: string;
@@ -32,10 +33,11 @@ export interface EmployeeTodayData {
 
 export function useEmployeeTodayData() {
   const { user, authReady } = useAuth();
+  const effectiveUserId = useEffectiveUserId();
 
   return useQuery({
-    queryKey: ["employee", "today", user?.id],
-    enabled: authReady && !!user,
+    queryKey: ["employee", "today", effectiveUserId],
+    enabled: authReady && !!user && !!effectiveUserId,
     refetchInterval: 60_000,
     retry: 0,
     queryFn: async () => {
