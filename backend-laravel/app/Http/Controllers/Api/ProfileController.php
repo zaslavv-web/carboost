@@ -88,17 +88,33 @@ class ProfileController extends Controller
             }
 
             // Самовосстановление: профиля нет — создаём минимальный.
+            // Не чаще раза в 60 секунд на пользователя: repair перебирает
+            // схему (SHOW COLUMNS) и пишет строки, а при повторяющихся заходах
+            // это множит нагрузку на и без того ограниченный пул соединений.
             if (!$row) {
-                try {
-                    app(\App\Services\AuthUserService::class)->repairDomainRowsForLogin($user);
-                    $row = DB::table('profiles')->where('user_id', $domainUserId)->first();
-                } catch (\Throwable $e) {
-                    \Log::warning('profiles/me self-heal failed', [
+                $healKey = 'profile_selfheal:' . $domainUserId;
+                if (\Illuminate\Support\Facades\Cache::add($healKey, 1, 60)) {
+                    try {
+                        app(\App\Services\AuthUserService::class)->repairDomainRowsForLogin($user);
+                        if (method_exists($user, 'forgetDomainMemo')) {
+                            $user->forgetDomainMemo();
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::warning('profiles/me self-heal failed', [
+                            'user_id' => $domainUserId,
+                            'reason'  => $e->getMessage(),
+                        ]);
+                    }
+                }
+                $row = DB::table('profiles')->where('user_id', $domainUserId)->first();
+                if (!$row) {
+                    \Log::warning('profiles/me: профиль отсутствует после self-heal', [
                         'user_id' => $domainUserId,
-                        'reason'  => $e->getMessage(),
+                        'auth_id' => (string) $user->getAuthIdentifier(),
                     ]);
                 }
             }
+
 
             if (!$row) {
                 return response()->json(['message' => 'Профиль не найден', 'code' => 'profile_missing'], 404);

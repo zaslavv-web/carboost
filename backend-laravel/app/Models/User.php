@@ -77,16 +77,80 @@ class User extends Authenticatable
         );
     }
 
+    // ──────────────────────────────────────────────────────────────────────
+    // Мемоизация доменных прав.
+    //
+    // CompanyScope и политики вызывают hasRole()/companyId()/isVerified()
+    // десятки раз за один HTTP-запрос. Раньше каждый вызов делал отдельный
+    // SELECT (+ SHOW COLUMNS), что на шаред-хостинге с лимитом
+    // max_user_connections превращалось в таймауты у всех, кроме superadmin
+    // (у него scope выходит на первой проверке). Теперь роли и строка профиля
+    // читаются один раз за запрос, а метаданные колонок — один раз за процесс.
+    // ──────────────────────────────────────────────────────────────────────
+
+    /** @var array<string,bool> кэш «колонка числовая?» на время процесса */
+    private static array $columnNumericCache = [];
+
+    /** @var array<string>|null роли из user_roles, прочитанные один раз */
+    private ?array $memoDomainRoles = null;
+
+    /** @var object|false|null строка profiles: null = не читали, false = нет строки */
+    private object|false|null $memoProfileRow = null;
+
+    /** Сбрасывает мемоизацию (после self-heal, смены ролей и т.п.). */
+    public function forgetDomainMemo(): void
+    {
+        $this->memoDomainRoles = null;
+        $this->memoProfileRow  = null;
+    }
+
+    /** Роли из public.user_roles — один SELECT за запрос. */
+    public function domainRoles(): array
+    {
+        if ($this->memoDomainRoles !== null) {
+            return $this->memoDomainRoles;
+        }
+        if (!$this->canCompareColumnValue('user_roles', 'user_id', $this->domainUserId())) {
+            return $this->memoDomainRoles = [];
+        }
+        try {
+            $this->memoDomainRoles = DB::table('user_roles')
+                ->where('user_id', $this->domainUserId())
+                ->pluck('role')
+                ->map(fn ($role) => (string) $role)
+                ->all();
+        } catch (\Throwable) {
+            $this->memoDomainRoles = [];
+        }
+        return $this->memoDomainRoles;
+    }
+
+    /** Строка profiles текущего пользователя — один SELECT за запрос. */
+    private function profileRow(): ?object
+    {
+        if ($this->memoProfileRow !== null) {
+            return $this->memoProfileRow === false ? null : $this->memoProfileRow;
+        }
+        if (!$this->canCompareColumnValue('profiles', 'user_id', $this->domainUserId())) {
+            $this->memoProfileRow = false;
+            return null;
+        }
+        try {
+            $row = DB::table('profiles')->where('user_id', $this->domainUserId())->first();
+        } catch (\Throwable) {
+            $row = null;
+        }
+        $this->memoProfileRow = $row ?: false;
+        return $row ?: null;
+    }
+
     /**
      * Доменная роль из public.user_roles (источник истины).
      * Spatie HasRoles используется параллельно для middleware.
      */
     public function domainRole(): ?string
     {
-        if (!$this->canCompareColumnValue('user_roles', 'user_id', $this->domainUserId())) {
-            return null;
-        }
-        return DB::table('user_roles')->where('user_id', $this->domainUserId())->value('role');
+        return $this->domainRoles()[0] ?? null;
     }
 
     /**
@@ -136,12 +200,7 @@ class User extends Authenticatable
             return [$role];
         })->unique()->values();
 
-        $domainRoles = DB::table('user_roles')
-            ->where('user_id', $this->domainUserId())
-            ->pluck('role')
-            ->map(fn ($role) => (string) $role);
-
-        if ($domainRoles->intersect($expanded)->isNotEmpty()) {
+        if (array_intersect($this->domainRoles(), $expanded->all())) {
             return true;
         }
 
@@ -151,35 +210,37 @@ class User extends Authenticatable
     /** Верифицирован ли пользователь суперадмином */
     public function isVerified(): bool
     {
-        if (!$this->canCompareColumnValue('profiles', 'user_id', $this->domainUserId())) {
-            return false;
-        }
-        return (bool) DB::table('profiles')->where('user_id', $this->domainUserId())->value('is_verified');
+        return (bool) ($this->profileRow()->is_verified ?? false);
     }
 
     public function companyId(): ?string
     {
-        if (!$this->canCompareColumnValue('profiles', 'user_id', $this->domainUserId())) {
-            return null;
-        }
-        $value = DB::table('profiles')->where('user_id', $this->domainUserId())->value('company_id');
-        return $value === null ? null : (string) $value;
+        $value = $this->profileRow()->company_id ?? null;
+        return ($value === null || $value === '') ? null : (string) $value;
     }
 
     private function canCompareColumnValue(string $table, string $column, mixed $value): bool
     {
         if ($value === null || $value === '') return false;
         if (DB::getDriverName() !== 'mysql') return true;
-        try {
-            $meta      = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE ?", [$column]);
-            $type      = strtolower((string) ($meta->Type ?? ''));
-            $isNumeric = str_contains($type, 'int') || str_contains($type, 'decimal')
-                || str_contains($type, 'float') || str_contains($type, 'double');
-            return !$isNumeric || is_numeric($value);
-        } catch (\Throwable) {
-            return true;
+
+        $cacheKey = $table . '.' . $column;
+        if (!array_key_exists($cacheKey, self::$columnNumericCache)) {
+            try {
+                $meta = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE ?", [$column]);
+                $type = strtolower((string) ($meta->Type ?? ''));
+                self::$columnNumericCache[$cacheKey] = str_contains($type, 'int')
+                    || str_contains($type, 'decimal')
+                    || str_contains($type, 'float')
+                    || str_contains($type, 'double');
+            } catch (\Throwable) {
+                return true;
+            }
         }
+
+        return !self::$columnNumericCache[$cacheKey] || is_numeric($value);
     }
+
 
     public function sendPasswordResetNotification($token): void
     {
