@@ -145,7 +145,7 @@ jobs:
           # CLI использует отдельный php.ini (на этом хостинге memory_limit=64M),
           # поэтому артизан-команды и сидеры падают там, где веб (256M) живёт.
           # Держим единый лимит для всех вызовов артизана.
-          ARTISAN="php -d memory_limit=256M artisan"
+          ARTISAN="php -d memory_limit=1024M artisan"
 
           $ARTISAN optimize:clear || true
           $ARTISAN config:clear || true
