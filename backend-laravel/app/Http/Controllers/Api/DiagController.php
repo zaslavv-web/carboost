@@ -81,7 +81,7 @@ class DiagController extends Controller
     {
         // Свежий файл маркеров на каждый прогон — иначе не отличить текущий
         // запуск от предыдущего упавшего.
-        @file_put_contents(storage_path(self::PROBE_LOG), '');
+        @file_put_contents(self::diagFile('probe.jsonl'), '');
 
         $user  = $request->user();
         $steps = [];
@@ -179,7 +179,7 @@ class DiagController extends Controller
     /** Маркеры последнего прогона db-probe — читаются даже если тот упал фаталом. */
     public function lastProbe(): JsonResponse
     {
-        $file = storage_path(self::PROBE_LOG);
+        $file = self::diagFile('probe.jsonl');
         if (!is_readable($file)) {
             return response()->json(['markers' => [], 'note' => 'probe ещё не запускался']);
         }
@@ -196,7 +196,7 @@ class DiagController extends Controller
     /** Последние фатальные ошибки целиком (сообщение, место, память, время). */
     public function lastFatal(Request $request): JsonResponse
     {
-        $file  = storage_path('logs/api-fatals.jsonl');
+        $file  = self::diagFile('api-fatals.jsonl');
         $limit = min(50, max(1, (int) $request->query('limit', 10)));
         if (!is_readable($file)) {
             return response()->json(['fatals' => [], 'note' => 'файл появится после первого фатала на обновлённом коде']);
