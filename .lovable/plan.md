@@ -1,55 +1,43 @@
-# 500 на /api/db/positions и /api/db/career_track_templates
+# 500 на /api/db/positions и /api/db/career_track_templates — диагностика и починка
 
-## Статус диагностики памяти
+## Что уже известно из кода
 
-Замер закрыт: `/api/diag/request-memory` показал `boot_mb=4`, все стадии по 4 МБ, `peak_mb=4` при лимите 256M; `/api/chats/unread-count` вернул `{"unread":0}`. Прежняя проблема с памятью на этом пути воспроизводиться перестала.
+`DbController@index` ловит только `QueryException` (и превращает её в 400 `invalid_query`). Любая другая ошибка — `\Throwable` (аксессор модели, каст, сериализация в JSON, исчерпание памяти, ошибка политики) — уходит наверх и отдаётся как 500 без деталей. Поэтому по самому ответу невозможно понять причину: нужны строки лога.
 
-Новые 500 — на другом эндпоинте (`/api/db/{table}`, `DbController@index`), это отдельная причина, и она пока не подтверждена. Гадать не буду: сначала достаём `error_id` из лога.
+Также вне `try` находятся `resolve()` и `authorizeAny('viewAny', ...)` — падение в политике тоже даст «голый» 500.
 
-## Шаг 1. Достать точную ошибку (без изменений кода)
+## Шаг 1. Достать причину из логов (вы уже запустили grep)
 
-На сервере:
+Пришлите вывод команды:
 
-```bash
+```
 cd /home/gro7659365/growth-peak.pro/docs/backend
 grep -n "api_fatal\|api_memory_high\|db/positions\|career_track_templates\|SQLSTATE" storage/logs/laravel.log | tail -40
 ```
 
-Все ответы 500 из `/api/*` теперь содержат JSON с `error_id` — если он есть в консоли браузера, пришлите его: по нему строка в логе ищется точно:
+Если строк нет — значит исключение не долетело до нашего обработчика; тогда:
 
-```bash
-grep -n "<error_id>" storage/logs/laravel.log
+```
+tail -n 120 storage/logs/laravel.log
+tail -n 60 /home/gro7659365/growth-peak.pro/logs/error_log 2>/dev/null
 ```
 
-Ожидаемые варианты и что каждый означает:
+Что ищем: `api_fatal` (нехватка памяти), `SQLSTATE[42S22]` (нет колонки — расхождение схемы после миграций), `Class ... not found`, `Call to a member function ... on null`.
 
-- `SQLSTATE[42S22] Unknown column ...` — расхождение схемы: миграция не применена на бою.
-- `SQLSTATE[42S02] Base table ... doesn't exist` — таблицы `career_track_templates` / `positions` нет.
-- `api_fatal` с памятью — снова выборка без лимита (проверим `DEFAULT_ROWS`).
-- `max_user_connections` / `db_busy` — исчерпание соединений хостинга.
+## Шаг 2. Правки в бэкенде (делаются в любом случае)
 
-## Шаг 2. Проверить схему на боевой базе
+1. `DbController@index`: обернуть весь метод (включая `resolve` и `authorizeAny`) в `try/catch (\Throwable)`, логировать `db_index_failed` с таблицей, query string, файлом/строкой и уникальным `error_id`, а клиенту возвращать `{ data: null, error, error_id, code: 'server_error' }` со статусом 500 — но с читаемым телом, чтобы ошибка сразу опознавалась.
+2. Такой же обработчик добавить в `store/update/destroy` — сейчас там прикрыт только `QueryException`.
+3. Логировать пиковую память запроса при неуспехе (`memory_get_peak_usage`), чтобы отличить «нет колонки» от «упёрлись в лимит».
 
-```bash
-php artisan migrate:status | tail -30
-php artisan tinker --execute="dump(\Schema::hasTable('career_track_templates'), \Schema::getColumnListing('positions'));"
-```
+## Шаг 3. Точечное исправление по найденной причине
 
-Это отвечает на вопрос «код новый, а база старая?» — самый частый источник 500 сразу после выкладки.
-
-## Шаг 3. Исправление по факту
-
-- Если не хватает миграций — `php artisan migrate --force` + `optimize:clear`.
-- Если расхождение колонок — правим выборку/модель под фактическую схему (`PositionController`, `CareerTrackTemplateController`, `DbController` — белый список колонок).
-- Если память/лимиты — добавляем явный `limit` и выборку только нужных колонок для этих двух таблиц (сейчас `DbController` режет по 500 строк уже после выборки, что не спасает при широких таблицах).
-- Если соединения — возвращаем 503 `db_busy` вместо 500, чтобы фронт не рисовал ошибку страницы.
+- Расхождение схемы (`Unknown column`) → миграция/поправка модели (`$fillable`, `$casts`, имя колонки).
+- Память → перевести выборку `positions`/`career_track_templates` на явный список колонок и `DB::table` без гидрации Eloquent, как уже сделано в `headCount` и `ChatController`.
+- Ошибка политики → поправить `PositionPolicy` / `CareerTrackTemplatePolicy` для роли, под которой падает.
 
 ## Шаг 4. Проверка
 
-Вход в «Карьерные треки», отсутствие 500 в Network, повторный `grep` по логу — новых `api_fatal` нет.
-
-## Технические детали
-
-- Точка входа: `backend-laravel/app/Http/Controllers/Api/DbController.php` (`index`, `DEFAULT_ROWS = 500`, строки 133–213).
-- Роут `positions` также существует как ресурс: `routes/api.php:313` (`PositionController`), фронт при этом ходит в generic `/api/db/positions`.
-- Глобальный обработчик фаталов с `error_id` — `backend-laravel/bootstrap/app.php`.
+- `curl -H "Authorization: Bearer $TOKEN" "https://growth-peak.pro/api/db/positions?select=id,title&order=title.asc"` → 200.
+- То же для `career_track_templates`.
+- В браузере под HRD открыть «Карьерные треки» — нет 500 и не срабатывает circuit breaker.
