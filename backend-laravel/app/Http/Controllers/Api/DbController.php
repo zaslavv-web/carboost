@@ -149,6 +149,14 @@ class DbController extends Controller
         $model = self::resolve($table);
         $this->authorizeAny('viewAny', $model);
 
+        // Быстрый путь для `select(..., { count: 'exact', head: true })`.
+        // Считаем строки сырым запросом: без Eloquent-гидрации, глобальных
+        // scope-ов и каскада служебных подзапросов (именно они на бою упирались
+        // в memory_limit и лимит соединений, отдавая 500 на счётчике уведомлений).
+        if ($request->boolean('head') && $request->query('count')) {
+            return $this->headCount($request, $model, $table);
+        }
+
         try {
             $query = $model::query();
             $this->applyFilters($query, $request);
@@ -165,6 +173,7 @@ class DbController extends Controller
             if ($head) {
                 return response()->json(['data' => [], 'count' => $count]);
             }
+
 
             // Предохранитель: без явного limit/range клиент раньше мог вытащить всю
             // таблицу — именно так PHP-воркер упирался в memory_limit (64 МБ) и падал,
