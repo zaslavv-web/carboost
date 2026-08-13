@@ -1,47 +1,55 @@
-# Замер прошёл: память в норме, проблема закрыта
+# 500 на /api/db/positions и /api/db/career_track_templates
 
-## Что показали ваши цифры
+## Статус диагностики памяти
 
-```text
-sapi=apache2handler  memory_limit=256M  app_debug=false
-boot_mb=4  route_entry=4  after_user=4  after_profile=4  after_unread_query=4
-peak_mb=4  tokens=19  loaded_files=544
-/api/chats/unread-count -> {"unread":0}
-```
+Замер закрыт: `/api/diag/request-memory` показал `boot_mb=4`, все стадии по 4 МБ, `peak_mb=4` при лимите 256M; `/api/chats/unread-count` вернул `{"unread":0}`. Прежняя проблема с памятью на этом пути воспроизводиться перестала.
 
-Весь путь запроса (вход в роут → резолв пользователя → чтение профиля → агрегат unread) укладывается в 4 МБ при лимите 256 МБ. Прироста нет ни на одной стадии. `unread-count` под реальным токеном отвечает 200. Прежние `api_fatal` с пиком 250–256 МБ больше не воспроизводятся.
+Новые 500 — на другом эндпоинте (`/api/db/{table}`, `DbController@index`), это отдельная причина, и она пока не подтверждена. Гадать не буду: сначала достаём `error_id` из лога.
 
-Причина прошлых падений — сочетание низкого лимита памяти веб-процесса и тяжёлых Eloquent-путей в чатах; и то, и другое уже устранено (raw SQL в `ChatController`, лимит 256M, вынос `unread-count` из тяжёлых middleware).
+## Шаг 1. Достать точную ошибку (без изменений кода)
 
-## План завершения
-
-### 1. Наблюдение (2–3 дня, без изменений кода)
-
-Периодически:
+На сервере:
 
 ```bash
 cd /home/gro7659365/growth-peak.pro/docs/backend
-grep -c "api_fatal" storage/logs/laravel.log
-grep -n "api_memory_high" storage/logs/laravel.log | tail -20
+grep -n "api_fatal\|api_memory_high\|db/positions\|career_track_templates\|SQLSTATE" storage/logs/laravel.log | tail -40
 ```
 
-Критерий закрытия: новых `api_fatal` нет, `api_memory_high` (порог 96 МБ) не появляется.
+Все ответы 500 из `/api/*` теперь содержат JSON с `error_id` — если он есть в консоли браузера, пришлите его: по нему строка в логе ищется точно:
 
-### 2. Уборка диагностики
+```bash
+grep -n "<error_id>" storage/logs/laravel.log
+```
 
-- Удалить роут `/api/diag/request-memory` из `backend-laravel/routes/api.php`.
-- Удалить команды `diag:memory` (`DiagnoseMemory.php`) и, при желании, оставить `user:diagnose` как read-only утилиту поддержки.
-- Оставить: `MemoryWatchdog` (порог 96 МБ), `sql_slow`-логирование, расширенный `/api/health` — это дешёвая постоянная страховка.
+Ожидаемые варианты и что каждый означает:
 
-### 3. Оставить как есть (защитные механизмы)
+- `SQLSTATE[42S22] Unknown column ...` — расхождение схемы: миграция не применена на бою.
+- `SQLSTATE[42S02] Base table ... doesn't exist` — таблицы `career_track_templates` / `positions` нет.
+- `api_fatal` с памятью — снова выборка без лимита (проверим `DEFAULT_ROWS`).
+- `max_user_connections` / `db_busy` — исчерпание соединений хостинга.
 
-- Circuit breaker во фронте не размыкается фоновыми запросами (бейджи, аналитика).
-- `unread-count` — лёгкая группа `auth:sanctum`, единый агрегат `COUNT` с `distinct()`.
-- `EnsureVerified` / `EnsureHasCompany` отдают 503 `db_busy` вместо голого 500 при сбое БД.
+## Шаг 2. Проверить схему на боевой базе
+
+```bash
+php artisan migrate:status | tail -30
+php artisan tinker --execute="dump(\Schema::hasTable('career_track_templates'), \Schema::getColumnListing('positions'));"
+```
+
+Это отвечает на вопрос «код новый, а база старая?» — самый частый источник 500 сразу после выкладки.
+
+## Шаг 3. Исправление по факту
+
+- Если не хватает миграций — `php artisan migrate --force` + `optimize:clear`.
+- Если расхождение колонок — правим выборку/модель под фактическую схему (`PositionController`, `CareerTrackTemplateController`, `DbController` — белый список колонок).
+- Если память/лимиты — добавляем явный `limit` и выборку только нужных колонок для этих двух таблиц (сейчас `DbController` режет по 500 строк уже после выборки, что не спасает при широких таблицах).
+- Если соединения — возвращаем 503 `db_busy` вместо 500, чтобы фронт не рисовал ошибку страницы.
+
+## Шаг 4. Проверка
+
+Вход в «Карьерные треки», отсутствие 500 в Network, повторный `grep` по логу — новых `api_fatal` нет.
 
 ## Технические детали
 
-- Диагностический роут: `backend-laravel/routes/api.php` (группа `auth:sanctum`, ~строка 231).
-- Команды: `backend-laravel/app/Console/Commands/DiagnoseMemory.php`, `DiagnoseUser.php`.
-- Порог предупреждения: `backend-laravel/app/Http/Middleware/MemoryWatchdog.php`.
-- После удаления роутов на сервере: `git pull` + `php artisan optimize:clear`.
+- Точка входа: `backend-laravel/app/Http/Controllers/Api/DbController.php` (`index`, `DEFAULT_ROWS = 500`, строки 133–213).
+- Роут `positions` также существует как ресурс: `routes/api.php:313` (`PositionController`), фронт при этом ходит в generic `/api/db/positions`.
+- Глобальный обработчик фаталов с `error_id` — `backend-laravel/bootstrap/app.php`.
