@@ -70,6 +70,8 @@ Route::get('/health', function () {
     // начинает собирать полные трейсы с объектами и рендерить Ignition.
     $checks['app_debug']    = (bool) config('app.debug');
     $checks['opcache']      = function_exists('opcache_get_status') && @opcache_get_status(false) ? 'on' : 'off';
+    $checks['version']      = trim((string) @file_get_contents(base_path('VERSION'))) ?: 'unknown';
+    $checks['db_read_path'] = 'raw-chunked-v2';
 
     $ok = $checks['db'] === 'ok' && ($checks['redis'] === 'ok' || $checks['redis'] === 'skipped');
     return response()->json(['status' => $ok ? 'ok' : 'degraded', 'checks' => $checks], $ok ? 200 : 503);

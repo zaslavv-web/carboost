@@ -346,10 +346,11 @@ class DbController extends Controller
 
         $limit = self::DEFAULT_ROWS;
         $probe = true; // берём +1 строку, чтобы понять что выборка усечена
+        $baseOffset = 0;
         if ($request->filled('range')) {
             [$from, $to] = array_map('intval', explode('-', (string) $request->query('range')));
             $limit = max(1, min(self::MAX_ROWS, $to - $from + 1));
-            $query->skip($from);
+            $baseOffset = max(0, $from);
             $probe = false;
         } elseif ($request->filled('limit')) {
             $limit = max(1, min(self::MAX_ROWS, (int) $request->query('limit')));
@@ -369,28 +370,47 @@ class DbController extends Controller
         // Важно: не вызываем get() даже с limit=501. Для таблиц с широкими
         // JSON-полями PDO + Collection материализуют всю выборку до того, как
         // сработает байтовый бюджет, и PHP успевает упасть по memory_limit.
-        // lazy() читает небольшими SQL-порциями; прекращение foreach прекращает
-        // и последующие запросы к БД.
+        // Читаем небольшими SQL-порциями; прекращение цикла прекращает и
+        // последующие запросы к БД. Не используем lazy(): Query Builder требует
+        // обязательный orderBy, а универсальный bridge поддерживает запросы без него.
         $wantedRows = $probe ? $limit + 1 : $limit;
-        $query->limit($wantedRows);
         $truncated = false;
         $bytes = 0;
         $data = [];
-        foreach ($query->lazy(self::RAW_CHUNK_ROWS) as $row) {
-            $cast = $this->castRawRow($row, $instance);
-            $rowBytes = strlen(json_encode($cast, JSON_UNESCAPED_UNICODE) ?: '');
-
-            if (count($data) >= $limit || ($data && $bytes + $rowBytes > self::RAW_RESPONSE_BYTES)) {
-                $truncated = true;
+        $fetched = 0;
+        while ($fetched < $wantedRows) {
+            $chunkSize = min(self::RAW_CHUNK_ROWS, $wantedRows - $fetched);
+            $chunk = (clone $query)
+                ->offset($baseOffset + $fetched)
+                ->limit($chunkSize)
+                ->get();
+            if ($chunk->isEmpty()) {
                 break;
             }
 
-            $data[] = $cast;
-            $bytes += $rowBytes;
-            // Одна строка сама может быть больше бюджета. Оставляем её для
-            // совместимости, но не читаем ни одной следующей строки.
-            if ($bytes >= self::RAW_RESPONSE_BYTES) {
-                $truncated = true;
+            foreach ($chunk as $row) {
+                $fetched++;
+                $cast = $this->castRawRow($row, $instance);
+                $rowBytes = strlen(json_encode($cast, JSON_UNESCAPED_UNICODE) ?: '');
+
+                if (count($data) >= $limit || ($data && $bytes + $rowBytes > self::RAW_RESPONSE_BYTES)) {
+                    $truncated = true;
+                    break 2;
+                }
+
+                $data[] = $cast;
+                $bytes += $rowBytes;
+                // Одна строка сама может быть больше бюджета. Оставляем её для
+                // совместимости, но не читаем ни одной следующей строки.
+                if ($bytes >= self::RAW_RESPONSE_BYTES) {
+                    $truncated = true;
+                    break 2;
+                }
+            }
+
+            $received = $chunk->count();
+            unset($chunk);
+            if ($received < $chunkSize) {
                 break;
             }
         }
