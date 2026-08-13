@@ -361,6 +361,12 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // (роли, company_id, Gate, raw SQL, EXPLAIN). Возвращает 200 даже
     // если один из шагов упал — ошибка шага пишется внутрь JSON.
     Route::get('/diag/db-probe', [\App\Http\Controllers\Api\DiagController::class, 'dbProbe']);
+    // Маркеры последнего прогона probe — читаются, даже если процесс умер фаталом.
+    Route::get('/diag/last-probe', [\App\Http\Controllers\Api\DiagController::class, 'lastProbe']);
+    // Полные карточки последних фаталов (сообщение, файл, пик памяти, время жизни запроса).
+    Route::get('/diag/last-fatal', [\App\Http\Controllers\Api\DiagController::class, 'lastFatal']);
+    // Лимиты PHP веб-SAPI и состояние пула соединений MySQL.
+    Route::get('/diag/limits', [\App\Http\Controllers\Api\DiagController::class, 'limits']);
 
 
 
