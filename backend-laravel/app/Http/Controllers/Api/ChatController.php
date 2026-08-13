@@ -192,7 +192,7 @@ class ChatController extends Controller
             ->selectRaw('m.conversation_id, COUNT(*) AS unread_count')
             ->pluck('unread_count', 'm.conversation_id');
 
-        $data = $conversations->map(function (object $c) use ($participants, $lastMessages, $unreadCounts, $userId, $profiles) {
+        $data = $conversations->map(function (object $c) use ($participants, $participantCounts, $participantsTruncated, $lastMessages, $unreadCounts, $userId, $profiles) {
             $convParticipants = $participants[$c->id] ?? collect();
             $lastMsg = $lastMessages[$c->id] ?? null;
 
@@ -219,6 +219,8 @@ class ChatController extends Controller
                     'avatar_url' => optional($profiles[$p->user_id] ?? null)->avatar_url,
                     'is_support' => (bool) optional($profiles[$p->user_id] ?? null)->is_support,
                 ])->values(),
+                'participants_count' => (int) ($participantCounts[$c->id] ?? $convParticipants->count()),
+                'participants_truncated' => $participantsTruncated && $c->type !== 'direct',
                 'peer'            => $peerProfile ? [
                     'user_id'    => $peerProfile->user_id,
                     'full_name'  => $peerProfile->full_name,
@@ -229,15 +231,38 @@ class ChatController extends Controller
                 'last_message'    => $lastMsg ? [
                     'id'         => $lastMsg->id,
                     'sender_id'  => $lastMsg->sender_id,
-                    'body'       => mb_substr((string) $lastMsg->body, 0, 200),
+                    'body'       => (string) $lastMsg->body,
                     'created_at' => $this->isoDate($lastMsg->created_at),
                 ] : null,
                 'unread_count'    => (int) ($unreadCounts[$c->id] ?? 0),
             ];
         })->values();
 
+        $this->memoryCheckpoint('response', $data->count());
+
         return response()->json(['data' => $data]);
     }
+
+    /**
+     * Контрольная точка памяти: пишем предупреждение до того, как процесс
+     * упрётся в memory_limit и умрёт вне обработчика исключений Laravel.
+     */
+    private function memoryCheckpoint(string $step, int $rows = 0): void
+    {
+        $usedMb = memory_get_usage(true) / 1048576;
+        if ($usedMb < self::MEMORY_WARN_MB) {
+            return;
+        }
+
+        \Log::warning('chat.index memory', [
+            'step'    => $step,
+            'rows'    => $rows,
+            'used_mb' => round($usedMb, 1),
+            'peak_mb' => round(memory_get_peak_usage(true) / 1048576, 1),
+            'user_id' => auth()->id(),
+        ]);
+    }
+
 
     private function isoDate(mixed $value): ?string
     {
