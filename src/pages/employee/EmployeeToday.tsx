@@ -93,7 +93,8 @@ const EmployeeToday = () => {
       const { data, error } = await laravelDb
         .from("career_goals")
         .select("id,title,is_completed")
-        .eq("user_id", uid!);
+        .eq("user_id", uid!)
+        .limit(100);
       if (error) return [];
       return (data ?? []) as Array<{ id: string; title: string; is_completed: boolean }>;
     },
