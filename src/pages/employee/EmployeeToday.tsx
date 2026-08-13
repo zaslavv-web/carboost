@@ -1,11 +1,8 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { laravelDb } from "@/integrations/laravel/db";
-import { laravel } from "@/integrations/laravel/client";
 import { useUserProfile, useEffectiveUserId } from "@/hooks/useUserProfile";
 import { useUpdateTask, type TrackerTask } from "@/hooks/tracker";
-import { useNotificationInbox } from "@/hooks/useNotificationInbox";
+import { useEmployeeTodayData } from "@/hooks/useNotificationInbox";
 import { UrgencyBadge, TaskStatusBadge } from "@/components/tracker/Badges";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,20 +33,19 @@ const EmployeeToday = () => {
   const { data: profile } = useUserProfile();
 
 
-  const { data: tasks = [], isLoading: tasksLoading } = useQuery({
-    queryKey: ["employee_today_tasks", uid],
-    enabled: !!uid,
-    retry: 0,
-    queryFn: async () => {
-      const { data, error } = await laravel.get<{ data: TrackerTask[] }>("/employee/tasks");
-      if (error) throw new Error(error.message);
-      return data?.data ?? [];
-    },
-  });
-
-  // Inbox: непрочитанные уведомления (упоминания, назначения, запросы от HR/руководителя)
-  const { data: inboxData, isLoading: inboxLoading } = useNotificationInbox();
-  const inbox = inboxData?.notifications ?? [];
+  const { data: todayData, isLoading: todayLoading } = useEmployeeTodayData();
+  const tasks = todayData?.tasks ?? [];
+  const inbox = (todayData?.notifications ?? []).map((notification) => ({
+    id: notification.id,
+    title: notification.title,
+    body: notification.description,
+    url: null as string | null,
+    created_at: notification.created_at,
+    is_read: Boolean(notification.is_read),
+    type: notification.notification_type,
+  }));
+  const tasksLoading = todayLoading;
+  const inboxLoading = todayLoading;
 
   const { activeTasks, todayTasks, overdueTasks } = useMemo(() => {
     const active = tasks.filter((t) => !isClosed(t.status));
@@ -61,44 +57,18 @@ const EmployeeToday = () => {
   }, [tasks]);
 
   // Прогресс роста — компетенции / цели
-  const { data: comps = [] } = useQuery({
-    queryKey: ["today_competencies", uid],
-    enabled: !!uid,
-    queryFn: async () => {
-      if (!uid) return [];
-      const { data, error } = await laravelDb
-        .from("competencies")
-        .select("skill_value")
-        .eq("user_id", uid)
-        .limit(200);
-      if (error) return [];
-      return data ?? [];
-    },
-  });
-  const { data: goals = [] } = useQuery({
-    queryKey: ["today_goals", uid],
-    enabled: !!uid,
-    queryFn: async () => {
-      if (!uid) return [];
-      const { data, error } = await laravelDb
-        .from("career_goals")
-        .select("id,title,is_completed")
-        .eq("user_id", uid)
-        .limit(100);
-      if (error) return [];
-      return (data ?? []) as Array<{ id: string; title: string; is_completed: boolean }>;
-    },
-  });
+  const comps = todayData?.competencies ?? [];
+  const goals = todayData?.goals ?? [];
 
   const avgSkill = comps.length
     ? Math.round(
-        (comps.reduce((s: number, c: any) => s + Number(c.skill_value || 0), 0) / comps.length) * 10
+        (comps.reduce((sum, competency) => sum + Number(competency.skill_value || 0), 0) / comps.length) * 10
       ) / 10
     : 0;
-  const goalsDone = goals.filter((g) => g.is_completed).length;
+  const goalsDone = goals.filter((goal) => goal.status === "completed" || goal.progress >= 100).length;
   const goalsTotal = goals.length;
   const readiness = Number(profile?.role_readiness ?? 0);
-  const nextGoal = goals.find((g) => !g.is_completed);
+  const nextGoal = goals.find((goal) => goal.status !== "completed" && goal.progress < 100);
 
   const firstName = (profile?.full_name ?? "").split(" ")[0] || "коллега";
   const summary =

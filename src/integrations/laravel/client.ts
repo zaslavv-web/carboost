@@ -126,6 +126,7 @@ let serverErrorStreak = 0;
 const BACKGROUND_PATH_PATTERNS = [
   /^\/chats\/unread-count/,
   /^\/db\/notifications\?.*head=1/,
+  /^\/employee\/today/,
   /^\/employee\/notifications/,
   /^\/analytics\/ingest/,
 ];

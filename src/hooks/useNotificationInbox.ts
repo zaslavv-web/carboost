@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { laravel } from "@/integrations/laravel/client";
+import type { TrackerTask } from "@/hooks/tracker";
+import { useEffectiveUserId } from "@/hooks/useUserProfile";
 
 export interface InboxNotification {
   id: string;
@@ -12,43 +14,57 @@ export interface InboxNotification {
   type: string | null;
 }
 
-interface InboxResponse {
-  data: Array<{
+interface NotificationRow {
     id: string;
     title: string | null;
     description: string | null;
     notification_type: string | null;
     created_at: string;
     is_read: boolean | number;
-  }>;
-  unread_count: number;
 }
 
-export function useNotificationInbox() {
+export interface EmployeeTodayData {
+  tasks: TrackerTask[];
+  notifications: NotificationRow[];
+  unread_count: number;
+  competencies: Array<{ skill_value: number }>;
+  goals: Array<{ id: string; title: string; status: string; progress: number }>;
+}
+
+export function useEmployeeTodayData() {
   const { user, authReady } = useAuth();
+  const effectiveUserId = useEffectiveUserId();
 
   return useQuery({
-    queryKey: ["notifications", "inbox", user?.id],
-    enabled: authReady && !!user,
+    queryKey: ["employee", "today", effectiveUserId],
+    enabled: authReady && !!user && !!effectiveUserId,
     refetchInterval: 60_000,
     retry: 0,
     queryFn: async () => {
-      const { data, error } = await laravel.get<InboxResponse>("/employee/notifications");
+      const { data, error } = await laravel.get<EmployeeTodayData>("/employee/today");
       if (error) throw new Error(error.message);
-
-      const rows = data?.data ?? [];
-      return {
-        unreadCount: data?.unread_count ?? rows.length,
-        notifications: rows.map((notification): InboxNotification => ({
-          id: notification.id,
-          title: notification.title,
-          body: notification.description,
-          url: null,
-          created_at: notification.created_at,
-          is_read: Boolean(notification.is_read),
-          type: notification.notification_type,
-        })),
-      };
+      return data;
     },
   });
+}
+
+export function useNotificationInbox() {
+  const query = useEmployeeTodayData();
+  const rows = query.data?.notifications ?? [];
+
+  return {
+    ...query,
+    data: query.data ? {
+      unreadCount: query.data.unread_count ?? rows.length,
+      notifications: rows.map((notification): InboxNotification => ({
+        id: notification.id,
+        title: notification.title,
+        body: notification.description,
+        url: null,
+        created_at: notification.created_at,
+        is_read: Boolean(notification.is_read),
+        type: notification.notification_type,
+      })),
+    } : undefined,
+  };
 }

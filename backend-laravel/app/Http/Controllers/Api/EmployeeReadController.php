@@ -15,6 +15,34 @@ use Illuminate\Support\Facades\DB;
  */
 class EmployeeReadController extends Controller
 {
+    public function today(Request $request): JsonResponse
+    {
+        $userId = $this->verifiedUserId($request);
+        if ($userId instanceof JsonResponse) {
+            return $userId;
+        }
+
+        $tasks = $this->taskRows($userId);
+        $notifications = $this->notificationRows($userId);
+        $competencies = DB::table('competencies')
+            ->where('user_id', $userId)
+            ->limit(200)
+            ->get(['skill_value']);
+        $goals = DB::table('career_goals')
+            ->where('user_id', $userId)
+            ->orderBy('created_at')
+            ->limit(100)
+            ->get(['id', 'title', 'status', 'progress']);
+
+        return $this->lightResponse([
+            'tasks' => $tasks,
+            'notifications' => $notifications,
+            'unread_count' => $notifications->count(),
+            'competencies' => $competencies,
+            'goals' => $goals,
+        ]);
+    }
+
     public function tasks(Request $request): JsonResponse
     {
         $userId = $this->verifiedUserId($request);
@@ -22,6 +50,11 @@ class EmployeeReadController extends Controller
             return $userId;
         }
 
+        return $this->lightResponse(['data' => $this->taskRows($userId)]);
+    }
+
+    private function taskRows(string|int $userId)
+    {
         $rows = DB::table('tracker_tasks')
             ->where('assignee_id', $userId)
             ->orderByDesc('created_at')
@@ -43,7 +76,7 @@ class EmployeeReadController extends Controller
             return $row;
         });
 
-        return $this->lightResponse(['data' => $rows]);
+        return $rows;
     }
 
     public function notifications(Request $request): JsonResponse
@@ -53,7 +86,17 @@ class EmployeeReadController extends Controller
             return $userId;
         }
 
-        $rows = DB::table('notifications')
+        $rows = $this->notificationRows($userId);
+
+        return $this->lightResponse([
+            'data' => $rows,
+            'unread_count' => $rows->count(),
+        ]);
+    }
+
+    private function notificationRows(string|int $userId)
+    {
+        return DB::table('notifications')
             ->where('user_id', $userId)
             ->where('is_read', false)
             ->orderByDesc('created_at')
@@ -62,11 +105,6 @@ class EmployeeReadController extends Controller
                 'id', 'title', 'description', 'notification_type',
                 'created_at', 'is_read',
             ]);
-
-        return $this->lightResponse([
-            'data' => $rows,
-            'unread_count' => $rows->count(),
-        ]);
     }
 
     /** @return string|int|JsonResponse */
@@ -100,7 +138,7 @@ class EmployeeReadController extends Controller
     private function lightResponse(array $payload): JsonResponse
     {
         return response()->json($payload)
-            ->header('X-Db-Read-Path', 'owner-light-v1')
+            ->header('X-Db-Read-Path', 'owner-light-v2')
             ->header('X-PHP-Peak-MB', (string) round(memory_get_peak_usage(false) / 1048576, 1))
             ->header('X-Zend-Peak-MB', (string) round(memory_get_peak_usage(true) / 1048576, 1));
     }

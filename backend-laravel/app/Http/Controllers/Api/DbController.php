@@ -39,6 +39,15 @@ class DbController extends Controller
 
     /** Колонки горячих таблиц: исключают Schema::getColumnListing() из GET. */
     protected const HOT_TABLE_COLUMNS = [
+        'competencies' => [
+            'id', 'user_id', 'skill_name', 'skill_value', 'company_id',
+            'created_at', 'updated_at',
+        ],
+        'career_goals' => [
+            'id', 'user_id', 'title', 'description', 'status', 'progress',
+            'deadline', 'company_id', 'assignment_id', 'step_order',
+            'auto_generated', 'created_at', 'updated_at',
+        ],
         'notifications' => [
             'id', 'user_id', 'title', 'description', 'notification_type',
             'is_read', 'company_id', 'created_at', 'updated_at',
