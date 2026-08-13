@@ -12,6 +12,7 @@ use App\Models\Profile;
 use App\Services\ChatPermissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class ChatController extends Controller
@@ -63,27 +64,36 @@ class ChatController extends Controller
 
     private function buildIndex(): JsonResponse
     {
-        $userId = auth()->id();
-        $companyId = $this->userCompanyId();
-        $isSuper = $this->isSuperadmin();
+        $userId = (string) auth()->id();
 
+        // Важно: список чатов не использует Eloquent-модели. ChatConversation
+        // несёт CompanyScope, который повторно вызывает hasRole()/companyId()
+        // во время построения ответа. На shared-hosting это создавало каскад
+        // служебных запросов и endpoint мог умереть по memory_limit до catch.
+        // Здесь все данные читаются ограниченными raw-запросами без hydration,
+        // observers и глобальных scopes.
+        $isSuper = DB::table('user_roles')
+            ->where('user_id', $userId)
+            ->where('role', 'superadmin')
+            ->exists();
+        $companyId = DB::table('profiles')->where('user_id', $userId)->value('company_id');
 
-
-        // Ограничиваем рабочий набор до последних диалогов. Раньше endpoint
-        // загружал в PHP все сообщения всех диалогов, а затем выполнял отдельный
-        // COUNT для каждого диалога. На боевой базе это исчерпывало 64 МБ и
-        // лимит MySQL-соединений уже при обычной авторизации.
-        $convoIds = ChatParticipant::where('user_id', $userId)
-            ->select('conversation_id');
-
-        $conversations = ChatConversation::query()
-            ->whereIn('id', $convoIds)
-            // Суперадмин видит все свои диалоги независимо от company_id (он пишет в любую компанию).
-            ->when(!$isSuper && $companyId, fn ($q) => $q->where('company_id', $companyId))
+        $conversations = DB::table('chat_conversations as c')
+            ->join('chat_participants as own', function ($join) use ($userId) {
+                $join->on('own.conversation_id', '=', 'c.id')
+                    ->where('own.user_id', '=', $userId);
+            })
+            ->when(!$isSuper, function ($query) use ($companyId) {
+                if ($companyId === null || $companyId === '') {
+                    $query->whereRaw('1 = 0');
+                    return;
+                }
+                $query->where('c.company_id', $companyId);
+            })
             ->orderByDesc('last_message_at')
-            ->orderByDesc('updated_at')
+            ->orderByDesc('c.updated_at')
             ->limit(50)
-            ->get(['id', 'type', 'title', 'company_id', 'last_message_at', 'updated_at']);
+            ->get(['c.id', 'c.type', 'c.title', 'c.company_id', 'c.last_message_at', 'c.updated_at']);
 
         if ($conversations->isEmpty()) {
             return response()->json(['data' => []]);
@@ -91,7 +101,8 @@ class ChatController extends Controller
 
         $conversationIds = $conversations->pluck('id')->all();
 
-        $participants = ChatParticipant::whereIn('conversation_id', $conversationIds)
+        $participants = DB::table('chat_participants')
+            ->whereIn('conversation_id', $conversationIds)
             ->get(['conversation_id', 'user_id', 'role'])
             ->groupBy('conversation_id');
 
@@ -99,7 +110,7 @@ class ChatController extends Controller
         // оказался несовместим с версией MySQL на боевом shared-hosting и ронял
         // весь endpoint. Окно ограничивает память и сохраняет один пакетный
         // запрос вместо N+1; тело сообщения обрезаем — в списке нужен превью.
-        $lastMessages = ChatMessage::query()
+        $lastMessages = DB::table('chat_messages')
             ->whereIn('conversation_id', $conversationIds)
             ->whereNull('deleted_at')
             ->orderByDesc('created_at')
@@ -110,9 +121,9 @@ class ChatController extends Controller
             ->keyBy('conversation_id');
 
 
-        $peerUserIds = $participants->flatten()->pluck('user_id')->unique()->all();
-        $profiles = Profile::whereIn('user_id', $peerUserIds)
-            ->get(['user_id', 'full_name', 'avatar_url', 'position_id', 'company_id', 'is_support'])
+        $peerUserIds = $participants->collapse()->pluck('user_id')->filter()->unique()->all();
+        $profiles = DB::table('profiles')->whereIn('user_id', $peerUserIds)
+            ->get(['user_id', 'full_name', 'avatar_url', 'is_support'])
             ->keyBy('user_id');
 
         // Все счётчики непрочитанного — одним GROUP BY запросом.
@@ -132,7 +143,7 @@ class ChatController extends Controller
             ->selectRaw('m.conversation_id, COUNT(*) AS unread_count')
             ->pluck('unread_count', 'm.conversation_id');
 
-        $data = $conversations->map(function (ChatConversation $c) use ($participants, $lastMessages, $unreadCounts, $userId, $profiles) {
+        $data = $conversations->map(function (object $c) use ($participants, $lastMessages, $unreadCounts, $userId, $profiles) {
             $convParticipants = $participants[$c->id] ?? collect();
             $lastMsg = $lastMessages[$c->id] ?? null;
 
@@ -150,8 +161,8 @@ class ChatController extends Controller
                 'id'              => $c->id,
                 'type'            => $c->type,
                 'title'           => $c->title,
-                'last_message_at' => optional($c->last_message_at)->toIso8601String(),
-                'updated_at'      => optional($c->updated_at)->toIso8601String(),
+                'last_message_at' => $this->isoDate($c->last_message_at),
+                'updated_at'      => $this->isoDate($c->updated_at),
                 'participants'    => $convParticipants->map(fn ($p) => [
                     'user_id'    => $p->user_id,
                     'role'       => $p->role,
@@ -170,13 +181,24 @@ class ChatController extends Controller
                     'id'         => $lastMsg->id,
                     'sender_id'  => $lastMsg->sender_id,
                     'body'       => mb_substr((string) $lastMsg->body, 0, 200),
-                    'created_at' => optional($lastMsg->created_at)->toIso8601String(),
+                    'created_at' => $this->isoDate($lastMsg->created_at),
                 ] : null,
                 'unread_count'    => (int) ($unreadCounts[$c->id] ?? 0),
             ];
         })->values();
 
         return response()->json(['data' => $data]);
+    }
+
+    private function isoDate(mixed $value): ?string
+    {
+        if ($value === null || $value === '') return null;
+
+        try {
+            return Carbon::parse($value)->toIso8601String();
+        } catch (\Throwable) {
+            return (string) $value;
+        }
     }
 
     public function unreadCount(): JsonResponse
