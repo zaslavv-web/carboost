@@ -9,6 +9,14 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
+// Точка отсчёта памяти: сколько занято до создания приложения. MemoryWatchdog
+// сравнивает её с расходом на входе в API-группу, чтобы отличить «тяжёлый
+// эндпоинт» от «тяжёлого старта приложения».
+if (!defined('APP_BOOT_MEM')) {
+    define('APP_BOOT_MEM', memory_get_usage(true));
+}
+
+
 // Runtime-лимиты. На shared-хостинге .user.ini / .htaccess могут не применяться
 // (зависит от SAPI), поэтому поднимаем память прямо из кода — это работает всегда.
 if (PHP_SAPI !== 'cli') {

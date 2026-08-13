@@ -206,6 +206,13 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // Профиль текущего пользователя — без has.company (нужен на CompleteRegistration)
     Route::get('/profiles/me', [ProfileController::class, 'me']);
 
+    // Счётчик непрочитанных сообщений — фоновый бейдж на каждой странице.
+    // Держим его вне verified/has.company: он не отдаёт данных компании,
+    // а гейт добавлял два чтения профиля (+SHOW COLUMNS) на каждый вызов
+    // и был единственным местом, где запрос падал в 500 до контроллера.
+    Route::get('/chats/unread-count', [\App\Http\Controllers\Api\ChatController::class, 'unreadCount']);
+
+
     // Брендинг компании: чтение/запись доступны без has.company-гейта,
     // т.к. данные нужны на любых страницах после логина.
     Route::get   ('/companies/{companyId}/branding', [\App\Http\Controllers\Api\CompanyBrandingController::class, 'show']);
@@ -238,7 +245,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         // ---- Internal chat (Phase 14) ----
         Route::get   ('/chats',                                  [\App\Http\Controllers\Api\ChatController::class, 'index']);
         Route::post  ('/chats',                                  [\App\Http\Controllers\Api\ChatController::class, 'store']);
-        Route::get   ('/chats/unread-count',                     [\App\Http\Controllers\Api\ChatController::class, 'unreadCount']);
+        // /chats/unread-count объявлен выше, вне verified/has.company.
         Route::get   ('/chats/contacts',                         [\App\Http\Controllers\Api\ChatController::class, 'contacts']);
         Route::get   ('/chats/{id}/messages',                    [\App\Http\Controllers\Api\ChatController::class, 'messages']);
         Route::post  ('/chats/{id}/messages',                    [\App\Http\Controllers\Api\ChatController::class, 'sendMessage']);

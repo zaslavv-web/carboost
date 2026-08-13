@@ -111,6 +111,27 @@ function releaseSlot() {
 
 const CIRCUIT_COOLDOWN_MS = 60_000;
 let circuitOpenUntil = 0;
+/**
+ * Единичный 500 на одном эндпоинте не означает, что весь бэкенд лежит.
+ * Раньше любой 5xx открывал глобальный breaker на 60 секунд, и ошибка
+ * фонового бейджа непрочитанного ломала совершенно другую страницу.
+ * Теперь breaker по «просто 500» открывается только после двух подряд.
+ */
+let serverErrorStreak = 0;
+
+/**
+ * Фоновые запросы (бейджи, счётчики) никогда не открывают breaker: они
+ * не видны пользователю и не должны блокировать интерфейс.
+ */
+const BACKGROUND_PATH_PATTERNS = [
+  /^\/chats\/unread-count/,
+  /^\/db\/notifications\?.*head=1/,
+  /^\/analytics\/ingest/,
+];
+
+function isBackgroundPath(path: string): boolean {
+  return BACKGROUND_PATH_PATTERNS.some((re) => re.test(path));
+}
 
 export function isBackendCircuitOpen(): boolean {
   return Date.now() < circuitOpenUntil;
@@ -122,6 +143,7 @@ function openBackendCircuit() {
     new CustomEvent("laravel:backend-overloaded", { detail: { until: circuitOpenUntil } }),
   );
 }
+
 
 async function rawRequest<T>(
   path: string,
@@ -286,15 +308,27 @@ async function request<T>(
   }
 
   const status = result.error?.status;
-  const overloaded =
+  const background = isBackgroundPath(path);
+  // Достоверные признаки «бэкенд не тянет»: явный db_busy, таймаут, обрыв сети.
+  const hardOverload =
     result.error?.code === "db_busy" ||
     result.error?.code === "backend_timeout" ||
-    result.error?.code === "backend_network" ||
-    (typeof status === "number" && status >= 500);
+    result.error?.code === "backend_network";
+  const serverError = typeof status === "number" && status >= 500;
+
+  if (!result.error) serverErrorStreak = 0;
+  else if (serverError && !background) serverErrorStreak++;
+
+  // «Просто 500» на одном эндпоинте — локальная поломка: возвращаем ошибку
+  // как есть и не глушим остальные страницы. Breaker включаем только при
+  // явной перегрузке либо на втором 500 подряд.
+  const overloaded = !background && (hardOverload || (serverError && serverErrorStreak >= 2));
 
   if (!overloaded) return result;
 
+  serverErrorStreak = 0;
   openBackendCircuit();
+
 
   return {
     data: null,
