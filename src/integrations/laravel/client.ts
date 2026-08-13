@@ -109,6 +109,20 @@ function releaseSlot() {
 
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
 
+const CIRCUIT_COOLDOWN_MS = 12_000;
+let circuitOpenUntil = 0;
+
+export function isBackendCircuitOpen(): boolean {
+  return Date.now() < circuitOpenUntil;
+}
+
+function openBackendCircuit() {
+  circuitOpenUntil = Math.max(circuitOpenUntil, Date.now() + CIRCUIT_COOLDOWN_MS);
+  window.dispatchEvent(
+    new CustomEvent("laravel:backend-overloaded", { detail: { until: circuitOpenUntil } }),
+  );
+}
+
 async function rawRequest<T>(
   path: string,
   init: RequestInit = {},
@@ -208,7 +222,7 @@ async function rawRequest<T>(
       data: null,
       error: {
         message: isAbort
-          ? "Backend не ответил вовремя. Сессия будет сброшена, чтобы не показывать чёрный экран."
+          ? "Backend не ответил вовремя. Сессия сохранена — повторите запрос через несколько секунд."
           : isClosedConnection
           ? "Backend разорвал соединение. Проверьте, что Laravel/PHP-FPM запущен, миграции применены, а nginx корректно проксирует /api."
           : rawMessage,
@@ -232,6 +246,20 @@ async function request<T>(
   const idempotent = method === "GET" || method === "HEAD";
   const maxAttempts = idempotent ? 3 : 2;
 
+  // Пока база восстанавливается, фоновые GET/HEAD не должны создавать новые
+  // PHP-процессы и попытки подключения. Записывающие действия пользователя
+  // пропускаем, чтобы интерфейс не блокировал явную команду без обращения к API.
+  if (idempotent && isBackendCircuitOpen()) {
+    return {
+      data: null,
+      error: {
+        message: "Сервис временно перегружен. Повторите через несколько секунд.",
+        status: 503,
+        code: "db_busy",
+      },
+    };
+  }
+
   for (let attempt = 1; ; attempt++) {
     await acquireSlot();
     let result: LaravelInvokeResult<T>;
@@ -246,6 +274,8 @@ async function request<T>(
       result.error?.code === "db_busy" ||
       status === 503 ||
       (idempotent && status === 500);
+
+    if (overloaded) openBackendCircuit();
 
     if (!overloaded || attempt >= maxAttempts) {
       if (overloaded) {

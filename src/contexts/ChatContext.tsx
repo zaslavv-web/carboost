@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { chatApi, ChatConversation } from "@/integrations/laravel/chat";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +35,13 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [pageVisible, setPageVisible] = useState(() => document.visibilityState === "visible");
+
+  useEffect(() => {
+    const onVisibilityChange = () => setPageVisible(document.visibilityState === "visible");
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["chats", "list"],
@@ -44,8 +51,8 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       return res.data?.data ?? [];
     },
     enabled,
-    refetchInterval: enabled ? 7000 : false,
-    refetchOnWindowFocus: true,
+    refetchInterval: enabled && pageVisible ? 30_000 : false,
+    refetchOnWindowFocus: false,
   });
 
   const conversations = data ?? [];
