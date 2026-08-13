@@ -212,6 +212,15 @@ class DbController extends Controller
             ]);
 
         } catch (\Illuminate\Database\QueryException $e) {
+            // Ошибка подключения/исчерпания лимита — не является ошибкой параметров
+            // запроса. Её обязан обработать внешний RetryOnDbBusy middleware и
+            // вернуть 503/db_busy. Если превратить её здесь в 400, браузерный
+            // circuit breaker не откроется и все остальные запросы экрана
+            // продолжат создавать PHP workers и новые попытки подключения.
+            if ($this->isDatabaseBusy($e)) {
+                throw $e;
+            }
+
             // Постгрес может бросить, например, на невалидном UUID в eq.<uuid_col>=NaN.
             // Возвращаем структурированный 400 вместо общего 500 — фронт у нас в таких
             // случаях ожидает graceful fallback (`if (error) return null;`).
@@ -226,6 +235,14 @@ class DbController extends Controller
                 'code'  => 'invalid_query',
             ], 400);
         }
+    }
+
+    private function isDatabaseBusy(\Illuminate\Database\QueryException $e): bool
+    {
+        return (bool) preg_match(
+            '/max_user_connections|max_connections_per_hour|Too many connections|too many clients|SQLSTATE\[0800[46]\]|server has gone away|Connection refused/i',
+            $e->getMessage(),
+        );
     }
 
 

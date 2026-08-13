@@ -89,7 +89,9 @@ async function revalidateToken(token: string): Promise<boolean> {
  * Держим не больше MAX_CONCURRENT запросов «в полёте» — остальные ждут
  * в очереди миллисекунды, зато ни один не теряется.
  */
-const MAX_CONCURRENT = 4;
+// Shared hosting has a very low per-user MySQL connection ceiling. One browser
+// must never occupy several DB connections at once during dashboard bootstrap.
+const MAX_CONCURRENT = 1;
 let inFlight = 0;
 const waiters: Array<() => void> = [];
 
@@ -107,7 +109,7 @@ function releaseSlot() {
   else inFlight--;
 }
 
-const CIRCUIT_COOLDOWN_MS = 12_000;
+const CIRCUIT_COOLDOWN_MS = 60_000;
 let circuitOpenUntil = 0;
 
 export function isBackendCircuitOpen(): boolean {
@@ -270,7 +272,7 @@ async function request<T>(
     result.error?.code === "db_busy" ||
     result.error?.code === "backend_timeout" ||
     result.error?.code === "backend_network" ||
-    status === 503;
+    (typeof status === "number" && status >= 500);
 
   if (!overloaded) return result;
 
