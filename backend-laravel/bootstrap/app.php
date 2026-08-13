@@ -76,6 +76,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 $e->getMessage(),
             );
             if ($busy && ($request->is('api/*') || $request->expectsJson())) {
+                \Illuminate\Support\Facades\DB::disconnect();
                 return response()->json([
                     'message'    => 'База данных временно перегружена. Повторите через несколько секунд.',
                     'error_code' => 'db_busy',
