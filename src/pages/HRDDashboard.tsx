@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravel } from "@/integrations/laravel/client";
 import { laravelRpc } from "@/integrations/laravel/rpc";
+import { fetchHrdDirectory, fetchHrdPositions } from "@/lib/hrdDirectory";
 import { useAuth } from "@/contexts/AuthContext";
 import { Users, TrendingUp, Shield, BarChart3, Search, ChevronDown, Loader2, GitCompareArrows, X, Briefcase, Mail, Plus, Trash2, Check, Route } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
@@ -65,12 +66,9 @@ const useEmployeesWithRoles = (companyId: string | null | undefined) =>
     queryKey: ["hrd_employees", companyId],
     queryFn: async () => {
       if (!companyId) return [] as EmployeeWithRole[];
-      const response = await laravel.get<{ data: any[] }>(
-        "/profiles?per_page=200",
-      );
-      if (response.error) throw response.error;
+      const profiles = await fetchHrdDirectory();
 
-      return (response.data?.data || []).map((profile: any) => {
+      return profiles.map((profile: any) => {
         let role: AppRole = "employee";
         const priority: Record<string, number> = { hrd: 3, manager: 2, employee: 1 };
         for (const candidate of profile.roles || []) {
@@ -89,13 +87,7 @@ const usePositions = (companyId: string | null | undefined) =>
   useQuery({
     queryKey: ["hrd_positions", companyId],
     queryFn: async () => {
-      const { data, error } = await laravelDb
-        .from("positions")
-        .select("id,title,department,competency_profile,psychological_profile")
-        .order("title")
-        .limit(200);
-      if (error) throw error;
-      return (data || []) as Position[];
+      return (await fetchHrdPositions()) as Position[];
     },
     enabled: !!companyId,
   });

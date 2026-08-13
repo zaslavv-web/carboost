@@ -3,6 +3,7 @@ import { laravelDb } from "@/integrations/laravel/db";
 import { laravel } from "@/integrations/laravel/client";
 import { laravelAuthApi } from "@/integrations/laravel/auth";
 import { laravelRpc } from "@/integrations/laravel/rpc";
+import { fetchHrdDirectory } from "@/lib/hrdDirectory";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2, UserPlus, X, KeyRound, IdCard } from "lucide-react";
@@ -81,10 +82,9 @@ const UsersManagement = () => {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users_list"],
     queryFn: async () => {
-      const response = await laravel.get<{ data: any[] }>("/profiles?per_page=200");
-      if (response.error) throw response.error;
+      const profiles = await fetchHrdDirectory();
 
-      return (response.data?.data || []).map((profile: any) => {
+      return profiles.map((profile: any) => {
         let role: AppRole = "employee";
         const priority: Record<string, number> = { superadmin: 5, company_admin: 4, hrd: 3, hr: 3, manager: 2, employee: 1 };
         for (const candidate of profile.roles || []) {
