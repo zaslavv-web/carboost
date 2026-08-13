@@ -4,7 +4,7 @@ import { isBackendCircuitOpen } from "@/integrations/laravel/client";
  * Внутренний продуктовый трекер (аналог Mixpanel) — собственный, без внешних сервисов.
  *
  * - Сессия живёт 30 мин неактивности (sessionStorage).
- * - Буфер событий шлётся каждые 5 c или по 20 событий, на unload — sendBeacon.
+ * - Буфер событий шлётся не чаще раза в минуту, на unload — sendBeacon.
  * - Автотрек: page_view, JS-ошибки, unhandledrejection, клики по [data-track].
  * - Ручной API: `track(name, props?)`.
  * - Перехват fetch для api_call/api_error по /api/*.
@@ -41,8 +41,10 @@ interface AnalyticsEvent {
 
 const SESSION_KEY = "gp_analytics_session";
 const IDLE_MS = 30 * 60 * 1000;
-const FLUSH_EVERY_MS = 5000;
-const FLUSH_AT_COUNT = 20;
+const FLUSH_EVERY_MS = 60_000;
+const FLUSH_AT_COUNT = 100;
+const MAX_QUEUE_SIZE = 200;
+const LAST_FLUSH_KEY = "gp_analytics_last_flush";
 const APP_VERSION =
   (import.meta as any).env?.VITE_APP_VERSION ?? "dev";
 const BASE_URL =
@@ -205,6 +207,9 @@ class Tracker {
       app_version: APP_VERSION,
       locale: this.session.locale,
     });
+    if (this.queue.length > MAX_QUEUE_SIZE) {
+      this.queue.splice(0, this.queue.length - MAX_QUEUE_SIZE);
+    }
     if (this.queue.length >= FLUSH_AT_COUNT) this.flush(false);
   }
 
@@ -239,12 +244,6 @@ class Tracker {
               status_code: res.status,
               duration_ms: dur,
             });
-          } else {
-            this.enqueue("api_call", "api." + (args[1]?.method || "GET").toLowerCase(), {
-              route: apiRoute,
-              status_code: res.status,
-              duration_ms: dur,
-            });
           }
         }
         return res;
@@ -269,6 +268,23 @@ class Tracker {
       // Бэкенд перегружен — не добиваем базу телеметрией, чистим очередь.
       this.queue.length = 0;
       return;
+    }
+
+    // Несколько вкладок одного пользователя не должны одновременно открывать
+    // отдельные соединения к БД ради телеметрии. Одна вкладка отправляет батч,
+    // остальные отбрасывают второстепенные события этого интервала.
+    if (!viaBeacon) {
+      try {
+        const lastFlush = Number(localStorage.getItem(LAST_FLUSH_KEY) || "0");
+        if (Date.now() - lastFlush < FLUSH_EVERY_MS) {
+          this.queue.length = 0;
+          return;
+        }
+        localStorage.setItem(LAST_FLUSH_KEY, String(Date.now()));
+      } catch {
+        // localStorage недоступен — защита flushInFlight всё равно не даст
+        // одной вкладке создать параллельные ingest-запросы.
+      }
     }
     const events = this.queue.splice(0, this.queue.length);
 

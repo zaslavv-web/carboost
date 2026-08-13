@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -48,12 +47,21 @@ class AnalyticsController extends Controller
             'session'    => 'nullable|array',
         ]);
 
-        $user = Auth::guard('sanctum')->user();
-        $userId    = $user?->id;
-        $companyId = $user && method_exists($user, 'companyId') ? $user->companyId() : null;
-        $role      = $userId
-            ? (DB::table('user_roles')->where('user_id', $userId)->value('role'))
+        $user = $request->user('sanctum');
+        $userId = $user?->id;
+
+        // Раньше companyId() и чтение роли запускали несколько дополнительных
+        // SELECT/SHOW COLUMNS после Sanctum. Для фоновой телеметрии это быстро
+        // исчерпывало max_user_connections. Получаем оба значения одним JOIN.
+        $identity = $userId
+            ? DB::table('profiles as p')
+                ->leftJoin('user_roles as ur', 'ur.user_id', '=', 'p.user_id')
+                ->where('p.user_id', $userId)
+                ->select('p.company_id', 'ur.role')
+                ->first()
             : null;
+        $companyId = $identity?->company_id;
+        $role = $identity?->role;
         $imp       = $request->attributes->get('impersonator');
         $impersonator = $imp?->id;
 
