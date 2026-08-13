@@ -9,6 +9,30 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
+// Runtime-лимиты. На shared-хостинге .user.ini / .htaccess могут не применяться
+// (зависит от SAPI), поэтому поднимаем память прямо из кода — это работает всегда.
+if (PHP_SAPI !== 'cli') {
+    $current = trim((string) ini_get('memory_limit'));
+    $bytes = (function (string $v): int {
+        if ($v === '' || $v === '-1') return -1;
+        $unit = strtolower(substr($v, -1));
+        $num = (int) $v;
+        return match ($unit) {
+            'g' => $num * 1024 * 1024 * 1024,
+            'm' => $num * 1024 * 1024,
+            'k' => $num * 1024,
+            default => $num,
+        };
+    })($current);
+    if ($bytes !== -1 && $bytes < 256 * 1024 * 1024) {
+        @ini_set('memory_limit', '256M');
+    }
+    if ((int) ini_get('max_execution_time') > 0 && (int) ini_get('max_execution_time') < 120) {
+        @set_time_limit(120);
+    }
+}
+
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withProviders([
         \App\Providers\AppServiceProvider::class,
