@@ -219,6 +219,55 @@ async function rawRequest<T>(
   }
 }
 
+/**
+ * Публичная обёртка: очередь параллелизма + мягкий ретрай, когда база
+ * временно перегружена (503 `db_busy` от бэкенда или 500 при исчерпании
+ * лимита подключений MySQL на idempotent-запросах).
+ */
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<LaravelInvokeResult<T>> {
+  const method = (init.method || "GET").toUpperCase();
+  const idempotent = method === "GET" || method === "HEAD";
+  const maxAttempts = idempotent ? 3 : 2;
+
+  for (let attempt = 1; ; attempt++) {
+    await acquireSlot();
+    let result: LaravelInvokeResult<T>;
+    try {
+      result = await rawRequest<T>(path, init);
+    } finally {
+      releaseSlot();
+    }
+
+    const status = result.error?.status;
+    const overloaded =
+      result.error?.code === "db_busy" ||
+      status === 503 ||
+      (idempotent && status === 500);
+
+    if (!overloaded || attempt >= maxAttempts) {
+      if (overloaded) {
+        return {
+          data: null,
+          error: {
+            ...result.error!,
+            message:
+              "Сервис временно перегружен: база данных не успевает обрабатывать запросы. Повторите через несколько секунд.",
+            code: "db_busy",
+          },
+        };
+      }
+      return result;
+    }
+
+    await sleep(400 * attempt + Math.random() * 200);
+  }
+}
+
+
+
 /** Invoke a Laravel AI endpoint at `/ai/{name}` with `{ body }`. */
 export function aiInvoke<T = any>(
   name: string,
