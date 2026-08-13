@@ -578,16 +578,26 @@ class ChatController extends Controller
         $this->ensureMemberRaw($id);
         $limit = min((int) $request->get('limit', 50), 200);
         $before = $request->get('before');
+        // Инкрементальная догрузка: клиент присылает created_at последнего
+        // известного сообщения и получает ТОЛЬКО новые. Полная лента диалога
+        // при этом читается ровно один раз и живёт в кэше на клиенте.
+        $after = $request->get('after');
 
         // Raw-запросы: ChatMessage/ChatMessageReaction тянут за собой
         // hydration моделей и глобальные scope на каждую строку.
         $q = DB::table('chat_messages')
             ->where('conversation_id', $id)
             ->whereNull('deleted_at')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
             ->limit($limit);
-        if ($before) $q->where('created_at', '<', $before);
+
+        if ($after) {
+            $q->where('created_at', '>', $after)
+                ->orderBy('created_at')
+                ->orderBy('id');
+        } else {
+            $q->orderByDesc('created_at')->orderByDesc('id');
+            if ($before) $q->where('created_at', '<', $before);
+        }
 
         $msgs = $q->get(['id', 'conversation_id', 'sender_id', 'body', 'reply_to_id', 'created_at']);
 
