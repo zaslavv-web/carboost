@@ -142,14 +142,19 @@ Route::get('/health', function () {
             'career_track_templates', 'peer_recognitions', 'ai_usage_log',
             'support_tickets', 'notifications', 'pulse_surveys', 'pulse_survey_responses',
         ];
+        // MySQL 8 отдаёт колонки information_schema в ВЕРХНЕМ регистре
+        // (TABLE_NAME), MariaDB — в нижнем. Явные алиасы убирают эту разницу.
         $rows = DB::select(
-            "SELECT table_name, table_rows
+            "SELECT table_name AS tname, table_rows AS trows
              FROM information_schema.tables
              WHERE table_schema = DATABASE()
                AND table_name IN ('" . implode("','", $tables) . "')"
         );
         foreach ($rows as $r) {
-            $checks['table_counts'][$r->table_name] = (int) $r->table_rows;
+            $arr = array_change_key_case((array) $r, CASE_LOWER);
+            if (!empty($arr['tname'])) {
+                $checks['table_counts'][$arr['tname']] = (int) ($arr['trows'] ?? 0);
+            }
         }
     } catch (\Throwable $e) {
         $checks['table_counts'] = ['error' => $e->getMessage()];
@@ -361,6 +366,12 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // (роли, company_id, Gate, raw SQL, EXPLAIN). Возвращает 200 даже
     // если один из шагов упал — ошибка шага пишется внутрь JSON.
     Route::get('/diag/db-probe', [\App\Http\Controllers\Api\DiagController::class, 'dbProbe']);
+    // Маркеры последнего прогона probe — читаются, даже если процесс умер фаталом.
+    Route::get('/diag/last-probe', [\App\Http\Controllers\Api\DiagController::class, 'lastProbe']);
+    // Полные карточки последних фаталов (сообщение, файл, пик памяти, время жизни запроса).
+    Route::get('/diag/last-fatal', [\App\Http\Controllers\Api\DiagController::class, 'lastFatal']);
+    // Лимиты PHP веб-SAPI и состояние пула соединений MySQL.
+    Route::get('/diag/limits', [\App\Http\Controllers\Api\DiagController::class, 'limits']);
 
 
 

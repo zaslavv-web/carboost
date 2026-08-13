@@ -101,6 +101,29 @@ if (PHP_SAPI !== 'cli') {
             FILE_APPEND
         );
 
+        // Полная карточка фатала для /api/diag/last-fatal: сообщение, место,
+        // пик памяти, лимиты и сколько запрос прожил. Без этого по счётчику
+        // в /api/health нельзя отличить OOM от таймаута выполнения.
+        @file_put_contents(
+            dirname(__DIR__) . '/storage/logs/api-fatals.jsonl',
+            json_encode([
+                'ts'            => date('c'),
+                'error_id'      => $errorId,
+                'uri'           => substr($uri, 0, 300),
+                'type'          => $error['type'],
+                'message'       => substr((string) $error['message'], 0, 1000),
+                'file'          => $error['file'] . ':' . $error['line'],
+                'peak_mb'       => round(memory_get_peak_usage(true) / 1048576, 1),
+                'peak_php_mb'   => round(memory_get_peak_usage(false) / 1048576, 1),
+                'memory_limit'  => ini_get('memory_limit'),
+                'max_exec_time' => ini_get('max_execution_time'),
+                'elapsed_s'     => isset($_SERVER['REQUEST_TIME_FLOAT'])
+                    ? round(microtime(true) - (float) $_SERVER['REQUEST_TIME_FLOAT'], 2)
+                    : null,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n",
+            FILE_APPEND
+        );
+
         if (!headers_sent()) {
             http_response_code(500);
             header('Content-Type: application/json');
