@@ -19,9 +19,15 @@ if (!defined('APP_BOOT_MEM')) {
 
 // Runtime-лимиты. На шаред-хостинге .user.ini / .htaccess могут не применяться
 // (зависит от SAPI), поэтому поднимаем память прямо из кода — это работает всегда.
-// CLI использует ОТДЕЛЬНЫЙ php.ini (здесь он отдаёт 64M), поэтому лимит
-// поднимаем и для консоли: иначе сидеры и артизан-команды падают там,
-// где веб с 256M работает штатно.
+//
+// ВАЖНО (диагностика 13.08.2026): на этом хостинге Zend MM выделяет память
+// кусками по 64 МБ (в логах ровные 64/128/192/256 МБ, а фатал происходит на
+// аллокации 4 КБ). То есть при memory_limit=256M приложению доступно ВСЕГО
+// четыре куска, и обычный запрос вроде `notifications?limit=20` падает не
+// из-за данных, а из-за гранулярности учёта. Поэтому лимит поднимаем до 1G:
+// реальный расход запроса — единицы мегабайт, но «квантуется» по 64 МБ.
+$targetLimitBytes = 1024 * 1024 * 1024;
+$targetLimit = '1024M';
 $current = trim((string) ini_get('memory_limit'));
 $bytes = (function (string $v): int {
     if ($v === '' || $v === '-1') return -1;
@@ -34,9 +40,16 @@ $bytes = (function (string $v): int {
         default => $num,
     };
 })($current);
-if ($bytes !== -1 && $bytes < 256 * 1024 * 1024) {
-    @ini_set('memory_limit', '256M');
+if ($bytes !== -1 && $bytes < $targetLimitBytes) {
+    // Хостинг может не дать 1G — тогда откатываемся на ступень ниже.
+    foreach ([$targetLimit, '768M', '512M', '256M'] as $candidate) {
+        @ini_set('memory_limit', $candidate);
+        if (trim((string) ini_get('memory_limit')) === $candidate) {
+            break;
+        }
+    }
 }
+
 if (PHP_SAPI !== 'cli') {
     if ((int) ini_get('max_execution_time') > 0 && (int) ini_get('max_execution_time') < 120) {
         @set_time_limit(120);
