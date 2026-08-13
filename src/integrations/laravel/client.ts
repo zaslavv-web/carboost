@@ -111,6 +111,27 @@ function releaseSlot() {
 
 const CIRCUIT_COOLDOWN_MS = 60_000;
 let circuitOpenUntil = 0;
+/**
+ * Единичный 500 на одном эндпоинте не означает, что весь бэкенд лежит.
+ * Раньше любой 5xx открывал глобальный breaker на 60 секунд, и ошибка
+ * фонового бейджа непрочитанного ломала совершенно другую страницу.
+ * Теперь breaker по «просто 500» открывается только после двух подряд.
+ */
+let serverErrorStreak = 0;
+
+/**
+ * Фоновые запросы (бейджи, счётчики) никогда не открывают breaker: они
+ * не видны пользователю и не должны блокировать интерфейс.
+ */
+const BACKGROUND_PATH_PATTERNS = [
+  /^\/chats\/unread-count/,
+  /^\/db\/notifications\?.*head=1/,
+  /^\/analytics\/ingest/,
+];
+
+function isBackgroundPath(path: string): boolean {
+  return BACKGROUND_PATH_PATTERNS.some((re) => re.test(path));
+}
 
 export function isBackendCircuitOpen(): boolean {
   return Date.now() < circuitOpenUntil;
@@ -122,6 +143,7 @@ function openBackendCircuit() {
     new CustomEvent("laravel:backend-overloaded", { detail: { until: circuitOpenUntil } }),
   );
 }
+
 
 async function rawRequest<T>(
   path: string,
