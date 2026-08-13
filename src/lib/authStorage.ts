@@ -16,6 +16,9 @@ const SESSION_AUTH_KEYS = [
   "impersonationOriginalUser",
 ] as const;
 
+const SESSION_EXPIRED_DEBOUNCE_MS = 10_000;
+let lastSessionExpiredAt = 0;
+
 const safeRemove = (storage: Storage | undefined, key: string) => {
   try {
     storage?.removeItem(key);
@@ -90,6 +93,9 @@ export const clearStoredImpersonationState = (reason = "impersonation_reset") =>
 
 export const notifyAuthSessionExpired = (reason: string, status?: number) => {
   if (typeof window === "undefined") return;
+  const now = Date.now();
+  if (now - lastSessionExpiredAt < SESSION_EXPIRED_DEBOUNCE_MS) return;
+  lastSessionExpiredAt = now;
   window.dispatchEvent(
     new CustomEvent(AUTH_SESSION_EXPIRED_EVENT, { detail: { reason, status } }),
   );
