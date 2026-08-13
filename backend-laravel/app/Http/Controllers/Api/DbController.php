@@ -351,6 +351,19 @@ class DbController extends Controller
                 explode(',', (string) $request->query('select')),
             )));
             $requested = array_values(array_diff($requested, ['*']));
+            // Быстрый отказ на неизвестной колонке: устаревший клиент (старый
+            // закэшированный бандл) не должен уводить запрос в тяжёлый путь и
+            // ронять процесс — отвечаем понятным 400 до обращения к БД.
+            $unknown = array_values(array_diff($requested, $columns));
+            if ($unknown) {
+                return response()->json([
+                    'data'    => null,
+                    'error'   => 'Неизвестные колонки: ' . implode(', ', $unknown),
+                    'code'    => 'unknown_column',
+                    'table'   => $tableName,
+                    'columns' => $unknown,
+                ], 400);
+            }
             $valid = array_values(array_intersect($requested, $columns));
             if ($valid) {
                 if (in_array('id', $columns, true) && ! in_array('id', $valid, true)) {

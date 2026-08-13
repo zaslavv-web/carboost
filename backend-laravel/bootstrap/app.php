@@ -136,6 +136,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // в лимит одновременных подключений MySQL (max_user_connections).
         // MemoryWatchdog идёт первым, чтобы видеть пик памяти всего запроса.
         $middleware->api(prepend: [
+            \App\Http\Middleware\AppVersionHeader::class,
             \App\Http\Middleware\MemoryWatchdog::class,
             \App\Http\Middleware\RetryOnDbBusy::class,
         ]);

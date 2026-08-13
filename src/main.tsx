@@ -3,6 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { startVersionWatcher } from "@/lib/versionWatcher";
 
 // ─── Unregister service workers in preview/iframe contexts ──────────────────
 const isInIframe = (() => {
@@ -81,6 +82,12 @@ window.addEventListener("load", () => {
     try { sessionStorage.removeItem(RELOAD_GUARD); } catch { /* ignore */ }
   }, 4000);
 });
+
+// Следим за версией выката: если на сервере появился новый бандл — мягко
+// перезагружаем страницу, чтобы клиент не жил на закэшированном index.html.
+if (!isPreviewHost && !isInIframe) {
+  startVersionWatcher();
+}
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
