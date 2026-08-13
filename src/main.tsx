@@ -3,6 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { startVersionWatcher } from "@/lib/versionWatcher";
 
 // ─── Unregister service workers in preview/iframe contexts ──────────────────
 const isInIframe = (() => {
