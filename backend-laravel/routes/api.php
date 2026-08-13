@@ -245,7 +245,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         // ---- Internal chat (Phase 14) ----
         Route::get   ('/chats',                                  [\App\Http\Controllers\Api\ChatController::class, 'index']);
         Route::post  ('/chats',                                  [\App\Http\Controllers\Api\ChatController::class, 'store']);
-        Route::get   ('/chats/unread-count',                     [\App\Http\Controllers\Api\ChatController::class, 'unreadCount']);
+        // /chats/unread-count объявлен выше, вне verified/has.company.
         Route::get   ('/chats/contacts',                         [\App\Http\Controllers\Api\ChatController::class, 'contacts']);
         Route::get   ('/chats/{id}/messages',                    [\App\Http\Controllers\Api\ChatController::class, 'messages']);
         Route::post  ('/chats/{id}/messages',                    [\App\Http\Controllers\Api\ChatController::class, 'sendMessage']);
