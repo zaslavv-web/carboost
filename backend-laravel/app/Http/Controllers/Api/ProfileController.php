@@ -14,86 +14,165 @@ use Illuminate\Support\Facades\DB;
  */
 class ProfileController extends Controller
 {
+    private const DIRECTORY_CHUNK_ROWS = 50;
+
     public function index(Request $request): JsonResponse
     {
-        $this->authorize('viewAny', Profile::class);
+        $stage = 'authorize';
+        $queryCount = 0;
+        $rowCount = 0;
+        $request->attributes->set('profile_directory_stage', $stage);
 
-        $user = $request->user();
-        $isSuperadmin = $user && $user->hasRole('superadmin');
-        $companyId = $isSuperadmin
-            ? $request->string('company_id')->trim()->toString()
-            : ($user?->companyId() ?? '');
+        try {
+            $this->authorize('viewAny', Profile::class);
 
-        if (!$isSuperadmin && $companyId === '') {
+            $stage = 'company_context';
+            $request->attributes->set('profile_directory_stage', $stage);
+            $user = $request->user();
+            $isSuperadmin = $user && $user->hasRole('superadmin');
+            $companyId = $isSuperadmin
+                ? $request->string('company_id')->trim()->toString()
+                : ($user?->companyId() ?? '');
+
+            if (!$isSuperadmin && $companyId === '') {
+                return response()->json([
+                    'message' => 'У пользователя не указана компания',
+                    'code' => 'company_missing',
+                ], 422);
+            }
+
+            // Каталог читается сырыми порциями. Это сохраняет сортировку и формат,
+            // но не держит одновременно 500 широких строк + роли в PDO/Collection.
+            $baseQuery = DB::table('profiles as p')
+                ->leftJoin('users as u', 'u.id', '=', 'p.user_id')
+                ->select([
+                    'p.id', 'p.user_id', 'p.full_name', 'p.position',
+                    'p.position_id', 'p.pending_position_id', 'p.department',
+                    'p.overall_score', 'p.role_readiness', 'p.is_verified',
+                    'p.requested_role', 'p.company_id', 'p.avatar_url',
+                    'p.hire_date', 'p.created_at', 'p.updated_at', 'u.email',
+                ]);
+
+            if ($companyId !== '') {
+                $baseQuery->where('p.company_id', $companyId);
+            }
+            if ($request->boolean('unverified')) {
+                $baseQuery->where('p.is_verified', false);
+            }
+            if ($search = trim((string) $request->get('search', ''))) {
+                $like = '%' . $search . '%';
+                $baseQuery->where(function ($q) use ($like) {
+                    $q->where('p.full_name', 'like', $like)
+                        ->orWhere('u.email', 'like', $like);
+                });
+            }
+
+            $perPage = max(1, min((int) $request->get('per_page', 200), 500));
+            $page = max(1, (int) $request->get('page', 1));
+            $wanted = $perPage + 1;
+            $baseOffset = ($page - 1) * $perPage;
+            $data = [];
+
+            for ($offset = 0; $offset < $wanted; $offset += self::DIRECTORY_CHUNK_ROWS) {
+                $stage = 'profiles_chunk';
+                $request->attributes->set('profile_directory_stage', $stage);
+                $chunkSize = min(self::DIRECTORY_CHUNK_ROWS, $wanted - $offset);
+                $rows = (clone $baseQuery)
+                    ->orderBy('p.full_name')
+                    ->orderBy('p.id')
+                    ->offset($baseOffset + $offset)
+                    ->limit($chunkSize)
+                    ->get();
+                $queryCount++;
+                $rowCount += $rows->count();
+                $request->attributes->set('profile_directory_rows', $rowCount);
+                $request->attributes->set('profile_directory_queries', $queryCount);
+
+                if ($rows->isEmpty()) {
+                    break;
+                }
+
+                $stage = 'roles_chunk';
+                $request->attributes->set('profile_directory_stage', $stage);
+                $userIds = $rows->pluck('user_id')->filter()->unique()->values()->all();
+                $rolesByUser = empty($userIds)
+                    ? collect()
+                    : DB::table('user_roles')
+                        ->whereIn('user_id', $userIds)
+                        ->get(['user_id', 'role'])
+                        ->groupBy('user_id');
+                if ($userIds) {
+                    $queryCount++;
+                    $request->attributes->set('profile_directory_queries', $queryCount);
+                }
+
+                foreach ($rows as $row) {
+                    if (count($data) >= $wanted) {
+                        break 2;
+                    }
+                    $item = (array) $row;
+                    $item['is_verified'] = (bool) $item['is_verified'];
+                    $item['roles'] = $rolesByUser->get($row->user_id, collect())
+                        ->pluck('role')
+                        ->map(fn ($role) => (string) $role)
+                        ->values()
+                        ->all();
+                    $data[] = $item;
+                }
+
+                if ($rows->count() < $chunkSize) {
+                    break;
+                }
+                unset($rows, $rolesByUser);
+            }
+
+            $stage = 'serialize';
+            $request->attributes->set('profile_directory_stage', $stage);
+            $hasMore = count($data) > $perPage;
+            if ($hasMore) {
+                array_pop($data);
+            }
+
             return response()->json([
-                'message' => 'У пользователя не указана компания',
-                'code' => 'company_missing',
-            ], 422);
+                'data' => $data,
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'has_more' => $hasMore,
+            ])->header('X-Profile-Read-Path', 'raw-chunked-v2');
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (preg_match('/max_user_connections|max_connections_per_hour|Too many connections|server has gone away|Connection refused/i', $e->getMessage())) {
+                throw $e;
+            }
+            return $this->directoryError($request, $stage, $queryCount, $rowCount, $e);
+        } catch (\Throwable $e) {
+            return $this->directoryError($request, $stage, $queryCount, $rowCount, $e);
         }
+    }
 
-        // Каталог сотрудников — горячий путь HRD/admin. Здесь намеренно нет
-        // Eloquent, eager loading и paginate(): прежняя реализация создавала
-        // модели Profile/User/Company для каждой строки и отдельный COUNT(*),
-        // а фронт параллельно повторно читал profiles и user_roles через /db.
-        $query = DB::table('profiles as p')
-            ->leftJoin('users as u', 'u.id', '=', 'p.user_id')
-            ->select([
-                'p.id', 'p.user_id', 'p.full_name', 'p.position',
-                'p.position_id', 'p.pending_position_id', 'p.department',
-                'p.overall_score', 'p.role_readiness', 'p.is_verified',
-                'p.requested_role', 'p.company_id', 'p.avatar_url',
-                'p.hire_date', 'p.created_at', 'p.updated_at', 'u.email',
-            ]);
-
-        if ($companyId !== '') {
-            $query->where('p.company_id', $companyId);
-        }
-        if ($request->boolean('unverified')) {
-            $query->where('p.is_verified', false);
-        }
-        if ($search = trim((string) $request->get('search', ''))) {
-            $like = '%' . $search . '%';
-            $query->where(function ($q) use ($like) {
-                $q->where('p.full_name', 'like', $like)
-                    ->orWhere('u.email', 'like', $like);
-            });
-        }
-
-        $perPage = max(1, min((int) $request->get('per_page', 200), 500));
-        $page = max(1, (int) $request->get('page', 1));
-        $rows = $query
-            ->orderBy('p.full_name')
-            ->offset(($page - 1) * $perPage)
-            ->limit($perPage + 1)
-            ->get();
-        $hasMore = $rows->count() > $perPage;
-        $rows = $rows->take($perPage)->values();
-
-        $userIds = $rows->pluck('user_id')->filter()->unique()->values()->all();
-        $rolesByUser = empty($userIds)
-            ? collect()
-            : DB::table('user_roles')
-                ->whereIn('user_id', $userIds)
-                ->get(['user_id', 'role'])
-                ->groupBy('user_id');
-
-        $data = $rows->map(function ($row) use ($rolesByUser) {
-            $item = (array) $row;
-            $item['is_verified'] = (bool) $item['is_verified'];
-            $item['roles'] = $rolesByUser->get($row->user_id, collect())
-                ->pluck('role')
-                ->map(fn ($role) => (string) $role)
-                ->values()
-                ->all();
-            return $item;
-        });
+    private function directoryError(Request $request, string $stage, int $queryCount, int $rowCount, \Throwable $e): JsonResponse
+    {
+        $errorId = substr(bin2hex(random_bytes(4)), 0, 8);
+        \Log::error('profile_directory_failed', [
+            'error_id' => $errorId,
+            'stage' => $stage,
+            'queries' => $queryCount,
+            'rows' => $rowCount,
+            'user' => optional($request->user())->getAuthIdentifier(),
+            'message' => $e->getMessage(),
+            'where' => $e->getFile() . ':' . $e->getLine(),
+            'usage_mb' => round(memory_get_usage(true) / 1048576, 1),
+            'usage_php_mb' => round(memory_get_usage(false) / 1048576, 1),
+            'peak_mb' => round(memory_get_peak_usage(true) / 1048576, 1),
+            'peak_php_mb' => round(memory_get_peak_usage(false) / 1048576, 1),
+            'limit' => ini_get('memory_limit'),
+        ]);
 
         return response()->json([
-            'data' => $data,
-            'current_page' => $page,
-            'per_page' => $perPage,
-            'has_more' => $hasMore,
-        ]);
+            'message' => 'Не удалось загрузить каталог сотрудников',
+            'code' => 'profile_directory_failed',
+            'error_id' => $errorId,
+            'stage' => $stage,
+        ], 500);
     }
 
     public function show(string $id): JsonResponse

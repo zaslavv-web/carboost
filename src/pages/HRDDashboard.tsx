@@ -66,7 +66,7 @@ const useEmployeesWithRoles = (companyId: string | null | undefined) =>
     queryFn: async () => {
       if (!companyId) return [] as EmployeeWithRole[];
       const response = await laravel.get<{ data: any[] }>(
-        `/profiles?per_page=500&company_id=${encodeURIComponent(companyId)}`,
+        "/profiles?per_page=200",
       );
       if (response.error) throw response.error;
 
@@ -85,14 +85,19 @@ const useEmployeesWithRoles = (companyId: string | null | undefined) =>
   });
 
 
-const usePositions = () =>
+const usePositions = (companyId: string | null | undefined) =>
   useQuery({
-    queryKey: ["positions"],
+    queryKey: ["hrd_positions", companyId],
     queryFn: async () => {
-      const { data, error } = await laravelDb.from("positions").select("*").order("title");
+      const { data, error } = await laravelDb
+        .from("positions")
+        .select("id,title,department,competency_profile,psychological_profile")
+        .order("title")
+        .limit(200);
       if (error) throw error;
       return (data || []) as Position[];
     },
+    enabled: !!companyId,
   });
 
 // Competency comparison modal
@@ -259,7 +264,7 @@ const HRDDashboard = () => {
   const { data: myProfileFull } = useUserProfile();
   const myCompanyId = myProfileFull?.company_id ?? null;
   const { data: employees = [], isLoading } = useEmployeesWithRoles(myCompanyId);
-  const { data: positions = [] } = usePositions();
+  const { data: positions = [] } = usePositions(myCompanyId);
 
 
   // User's company id (for domain mapping inserts)
