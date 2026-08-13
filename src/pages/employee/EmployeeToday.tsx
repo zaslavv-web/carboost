@@ -47,7 +47,8 @@ const EmployeeToday = () => {
         .select("id,title,description,notification_type,created_at,is_read")
         .eq("user_id", uid!)
         .eq("is_read", false)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(20);
       if (error) return [];
       return (data ?? []).map((n: any) => ({
         id: n.id as string,
@@ -79,7 +80,8 @@ const EmployeeToday = () => {
       const { data, error } = await laravelDb
         .from("competencies")
         .select("skill_value")
-        .eq("user_id", uid!);
+        .eq("user_id", uid!)
+        .limit(200);
       if (error) return [];
       return data ?? [];
     },
@@ -91,7 +93,8 @@ const EmployeeToday = () => {
       const { data, error } = await laravelDb
         .from("career_goals")
         .select("id,title,is_completed")
-        .eq("user_id", uid!);
+        .eq("user_id", uid!)
+        .limit(100);
       if (error) return [];
       return (data ?? []) as Array<{ id: string; title: string; is_completed: boolean }>;
     },

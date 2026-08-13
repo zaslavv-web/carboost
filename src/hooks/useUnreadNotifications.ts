@@ -13,13 +13,14 @@ export function useUnreadNotifications() {
     enabled: authReady && !!user,
     refetchInterval: 60_000,
     queryFn: async () => {
-      const { data, error } = await laravelDb
+      // count+head: сервер возвращает только число, без выгрузки строк
+      const { count, error } = await laravelDb
         .from("notifications")
-        .select("id")
+        .select("id", { count: "exact", head: true })
         .eq("user_id", user!.id)
         .eq("is_read", false);
       if (error) return 0;
-      return (data ?? []).length;
+      return count ?? 0;
     },
   });
   return data as number;

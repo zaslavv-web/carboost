@@ -134,7 +134,7 @@ jobs:
           composer require \
             laravel/sanctum laravel/socialite \
             spatie/laravel-permission predis/predis \
-            guzzlehttp/guzzle --no-interaction
+            guzzlehttp/guzzle:^7.8 --no-interaction
 
       - name: Create backend .env
         env:

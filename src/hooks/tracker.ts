@@ -294,7 +294,7 @@ export function useTasks(filter?: { assignee_id?: string; status?: TaskStatus; u
   return useQuery({
     queryKey: ["tracker.tasks", filter],
     queryFn: async () => {
-      let q = laravelDb.from("tracker_tasks").select("*").order("created_at", { ascending: false });
+      let q = laravelDb.from("tracker_tasks").select("*").order("created_at", { ascending: false }).limit(300);
       if (filter?.assignee_id) q = q.eq("assignee_id", filter.assignee_id);
       if (filter?.status) q = q.eq("status", filter.status);
       if (filter?.urgency) q = q.eq("urgency", filter.urgency);

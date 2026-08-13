@@ -129,12 +129,20 @@ class DbController extends Controller
     ];
 
 
+    /** Сколько строк отдаём, если клиент не передал limit/range. */
+    protected const DEFAULT_ROWS = 500;
+
+    /** Абсолютный потолок строк на один запрос. */
+    protected const MAX_ROWS = 1000;
+
     protected const OPS = [
         'eq' => '=', 'neq' => '!=',
         'gt' => '>', 'gte' => '>=',
         'lt' => '<', 'lte' => '<=',
         'like' => 'like', 'ilike' => 'ilike',
     ];
+
+
 
     public function index(Request $request, string $table)
     {
@@ -158,11 +166,22 @@ class DbController extends Controller
                 return response()->json(['data' => [], 'count' => $count]);
             }
 
+            // Предохранитель: без явного limit/range клиент раньше мог вытащить всю
+            // таблицу — именно так PHP-воркер упирался в memory_limit (64 МБ) и падал,
+            // не отдав MySQL-соединение (отсюда каскад max_user_connections).
+            $truncated = false;
+            $effectiveLimit = null;
             if ($request->filled('range')) {
                 [$from, $to] = array_map('intval', explode('-', $request->query('range')));
-                $query->skip($from)->take(max(1, $to - $from + 1));
+                $effectiveLimit = max(1, $to - $from + 1);
+                $query->skip($from)->take($effectiveLimit);
             } elseif ($request->filled('limit')) {
-                $query->take(min(1000, (int) $request->query('limit')));
+                $effectiveLimit = min(self::MAX_ROWS, (int) $request->query('limit'));
+                $query->take($effectiveLimit);
+            } else {
+                $effectiveLimit = self::DEFAULT_ROWS;
+                // +1 строка, чтобы понять, что выборка усечена
+                $query->take($effectiveLimit + 1);
             }
 
             if ($request->boolean('single') || $request->boolean('maybeSingle')) {
@@ -173,7 +192,25 @@ class DbController extends Controller
                 return response()->json(['data' => $row, 'count' => $count]);
             }
 
-            return response()->json(['data' => $query->get(), 'count' => $count]);
+            $rows = $query->get();
+
+            if (! $request->filled('range') && ! $request->filled('limit') && $rows->count() > self::DEFAULT_ROWS) {
+                $truncated = true;
+                $rows = $rows->take(self::DEFAULT_ROWS)->values();
+                \Illuminate\Support\Facades\Log::warning('DbController unbounded query truncated', [
+                    'table' => $table,
+                    'query' => $request->getQueryString(),
+                    'user'  => optional($request->user())->getAuthIdentifier(),
+                    'limit' => self::DEFAULT_ROWS,
+                ]);
+            }
+
+            return response()->json([
+                'data'      => $rows,
+                'count'     => $count,
+                'truncated' => $truncated,
+            ]);
+
         } catch (\Illuminate\Database\QueryException $e) {
             // Постгрес может бросить, например, на невалидном UUID в eq.<uuid_col>=NaN.
             // Возвращаем структурированный 400 вместо общего 500 — фронт у нас в таких

@@ -61,6 +61,32 @@ class AppServiceProvider extends ServiceProvider
             });
         }
 
+        // Диагностика фатальных ошибок (memory_limit / max_execution_time):
+        // штатный логгер Laravel такие падения пишет без маршрута, поэтому
+        // невозможно понять, какой именно запрос съел память. Пишем сами.
+        if (! app()->runningInConsole()) {
+            register_shutdown_function(function () {
+                $err = error_get_last();
+                if (! $err || ! in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+                    return;
+                }
+                try {
+                    $request = request();
+                    Log::critical('fatal_request', [
+                        'message'   => $err['message'],
+                        'file'      => $err['file'] . ':' . $err['line'],
+                        'method'    => $request?->getMethod(),
+                        'uri'       => $request?->getPathInfo(),
+                        'query'     => $request?->getQueryString(),
+                        'user'      => optional($request?->user())->getAuthIdentifier(),
+                        'peak_mb'   => round(memory_get_peak_usage(true) / 1048576, 1),
+                        'limit'     => ini_get('memory_limit'),
+                    ]);
+                } catch (\Throwable $e) {
+                    // логирование не должно ломать shutdown
+                }
+            });
+        }
 
 
         // Регистрируем кастомный HTTP-API драйвер Unisender Go как полноценный mailer.
