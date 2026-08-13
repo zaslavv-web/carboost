@@ -627,9 +627,14 @@ class ChatController extends Controller
                 'created_at'      => $this->isoDate($m->created_at),
                 'reactions'       => $rs,
             ];
-        })->reverse()->values();
+        })->values();
 
-        return response()->json(['data' => $data]);
+        // Ветка `after` уже отсортирована по возрастанию, остальные — по убыванию.
+        if (!$after) {
+            $data = $data->reverse()->values();
+        }
+
+        return response()->json(['data' => $data, 'incremental' => (bool) $after]);
     }
 
 
