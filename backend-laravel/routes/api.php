@@ -357,6 +357,11 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         ]);
     });
 
+    // Пошаговая диагностика: где именно падает listing-запрос
+    // (роли, company_id, Gate, raw SQL, EXPLAIN). Возвращает 200 даже
+    // если один из шагов упал — ошибка шага пишется внутрь JSON.
+    Route::get('/diag/db-probe', [\App\Http\Controllers\Api\DiagController::class, 'dbProbe']);
+
 
 
     // Брендинг компании: чтение/запись доступны без has.company-гейта,
