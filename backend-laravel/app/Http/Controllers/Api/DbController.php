@@ -254,6 +254,54 @@ class DbController extends Controller
         );
     }
 
+    /**
+     * Сырой COUNT(*) для head-запросов. Никогда не отдаёт 500: при любой
+     * проблеме возвращает count = null и флаг degraded, чтобы бейджи/счётчики
+     * в интерфейсе не роняли экран.
+     */
+    private function headCount(Request $request, string $model, string $table)
+    {
+        try {
+            /** @var \Illuminate\Database\Eloquent\Model $instance */
+            $instance = new $model();
+            $query = \Illuminate\Support\Facades\DB::table($instance->getTable());
+            $this->applyFilters($query, $request);
+
+            // Мультитенантность: повторяем поведение CompanyScope вручную.
+            $user = auth()->user();
+            $isSuperadmin = $user && method_exists($user, 'hasRole') && $user->hasRole('superadmin');
+            $hasCompanyColumn = in_array(
+                'company_id',
+                \Illuminate\Support\Facades\Schema::getColumnListing($instance->getTable()),
+                true,
+            );
+            if (! $isSuperadmin && $hasCompanyColumn) {
+                $companyId = $user && method_exists($user, 'companyId') ? $user->companyId() : null;
+                if (! $companyId) {
+                    return response()->json(['data' => [], 'count' => 0]);
+                }
+                $query->where($instance->getTable() . '.company_id', $companyId);
+            }
+
+            return response()->json(['data' => [], 'count' => (int) $query->count()]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($this->isDatabaseBusy($e)) {
+                throw $e; // отдаст RetryOnDbBusy → 503 db_busy
+            }
+            \Illuminate\Support\Facades\Log::warning('db_head_count_failed', [
+                'table' => $table, 'msg' => $e->getMessage(),
+            ]);
+            return response()->json(['data' => [], 'count' => null, 'degraded' => true]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('db_head_count_failed', [
+                'table' => $table, 'msg' => $e->getMessage(),
+            ]);
+            return response()->json(['data' => [], 'count' => null, 'degraded' => true]);
+        }
+    }
+
+
+
 
     public function store(Request $request, string $table)
     {
