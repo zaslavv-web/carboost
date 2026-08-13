@@ -5,6 +5,10 @@
  * (см. конец скрипта). Регистрирует наши middleware-aliases и Sanctum.
  */
 
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+
 // Runtime-лимиты. На shared-хостинге .user.ini / .htaccess могут не применяться
 // (зависит от SAPI), поэтому поднимаем память прямо из кода — это работает всегда.
 if (PHP_SAPI !== 'cli') {
@@ -27,10 +31,6 @@ if (PHP_SAPI !== 'cli') {
         @set_time_limit(120);
     }
 }
-
-use Illuminate\Foundation\Application;
-use Illuminate\Foundation\Configuration\Exceptions;
-use Illuminate\Foundation\Configuration\Middleware;
 
 
 return Application::configure(basePath: dirname(__DIR__))
