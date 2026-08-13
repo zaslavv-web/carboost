@@ -209,3 +209,25 @@ INI
             echo "::error::Backend health degraded: $BODY"
             exit 1
           fi
+
+          # `status=ok` доказывает только доступность старого процесса. Раньше
+          # workflow завершался успешно, даже когда production продолжал
+          # отвечать предыдущим коммитом. Сверяем фактически исполняемый код с
+          # SHA текущей доставки и ждём короткое окно обновления OPcache.
+          EXPECTED_VERSION="${GITHUB_SHA:0:7}"
+          ACTUAL_VERSION=""
+          for attempt in $(seq 1 12); do
+            BODY="$(curl -fsS -H 'Accept: application/json' "https://growth-peak.pro/api/health?deploy_check=${GITHUB_SHA}&attempt=${attempt}")"
+            ACTUAL_VERSION="$(printf '%s' "$BODY" | php -r '$d=json_decode(stream_get_contents(STDIN), true); echo (string)($d["checks"]["version"] ?? "");')"
+            if [[ "$ACTUAL_VERSION" == "$EXPECTED_VERSION" || "$ACTUAL_VERSION" == "$GITHUB_SHA" ]]; then
+              echo "Backend version verified: $ACTUAL_VERSION"
+              break
+            fi
+            echo "Waiting for backend version $EXPECTED_VERSION (currently ${ACTUAL_VERSION:-unknown}), attempt $attempt/12"
+            sleep 5
+          done
+
+          if [[ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" && "$ACTUAL_VERSION" != "$GITHUB_SHA" ]]; then
+            echo "::error::Deployment did not reach production: expected $EXPECTED_VERSION, got ${ACTUAL_VERSION:-unknown}. Health endpoint is serving stale code."
+            exit 1
+          fi
