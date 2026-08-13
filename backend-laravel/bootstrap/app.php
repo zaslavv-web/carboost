@@ -66,5 +66,22 @@ return Application::configure(basePath: dirname(__DIR__))
                 return response()->json(['message' => 'Unauthenticated.'], 401);
             }
         });
+
+        // Лимит соединений MySQL (max_user_connections) — это перегрузка,
+        // а не ошибка приложения: отдаём 503 + Retry-After, чтобы фронт
+        // мог мягко повторить, а не показывать «сломано».
+        $exceptions->render(function (\Illuminate\Database\QueryException $e, $request) {
+            $busy = preg_match(
+                '/max_user_connections|max_connections_per_hour|Too many connections|too many clients|SQLSTATE\[0800[46]\]|server has gone away/i',
+                $e->getMessage(),
+            );
+            if ($busy && ($request->is('api/*') || $request->expectsJson())) {
+                return response()->json([
+                    'message'    => 'База данных временно перегружена. Повторите через несколько секунд.',
+                    'error_code' => 'db_busy',
+                ], 503)->header('Retry-After', '3');
+            }
+        });
     })
+
     ->create();
