@@ -30,21 +30,38 @@ class LeaveRequestController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = LeaveRequest::query()->with(['leaveType', 'files']);
+
+        // Модуль отпусков может быть не мигрирован на конкретном стенде.
+        // Раньше это давало 500 на каждой загрузке ЛК — теперь пустая выдача.
+        if (! \Illuminate\Support\Facades\Schema::hasTable('leave_requests')) {
+            return response()->json(['data' => [], 'total' => 0, 'current_page' => 1, 'per_page' => 50]);
+        }
+
+        $with = ['leaveType'];
+        if (\Illuminate\Support\Facades\Schema::hasTable('leave_request_files')) {
+            $with[] = 'files';
+        }
+
+        $query = LeaveRequest::query()->with($with);
 
         $scope = $request->get('scope', 'mine'); // mine | inbox | all
         if ($scope === 'mine') {
             $query->where('user_id', $user->getAuthIdentifier());
         } elseif ($scope === 'inbox') {
             // Менеджеру — заявки его подчинённых на стадии pending_manager.
-            // HRD/admin — все pending_hr своей компании.
-            $isHr = $user->hasRole('hrd') || $user->hasRole('company_admin') || $user->hasRole('superadmin');
+            // HR/HRD/admin — все pending_hr своей компании.
+            $isHr = $user->hasRole('hr')
+                || $user->hasRole('hrd')
+                || $user->hasRole('company_admin')
+                || $user->hasRole('superadmin');
             if ($isHr) {
                 $query->where('status', 'pending_hr');
             } else {
-                $subordinateIds = TeamMember::query()
-                    ->where('manager_id', $user->getAuthIdentifier())
-                    ->pluck('employee_id');
+                $subordinateIds = \Illuminate\Support\Facades\Schema::hasTable('team_members')
+                    ? TeamMember::query()
+                        ->where('manager_id', $user->getAuthIdentifier())
+                        ->pluck('employee_id')
+                    : collect();
                 $query->where('status', 'pending_manager')
                       ->whereIn('user_id', $subordinateIds);
             }
@@ -54,8 +71,21 @@ class LeaveRequestController extends Controller
             $query->where('status', $status);
         }
 
-        return response()->json($query->orderByDesc('created_at')->paginate(50));
+        try {
+            return response()->json($query->orderByDesc('created_at')->paginate(50));
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (preg_match('/max_user_connections|Too many connections|server has gone away/i', $e->getMessage())) {
+                throw $e; // это перегрузка БД — её обработает RetryOnDbBusy (503)
+            }
+            \Illuminate\Support\Facades\Log::warning('leave_requests index failed', [
+                'scope' => $scope,
+                'user'  => $user->getAuthIdentifier(),
+                'sql'   => $e->getMessage(),
+            ]);
+            return response()->json(['data' => [], 'total' => 0, 'current_page' => 1, 'per_page' => 50]);
+        }
     }
+
 
     public function store(Request $request): JsonResponse
     {
