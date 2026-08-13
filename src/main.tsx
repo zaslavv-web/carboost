@@ -83,6 +83,12 @@ window.addEventListener("load", () => {
   }, 4000);
 });
 
+// Следим за версией выката: если на сервере появился новый бандл — мягко
+// перезагружаем страницу, чтобы клиент не жил на закэшированном index.html.
+if (!isPreviewHost && !isInIframe) {
+  startVersionWatcher();
+}
+
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
     <App />
