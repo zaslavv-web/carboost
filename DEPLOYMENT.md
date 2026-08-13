@@ -40,6 +40,8 @@ Workflow: `.github/workflows/deploy-backend.yml`.
 
 **Что делает:** при push изменений в `backend-laravel/**` синхронизирует Laravel-код в `/home/gro7659365/growth-peak.pro/docs/backend`, выполняет `composer install`, `php artisan migrate --force`, очищает и пересобирает route/config cache. Это критично для новых API-маршрутов вроде `/api/performance-cycles/{id}/open-preflight`.
 
+**Runtime-лимиты PHP:** workflow автоматически записывает `backend-laravel/public/.user.ini` с `memory_limit = 256M`, `post_max_size = 64M`, `upload_max_filesize = 64M`, `max_execution_time = 120`. Health check `/api/health` возвращает текущий `memory_limit`; деплой падает, если лимит меньше 256M. Ручное редактирование глобального `php.ini` больше не требуется.
+
 **Ручной запуск:** GitHub → Actions → «Deploy Backend» → Run workflow. Обычно `run_migrations = true`, `enable_delete = false`.
 
 `deploy/deploy-laravel.sh` — запасной ручной путь: composer install, миграции, кеши. Запускается в каталоге Laravel-приложения (обычно `/var/www/api`, `/home/gro7659365/growth-peak.pro/docs/backend` или `backend-laravel/`).
