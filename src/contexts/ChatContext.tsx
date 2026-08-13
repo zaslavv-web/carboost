@@ -17,6 +17,8 @@ type ChatContextType = {
   refresh: () => void;
   openOrCreateDirect: (peerUserId: string) => Promise<string | null>;
   disabledByImpersonation: boolean;
+  /** Пометить, что пользователь явно запросил чаты (страница /chats). */
+  requestChats: () => void;
 };
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -35,6 +37,10 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  // Список диалогов грузится ТОЛЬКО по явному запросу пользователя: открытие
+  // панели чатов или переход на /chats. До этого момента ни один запрос
+  // к /api/chats не уходит — на бэкенде это самый тяжёлый endpoint.
+  const [chatsRequested, setChatsRequested] = useState(false);
   const [pageVisible, setPageVisible] = useState(() => document.visibilityState === "visible");
 
   useEffect(() => {
@@ -43,56 +49,98 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
+  // Сессия сменилась — сбрасываем «запрошенность», чтобы новый пользователь
+  // снова не тянул список чатов фоном.
+  useEffect(() => {
+    setChatsRequested(false);
+    setActiveConversationId(null);
+    setIsPanelOpen(false);
+  }, [user?.id]);
+
+  const listEnabled = enabled && chatsRequested;
+
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["chats", "list"],
+    queryKey: ["chats", "list", user?.id],
     queryFn: async () => {
       const res = await chatApi.list();
       // Ошибка списка чатов не должна ронять страницу: отдаём пустой список.
       if (res.error) return [];
       return res.data?.data ?? [];
     },
+    enabled: listEnabled,
+    retry: false,
+    // Список живёт в кэше: повторное открытие панели не бьёт по бэкенду.
+    staleTime: 60_000,
+    gcTime: 30 * 60_000,
+    // Опрос только пока панель реально открыта и вкладка видима.
+    refetchInterval: listEnabled && isPanelOpen && pageVisible ? 30_000 : false,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  // Бейдж непрочитанного использует лёгкий COUNT-endpoint, а не полный список
+  // диалогов: одна агрегатная строка вместо десятков объектов с участниками.
+  const { data: unreadFromBadge = 0 } = useQuery({
+    queryKey: ["chats", "unread-count", user?.id],
+    queryFn: async () => {
+      const res = await chatApi.unreadCount();
+      if (res.error) return 0;
+      return res.data?.unread ?? 0;
+    },
     enabled,
     retry: false,
-    refetchInterval: enabled && pageVisible ? 30_000 : false,
+    staleTime: 60_000,
+    refetchInterval: enabled && pageVisible ? 120_000 : false,
     refetchOnWindowFocus: false,
   });
 
-
   const conversations = data ?? [];
-  const unreadTotal = useMemo(
+  const unreadFromList = useMemo(
     () => conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0),
     [conversations],
   );
+  // Пока список не загружен, показываем значение из лёгкого счётчика.
+  const unreadTotal = chatsRequested && data ? unreadFromList : unreadFromBadge;
+
+  const requestChats = useCallback(() => setChatsRequested(true), []);
 
   const openPanel = useCallback((conversationId?: string) => {
+    setChatsRequested(true);
     if (conversationId) setActiveConversationId(conversationId);
     setIsPanelOpen(true);
   }, []);
 
   const closePanel = useCallback(() => setIsPanelOpen(false), []);
-  const togglePanel = useCallback(() => setIsPanelOpen((v) => !v), []);
+  const togglePanel = useCallback(() => {
+    setIsPanelOpen((v) => {
+      if (!v) setChatsRequested(true);
+      return !v;
+    });
+  }, []);
 
   const openOrCreateDirect = useCallback(
     async (peerUserId: string) => {
       const res = await chatApi.createDirect(peerUserId);
       if (res.error || !res.data?.data?.id) return null;
       const id = res.data.data.id;
+      setChatsRequested(true);
       setActiveConversationId(id);
       setIsPanelOpen(true);
-      queryClient.invalidateQueries({ queryKey: ["chats", "list"] });
+      queryClient.invalidateQueries({ queryKey: ["chats", "list", user?.id] });
       return id;
     },
-    [queryClient],
+    [queryClient, user?.id],
   );
 
   const refresh = useCallback(() => {
+    if (!chatsRequested) return;
     refetch();
-    queryClient.invalidateQueries({ queryKey: ["chats"] });
-  }, [refetch, queryClient]);
+    queryClient.invalidateQueries({ queryKey: ["chats", "unread-count", user?.id] });
+  }, [chatsRequested, refetch, queryClient, user?.id]);
 
   const value: ChatContextType = {
     conversations,
-    isLoading,
+    isLoading: listEnabled ? isLoading : false,
     unreadTotal,
     activeConversationId,
     setActiveConversationId,
@@ -103,6 +151,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     refresh,
     openOrCreateDirect,
     disabledByImpersonation: !!impersonatedUserId,
+    requestChats,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

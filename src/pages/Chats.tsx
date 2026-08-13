@@ -9,7 +9,13 @@ const Chats = () => {
   const { t } = useTranslation("chat");
   const { conversationId } = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
-  const { setActiveConversationId, disabledByImpersonation } = useChat();
+  const { setActiveConversationId, disabledByImpersonation, requestChats } = useChat();
+
+  // Явный запрос пользователя: список диалогов грузится только здесь и при
+  // открытии панели чатов, а не фоном на каждой странице приложения.
+  useEffect(() => {
+    if (!disabledByImpersonation) requestChats();
+  }, [disabledByImpersonation, requestChats]);
 
   useEffect(() => {
     if (conversationId) setActiveConversationId(conversationId);

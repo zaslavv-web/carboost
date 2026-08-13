@@ -76,6 +76,11 @@ export const chatApi = {
     laravel.get<{ data: ChatMessage[] }>(
       `/chats/${conversationId}/messages${before ? `?before=${encodeURIComponent(before)}` : ""}`,
     ),
+  /** Только новые сообщения после указанной метки времени (инкрементальный опрос). */
+  messagesSince: (conversationId: string, after: string) =>
+    laravel.get<{ data: ChatMessage[]; incremental?: boolean }>(
+      `/chats/${conversationId}/messages?after=${encodeURIComponent(after)}`,
+    ),
   send: (conversationId: string, body: string, replyToId?: string | null) =>
     laravel.post<{ data: ChatMessage }>(`/chats/${conversationId}/messages`, {
       body,
