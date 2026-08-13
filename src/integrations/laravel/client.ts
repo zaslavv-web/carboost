@@ -81,10 +81,39 @@ async function revalidateToken(token: string): Promise<boolean> {
   return revalidateInflight;
 }
 
-async function request<T>(
+/**
+ * Ограничитель параллелизма.
+ *
+ * Хостинг ограничивает число одновременных подключений MySQL: когда экран
+ * стартует и разом уходит 8-10 запросов, часть из них падает с 503/500.
+ * Держим не больше MAX_CONCURRENT запросов «в полёте» — остальные ждут
+ * в очереди миллисекунды, зато ни один не теряется.
+ */
+const MAX_CONCURRENT = 4;
+let inFlight = 0;
+const waiters: Array<() => void> = [];
+
+function acquireSlot(): Promise<void> {
+  if (inFlight < MAX_CONCURRENT) {
+    inFlight++;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => waiters.push(resolve));
+}
+
+function releaseSlot() {
+  const next = waiters.shift();
+  if (next) next();
+  else inFlight--;
+}
+
+const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
+
+async function rawRequest<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<LaravelInvokeResult<T>> {
+
   const token = laravelAuth.getToken();
   const headers: Record<string, string> = {
     Accept: "application/json",
