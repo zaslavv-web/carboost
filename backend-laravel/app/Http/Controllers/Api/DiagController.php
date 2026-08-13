@@ -217,6 +217,37 @@ class DiagController extends Controller
         return response()->json(['fatals' => $fatals, 'count' => count($fatals)]);
     }
 
+    /**
+     * Проверка записи диагностических файлов. Если storage/logs недоступен
+     * веб-пользователю, все маркеры и карточки фаталов теряются молча — и
+     * пустой /diag/last-fatal ошибочно выглядит как «фаталов не было».
+     */
+    public function writeTest(): JsonResponse
+    {
+        $storage = storage_path('logs');
+        $target  = self::diagFile('write-test.txt');
+        $ok      = @file_put_contents($target, 'ok ' . date('c') . "\n") !== false;
+
+        return response()->json([
+            'process_user'      => function_exists('posix_getpwuid') && function_exists('posix_geteuid')
+                ? (posix_getpwuid(posix_geteuid())['name'] ?? null)
+                : (get_current_user() ?: null),
+            'storage_logs'      => $storage,
+            'storage_exists'    => is_dir($storage),
+            'storage_writable'  => is_dir($storage) && is_writable($storage),
+            'chosen_dir'        => dirname($target),
+            'write_ok'          => $ok,
+            'existing'          => array_values(array_filter([
+                'probe.jsonl'      => is_readable(self::diagFile('probe.jsonl')) ? @filesize(self::diagFile('probe.jsonl')) : null,
+                'api-fatals.jsonl' => is_readable(self::diagFile('api-fatals.jsonl')) ? @filesize(self::diagFile('api-fatals.jsonl')) : null,
+            ], fn ($v) => $v !== null)),
+            'files'             => [
+                'probe.jsonl'      => self::diagFile('probe.jsonl'),
+                'api-fatals.jsonl' => self::diagFile('api-fatals.jsonl'),
+            ],
+        ]);
+    }
+
     /** Лимиты PHP и состояние пула соединений MySQL. */
     public function limits(): JsonResponse
     {
