@@ -417,6 +417,8 @@ class DbController extends Controller
         $parts = $this->splitTopLevel($raw, ',');
         $cols = [];
         $eager = [];
+        $skipped = [];
+        $model = method_exists($query, 'getModel') ? $query->getModel() : null;
         foreach ($parts as $part) {
             $p = trim($part);
             if ($p === '' || $p === '*') continue;
@@ -425,6 +427,12 @@ class DbController extends Controller
                 $alias    = $m[2] !== '' ? $m[1] : null;
                 $relation = $m[2] !== '' ? $m[2] : $m[1];
                 $inner    = trim($m[3]);
+                // Рассинхрон фронта и моделей не должен ронять сервис в 500:
+                // неизвестную связь просто пропускаем и пишем предупреждение.
+                if ($model && ! method_exists($model, $relation)) {
+                    $skipped[] = $relation;
+                    continue;
+                }
                 $key = $alias ? "$alias as $relation" : $relation;
                 if ($inner === '' || $inner === '*') {
                     $eager[] = $relation;
@@ -438,8 +446,15 @@ class DbController extends Controller
                 $cols[] = $p;
             }
         }
+        if ($skipped) {
+            \Illuminate\Support\Facades\Log::warning('db_select_unknown_relation', [
+                'table'     => $request->route('table') ?? $request->path(),
+                'relations' => $skipped,
+            ]);
+        }
         if ($cols) $query->select($cols);
         if ($eager) $query->with($eager);
+
     }
 
     protected function splitTopLevel(string $s, string $sep): array
