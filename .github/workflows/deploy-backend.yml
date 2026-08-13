@@ -71,6 +71,7 @@ jobs:
             PubkeyAcceptedKeyTypes +ssh-rsa
             CASignatureAlgorithms +ssh-rsa
             RequiredRSASize 1024
+            UpdateHostKeys no
             StrictHostKeyChecking accept-new
           EOF
           chmod 600 ~/.ssh/config
@@ -85,10 +86,10 @@ jobs:
             echo "ℹ️  Backend --delete disabled"
           fi
 
-          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$BACKEND_ROOT'"
+          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$BACKEND_ROOT'"
 
           rsync -avz \
-            -e "ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o StrictHostKeyChecking=accept-new" \
+            -e "ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new" \
             $DELETE_FLAG \
             --exclude '.env' \
             --exclude 'vendor/' \
@@ -101,12 +102,15 @@ jobs:
           RUN_MIGRATIONS="${{ github.event.inputs.run_migrations }}"
           if [ -z "$RUN_MIGRATIONS" ]; then RUN_MIGRATIONS="true"; fi
 
-          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' RUN_MIGRATIONS='$RUN_MIGRATIONS' GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' RUN_MIGRATIONS='$RUN_MIGRATIONS' GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
           set -euo pipefail
           cd "$BACKEND_ROOT"
 
           php -v
-          composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-audit
+          composer --version || true
+          export COMPOSER_NO_AUDIT=1
+          export COMPOSER_ALLOW_SUPERUSER=1
+          composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 
           php artisan optimize:clear || true
           php artisan config:clear || true
