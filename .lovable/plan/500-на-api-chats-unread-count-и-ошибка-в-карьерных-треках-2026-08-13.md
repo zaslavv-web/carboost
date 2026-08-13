@@ -32,7 +32,21 @@ impersonation     -> EffectiveUser кладёт impersonator; middleware вых�
 ```bash
 cd /home/gro7659365/growth-peak.pro/docs/backend
 grep -n "unread-count\|api_fatal\|api_memory_high\|db_busy\|chat.unreadCount" storage/logs/laravel.log | tail -40
+
+ответ:
 ```
+
+[gro7659365@gro7659365 backend]$ grep -n "unread-count\|api_fatal\|api_memory_hi                                                                                                             gh\|db_busy\|chat.unreadCount" storage/logs/laravel.log | tail -40
+
+36409:[2026-08-13 15:35:59] production.ERROR: api_fatal {"error_id":"e59e5222","                                                                                                             uri":"/api/chats","message":"Allowed memory size of 268435456 bytes exhausted (t                                                                                                             ried to allocate 8388608 bytes)","file":"/home/gro7659365/[growth-peak.pro/docs/b](http://growth-peak.pro/docs/b)                                                                                                             ackend/vendor/laravel/framework/src/Illuminate/Collections/Collection.php:399","                                                                                                             peak_memory":"250MB","memory_limit":"256M"}
+
+36410:[2026-08-13 18:37:55] production.WARNING: api_memory_high {"uri":"/api/ana                                                                                                             lytics/ingest","method":"POST","user_id":null,"status":202,"peak_mb":132.0,"limi                                                                                                             t":"256M"}
+
+36411:[2026-08-13 18:37:57] production.ERROR: api_fatal {"error_id":"2724a4e3","                                                                                                             uri":"/api/chats/unread-count","message":"Allowed memory size of 268435456 bytes                                                                                                              exhausted (tried to allocate 4096 bytes)","file":"/home/gro7659365/growth-peak.                                                                                                             pro/docs/backend/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Colle                                                                                                             ction.php:260","peak_memory":"256MB","memory_limit":"256M"}
+
+36412:[2026-08-13 18:45:11] production.ERROR: api_fatal {"error_id":"d9776272","                                                                                                             uri":"/api/db/notifications?select=id&count=exact&head=1&eq.user_id=1259&[eq.is](http://eq.is)_r                                                                                                             ead=false","message":"Allowed memory size of 268435456 bytes exhausted (tried to                                                                                                              allocate 8388608 bytes)","file":"/home/gro7659365/[growth-peak.pro/docs/backend/](http://growth-peak.pro/docs/backend/)                                                                                                             vendor/laravel/framework/src/Illuminate/Collections/Collection.php:141","peak_me                                                                                                             mory":"250MB","memory_limit":"256M"}
+
+Это полная дичь...мы одну и ту же ошибку ловим сегодня целый день, потрачено уйма кредитов и с места мы не сдвинулись ни на грамм
 
 Ожидаем одно из трёх: `api_fatal` (файл+строка+пик памяти), `db_busy` (лимит соединений), либо обычный `production.ERROR` со стектрейсом middleware.
 
@@ -43,6 +57,7 @@ grep -n "unread-count\|api_fatal\|api_memory_high\|db_busy\|chat.unreadCount" st
 ### Шаг 3. Убрать ложную деградацию всего интерфейса
 
 `client.ts`:
+
 - breaker открывается только по `db_busy` / таймауту / сетевому обрыву, а по «просто 500» — лишь после двух подряд неудач;
 - у запроса появляется флаг `background: true` (фоновые бейджи), такие запросы breaker не открывают;
 - `/chats/unread-count` и счётчик уведомлений помечаются фоновыми.
