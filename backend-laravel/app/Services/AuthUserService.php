@@ -238,6 +238,37 @@ class AuthUserService
             : (string) $user->getAuthIdentifier();
     }
 
+    /** @var array<string,array<int,object>> кэш описания колонок на время процесса */
+    private static array $columnsCache = [];
+
+    /**
+     * SHOW COLUMNS выполняется максимум один раз на таблицу за процесс:
+     * схема меняется только миграциями, а повторные вызовы раньше давали
+     * десятки лишних запросов к перегруженной БД.
+     */
+    private function tableColumns(string $table): array
+    {
+        if (array_key_exists($table, self::$columnsCache)) {
+            return self::$columnsCache[$table];
+        }
+        try {
+            self::$columnsCache[$table] = DB::select("SHOW COLUMNS FROM `{$table}`");
+        } catch (\Throwable) {
+            self::$columnsCache[$table] = [];
+        }
+        return self::$columnsCache[$table];
+    }
+
+    private function columnMeta(string $table, string $column): ?object
+    {
+        foreach ($this->tableColumns($table) as $col) {
+            if (strcasecmp((string) $col->Field, $column) === 0) {
+                return $col;
+            }
+        }
+        return null;
+    }
+
     /**
      * Возвращает true если колонка id в таблице — числовой тип (int/bigint).
      * В таком случае UUID передавать нельзя — MySQL обрежет до 0.
@@ -247,12 +278,8 @@ class AuthUserService
         if (DB::getDriverName() !== 'mysql') {
             return false;
         }
-        try {
-            $column = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE 'id'");
-            return $column && str_contains(strtolower((string) $column->Type), 'int');
-        } catch (\Throwable) {
-            return false;
-        }
+        $column = $this->columnMeta($table, 'id');
+        return $column && str_contains(strtolower((string) $column->Type), 'int');
     }
 
     /**
@@ -264,12 +291,7 @@ class AuthUserService
         if (DB::getDriverName() !== 'mysql') {
             return;
         }
-        try {
-            $columns = DB::select("SHOW COLUMNS FROM `{$table}`");
-        } catch (\Throwable) {
-            return;
-        }
-        foreach ($columns as $col) {
+        foreach ($this->tableColumns($table) as $col) {
             $name = $col->Field;
             if (array_key_exists($name, $row)) {
                 continue;
@@ -311,9 +333,8 @@ class AuthUserService
         if (DB::getDriverName() !== 'mysql') {
             return true;
         }
-        try {
-            $meta = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE ?", [$column]);
-        } catch (\Throwable) {
+        $meta = $this->columnMeta($table, $column);
+        if (!$meta) {
             return true;
         }
         $type      = strtolower((string) ($meta->Type ?? ''));
@@ -323,6 +344,7 @@ class AuthUserService
             || str_contains($type, 'double');
 
         return !$isNumeric || is_numeric($value);
+
     }
 
     /**
