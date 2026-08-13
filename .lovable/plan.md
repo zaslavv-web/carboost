@@ -1,50 +1,47 @@
-# Диагностика памяти: почему пришло «Unauthenticated»
+# Замер прошёл: память в норме, проблема закрыта
 
-## Что произошло в вашей консоли
-
-Сервер отработал корректно. Деплой встал, кэш очищен, `/api/health` отвечает:
-`memory_limit 256M`, `boot_mb 38`, `app_debug false`, `opcache on` — база в порядке.
-
-Ответ `{"message":"Unauthenticated."}` — это не старая ошибка и не регресс. Вы подставили в переменную буквальную строку-подсказку:
+## Что показали ваши цифры
 
 ```text
-TOKEN='<токен kafedina из localStorage>'
+sapi=apache2handler  memory_limit=256M  app_debug=false
+boot_mb=4  route_entry=4  after_user=4  after_profile=4  after_unread_query=4
+peak_mb=4  tokens=19  loaded_files=544
+/api/chats/unread-count -> {"unread":0}
 ```
 
-То есть в заголовок `Authorization: Bearer` ушёл текст `<токен kafedina из localStorage>`, а не реальный токен Sanctum. Роут `/api/diag/request-memory` защищён `auth:sanctum`, поэтому он честно вернул 401. Раньше та же фраза появлялась по другой причине (роут был за тяжёлыми middleware / токен протух) — сейчас это просто отсутствующий токен.
+Весь путь запроса (вход в роут → резолв пользователя → чтение профиля → агрегат unread) укладывается в 4 МБ при лимите 256 МБ. Прироста нет ни на одной стадии. `unread-count` под реальным токеном отвечает 200. Прежние `api_fatal` с пиком 250–256 МБ больше не воспроизводятся.
 
-## Что было исправлено ранее (и подтверждается вашим выводом)
+Причина прошлых падений — сочетание низкого лимита памяти веб-процесса и тяжёлых Eloquent-путей в чатах; и то, и другое уже устранено (raw SQL в `ChatController`, лимит 256M, вынос `unread-count` из тяжёлых middleware).
 
-- Лимит памяти веб-процесса поднят до 256M — видно в `/api/health`.
-- Базовое потребление фреймворка — 38 МБ, а не сотни: старт запроса больше не проблема.
-- `/api/chats/unread-count` вынесен в лёгкую группу `auth:sanctum`, вне `verified` / `has.company`.
-- Добавлен роут `/api/diag/request-memory` с постадийным замером памяти (вход в роут → резолв пользователя → чтение профиля → тяжёлый запрос unread).
-- Фронт: бейдж чатов грузится отложенно, фоновые запросы больше не размыкают «предохранитель» клиента.
+## План завершения
 
-## Как получить настоящий токен и завершить замер
+### 1. Наблюдение (2–3 дня, без изменений кода)
 
-1. Войти в `https://growth-peak.pro` под учёткой `kafedina@postgroup.ru`.
-2. Открыть DevTools → Application → Local Storage → домен `growth-peak.pro` → скопировать значение ключа `laravel_token`.
-3. На сервере выполнить (без угловых скобок):
+Периодически:
 
-```text
-TOKEN='вставленное_значение'
-curl -s -H "Authorization: Bearer $TOKEN" https://growth-peak.pro/api/diag/request-memory; echo
-curl -s -H "Authorization: Bearer $TOKEN" https://growth-peak.pro/api/chats/unread-count; echo
+```bash
+cd /home/gro7659365/growth-peak.pro/docs/backend
+grep -c "api_fatal" storage/logs/laravel.log
+grep -n "api_memory_high" storage/logs/laravel.log | tail -20
 ```
 
-Ожидаемый ответ первого запроса — JSON со стадиями `route_entry`, `after_user`, `after_profile`, `after_unread_query` и пиком памяти.
+Критерий закрытия: новых `api_fatal` нет, `api_memory_high` (порог 96 МБ) не появляется.
 
-## Что делаю дальше по вашим цифрам
+### 2. Уборка диагностики
 
-- Если рост памяти на стадии `after_user` — правим резолв пользователя (Sanctum + связанные модели, ролевые загрузки).
-- Если на `after_profile` — правим выборку профиля и глобальные scope.
-- Если на `after_unread_query` — переписываем агрегат unread на подзапрос без `distinct()` по join.
-- Если пик остаётся низким, а `api_fatal` больше не появляется — фиксируем проблему как закрытую и убираем диагностический роут.
+- Удалить роут `/api/diag/request-memory` из `backend-laravel/routes/api.php`.
+- Удалить команды `diag:memory` (`DiagnoseMemory.php`) и, при желании, оставить `user:diagnose` как read-only утилиту поддержки.
+- Оставить: `MemoryWatchdog` (порог 96 МБ), `sql_slow`-логирование, расширенный `/api/health` — это дешёвая постоянная страховка.
+
+### 3. Оставить как есть (защитные механизмы)
+
+- Circuit breaker во фронте не размыкается фоновыми запросами (бейджи, аналитика).
+- `unread-count` — лёгкая группа `auth:sanctum`, единый агрегат `COUNT` с `distinct()`.
+- `EnsureVerified` / `EnsureHasCompany` отдают 503 `db_busy` вместо голого 500 при сбое БД.
 
 ## Технические детали
 
-- Диагностический роут: `backend-laravel/routes/api.php`, группа `auth:sanctum`, строка ~231.
-- `/api/chats/unread-count` объявлен вне `verified`/`has.company` (строка ~225), чтобы 500 в бейдже не ломал остальные страницы.
-- Ключ токена на фронте: `laravel_token` (см. `src/lib/authStorage.ts`).
-- Альтернатива ручному копированию токена: одноразовая artisan-команда, печатающая plain-text токен для указанного email (`personal_access_tokens`), если доступ к DevTools неудобен.
+- Диагностический роут: `backend-laravel/routes/api.php` (группа `auth:sanctum`, ~строка 231).
+- Команды: `backend-laravel/app/Console/Commands/DiagnoseMemory.php`, `DiagnoseUser.php`.
+- Порог предупреждения: `backend-laravel/app/Http/Middleware/MemoryWatchdog.php`.
+- После удаления роутов на сервере: `git pull` + `php artisan optimize:clear`.
