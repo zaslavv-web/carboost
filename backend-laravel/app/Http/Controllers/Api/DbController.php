@@ -540,6 +540,8 @@ class DbController extends Controller
                 $instance->save();
                 $created[] = $instance->fresh();
             }
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
         } catch (\Illuminate\Database\QueryException $e) {
             if ($this->isDatabaseBusy($e)) {
                 throw $e;
@@ -552,7 +554,10 @@ class DbController extends Controller
                 'details' => $e->getMessage(),
                 'sqlstate' => $e->getCode(),
             ], 422);
+        } catch (\Throwable $e) {
+            return $this->serverError('db_store_failed', $table, $request, $e);
         }
+
 
         return response()->json(['data' => count($created) === 1 ? $created[0] : $created]);
     }
