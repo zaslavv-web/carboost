@@ -222,7 +222,34 @@ class RpcController extends Controller
         $results = []; // [{email, status: created|resent|pending_exists|claimed|invalid_email|error, error?}]
         $pendingSends = []; // [ [row, rawToken, index] ]
 
-        DB::transaction(function () use ($invites, $actor, $companyId, $forceResend, &$created, &$updated, &$skipped, &$errors, &$results, &$pendingSends) {
+        // Sanctum и поиск company уже обращались к БД. Явно освобождаем это
+        // соединение перед потенциально медленными DNS-запросами, иначе один
+        // массовый импорт удерживает дефицитный MySQL slot секунды/минуты.
+        try {
+            DB::disconnect();
+        } catch (Throwable) {
+            // Следующий DB-запрос штатно создаст новое соединение.
+        }
+
+        $dnsValidity = [];
+        $domainValidity = [];
+        foreach ($invites as $i => $invite) {
+            if (!is_array($invite)) {
+                continue;
+            }
+            $email = strtolower(trim((string) ($invite['email'] ?? '')));
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+            $domain = substr(strrchr($email, '@') ?: '', 1);
+            if (!array_key_exists($domain, $domainValidity)) {
+                $domainValidity[$domain] = $domain !== ''
+                    && (checkdnsrr($domain, 'MX') || checkdnsrr($domain, 'A'));
+            }
+            $dnsValidity[$i] = $domainValidity[$domain];
+        }
+
+        DB::transaction(function () use ($invites, $dnsValidity, $actor, $companyId, $forceResend, &$created, &$updated, &$skipped, &$errors, &$results, &$pendingSends) {
             foreach ($invites as $i => $invite) {
                 if (!is_array($invite)) {
                     $skipped++;
@@ -239,9 +266,7 @@ class RpcController extends Controller
                     $results[] = ['row' => $i + 1, 'email' => $email ?: null, 'status' => 'invalid_email', 'error' => $msg];
                     continue;
                 }
-                // Проверка доменной части: MX или A-запись.
-                $domain = substr(strrchr($email, '@') ?: '', 1);
-                if ($domain === '' || (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A'))) {
+                if (!($dnsValidity[$i] ?? false)) {
                     $skipped++;
                     $msg = 'Вы ошиблись при написании электронной почты, проверьте правильность написания и повторите попытку';
                     $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => $msg];
@@ -271,7 +296,7 @@ class RpcController extends Controller
 
                 $token = Str::random(48);
                 $requestedRole = $invite['requested_role'] ?? 'employee';
-                if (!in_array($requestedRole, ['employee', 'manager', 'hrd', 'company_admin'], true)) {
+                if (!in_array($requestedRole, ['employee', 'manager', 'hr', 'hrd', 'company_admin'], true)) {
                     $requestedRole = 'employee';
                 }
                 $row = [

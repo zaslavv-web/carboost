@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 /**
  * Внутренняя продуктовая аналитика (аналог Mixpanel).
  *
- * POST /api/analytics/ingest        — публичный, принимает батч событий
+ * POST /api/analytics/ingest        — принимает батч событий авторизованного кабинета
  * GET  /api/analytics/overview      — DAU/события/ошибки за период
  * GET  /api/analytics/events        — топ event_name (функционал/реальные задачи)
  * GET  /api/analytics/paths         — переходы между экранами (Sankey-данные)
@@ -32,6 +32,13 @@ class AnalyticsController extends Controller
 
     public function ingest(Request $request)
     {
+        // Анонимный endpoint раньше позволял любому боту открывать соединение с
+        // MySQL и писать до 200 строк. Лендинг не должен конкурировать за малый
+        // shared-hosting connection pool с рабочими кабинетами.
+        if (!$request->bearerToken()) {
+            return response()->json(['ok' => true, 'received' => 0], 202);
+        }
+
         $payload = $request->validate([
             'events'     => 'required|array|min:1|max:200',
             'events.*.event_type' => 'required|string|max:32',

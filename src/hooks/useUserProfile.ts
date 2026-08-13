@@ -62,9 +62,7 @@ export const useUserProfile = () => {
       return data as UserProfile | null;
     },
     enabled: authReady && !!user && !!effectiveId,
-    // Не крутим спиннер бесконечно при 500 — быстро отдаём ошибку в UI.
-    retry: 1,
-
+    retry: false,
   });
 };
 

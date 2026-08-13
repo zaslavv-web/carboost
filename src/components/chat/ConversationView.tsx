@@ -14,7 +14,15 @@ const ConversationView = ({ conversationId }: { conversationId: string }) => {
   const { refresh } = useChat();
   const queryClient = useQueryClient();
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const lastReadMessageIdRef = useRef<string | null>(null);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [pageVisible, setPageVisible] = useState(() => document.visibilityState === "visible");
+
+  useEffect(() => {
+    const onVisibilityChange = () => setPageVisible(document.visibilityState === "visible");
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ["chat", "messages", conversationId],
@@ -23,7 +31,8 @@ const ConversationView = ({ conversationId }: { conversationId: string }) => {
       if (res.error) throw new Error(res.error.message);
       return res.data?.data ?? [];
     },
-    refetchInterval: 5000,
+    refetchInterval: pageVisible ? 15_000 : false,
+    refetchOnWindowFocus: false,
   });
 
   const messages = data ?? [];
@@ -35,10 +44,15 @@ const ConversationView = ({ conversationId }: { conversationId: string }) => {
     el.scrollTop = el.scrollHeight;
   }, [messages.length]);
 
-  // Отметить прочитанным при открытии и при поступлении новых
+  // Отмечаем прочитанным один раз на последнее входящее сообщение, а не после
+  // каждого polling-ответа. Это убирает лишний POST + обновление списка чатов.
   useEffect(() => {
+    const lastIncoming = [...messages].reverse().find((message) => message.sender_id !== user?.id);
+    const marker = lastIncoming?.id ?? `opened:${conversationId}`;
+    if (!pageVisible || lastReadMessageIdRef.current === marker) return;
+    lastReadMessageIdRef.current = marker;
     chatApi.markRead(conversationId).then(() => refresh());
-  }, [conversationId, messages.length, refresh]);
+  }, [conversationId, messages, pageVisible, refresh, user?.id]);
 
   const handleSend = async (body: string) => {
     const res = await chatApi.send(conversationId, body, replyTo?.id ?? null);

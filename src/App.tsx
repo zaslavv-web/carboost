@@ -99,7 +99,21 @@ import HrdToday from "@/pages/hrd/Today";
 import { Navigate } from "react-router-dom";
 
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Транспортный клиент сам повторяет только временные 503/db_busy.
+      // Второй слой retry здесь умножал один GET до 12 HTTP-запросов.
+      retry: false,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
 
 const ProtectedAppShell = () => (
   <ImpersonationProvider>

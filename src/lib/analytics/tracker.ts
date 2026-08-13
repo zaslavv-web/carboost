@@ -1,3 +1,5 @@
+import { isBackendCircuitOpen } from "@/integrations/laravel/client";
+
 /**
  * Внутренний продуктовый трекер (аналог Mixpanel) — собственный, без внешних сервисов.
  *
@@ -111,6 +113,7 @@ class Tracker {
   private queue: AnalyticsEvent[] = [];
   private timer: number | null = null;
   private started = false;
+  private flushInFlight = false;
 
   constructor() {
     this.session = loadSession();
@@ -262,7 +265,7 @@ class Tracker {
 
   flush(viaBeacon: boolean) {
     if (this.queue.length === 0) return;
-    if (Date.now() < this.mutedUntil) {
+    if (Date.now() < this.mutedUntil || isBackendCircuitOpen()) {
       // Бэкенд перегружен — не добиваем базу телеметрией, чистим очередь.
       this.queue.length = 0;
       return;
@@ -292,6 +295,11 @@ class Tracker {
         /* fall through */
       }
     }
+    if (this.flushInFlight) {
+      // Текущий батч вернётся в следующую отправку; параллельный ingest не создаём.
+      this.queue.unshift(...events);
+      return;
+    }
     const token = (() => {
       try {
         return localStorage.getItem("laravel_token");
@@ -299,6 +307,7 @@ class Tracker {
         return null;
       }
     })();
+    this.flushInFlight = true;
     fetch(INGEST_URL, {
       method: "POST",
       headers: {
@@ -316,6 +325,9 @@ class Tracker {
       .catch(() => {
         // молча игнорируем — телеметрия не должна ломать UX
         this.mutedUntil = Date.now() + 30_000;
+      })
+      .finally(() => {
+        this.flushInFlight = false;
       });
   }
 }

@@ -107,7 +107,19 @@ function releaseSlot() {
   else inFlight--;
 }
 
-const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
+const CIRCUIT_COOLDOWN_MS = 12_000;
+let circuitOpenUntil = 0;
+
+export function isBackendCircuitOpen(): boolean {
+  return Date.now() < circuitOpenUntil;
+}
+
+function openBackendCircuit() {
+  circuitOpenUntil = Math.max(circuitOpenUntil, Date.now() + CIRCUIT_COOLDOWN_MS);
+  window.dispatchEvent(
+    new CustomEvent("laravel:backend-overloaded", { detail: { until: circuitOpenUntil } }),
+  );
+}
 
 async function rawRequest<T>(
   path: string,
@@ -208,10 +220,11 @@ async function rawRequest<T>(
       data: null,
       error: {
         message: isAbort
-          ? "Backend не ответил вовремя. Сессия будет сброшена, чтобы не показывать чёрный экран."
+          ? "Backend не ответил вовремя. Сессия сохранена — повторите запрос через несколько секунд."
           : isClosedConnection
           ? "Backend разорвал соединение. Проверьте, что Laravel/PHP-FPM запущен, миграции применены, а nginx корректно проксирует /api."
           : rawMessage,
+        code: isAbort ? "backend_timeout" : isClosedConnection ? "backend_network" : undefined,
       },
     };
   } finally {
@@ -220,9 +233,9 @@ async function rawRequest<T>(
 }
 
 /**
- * Публичная обёртка: очередь параллелизма + мягкий ретрай, когда база
- * временно перегружена (503 `db_busy` от бэкенда или 500 при исчерпании
- * лимита подключений MySQL на idempotent-запросах).
+ * Публичная обёртка: очередь параллелизма + circuit breaker. Повтор внутри
+ * одного HTTP-запроса выполняет серверный RetryOnDbBusy; браузер не создаёт
+ * второй каскад запросов при уже исчерпанном лимите MySQL.
  */
 async function request<T>(
   path: string,
@@ -230,40 +243,48 @@ async function request<T>(
 ): Promise<LaravelInvokeResult<T>> {
   const method = (init.method || "GET").toUpperCase();
   const idempotent = method === "GET" || method === "HEAD";
-  const maxAttempts = idempotent ? 3 : 2;
-
-  for (let attempt = 1; ; attempt++) {
-    await acquireSlot();
-    let result: LaravelInvokeResult<T>;
-    try {
-      result = await rawRequest<T>(path, init);
-    } finally {
-      releaseSlot();
-    }
-
-    const status = result.error?.status;
-    const overloaded =
-      result.error?.code === "db_busy" ||
-      status === 503 ||
-      (idempotent && status === 500);
-
-    if (!overloaded || attempt >= maxAttempts) {
-      if (overloaded) {
-        return {
-          data: null,
-          error: {
-            ...result.error!,
-            message:
-              "Сервис временно перегружен: база данных не успевает обрабатывать запросы. Повторите через несколько секунд.",
-            code: "db_busy",
-          },
-        };
-      }
-      return result;
-    }
-
-    await sleep(400 * attempt + Math.random() * 200);
+  // Пока база восстанавливается, фоновые GET/HEAD не должны создавать новые
+  // PHP-процессы и попытки подключения. Записывающие действия пользователя
+  // пропускаем, чтобы интерфейс не блокировал явную команду без обращения к API.
+  if (idempotent && isBackendCircuitOpen()) {
+    return {
+      data: null,
+      error: {
+        message: "Сервис временно перегружен. Повторите через несколько секунд.",
+        status: 503,
+        code: "db_busy",
+      },
+    };
   }
+
+  await acquireSlot();
+  let result: LaravelInvokeResult<T>;
+  try {
+    result = await rawRequest<T>(path, init);
+  } finally {
+    releaseSlot();
+  }
+
+  const status = result.error?.status;
+  const overloaded =
+    result.error?.code === "db_busy" ||
+    result.error?.code === "backend_timeout" ||
+    result.error?.code === "backend_network" ||
+    status === 503;
+
+  if (!overloaded) return result;
+
+  openBackendCircuit();
+
+  return {
+    data: null,
+    error: {
+      ...result.error,
+      message:
+        "Сервис временно перегружен: база данных не успевает обрабатывать запросы. Повторите через несколько секунд.",
+      code: "db_busy",
+    },
+  };
 }
 
 
