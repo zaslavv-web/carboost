@@ -86,10 +86,6 @@ class ChatController extends Controller
             ->unique('conversation_id')
             ->keyBy('conversation_id');
 
-        $myParticipants = $participants->map(
-            fn ($g) => $g->firstWhere('user_id', $userId)
-        );
-
         $peerUserIds = $participants->flatten()->pluck('user_id')->unique()->all();
         $profiles = Profile::whereIn('user_id', $peerUserIds)
             ->get(['user_id', 'full_name', 'avatar_url', 'position_id', 'company_id', 'is_support'])
@@ -109,7 +105,8 @@ class ChatController extends Controller
                     ->orWhereColumn('m.created_at', '>', 'p.last_read_at');
             })
             ->groupBy('m.conversation_id')
-            ->pluck(DB::raw('COUNT(*)'), 'm.conversation_id');
+            ->selectRaw('m.conversation_id, COUNT(*) AS unread_count')
+            ->pluck('unread_count', 'm.conversation_id');
 
         $data = $conversations->map(function (ChatConversation $c) use ($participants, $lastMessages, $unreadCounts, $userId, $profiles) {
             $convParticipants = $participants[$c->id] ?? collect();
