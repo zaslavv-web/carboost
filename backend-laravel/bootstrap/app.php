@@ -92,6 +92,15 @@ if (PHP_SAPI !== 'cli') {
         );
         @file_put_contents(dirname(__DIR__) . '/storage/logs/laravel.log', $line, FILE_APPEND);
 
+        // Счётчик фаталов для /api/health: одна строка "timestamp uri" на падение.
+        // Пишем файлом, а не через Cache — на shutdown после OOM контейнер Laravel
+        // уже может быть непригоден, а file_put_contents ничего не аллоцирует сверх строки.
+        @file_put_contents(
+            dirname(__DIR__) . '/storage/logs/api-fatals.log',
+            time() . ' ' . str_replace(["\n", "\r"], '', substr($uri, 0, 200)) . "\n",
+            FILE_APPEND
+        );
+
         if (!headers_sent()) {
             http_response_code(500);
             header('Content-Type: application/json');

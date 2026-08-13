@@ -75,8 +75,62 @@ Route::get('/health', function () {
     // начинает собирать полные трейсы с объектами и рендерить Ignition.
     $checks['app_debug']    = (bool) config('app.debug');
     $checks['opcache']      = function_exists('opcache_get_status') && @opcache_get_status(false) ? 'on' : 'off';
-    $checks['version']      = trim((string) @file_get_contents(base_path('VERSION'))) ?: 'unknown';
+    // Маркер версии. VERSION пишет CI; при ручном git pull файла нет — тогда
+    // берём хэш последнего коммита, иначе не отличить «код не выкатился» от
+    // «код выкатился, но падает». Значение кэшируем на 5 минут: git — процесс.
+    $checks['version'] = trim((string) @file_get_contents(base_path('VERSION'))) ?: (function () {
+        try {
+            return \Illuminate\Support\Facades\Cache::remember('app_git_version', 300, function () {
+                $head = @file_get_contents(base_path('.git/HEAD'));
+                if (!$head) {
+                    return 'unknown';
+                }
+                if (preg_match('/^ref:\s*(\S+)/', $head, $m)) {
+                    $sha = @file_get_contents(base_path('.git/' . $m[1]));
+                    if (!$sha) {
+                        // packed-refs (после clone --depth или gc)
+                        $packed = @file_get_contents(base_path('.git/packed-refs')) ?: '';
+                        if (preg_match('/^([0-9a-f]{40})\s+' . preg_quote($m[1], '/') . '$/m', $packed, $p)) {
+                            $sha = $p[1];
+                        }
+                    }
+                } else {
+                    $sha = $head;
+                }
+                $sha = trim((string) $sha);
+                return $sha ? substr($sha, 0, 7) : 'unknown';
+            });
+        } catch (\Throwable $e) {
+            return 'unknown';
+        }
+    })();
     $checks['db_read_path'] = 'raw-chunked-v3';
+
+    // Сводка по фаталам за последний час — чтобы проверять состояние одной
+    // командой, без grep по laravel.log. Файл пишет shutdown-обработчик.
+    $checks['fatals_last_hour'] = 0;
+    $checks['fatals_last_uri']  = null;
+    $fatalsFile = storage_path('logs/api-fatals.log');
+    if (is_readable($fatalsFile)) {
+        $since = time() - 3600;
+        // Читаем только хвост файла: строки короткие, 64 КБ хватает на сотни падений.
+        $size = @filesize($fatalsFile) ?: 0;
+        $fh   = @fopen($fatalsFile, 'rb');
+        if ($fh) {
+            if ($size > 65536) {
+                fseek($fh, -65536, SEEK_END);
+                fgets($fh); // отбрасываем возможную обрезанную строку
+            }
+            while (($row = fgets($fh)) !== false) {
+                $parts = explode(' ', trim($row), 2);
+                if ((int) ($parts[0] ?? 0) >= $since) {
+                    $checks['fatals_last_hour']++;
+                    $checks['fatals_last_uri'] = $parts[1] ?? null;
+                }
+            }
+            fclose($fh);
+        }
+    }
 
     $ok = $checks['db'] === 'ok' && ($checks['redis'] === 'ok' || $checks['redis'] === 'skipped');
     return response()->json(['status' => $ok ? 'ok' : 'degraded', 'checks' => $checks], $ok ? 200 : 503);
