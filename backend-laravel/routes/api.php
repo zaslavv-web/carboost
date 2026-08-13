@@ -58,11 +58,23 @@ Route::get('/health', function () {
         $checks['redis'] = 'skipped';
     }
 
+    // Память ВЕБ-процесса. CLI (`php artisan diag:memory`) видит другой php.ini
+    // и другой набор загруженного кода, поэтому его 12 МБ ничего не говорят о
+    // том, почему запрос в вебе упирается в 256 МБ. Эти поля — база веба.
     $checks['memory_limit'] = ini_get('memory_limit');
+    $checks['sapi']         = PHP_SAPI;
+    $checks['boot_mb']      = defined('APP_BOOT_MEM') ? round(APP_BOOT_MEM / 1048576, 1) : null;
+    $checks['usage_mb']     = round(memory_get_usage(true) / 1048576, 1);
+    $checks['peak_mb']      = round(memory_get_peak_usage(true) / 1048576, 1);
+    // APP_DEBUG в проде — частая причина взрывного расхода памяти: Laravel
+    // начинает собирать полные трейсы с объектами и рендерить Ignition.
+    $checks['app_debug']    = (bool) config('app.debug');
+    $checks['opcache']      = function_exists('opcache_get_status') && @opcache_get_status(false) ? 'on' : 'off';
 
     $ok = $checks['db'] === 'ok' && ($checks['redis'] === 'ok' || $checks['redis'] === 'skipped');
     return response()->json(['status' => $ok ? 'ok' : 'degraded', 'checks' => $checks], $ok ? 200 : 503);
 });
+
 
 // Аудит 2026-07-01: добавлен throttle на все публичные endpoint'ы (брутфорс/спам).
 // 10/min на auth-эндпоинты — с учётом IP и логина; 30/min на публичные RPC и ingest.
@@ -211,6 +223,50 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // а гейт добавлял два чтения профиля (+SHOW COLUMNS) на каждый вызов
     // и был единственным местом, где запрос падал в 500 до контроллера.
     Route::get('/chats/unread-count', [\App\Http\Controllers\Api\ChatController::class, 'unreadCount']);
+
+    // Диагностика памяти ВНУТРИ настоящего HTTP-запроса (не CLI): показывает,
+    // сколько занято на входе в маршрут, после резолва пользователя Sanctum,
+    // после чтения профиля и после того самого запроса unread-count.
+    // Возвращает только цифры — ни данных компании, ни секретов.
+    Route::get('/diag/request-memory', function (\Illuminate\Http\Request $request) {
+        $mb = fn () => round(memory_get_usage(true) / 1048576, 1);
+        $stages = [];
+        $stages['route_entry'] = $mb();
+
+        $user = $request->user();
+        $stages['after_user'] = $mb();
+
+        $userId = $user?->getAuthIdentifier();
+        DB::table('profiles')->where('user_id', $userId)->first(['company_id']);
+        $stages['after_profile'] = $mb();
+
+        try {
+            DB::table('chat_messages as m')
+                ->join('chat_participants as p', function ($join) use ($userId) {
+                    $join->on('p.conversation_id', '=', 'm.conversation_id')
+                        ->where('p.user_id', '=', $userId);
+                })
+                ->whereNull('m.deleted_at')
+                ->where('m.sender_id', '!=', $userId)
+                ->distinct()
+                ->count('m.id');
+            $stages['after_unread_query'] = $mb();
+        } catch (\Throwable $e) {
+            $stages['after_unread_query'] = 'error: ' . mb_substr($e->getMessage(), 0, 200);
+        }
+
+        return response()->json([
+            'sapi'         => PHP_SAPI,
+            'memory_limit' => ini_get('memory_limit'),
+            'app_debug'    => (bool) config('app.debug'),
+            'boot_mb'      => defined('APP_BOOT_MEM') ? round(APP_BOOT_MEM / 1048576, 1) : null,
+            'stages'       => $stages,
+            'peak_mb'      => round(memory_get_peak_usage(true) / 1048576, 1),
+            'tokens'       => DB::table('personal_access_tokens')->where('tokenable_id', $userId)->count(),
+            'loaded_files' => count(get_included_files()),
+        ]);
+    });
+
 
 
     // Брендинг компании: чтение/запись доступны без has.company-гейта,

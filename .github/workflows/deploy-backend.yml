@@ -142,24 +142,30 @@ jobs:
           php -d memory_limit=-1 "$COMPOSER_BIN" dump-autoload --no-dev --optimize --no-interaction
           php -d memory_limit=-1 -r 'require "vendor/autoload.php"; if (!class_exists(Illuminate\Foundation\Application::class)) { fwrite(STDERR, "autoload broken\n"); exit(1);} echo "autoload OK\n";'
 
-          php artisan optimize:clear || true
-          php artisan config:clear || true
-          php artisan cache:clear || true
+          # CLI использует отдельный php.ini (на этом хостинге memory_limit=64M),
+          # поэтому артизан-команды и сидеры падают там, где веб (256M) живёт.
+          # Держим единый лимит для всех вызовов артизана.
+          ARTISAN="php -d memory_limit=256M artisan"
+
+          $ARTISAN optimize:clear || true
+          $ARTISAN config:clear || true
+          $ARTISAN cache:clear || true
 
           if [ "$RUN_MIGRATIONS" = "true" ]; then
-            php artisan migrate --force
+            $ARTISAN migrate --force
           else
             echo "ℹ️  migrations skipped"
           fi
 
-          php artisan route:clear || true
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache || true
-          php artisan event:cache || true
+          $ARTISAN route:clear || true
+          $ARTISAN config:cache
+          $ARTISAN route:cache
+          $ARTISAN view:cache || true
+          $ARTISAN event:cache || true
 
           printf '%s\n' "${GITHUB_SHA:-unknown}" > VERSION
-          php artisan route:list --path=performance-cycles || true
+          $ARTISAN route:list --path=performance-cycles || true
+
           REMOTE
 
       - name: Set PHP runtime limits via .user.ini
