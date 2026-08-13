@@ -132,6 +132,29 @@ Route::get('/health', function () {
         }
     }
 
+    // Приблизительные размеры ключевых таблиц — чтобы отличить "запрос тяжёлый"
+    // от "в таблице миллионы строк и нет индекса по company_id".
+    $checks['table_counts'] = [];
+    try {
+        $tables = [
+            'users', 'profiles', 'positions', 'companies', 'departments',
+            'tracker_tasks', 'chats', 'chat_messages', 'hr_documents',
+            'career_track_templates', 'peer_recognitions', 'ai_usage_log',
+            'support_tickets', 'notifications', 'pulse_surveys', 'pulse_survey_responses',
+        ];
+        $rows = DB::select(
+            "SELECT table_name, table_rows
+             FROM information_schema.tables
+             WHERE table_schema = DATABASE()
+               AND table_name IN ('" . implode("','", $tables) . "')"
+        );
+        foreach ($rows as $r) {
+            $checks['table_counts'][$r->table_name] = (int) $r->table_rows;
+        }
+    } catch (\Throwable $e) {
+        $checks['table_counts'] = ['error' => $e->getMessage()];
+    }
+
     $ok = $checks['db'] === 'ok' && ($checks['redis'] === 'ok' || $checks['redis'] === 'skipped');
     return response()->json(['status' => $ok ? 'ok' : 'degraded', 'checks' => $checks], $ok ? 200 : 503);
 });
