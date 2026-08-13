@@ -69,20 +69,17 @@ class ChatController extends Controller
             ->get()
             ->groupBy('conversation_id');
 
-        // Только одно последнее сообщение на диалог вместо полной истории.
-        $latestMessageDates = DB::table('chat_messages')
-            ->selectRaw('conversation_id, MAX(created_at) AS latest_created_at')
+        // Последние сообщения берём ограниченным окном. joinSub с MAX(created_at)
+        // оказался несовместим с версией MySQL на боевом shared-hosting и ронял
+        // весь endpoint. Окно в 500 строк ограничивает память и сохраняет один
+        // пакетный запрос вместо N+1.
+        $lastMessages = ChatMessage::query()
             ->whereIn('conversation_id', $conversationIds)
             ->whereNull('deleted_at')
-            ->groupBy('conversation_id');
-
-        $lastMessages = ChatMessage::query()
-            ->joinSub($latestMessageDates, 'latest', function ($join) {
-                $join->on('chat_messages.conversation_id', '=', 'latest.conversation_id')
-                    ->on('chat_messages.created_at', '=', 'latest.latest_created_at');
-            })
-            ->orderByDesc('chat_messages.id')
-            ->get(['chat_messages.*'])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(500)
+            ->get()
             ->unique('conversation_id')
             ->keyBy('conversation_id');
 
@@ -158,18 +155,20 @@ class ChatController extends Controller
     public function unreadCount(): JsonResponse
     {
         $userId = auth()->id();
-        $myParts = ChatParticipant::where('user_id', $userId)->get(['conversation_id', 'last_read_at']);
+        $total = DB::table('chat_messages as m')
+            ->join('chat_participants as p', function ($join) use ($userId) {
+                $join->on('p.conversation_id', '=', 'm.conversation_id')
+                    ->where('p.user_id', '=', $userId);
+            })
+            ->whereNull('m.deleted_at')
+            ->where('m.sender_id', '!=', $userId)
+            ->where(function ($query) {
+                $query->whereNull('p.last_read_at')
+                    ->orWhereColumn('m.created_at', '>', 'p.last_read_at');
+            })
+            ->count();
 
-        $total = 0;
-        foreach ($myParts as $p) {
-            $q = ChatMessage::where('conversation_id', $p->conversation_id)
-                ->whereNull('deleted_at')
-                ->where('sender_id', '!=', $userId);
-            if ($p->last_read_at) $q->where('created_at', '>', $p->last_read_at);
-            $total += $q->count();
-        }
-
-        return response()->json(['unread' => $total]);
+        return response()->json(['unread' => (int) $total]);
     }
 
     public function store(Request $request): JsonResponse
