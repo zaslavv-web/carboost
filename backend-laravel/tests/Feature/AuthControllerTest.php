@@ -28,12 +28,12 @@ class AuthControllerTest extends TestCase
 
     public function test_register_rejects_duplicate_email(): void
     {
-        DB::table('auth.users')->insert([
+        DB::table('users')->insert([
             'id' => (string) Str::uuid(),
             'email' => 'dup@u.io',
-            'encrypted_password' => Hash::make('x'),
-            'email_confirmed_at' => now(),
-            'raw_user_meta_data' => json_encode([]),
+            'password' => Hash::make('x'),
+            'email_verified_at' => now(),
+            'meta' => json_encode([]),
             'created_at' => now(), 'updated_at' => now(),
         ]);
 

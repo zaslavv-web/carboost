@@ -492,7 +492,10 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::delete('/one-on-ones/{id}', [\App\Http\Controllers\Api\OneOnOneController::class, 'destroy']);
 
         // ---- AI services (Phase 7, replaces legacy Edge Functions) ----
-        Route::prefix('ai')->group(function () {
+        // Rate limit: AI-вызовы стоят денег у внешнего провайдера, поэтому
+        // генерация ограничена 20 запросами в минуту на пользователя, а
+        // тяжёлый парсинг документов — 10 в минуту.
+        Route::prefix('ai')->middleware('throttle:20,1')->group(function () {
             Route::post('assessment-chat',              [AiController::class, 'assessmentChat']);
             Route::post('generate-closed-test',         [AiController::class, 'generateClosedTest']);
             Route::post('generate-step-scenario',       [AiController::class, 'generateStepScenario']);
@@ -501,10 +504,12 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
             Route::post('generate-positions-from-org',  [AiController::class, 'generatePositionsFromOrg']);
             Route::post('generate-questionnaire-profile', [AiController::class, 'generateQuestionnaireProfile']);
             Route::post('suggest-ticket-fix',           [AiController::class, 'suggestTicketFix']);
-            Route::post('parse-position-standards',     [AiController::class, 'parsePositionStandards']);
-            Route::post('parse-hr-document',            [AiController::class, 'parseHrDocument']);
-            Route::post('parse-org-structure',          [AiController::class, 'parseOrgStructure']);
-            Route::post('parse-test-document',          [AiController::class, 'parseTestDocument']);
+            Route::middleware('throttle:10,1')->group(function () {
+                Route::post('parse-position-standards', [AiController::class, 'parsePositionStandards']);
+                Route::post('parse-hr-document',        [AiController::class, 'parseHrDocument']);
+                Route::post('parse-org-structure',      [AiController::class, 'parseOrgStructure']);
+                Route::post('parse-test-document',      [AiController::class, 'parseTestDocument']);
+            });
         });
 
         // ---- AI settings (Phase 15: closed-loop deployment) ----

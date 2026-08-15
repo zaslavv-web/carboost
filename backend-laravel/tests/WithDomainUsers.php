@@ -31,12 +31,12 @@ trait WithDomainUsers
         $companyId ??= $this->makeCompany()->id;
         $id = (string) Str::uuid();
 
-        DB::table('auth.users')->insert([
+        DB::table('users')->insert([
             'id' => $id,
             'email' => Str::uuid() . '@test.local',
-            'encrypted_password' => Hash::make('secret123'),
-            'email_confirmed_at' => now(),
-            'raw_user_meta_data' => json_encode([]),
+            'password' => Hash::make('secret123'),
+            'email_verified_at' => now(),
+            'meta' => json_encode([]),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
