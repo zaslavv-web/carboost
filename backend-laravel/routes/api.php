@@ -492,7 +492,10 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::delete('/one-on-ones/{id}', [\App\Http\Controllers\Api\OneOnOneController::class, 'destroy']);
 
         // ---- AI services (Phase 7, replaces legacy Edge Functions) ----
-        Route::prefix('ai')->group(function () {
+        // Rate limit: AI-вызовы стоят денег у внешнего провайдера, поэтому
+        // генерация ограничена 20 запросами в минуту на пользователя, а
+        // тяжёлый парсинг документов — 10 в минуту.
+        Route::prefix('ai')->middleware('throttle:20,1')->group(function () {
             Route::post('assessment-chat',              [AiController::class, 'assessmentChat']);
             Route::post('generate-closed-test',         [AiController::class, 'generateClosedTest']);
             Route::post('generate-step-scenario',       [AiController::class, 'generateStepScenario']);
