@@ -157,6 +157,13 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__ . '/../routes/console.php',
         channels: __DIR__ . '/../routes/channels.php',
         health:   '/up',
+        then: function () {
+            // Версионированный алиас: /api/v1/* повторяет текущий контракт.
+            // Клиент продолжает ходить на /api/*, но контракт зафиксирован.
+            \Illuminate\Support\Facades\Route::prefix('api/v1')
+                ->middleware('api')
+                ->group(__DIR__ . '/../routes/api.php');
+        },
     )
     ->withMiddleware(function (Middleware $middleware) {
         // API stateless — никаких CSRF/session кук в API-группе
