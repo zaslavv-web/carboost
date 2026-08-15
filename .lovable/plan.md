@@ -8,7 +8,7 @@
 |---|---|---|
 | Нет `routes/web.php` | **Справедливо** | Файла в репозитории нет, при этом `bootstrap/app.php:155` его подключает. Прод жив только потому, что маршруты закешированы/файл создан вручную на сервере — на чистом клоне приложение упадёт. |
 | Нет `routes/console.php` | **Неверно** | Файл есть, в нём расписание `mail:heartbeat` и `risks:compute`. |
-| Прямые INSERT в `auth.users` Supabase | **Неверно** | Обращений к схеме `auth` в коде нет — только комментарии «legacy auth.users здесь нет». Работа идёт через собственную таблицу `users` (миграция `0002_00_00_000000_create_users_table`). Supabase-клиент во фронте — inert-заглушка. |
+| Прямые INSERT/SELECT в `auth.users` Supabase | **Неверно (перепроверено построчно)** | `AuthUserService.php` — три вставки, все `DB::table('users')->insert(...)` (строки 56, 123, 190), схемы `auth` нет. `AuthController.php:30` и `UsersController.php:45` проверяют уникальность email через `DB::table('users')`, в коде даже стоит комментарий «не auth.users!». Таблица `users` — не VIEW на `auth.users`, а обычная таблица, созданная миграцией `0002_00_00_000000_create_users_table` (`Schema::create('users')`). Единственные упоминания `auth.users` в исполняемом коде — в тестовых хелперах `tests/WithDomainUsers.php:34` и `tests/Feature/AuthControllerTest.php:31`; они на прод не влияют, но их стоит переписать на `users`. |
 | Пустой `APP_KEY` | **Неверно** | Ключ задан и в корневом `.env`, и в `backend-laravel/.env`. Аудит, похоже, смотрел `.env.example`. |
 | Не настроены Google/Mail/AI | **Частично** | Google OAuth и Unisender Go заполнены боевыми значениями. `AI_API_KEY=YOUR_AI_API_KEY` — плейсхолдер, но ключи AI хранятся пер-компанийно в БД (`ai_settings.api_key_enc`, шифрование `Crypt`), env — только фолбэк. |
 
