@@ -372,7 +372,7 @@ class ScormController extends Controller
     protected function assetUrl(string $packagePath, string $relative): string
     {
         $relative = ltrim($relative, '/');
-        return url('/api/university/scorm-asset?path=' . urlencode($packagePath . '/' . $relative));
+        return url('/api/university/scorm/asset/' . ltrim($packagePath, '/') . '/' . $relative);
     }
 
     /**
@@ -383,7 +383,7 @@ class ScormController extends Controller
         $uid = $this->uid();
         if (! $uid) return response()->json(['error' => 'auth required'], 401);
 
-        $path = (string) $r->query('path', '');
+        $path = (string) $r->route('path', '');
         if (! $path || str_contains($path, '..')) return response()->json(['error' => 'invalid path'], 400);
 
         // Извлекаем package_path как первые два сегмента (company_id/uuid).
