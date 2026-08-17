@@ -43,8 +43,23 @@ class ScormController extends Controller
         if (! $this->canAuthor()) return response()->json(['error' => 'forbidden'], 403);
 
         $r->validate([
-            'file' => 'required|file|mimes:zip|max:' . (self::MAX_ZIP_MB * 1024),
+            'file' => [
+                'required',
+                'file',
+                'max:' . (self::MAX_ZIP_MB * 1024),
+                'mimetypes:application/zip,application/x-zip-compressed,application/x-zip,multipart/x-zip,application/octet-stream',
+            ],
+        ], [
+            'file.required' => 'Файл не выбран.',
+            'file.max'      => 'Файл больше ' . self::MAX_ZIP_MB . ' МБ.',
+            'file.mimetypes' => 'Ожидается ZIP-архив SCORM.',
         ]);
+
+        $upload = $r->file('file');
+        if (strtolower((string) $upload->getClientOriginalExtension()) !== 'zip') {
+            return response()->json(['error' => 'Ожидается файл с расширением .zip'], 422);
+        }
+
 
         $companyId = $this->companyId();
         if (! $companyId) return response()->json(['error' => 'company_id required'], 422);

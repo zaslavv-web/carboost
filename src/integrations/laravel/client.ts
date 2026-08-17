@@ -379,13 +379,18 @@ export function aiStream(
 }
 
 /** Generic helpers for upcoming CRUD migration. */
+const toPayload = (body?: any): BodyInit =>
+  body instanceof FormData || body instanceof Blob || body instanceof ArrayBuffer
+    ? (body as BodyInit)
+    : JSON.stringify(body ?? {});
+
 export const laravel = {
   get: <T = any>(path: string) => request<T>(path, { method: "GET" }),
   post: <T = any>(path: string, body?: any) =>
-    request<T>(path, { method: "POST", body: JSON.stringify(body ?? {}) }),
+    request<T>(path, { method: "POST", body: toPayload(body) }),
   put: <T = any>(path: string, body?: any) =>
-    request<T>(path, { method: "PUT", body: JSON.stringify(body ?? {}) }),
+    request<T>(path, { method: "PUT", body: toPayload(body) }),
   patch: <T = any>(path: string, body?: any) =>
-    request<T>(path, { method: "PATCH", body: JSON.stringify(body ?? {}) }),
+    request<T>(path, { method: "PATCH", body: toPayload(body) }),
   delete: <T = any>(path: string) => request<T>(path, { method: "DELETE" }),
 };

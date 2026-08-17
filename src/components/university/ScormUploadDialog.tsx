@@ -30,12 +30,18 @@ export function ScormUploadDialog({ children }: { children: React.ReactNode }) {
         "/university/scorm/upload",
         formData
       );
+      if (uploadRes.error || !uploadRes.data?.upload_token) {
+        throw new Error(uploadRes.error?.message || "Не удалось загрузить SCORM-пакет");
+      }
       const importRes = await laravel.post<{ course_id: string; title: string }>("/university/scorm/import", {
-        upload_token: uploadRes.data!.upload_token,
+        upload_token: uploadRes.data.upload_token,
         title: title || undefined,
         description: description || undefined,
       });
-      return importRes.data!;
+      if (importRes.error || !importRes.data?.course_id) {
+        throw new Error(importRes.error?.message || "Не удалось импортировать SCORM-пакет");
+      }
+      return importRes.data;
     },
     onSuccess: (data) => {
       toast.success(`SCORM-курс «${data.title}» импортирован`);
@@ -46,7 +52,7 @@ export function ScormUploadDialog({ children }: { children: React.ReactNode }) {
       navigate(`/university/${data.course_id}/edit`);
     },
     onError: (e: any) => {
-      toast.error(e?.response?.data?.error || e?.message || "Не удалось импортировать SCORM");
+      toast.error(e?.message || "Не удалось импортировать SCORM");
     },
   });
 
