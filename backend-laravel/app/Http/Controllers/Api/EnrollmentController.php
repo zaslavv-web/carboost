@@ -23,7 +23,7 @@ class EnrollmentController extends Controller
         $u = Auth::user();
         if (! $u) return false;
         $roles = DB::table('user_roles')->where('user_id', $u->id)->pluck('role')->all();
-        return (bool) array_intersect($roles, ['hrd','company_admin','superadmin','manager']);
+        return (bool) array_intersect($roles, ['hr','hrd','company_admin','superadmin','manager']);
     }
 
     /** Список моих записей (Employee — "Моё обучение"). */
