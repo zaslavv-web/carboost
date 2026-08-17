@@ -187,7 +187,7 @@ const App = () => (
                 <Route path="/recognition" element={<Recognition />} />
                 <Route path="/risk-analytics" element={<RiskAnalytics />} />
                 <Route path="/pricing-inquiries" element={<PricingInquiries />} />
-                <Route path="/email-settings" element={<EmailSettingsManagement />} />
+                <Route path="/email-settings" element={<SuperadminOnly><EmailSettingsManagement /></SuperadminOnly>} />
                 <Route path="/chats" element={<Chats />} />
                 <Route path="/chats/:conversationId" element={<Chats />} />
                 <Route path="/leaves" element={<Leaves />} />
