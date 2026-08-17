@@ -386,12 +386,17 @@ class ScormController extends Controller
         $path = (string) $r->query('path', '');
         if (! $path || str_contains($path, '..')) return response()->json(['error' => 'invalid path'], 400);
 
+        // Извлекаем package_path как первые два сегмента (company_id/uuid).
+        $segments = explode('/', $path);
+        $packagePath = implode('/', array_slice($segments, 0, 2));
+        if (! $packagePath || count($segments) < 2) {
+            return response()->json(['error' => 'invalid path'], 400);
+        }
+
         // Verify the path belongs to an enrolled course or authored course.
         $companyId = $this->companyId();
-        $driver = DB::getDriverName();
-        $like = $driver === 'pgsql' ? '? LIKE scorm_package_path || \'%\'' : '? LIKE CONCAT(scorm_package_path, \'%\')';
         $allowed = DB::table('courses')
-            ->whereRaw($like, [$path])
+            ->where('scorm_package_path', $packagePath)
             ->where(function ($q) use ($uid, $companyId) {
                 $q->whereExists(function ($sq) use ($uid) {
                     $sq->selectRaw('1')->from('enrollments')
