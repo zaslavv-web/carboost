@@ -124,6 +124,8 @@ class AuthServiceProvider extends ServiceProvider
 
         // Performance (Волна 3)
         Models\PerformanceReviewReviewer::class => CompanyScopedPolicy::class,
+        Models\PerformanceReview::class         => CompanyScopedPolicy::class,
+        Models\PerformanceCycle::class          => CompanyScopedPolicy::class,
 
         // Portal & Communications (Волна 4)
         Models\PortalPost::class            => CompanyScopedPolicy::class,
