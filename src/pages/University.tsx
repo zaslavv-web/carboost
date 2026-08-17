@@ -166,13 +166,6 @@ export default function University() {
                 >
                   <GraduationCap className="w-10 h-10 text-primary/40" />
                 </div>
-                {false ? (
-                  <span />
-                ) : (
-                  <div className="h-32 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                    <GraduationCap className="w-10 h-10 text-primary/40" />
-                  </div>
-                )}
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-base">{c.title}</CardTitle>
