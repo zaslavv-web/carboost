@@ -561,7 +561,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::get   ('/university/scorm/{courseId}/launch/{lessonId}', [ScormController::class, 'launch']);
         Route::post  ('/university/scorm/{enrollmentId}/cmi', [ScormController::class, 'storeCmi']);
         Route::get   ('/university/scorm/{enrollmentId}/cmi', [ScormController::class, 'getCmi']);
-        Route::get   ('/university/scorm-asset',              [ScormController::class, 'asset']);
+        Route::get   ('/university/scorm/asset/{path}',      [ScormController::class, 'asset'])->where('path', '.*');
 
 
         // ---- Risk analytics (predictive HRD alerts) ----
