@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, ArrowLeft, Save, GripVertical } from "lucide-react";
+import { CourseAudience } from "@/components/university/CourseAudience";
 
 interface Lesson {
   id: string; module_id: string; order_index: number;
@@ -144,6 +145,8 @@ export default function CourseAuthoring() {
           </div>
         </CardContent>
       </Card>
+
+      <CourseAudience courseId={course.id} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Modules & lessons */}

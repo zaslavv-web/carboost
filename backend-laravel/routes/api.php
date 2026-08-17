@@ -544,6 +544,14 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::get   ('/university/blockers',                [\App\Http\Controllers\Api\EnrollmentController::class, 'blockers']);
         Route::get   ('/university/certificate/{serial}',    [\App\Http\Controllers\Api\EnrollmentController::class, 'certificate']);
 
+        // Привязка обучения к аудитории (пользователи / отделы / грейды / стаж / должности / импорт списка)
+        Route::get   ('/university/audience/options',        [\App\Http\Controllers\Api\EnrollmentController::class, 'audienceOptions']);
+        Route::get   ('/university/audience/search',         [\App\Http\Controllers\Api\EnrollmentController::class, 'audienceSearch']);
+        Route::post  ('/university/courses/{id}/assign/preview', [\App\Http\Controllers\Api\EnrollmentController::class, 'assignPreview']);
+        Route::post  ('/university/courses/{id}/assign',     [\App\Http\Controllers\Api\EnrollmentController::class, 'bulkAssign']);
+        Route::delete('/university/enrollments/{id}',        [\App\Http\Controllers\Api\EnrollmentController::class, 'unassign']);
+
+
         // ---- Risk analytics (predictive HRD alerts) ----
         Route::post  ('/risks/recompute', [\App\Http\Controllers\Api\RiskController::class, 'recompute']);
 
