@@ -395,7 +395,7 @@ class EnrollmentController extends Controller
     protected function issueCertificate(object $enr): string
     {
         $course = DB::table('courses')->where('id', $enr->course_id)->first();
-        $profile = DB::table('profiles')->where('id', $enr->user_id)->first();
+        $profile = DB::table('profiles')->where('user_id', $enr->user_id)->first();
         $id = (string) Str::uuid();
         $serial = 'CRT-' . strtoupper(substr(str_replace('-', '', $id), 0, 12));
         DB::table('certificates')->insert([
