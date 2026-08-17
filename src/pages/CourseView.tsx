@@ -8,19 +8,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Circle, PlayCircle, FileText, ClipboardList, ArrowLeft, Award } from "lucide-react";
+import { CheckCircle2, Circle, PlayCircle, FileText, ClipboardList, ArrowLeft, Award, FileArchive } from "lucide-react";
 
 interface Lesson {
   id: string; module_id: string; order_index: number;
-  type: "video" | "markdown" | "pdf" | "test";
+  type: "video" | "markdown" | "pdf" | "test" | "scorm";
   title: string; content: string | null;
-  video_url: string | null; attachment_url: string | null;
+  video_url: string | null; attachment_url: string | null; launch_url: string | null;
   test_id: string | null; pass_score: number; duration_min: number;
 }
 interface Module { id: string; title: string; order_index: number; lessons: Lesson[]; }
 interface Course { id: string; title: string; description: string | null; level: string; status: string; }
 
-const typeIcon = { video: PlayCircle, markdown: FileText, pdf: FileText, test: ClipboardList } as const;
+const typeIcon = { video: PlayCircle, markdown: FileText, pdf: FileText, test: ClipboardList, scorm: FileArchive } as const;
 
 function toEmbed(url: string): string {
   // YouTube watch -> embed
@@ -190,17 +190,29 @@ export default function CourseView() {
                     </Button>
                   </div>
                 )}
-                {activeLesson.content && (
+                {activeLesson.type === "scorm" && (
+                  <div className="aspect-[16/10] w-full rounded overflow-hidden border bg-black">
+                    <iframe
+                      src={`/api/university/scorm/${courseId}/launch/${activeLesson.id}`}
+                      className="w-full h-full"
+                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                      title={activeLesson.title}
+                    />
+                  </div>
+                )}
+                {activeLesson.content && activeLesson.type !== "scorm" && (
                   <div className="prose prose-sm max-w-none dark:prose-invert">
                     <ReactMarkdown>{activeLesson.content}</ReactMarkdown>
                   </div>
                 )}
 
-                <div className="flex justify-end pt-4 border-t">
-                  <Button onClick={handleComplete} disabled={progressMut.isPending || completed.has(activeLesson.id)}>
-                    {completed.has(activeLesson.id) ? "Урок пройден" : "Отметить как пройденный"}
-                  </Button>
-                </div>
+                {activeLesson.type !== "scorm" && (
+                  <div className="flex justify-end pt-4 border-t">
+                    <Button onClick={handleComplete} disabled={progressMut.isPending || completed.has(activeLesson.id)}>
+                      {completed.has(activeLesson.id) ? "Урок пройден" : "Отметить как пройденный"}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </>
           ) : (

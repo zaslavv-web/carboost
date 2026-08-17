@@ -153,11 +153,13 @@ async function rawRequest<T>(
 ): Promise<LaravelInvokeResult<T>> {
 
   const token = laravelAuth.getToken();
+  const isFormData = init.body instanceof FormData;
   const headers: Record<string, string> = {
     Accept: "application/json",
-    "Content-Type": "application/json",
     ...(init.headers as Record<string, string> | undefined),
   };
+  // FormData требует boundary: не ставим Content-Type вручную.
+  if (!isFormData) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const timeoutMs = path === "/auth/me" ? 8000 : 30000;

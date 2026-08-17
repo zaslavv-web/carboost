@@ -16,9 +16,9 @@ import { CourseAudience } from "@/components/university/CourseAudience";
 
 interface Lesson {
   id: string; module_id: string; order_index: number;
-  type: "video" | "markdown" | "pdf" | "test";
+  type: "video" | "markdown" | "pdf" | "test" | "scorm";
   title: string; content: string | null;
-  video_url: string | null; attachment_url: string | null;
+  video_url: string | null; attachment_url: string | null; launch_url: string | null;
   test_id: string | null; pass_score: number; duration_min: number;
 }
 interface Module { id: string; title: string; order_index: number; lessons: Lesson[]; }
@@ -235,6 +235,7 @@ function LessonEditor({ lesson, onSave, onDelete }: { lesson: Lesson; onSave: (p
               <SelectItem value="video">Видео (ссылка)</SelectItem>
               <SelectItem value="pdf">PDF (ссылка)</SelectItem>
               <SelectItem value="test">Тест</SelectItem>
+              <SelectItem value="scorm" disabled>SCORM (только импорт)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -257,6 +258,13 @@ function LessonEditor({ lesson, onSave, onDelete }: { lesson: Lesson; onSave: (p
         <div>
           <Label>ID теста (из HRDTests)</Label>
           <Input value={form.test_id ?? ""} onChange={(e) => set("test_id", e.target.value)} />
+        </div>
+      )}
+      {form.type === "scorm" && (
+        <div>
+          <Label>SCORM launch URL</Label>
+          <Input value={form.launch_url ?? ""} disabled />
+          <p className="text-xs text-muted-foreground mt-1">Заполняется автоматически при импорте SCORM-пакета.</p>
         </div>
       )}
 

@@ -53,6 +53,7 @@ return [
         'employee-questionnaires' => $diskFor('employee-questionnaires', false),
         'career-submissions'      => $diskFor('career-submissions',      false),
         'tracker-attachments'     => $diskFor('tracker-attachments',     false),
+        'scorm-packages'          => $diskFor('scorm-packages',          false),
     ],
 
 
