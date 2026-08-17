@@ -146,7 +146,28 @@ export default function University() {
             {courses.map((c) => (
               <Card key={c.id} className="overflow-hidden flex flex-col">
                 {c.cover_url ? (
-                  <img src={c.cover_url} alt={c.title} className="h-32 w-full object-cover" />
+                  <img
+                    src={c.cover_url}
+                    alt={c.title}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    className="h-32 w-full object-cover"
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      img.style.display = "none";
+                      const ph = img.nextElementSibling as HTMLElement | null;
+                      if (ph) ph.style.display = "flex";
+                    }}
+                  />
+                ) : null}
+                <div
+                  className="h-32 bg-gradient-to-br from-primary/20 to-primary/5 items-center justify-center"
+                  style={{ display: c.cover_url ? "none" : "flex" }}
+                >
+                  <GraduationCap className="w-10 h-10 text-primary/40" />
+                </div>
+                {false ? (
+                  <span />
                 ) : (
                   <div className="h-32 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
                     <GraduationCap className="w-10 h-10 text-primary/40" />
