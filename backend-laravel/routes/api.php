@@ -10,13 +10,17 @@ use App\Http\Controllers\Api\CareerGoalController;
 use App\Http\Controllers\Api\CareerTrackTemplateController;
 use App\Http\Controllers\Api\ClosedQuestionTestController;
 use App\Http\Controllers\Api\CompetencyController;
+use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\DepartmentController;
+use App\Http\Controllers\Api\EnrollmentController;
 use App\Http\Controllers\Api\HrDocumentController;
 use App\Http\Controllers\Api\ImpersonationController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PositionCareerPathController;
 use App\Http\Controllers\Api\PositionController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ScormController;
+use App\Http\Controllers\Api\StorageController;
 use App\Http\Controllers\Api\SupportTicketController;
 use App\Http\Controllers\Api\TeamMemberController;
 use Illuminate\Support\Facades\DB;
@@ -550,6 +554,14 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::post  ('/university/courses/{id}/assign/preview', [\App\Http\Controllers\Api\EnrollmentController::class, 'assignPreview']);
         Route::post  ('/university/courses/{id}/assign',     [\App\Http\Controllers\Api\EnrollmentController::class, 'bulkAssign']);
         Route::delete('/university/enrollments/{id}',        [\App\Http\Controllers\Api\EnrollmentController::class, 'unassign']);
+
+        // ---- SCORM upload / launch / runtime ----
+        Route::post  ('/university/scorm/upload',            [ScormController::class, 'upload']);
+        Route::post  ('/university/scorm/import',             [ScormController::class, 'import']);
+        Route::get   ('/university/scorm/{courseId}/launch/{lessonId}', [ScormController::class, 'launch']);
+        Route::post  ('/university/scorm/{enrollmentId}/cmi', [ScormController::class, 'storeCmi']);
+        Route::get   ('/university/scorm/{enrollmentId}/cmi', [ScormController::class, 'getCmi']);
+        Route::get   ('/university/scorm-asset',              [ScormController::class, 'asset']);
 
 
         // ---- Risk analytics (predictive HRD alerts) ----

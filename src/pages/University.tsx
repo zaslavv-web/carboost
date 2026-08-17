@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { GraduationCap, Plus, Clock, Award, Lock, PlayCircle, Pencil } from "lucide-react";
+import { GraduationCap, Plus, Clock, Award, Lock, PlayCircle, Pencil, FileArchive } from "lucide-react";
+import { ScormUploadDialog } from "@/components/university/ScormUploadDialog";
 
 interface Course {
   id: string; title: string; description: string | null;
@@ -92,9 +93,16 @@ export default function University() {
           <p className="text-sm text-muted-foreground">Курсы и обучение для сотрудников компании</p>
         </div>
         {canAuthor && (
-          <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
-            <Plus className="w-4 h-4 mr-2" /> Создать курс
-          </Button>
+          <div className="flex items-center gap-2">
+            <ScormUploadDialog>
+              <Button variant="outline" type="button">
+                <FileArchive className="w-4 h-4 mr-2" /> SCORM
+              </Button>
+            </ScormUploadDialog>
+            <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
+              <Plus className="w-4 h-4 mr-2" /> Создать курс
+            </Button>
+          </div>
         )}
       </div>
 

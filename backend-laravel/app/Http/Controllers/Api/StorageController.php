@@ -29,6 +29,7 @@ class StorageController extends Controller
         'employee-questionnaires' => ['employee-questionnaires', false],
         'career-submissions'     => ['career-submissions',     false],
         'tracker-attachments'    => ['tracker-attachments',    false],
+        'scorm-packages'          => ['scorm-packages',          false],
     ];
 
 

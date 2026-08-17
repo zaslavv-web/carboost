@@ -193,7 +193,7 @@ class CourseController extends Controller
         if (! $this->canAuthor()) return response()->json(['error' => 'forbidden'], 403);
         $data = $r->validate([
             'title' => 'sometimes|string',
-            'type' => 'sometimes|in:video,markdown,pdf,test',
+            'type' => 'sometimes|in:video,markdown,pdf,test,scorm',
             'content' => 'nullable|string',
             'video_url' => 'nullable|string',
             'attachment_url' => 'nullable|string',
