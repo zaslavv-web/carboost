@@ -93,7 +93,7 @@ const HrDocumentsPersonal = () => {
   const { data: employees = [] } = useQuery({
     queryKey: ["hr-docs", "employees"],
     queryFn: async () => {
-      const { data } = await laravelDb.from("profiles").select("user_id,full_name,email");
+      const { data } = await laravelDb.from("profiles").select("user_id,full_name");
       return (data ?? []) as Employee[];
     },
     enabled: isHr,

@@ -158,6 +158,8 @@ class DbController extends Controller
 
         // Performance (Волна 3): 360° reviewers
         'performance_review_reviewers' => \App\Models\PerformanceReviewReviewer::class,
+        'performance_reviews'          => \App\Models\PerformanceReview::class,
+        'performance_cycles'           => \App\Models\PerformanceCycle::class,
 
         // Portal & Communications (Волна 4)
         'portal_posts'              => \App\Models\PortalPost::class,
