@@ -80,7 +80,7 @@ class AiSettingsResolver
     {
         try {
             $u = Auth::user();
-            return $u?->company_id ? (string) $u->company_id : null;
+            return $u?->companyId() ? (string) $u->companyId() : null;
         } catch (\Throwable) { return null; }
     }
 

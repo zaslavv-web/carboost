@@ -251,9 +251,9 @@ class PulseSurveyController extends Controller
     private function guard(string $surveyId, bool $requireManage = false): array
     {
         $u = Auth::user();
-        abort_unless($u && $u->company_id, 401);
+        abort_unless($u && $u->companyId(), 401);
         $survey = DB::table('pulse_surveys')->where('id', $surveyId)->first();
-        if (!$survey || (string) $survey->company_id !== (string) $u->company_id) {
+        if (!$survey || (string) $survey->company_id !== (string) $u->companyId()) {
             return [$u, null];
         }
         if ($requireManage && !$this->canManage($u)) {

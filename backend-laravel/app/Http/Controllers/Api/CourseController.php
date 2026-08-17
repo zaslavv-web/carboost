@@ -17,7 +17,7 @@ class CourseController extends Controller
     protected function companyId(Request $r): ?string
     {
         $u = Auth::user();
-        return (string) ($r->input('company_id') ?: $u?->company_id ?: '') ?: null;
+        return (string) ($r->input('company_id') ?: $u?->companyId() ?: '') ?: null;
     }
 
     protected function canAuthor(): bool

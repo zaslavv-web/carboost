@@ -115,9 +115,9 @@ class AiSettingsController extends Controller
     {
         // Superadmin может явно указать company_id в query (для глобальных fallback — null)
         if ($this->isSuperadmin($user)) {
-            return $request->query('company_id') ?: ($user->company_id ?: null);
+            return $request->query('company_id') ?: ($user->companyId() ?: null);
         }
-        return $user->company_id ?: null;
+        return $user->companyId() ?: null;
     }
 
     protected function isSuperadmin($user): bool
