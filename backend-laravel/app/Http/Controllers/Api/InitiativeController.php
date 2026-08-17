@@ -19,7 +19,7 @@ class InitiativeController extends Controller
     {
         $u = Auth::user();
         abort_unless($u, 401);
-        $companyId = (string) $u->company_id;
+        $companyId = (string) ($u->companyId() ?? "");
         if (! $companyId) return response()->json(['data' => []]);
 
         $status = $r->input('status');
@@ -47,7 +47,7 @@ class InitiativeController extends Controller
     public function store(Request $r): JsonResponse
     {
         $u = Auth::user();
-        abort_unless($u && $u->company_id, 401);
+        abort_unless($u && $u->companyId(), 401);
         $data = $r->validate([
             'title' => 'required|string|max:240',
             'description' => 'nullable|string',
@@ -56,7 +56,7 @@ class InitiativeController extends Controller
         $id = (string) Str::uuid();
         DB::table('initiatives')->insert([
             'id' => $id,
-            'company_id' => $u->company_id,
+            'company_id' => $u->companyId(),
             'author_id' => $u->id,
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
@@ -74,7 +74,7 @@ class InitiativeController extends Controller
         $u = Auth::user();
         abort_unless($u, 401);
         $init = DB::table('initiatives')->where('id', $id)->first();
-        abort_unless($init && $init->company_id === $u->company_id, 404);
+        abort_unless($init && (string) $init->company_id === (string) $u->companyId(), 404);
 
         $existing = DB::table('initiative_votes')
             ->where('initiative_id', $id)->where('user_id', $u->id)->first();

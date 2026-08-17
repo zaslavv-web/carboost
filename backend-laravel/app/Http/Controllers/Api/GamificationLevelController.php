@@ -23,7 +23,7 @@ class GamificationLevelController extends Controller
         if ($user->hasRole('superadmin') && $request->filled('company_id')) {
             return (string) $request->get('company_id');
         }
-        return $user->company_id ?? null;
+        return $user->companyId() ?? null;
     }
 
     private function ensureCanWrite(Request $request): void
@@ -58,7 +58,7 @@ class GamificationLevelController extends Controller
             'min_achievements'  => 'nullable|integer|min:0',
             'description'       => 'nullable|string',
         ]);
-        $data['company_id'] = $data['company_id'] ?? $request->user()->company_id;
+        $data['company_id'] = $data["company_id"] ?? $request->user()->companyId();
         $data['id'] = (string) Str::uuid();
         $level = GamificationLevel::create($data);
         return response()->json($level, 201);

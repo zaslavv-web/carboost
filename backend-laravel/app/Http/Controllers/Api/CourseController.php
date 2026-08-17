@@ -17,7 +17,7 @@ class CourseController extends Controller
     protected function companyId(Request $r): ?string
     {
         $u = Auth::user();
-        return (string) ($r->input('company_id') ?: $u?->company_id ?: '') ?: null;
+        return (string) ($r->input('company_id') ?: $u?->companyId() ?: '') ?: null;
     }
 
     protected function canAuthor(): bool
@@ -31,7 +31,9 @@ class CourseController extends Controller
     public function index(Request $r)
     {
         $cid = $this->companyId($r);
-        if (! $cid) return response()->json(['error' => 'company_id required'], 422);
+        // Пользователь без привязки к компании (напр. superadmin) — пустой каталог, а не 422.
+        if (! $cid) return response()->json(['courses' => []]);
+
 
         $q = DB::table('courses')->where('company_id', $cid);
         if (! $this->canAuthor()) $q->where('status', 'published');
