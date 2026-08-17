@@ -550,7 +550,7 @@ HTML;
         $raw = $cmi['cmi.core.score.raw'] ?? $cmi['cmi.score.raw'] ?? null;
         if ($raw !== null && is_numeric($raw)) return (int) $raw;
         $min = $cmi['cmi.core.score.min'] ?? $cmi['cmi.score.min'] ?? '0';
-        $max = $cmi['cmi.core.score.max'] ?? $cmi['score.max'] ?? '100';
+        $max = $cmi['cmi.core.score.max'] ?? $cmi['cmi.score.max'] ?? '100';
         $raw = $cmi['cmi.core.score.raw'] ?? $cmi['cmi.score.raw'] ?? null;
         if ($raw !== null && is_numeric($raw) && $max > $min) {
             return (int) round((($raw - $min) / ($max - $min)) * 100);
