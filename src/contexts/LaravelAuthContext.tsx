@@ -249,7 +249,7 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
       refresh,
       clearSession,
     };
-  }, [user, loading, authReady, authStatus, authError, signOut, signInWithPassword, signUp, refresh, clearSession]);
+  }, [user, loading, authReady, authStatus, authError, signOut, signInWithPassword, completeTwoFactor, signUp, refresh, clearSession]);
 
   return <LaravelAuthContext.Provider value={value}>{children}</LaravelAuthContext.Provider>;
 };
