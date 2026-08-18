@@ -536,9 +536,8 @@ class OneCIntegrationController extends Controller
         $existing = $extId && Schema::hasColumn('positions', 'external_id')
             ? (clone $q)->where('external_id', $extId)->first()
             : null;
-        $existing = $existing ?: (clone $q)->where('title', $name)->orWhere(function ($w) use ($companyId, $name) {
-            $w->where('company_id', $companyId)->where('name', $name);
-        })->first();
+        $existing = $existing ?: (clone $q)->where('title', $name)->first();
+
 
         $payload = $this->onlyExistingColumns('positions', [
             'title'       => $name,
