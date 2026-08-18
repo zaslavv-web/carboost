@@ -85,4 +85,7 @@ export function startVersionWatcher() {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void check();
   });
+  // Сеть вернулась после обрыва/смены — досверяем версию.
+  window.addEventListener("online", () => void check());
+
 }
