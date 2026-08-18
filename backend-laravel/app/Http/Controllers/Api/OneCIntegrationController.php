@@ -24,6 +24,8 @@ use Illuminate\Support\Str;
  */
 class OneCIntegrationController extends Controller
 {
+    private ?string $currentUserId = null;
+
     private const ENTITIES = ['department', 'position', 'employee', 'payroll'];
 
     /** Каталог целевых полей платформы для UI маппинга (B1.4). */
@@ -394,6 +396,7 @@ class OneCIntegrationController extends Controller
         if (!$companyId) {
             return response()->json(['ok' => false, 'message' => 'Не указана компания.'], 422);
         }
+        $this->currentUserId = $this->userId($request);
 
         $mappings = $alreadyNormalized ? collect() : DB::table('integration_field_mappings')
             ->where('company_id', $companyId)
