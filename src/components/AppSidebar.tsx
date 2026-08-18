@@ -10,7 +10,7 @@ import {
 import {
   LayoutDashboard, MessageCircle, User, Target, Settings, LogOut,
   ChevronLeft, ChevronRight, ChevronDown, X, Briefcase, Users, Shield,
-  LifeBuoy, FileJson, BarChart3, UserCog, Route, Trophy, ClipboardList,
+  LifeBuoy, FileJson, FileSignature, BarChart3, UserCog, Route, Trophy, ClipboardList,
   ShoppingBag, Store, Rocket, Mail, Heart, Activity, ClipboardCheck,
   Banknote, CalendarDays, Star, AlertOctagon, TimerReset, Palette, Brain,
   BookText, GraduationCap, Crosshair, BookOpen, Sparkles, Newspaper, Webhook, Database,
@@ -76,6 +76,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const pulse: NavItem = { icon: Activity, label: t("nav.pulseSurveys", { defaultValue: "Pulse-опросы" }), path: "/pulse-surveys" };
     const leaves: NavItem = { icon: CalendarDays, label: t("leaves:title", { defaultValue: "Отсутствия" }), path: "/leaves" };
     const performance: NavItem = { icon: Star, label: t("performance:title", { defaultValue: "Performance" }), path: "/performance" };
+    const kedo: NavItem = { icon: FileSignature, label: "КЭДО", path: "/kedo" };
+    const myDocs: NavItem = { icon: FileSignature, label: "Мои документы", path: "/my-documents" };
 
     if (role === "superadmin") {
       return [
@@ -113,6 +115,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Users, label: t("nav.employees"), path: "/employees" },
           { icon: Briefcase, label: t("nav.positions"), path: "/positions" },
           { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
+          kedo,
         ]},
         { key: "knowledge", label: S("knowledge"), entries: [
           university,
@@ -178,6 +181,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             label: "Документы и политики",
             children: [
               { icon: FileJson, label: "HR-документы", path: "/hr-documents-personal" },
+              kedo,
               { icon: Shield, label: t("nav.hrPolicies"), path: "/hr-policies" },
             ],
           },
@@ -206,6 +210,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
           leaves,
           { icon: FileJson, label: "HR-документы", path: "/hr-documents-personal" },
+          myDocs,
           {
             icon: Star,
             label: t("nav.performance", { defaultValue: "Performance" }),
@@ -233,6 +238,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
       { key: "hr", label: S("hr"), entries: [
         leaves,
         { icon: FileJson, label: "Мои HR-документы", path: "/hr-documents-personal" },
+        myDocs,
         performance,
       ]},
       { key: "motivation", label: S("motivation"), entries: [

@@ -491,6 +491,37 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::post  ('/succession-plans/{id}/candidates',          [\App\Http\Controllers\Api\TalentReviewController::class, 'storeCandidate']);
         Route::delete('/succession-plans/{id}/candidates/{candidateId}', [\App\Http\Controllers\Api\TalentReviewController::class, 'destroyCandidate']);
 
+        // ---- КЭДО (Epic B2): шаблоны, маршруты, документы, подписание, ГИС ЭДО ----
+        Route::get   ('/kedo/stats',                       [\App\Http\Controllers\Api\KedoController::class, 'stats']);
+        Route::get   ('/kedo/templates',                   [\App\Http\Controllers\Api\KedoController::class, 'indexTemplates']);
+        Route::post  ('/kedo/templates',                   [\App\Http\Controllers\Api\KedoController::class, 'storeTemplate']);
+        Route::get   ('/kedo/templates/{id}',              [\App\Http\Controllers\Api\KedoController::class, 'showTemplate']);
+        Route::patch ('/kedo/templates/{id}',              [\App\Http\Controllers\Api\KedoController::class, 'updateTemplate']);
+        Route::delete('/kedo/templates/{id}',              [\App\Http\Controllers\Api\KedoController::class, 'destroyTemplate']);
+        Route::get   ('/kedo/routes',                      [\App\Http\Controllers\Api\KedoController::class, 'indexRoutes']);
+        Route::post  ('/kedo/routes',                      [\App\Http\Controllers\Api\KedoController::class, 'storeRoute']);
+        Route::patch ('/kedo/routes/{id}',                 [\App\Http\Controllers\Api\KedoController::class, 'updateRoute']);
+        Route::delete('/kedo/routes/{id}',                 [\App\Http\Controllers\Api\KedoController::class, 'destroyRoute']);
+        Route::get   ('/kedo/documents',                   [\App\Http\Controllers\Api\KedoController::class, 'indexDocuments']);
+        Route::post  ('/kedo/documents/bulk',              [\App\Http\Controllers\Api\KedoController::class, 'bulkCreate']);
+        Route::get   ('/kedo/my-documents',                [\App\Http\Controllers\Api\KedoController::class, 'myDocuments']);
+        Route::get   ('/kedo/documents/{id}',              [\App\Http\Controllers\Api\KedoController::class, 'showDocument']);
+        Route::post  ('/kedo/documents/{id}/send',         [\App\Http\Controllers\Api\KedoController::class, 'sendDocument']);
+        Route::post  ('/kedo/documents/{id}/cancel',       [\App\Http\Controllers\Api\KedoController::class, 'cancelDocument']);
+        Route::post  ('/kedo/documents/{id}/otp',          [\App\Http\Controllers\Api\KedoController::class, 'requestOtp']);
+        Route::post  ('/kedo/documents/{id}/sign-pep',     [\App\Http\Controllers\Api\KedoController::class, 'signPep']);
+        Route::post  ('/kedo/documents/{id}/sign-ukep',    [\App\Http\Controllers\Api\KedoController::class, 'signUkep']);
+        Route::post  ('/kedo/documents/{id}/approve',      [\App\Http\Controllers\Api\KedoController::class, 'approve']);
+        Route::post  ('/kedo/documents/{id}/acknowledge',  [\App\Http\Controllers\Api\KedoController::class, 'acknowledge']);
+        Route::post  ('/kedo/documents/{id}/reject',       [\App\Http\Controllers\Api\KedoController::class, 'reject']);
+        Route::get   ('/kedo/documents/{id}/events',       [\App\Http\Controllers\Api\KedoController::class, 'events']);
+        Route::get   ('/kedo/documents/{id}/verify',       [\App\Http\Controllers\Api\KedoController::class, 'verifyChain']);
+        Route::get   ('/kedo/edo/connections',             [\App\Http\Controllers\Api\KedoController::class, 'indexEdoConnections']);
+        Route::post  ('/kedo/edo/connections',             [\App\Http\Controllers\Api\KedoController::class, 'storeEdoConnection']);
+        Route::delete('/kedo/edo/connections/{id}',        [\App\Http\Controllers\Api\KedoController::class, 'destroyEdoConnection']);
+        Route::post  ('/kedo/edo/dispatch',                [\App\Http\Controllers\Api\KedoController::class, 'dispatchToEdo']);
+        Route::get   ('/kedo/edo/dispatches',              [\App\Http\Controllers\Api\KedoController::class, 'indexDispatches']);
+
 
         // ---- Probation periods ----
         Route::get   ('/probations',                                       [\App\Http\Controllers\Api\ProbationController::class, 'index']);
