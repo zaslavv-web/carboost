@@ -15,18 +15,46 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { GoalStatusBadge, GOAL_STATUS_OPTIONS, TaskStatusBadge, UrgencyBadge } from "@/components/tracker/Badges";
+import { GoalScopePicker, GOAL_SCOPE_OPTIONS, scopeIcon, scopeLabelText, type GoalScopeType } from "@/components/tracker/GoalScopePicker";
 import { Plus, ChevronDown, ChevronRight, Trash2, Link2, X } from "lucide-react";
 
+const ScopeBadge = ({ goal }: { goal: TrackerGoal }) => {
+  const Icon = scopeIcon(goal.scope_type);
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
+      <Icon className="w-3 h-3" />
+      {scopeLabelText(goal.scope_type, goal.scope_label)}
+    </span>
+  );
+};
+
 const GoalCreateDialog = () => {
+  const uid = useEffectiveUserId();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [scopeType, setScopeType] = useState<GoalScopeType>("employee");
+  const [scopeRef, setScopeRef] = useState<string | null>(null);
+  const [scopeLabel, setScopeLabel] = useState<string | null>(null);
+  const [holderId, setHolderId] = useState<string | null>(uid ?? null);
   const create = useCreateGoal();
 
+  const needsRef = scopeType === "division" || scopeType === "department";
+  const disabled = !title.trim() || (needsRef && !scopeRef) || (scopeType === "employee" && !holderId);
+
   const handleSave = async () => {
-    if (!title.trim()) return;
-    await create.mutateAsync({ title: title.trim(), description: description.trim() || null, status: "draft" });
+    if (disabled) return;
+    await create.mutateAsync({
+      title: title.trim(),
+      description: description.trim() || null,
+      status: "draft",
+      scope_type: scopeType,
+      scope_ref: needsRef ? scopeRef : null,
+      scope_label: needsRef ? scopeLabel : null,
+      ...(scopeType === "employee" ? { holder_id: holderId ?? undefined } : {}),
+    } as any);
     setOpen(false); setTitle(""); setDescription("");
+    setScopeType("employee"); setScopeRef(null); setScopeLabel(null); setHolderId(uid ?? null);
   };
 
   return (
@@ -39,10 +67,16 @@ const GoalCreateDialog = () => {
         <div className="space-y-3">
           <div><Label>Название</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Достичь NPS 60" /></div>
           <div><Label>Описание</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} /></div>
+          <GoalScopePicker
+            scopeType={scopeType}
+            scopeRef={scopeRef}
+            holderId={holderId}
+            onChange={(v) => { setScopeType(v.scopeType); setScopeRef(v.scopeRef); setScopeLabel(v.scopeLabel); setHolderId(v.holderId); }}
+          />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Отмена</Button>
-          <Button onClick={handleSave} disabled={create.isPending}>Создать</Button>
+          <Button onClick={handleSave} disabled={disabled || create.isPending}>Создать</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -178,6 +212,7 @@ const GoalCard = ({ goal }: { goal: TrackerGoal }) => {
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-medium truncate">{goal.title}</h3>
               <GoalStatusBadge status={goal.status} />
+              <ScopeBadge goal={goal} />
             </div>
             {goal.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{goal.description}</p>}
             <div className="mt-3 flex items-center gap-3">
@@ -190,7 +225,27 @@ const GoalCard = ({ goal }: { goal: TrackerGoal }) => {
             <SelectContent>{GOAL_STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        {expanded && <KeyResultsBlock goalId={goal.id} />}
+        {expanded && (
+          <>
+            <div className="mt-4 pt-4 border-t max-w-md">
+              <GoalScopePicker
+                scopeType={(goal.scope_type ?? "employee") as GoalScopeType}
+                scopeRef={goal.scope_ref ?? null}
+                holderId={goal.holder_id ?? null}
+                onChange={(v) =>
+                  update.mutate({
+                    id: goal.id,
+                    scope_type: v.scopeType,
+                    scope_ref: v.scopeRef,
+                    scope_label: v.scopeLabel,
+                    ...(v.scopeType === "employee" && v.holderId ? { holder_id: v.holderId } : {}),
+                  } as any)
+                }
+              />
+            </div>
+            <KeyResultsBlock goalId={goal.id} />
+          </>
+        )}
       </CardContent>
     </Card>
   );
@@ -199,18 +254,31 @@ const GoalCard = ({ goal }: { goal: TrackerGoal }) => {
 const TrackerGoals = () => {
   const uid = useEffectiveUserId();
   const [scope, setScope] = useState<"mine" | "all">("mine");
-  const { data: goals = [], isLoading } = useGoals(scope === "mine" ? { holder_id: uid ?? undefined } : undefined);
+  const [scopeType, setScopeType] = useState<"all" | GoalScopeType>("all");
+  const { data: allGoals = [], isLoading } = useGoals(scope === "mine" ? { holder_id: uid ?? undefined } : undefined);
+  const goals = scopeType === "all"
+    ? allGoals
+    : allGoals.filter((g) => (g.scope_type ?? "employee") === scopeType);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <Select value={scope} onValueChange={(v: any) => setScope(v)}>
-          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="mine">Мои цели</SelectItem>
-            <SelectItem value="all">Все доступные</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={scope} onValueChange={(v: any) => setScope(v)}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="mine">Мои цели</SelectItem>
+              <SelectItem value="all">Все доступные</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={scopeType} onValueChange={(v: any) => setScopeType(v)}>
+            <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все уровни</SelectItem>
+              {GOAL_SCOPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
         <GoalCreateDialog />
       </div>
 

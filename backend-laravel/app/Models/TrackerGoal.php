@@ -15,6 +15,7 @@ class TrackerGoal extends Model
         'company_id', 'period_id', 'holder_id', 'author_id', 'parent_goal_id',
         'team_id', 'title', 'description', 'status', 'progress',
         'needs_review_reason', 'published_at', 'archived_at',
+        'scope_type', 'scope_ref', 'scope_label',
     ];
     protected $casts = [
         'progress' => 'float',
