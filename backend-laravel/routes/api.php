@@ -470,6 +470,28 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::post  ('/performance-reviews/{id}/feedback', [\App\Http\Controllers\Api\PerformanceController::class, 'submitFeedback']);
         Route::post  ('/performance-reviews/{id}/finalize', [\App\Http\Controllers\Api\PerformanceController::class, 'finalize']);
 
+        // ---- Talent Review (Epic D1): 9-box, сессии, преемственность, кадровый резерв ----
+        Route::get   ('/talent-review/sessions',                    [\App\Http\Controllers\Api\TalentReviewController::class, 'indexSessions']);
+        Route::post  ('/talent-review/sessions',                    [\App\Http\Controllers\Api\TalentReviewController::class, 'storeSession']);
+        Route::patch ('/talent-review/sessions/{id}',               [\App\Http\Controllers\Api\TalentReviewController::class, 'updateSession']);
+        Route::delete('/talent-review/sessions/{id}',               [\App\Http\Controllers\Api\TalentReviewController::class, 'destroySession']);
+        Route::get   ('/talent-review/sessions/{id}/grid',          [\App\Http\Controllers\Api\TalentReviewController::class, 'grid']);
+        Route::post  ('/talent-review/sessions/{id}/ratings',       [\App\Http\Controllers\Api\TalentReviewController::class, 'saveRatings']);
+        Route::get   ('/talent-review/sessions/{id}/notes',         [\App\Http\Controllers\Api\TalentReviewController::class, 'indexNotes']);
+        Route::post  ('/talent-review/sessions/{id}/notes',         [\App\Http\Controllers\Api\TalentReviewController::class, 'storeNote']);
+        Route::delete('/talent-review/sessions/{id}/notes/{noteId}',[\App\Http\Controllers\Api\TalentReviewController::class, 'destroyNote']);
+        Route::post  ('/talent-review/sessions/{id}/build-pool',    [\App\Http\Controllers\Api\TalentReviewController::class, 'buildPool']);
+        Route::get   ('/talent-pool',                               [\App\Http\Controllers\Api\TalentReviewController::class, 'indexPool']);
+        Route::post  ('/talent-pool',                               [\App\Http\Controllers\Api\TalentReviewController::class, 'storePoolMember']);
+        Route::delete('/talent-pool/{id}',                          [\App\Http\Controllers\Api\TalentReviewController::class, 'destroyPoolMember']);
+        Route::get   ('/succession-plans',                          [\App\Http\Controllers\Api\TalentReviewController::class, 'indexPlans']);
+        Route::post  ('/succession-plans',                          [\App\Http\Controllers\Api\TalentReviewController::class, 'storePlan']);
+        Route::patch ('/succession-plans/{id}',                     [\App\Http\Controllers\Api\TalentReviewController::class, 'updatePlan']);
+        Route::delete('/succession-plans/{id}',                     [\App\Http\Controllers\Api\TalentReviewController::class, 'destroyPlan']);
+        Route::post  ('/succession-plans/{id}/candidates',          [\App\Http\Controllers\Api\TalentReviewController::class, 'storeCandidate']);
+        Route::delete('/succession-plans/{id}/candidates/{candidateId}', [\App\Http\Controllers\Api\TalentReviewController::class, 'destroyCandidate']);
+
+
         // ---- Probation periods ----
         Route::get   ('/probations',                                       [\App\Http\Controllers\Api\ProbationController::class, 'index']);
         Route::post  ('/probations',                                       [\App\Http\Controllers\Api\ProbationController::class, 'store']);
