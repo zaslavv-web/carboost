@@ -254,18 +254,31 @@ const GoalCard = ({ goal }: { goal: TrackerGoal }) => {
 const TrackerGoals = () => {
   const uid = useEffectiveUserId();
   const [scope, setScope] = useState<"mine" | "all">("mine");
-  const { data: goals = [], isLoading } = useGoals(scope === "mine" ? { holder_id: uid ?? undefined } : undefined);
+  const [scopeType, setScopeType] = useState<"all" | GoalScopeType>("all");
+  const { data: allGoals = [], isLoading } = useGoals(scope === "mine" ? { holder_id: uid ?? undefined } : undefined);
+  const goals = scopeType === "all"
+    ? allGoals
+    : allGoals.filter((g) => (g.scope_type ?? "employee") === scopeType);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <Select value={scope} onValueChange={(v: any) => setScope(v)}>
-          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="mine">Мои цели</SelectItem>
-            <SelectItem value="all">Все доступные</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={scope} onValueChange={(v: any) => setScope(v)}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="mine">Мои цели</SelectItem>
+              <SelectItem value="all">Все доступные</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={scopeType} onValueChange={(v: any) => setScopeType(v)}>
+            <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все уровни</SelectItem>
+              {GOAL_SCOPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
         <GoalCreateDialog />
       </div>
 
