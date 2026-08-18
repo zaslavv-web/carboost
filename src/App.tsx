@@ -61,6 +61,8 @@ import Leaves from "@/pages/Leaves";
 import Performance from "@/pages/Performance";
 import TalentReview from "@/pages/TalentReview";
 import Kedo from "@/pages/Kedo";
+import Security from "@/pages/Security";
+import SsoCallback from "@/pages/SsoCallback";
 import MyDocuments from "@/pages/employee/MyDocuments";
 import Probation from "@/pages/Probation";
 import Disciplinary from "@/pages/Disciplinary";
@@ -148,6 +150,7 @@ const App = () => (
               <Route path="/feature/:slug" element={<FeaturePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/auth/sso" element={<SsoCallback />} />
               <Route element={<ProtectedAppShell />}>
                 <Route path="/dashboard" element={<RoleDashboard />} />
                 <Route path="/today" element={<HrdToday />} />
@@ -213,6 +216,7 @@ const App = () => (
                 <Route path="/performance-360" element={<PerformanceReview360 />} />
                 <Route path="/talent-review" element={<TalentReview />} />
                 <Route path="/kedo" element={<Kedo />} />
+                <Route path="/security" element={<Security />} />
                 <Route path="/my-documents" element={<MyDocuments />} />
                 <Route path="/feed" element={<CorporateFeed />} />
                 <Route path="/communities" element={<Communities />} />
