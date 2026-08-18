@@ -13,7 +13,7 @@ import {
   LifeBuoy, FileJson, BarChart3, UserCog, Route, Trophy, ClipboardList,
   ShoppingBag, Store, Rocket, Mail, Heart, Activity, ClipboardCheck,
   Banknote, CalendarDays, Star, AlertOctagon, TimerReset, Palette, Brain,
-  BookText, GraduationCap, Crosshair, BookOpen, Sparkles, Newspaper, Webhook,
+  BookText, GraduationCap, Crosshair, BookOpen, Sparkles, Newspaper, Webhook, Database,
   ArrowLeftRight, Grid3X3,
 } from "lucide-react";
 import { isTodayCanary, writeHrdUiMode } from "@/lib/hrdUiMode";
