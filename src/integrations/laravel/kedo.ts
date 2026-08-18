@@ -121,6 +121,14 @@ export interface KedoDispatch {
   sent_at?: string | null;
 }
 
+
+/** Разворачивает { data, error } из laravel-клиента: ошибка → исключение, данные → значение. */
+async function unwrap<T>(p: Promise<{ data: T | null; error: { message: string } | null }>): Promise<T> {
+  const res = await p;
+  if (res.error) throw new Error(res.error.message);
+  return (res.data ?? ({} as T));
+}
+
 export const kedo = {
   stats: () =>
     laravel.get<{
@@ -131,23 +139,23 @@ export const kedo = {
     }>("/kedo/stats"),
 
   // Templates
-  listTemplates: () => laravel.get<{ data: KedoTemplate[] }>("/kedo/templates"),
-  getTemplate: (id: string) => laravel.get<KedoTemplate>(`/kedo/templates/${id}`),
+  listTemplates: () => unwrap(laravel.get<{ data: KedoTemplate[] }>("/kedo/templates"),
+  getTemplate: (id: string) => unwrap(laravel.get<KedoTemplate>(`/kedo/templates/${id}`),
   createTemplate: (body: Partial<KedoTemplate>) =>
-    laravel.post<KedoTemplate>("/kedo/templates", body),
+    unwrap(laravel.post<KedoTemplate>("/kedo/templates", body),
   updateTemplate: (id: string, body: Partial<KedoTemplate>) =>
-    laravel.patch<KedoTemplate>(`/kedo/templates/${id}`, body),
-  deleteTemplate: (id: string) => laravel.delete(`/kedo/templates/${id}`),
+    unwrap(laravel.patch<KedoTemplate>(`/kedo/templates/${id}`, body),
+  deleteTemplate: (id: string) => unwrap(laravel.delete(`/kedo/templates/${id}`),
 
   // Routes
-  listRoutes: () => laravel.get<{ data: KedoRoute[] }>("/kedo/routes"),
+  listRoutes: () => unwrap(laravel.get<{ data: KedoRoute[] }>("/kedo/routes"),
   createRoute: (body: { title: string; description?: string | null; steps: KedoRouteStep[] }) =>
     laravel.post<{ ok: boolean; id: string }>("/kedo/routes", body),
   updateRoute: (
     id: string,
     body: { title?: string; description?: string | null; is_active?: boolean; steps?: KedoRouteStep[] },
-  ) => laravel.patch<{ ok: boolean }>(`/kedo/routes/${id}`, body),
-  deleteRoute: (id: string) => laravel.delete(`/kedo/routes/${id}`),
+  ) => unwrap(laravel.patch<{ ok: boolean }>(`/kedo/routes/${id}`, body),
+  deleteRoute: (id: string) => unwrap(laravel.delete(`/kedo/routes/${id}`),
 
   // Documents
   listDocuments: (params?: { status?: string; user_id?: string; search?: string }) => {
@@ -156,9 +164,9 @@ export const kedo = {
     if (params?.user_id) qs.set("user_id", params.user_id);
     if (params?.search) qs.set("search", params.search);
     const s = qs.toString();
-    return laravel.get<{ data: KedoDocument[] }>(`/kedo/documents${s ? `?${s}` : ""}`);
+    return unwrap(laravel.get<{ data: KedoDocument[] }>(`/kedo/documents${s ? `?${s}` : ""}`);
   },
-  myDocuments: () => laravel.get<{ data: KedoDocument[] }>("/kedo/my-documents"),
+  myDocuments: () => unwrap(laravel.get<{ data: KedoDocument[] }>("/kedo/my-documents"),
   getDocument: (id: string) =>
     laravel.get<{
       document: KedoDocument;
@@ -174,15 +182,15 @@ export const kedo = {
     route_id?: string | null;
     send?: boolean;
   }) => laravel.post<{ ok: boolean; created: number }>("/kedo/documents/bulk", body),
-  send: (id: string) => laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/send`),
+  send: (id: string) => unwrap(laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/send`),
   cancel: (id: string, reason?: string) =>
-    laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/cancel`, { reason }),
+    unwrap(laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/cancel`, { reason }),
 
   // Signing
   requestOtp: (id: string) =>
     laravel.post<{ ok: boolean; code: string; expires_in: number }>(`/kedo/documents/${id}/otp`),
   signPep: (id: string, code: string) =>
-    laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/sign-pep`, { code }),
+    unwrap(laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/sign-pep`, { code }),
   signUkep: (
     id: string,
     file: File,
@@ -191,16 +199,16 @@ export const kedo = {
     const fd = new FormData();
     fd.append("signature", file);
     Object.entries(meta ?? {}).forEach(([k, v]) => v && fd.append(k, v));
-    return laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/sign-ukep`, fd);
+    return unwrap(laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/sign-ukep`, fd);
   },
   approve: (id: string, comment?: string) =>
-    laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/approve`, { comment }),
-  acknowledge: (id: string) => laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/acknowledge`),
+    unwrap(laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/approve`, { comment }),
+  acknowledge: (id: string) => unwrap(laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/acknowledge`),
   reject: (id: string, reason: string) =>
-    laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/reject`, { reason }),
+    unwrap(laravel.post<{ ok: boolean }>(`/kedo/documents/${id}/reject`, { reason }),
 
   // Journal
-  events: (id: string) => laravel.get<{ data: KedoEvent[] }>(`/kedo/documents/${id}/events`),
+  events: (id: string) => unwrap(laravel.get<{ data: KedoEvent[] }>(`/kedo/documents/${id}/events`),
   verify: (id: string) =>
     laravel.get<{
       ok: boolean;
@@ -211,16 +219,16 @@ export const kedo = {
     }>(`/kedo/documents/${id}/verify`),
 
   // ГИС ЭДО
-  listEdoConnections: () => laravel.get<{ data: KedoEdoConnection[] }>("/kedo/edo/connections"),
+  listEdoConnections: () => unwrap(laravel.get<{ data: KedoEdoConnection[] }>("/kedo/edo/connections"),
   createEdoConnection: (body: Partial<KedoEdoConnection> & { secret?: string }) =>
     laravel.post<{ ok: boolean; id: string }>("/kedo/edo/connections", body),
-  deleteEdoConnection: (id: string) => laravel.delete(`/kedo/edo/connections/${id}`),
+  deleteEdoConnection: (id: string) => unwrap(laravel.delete(`/kedo/edo/connections/${id}`),
   dispatchToEdo: (connectionId: string, documentIds: string[]) =>
     laravel.post<{ ok: boolean; queued: number }>("/kedo/edo/dispatch", {
       connection_id: connectionId,
       document_ids: documentIds,
     }),
-  listDispatches: () => laravel.get<{ data: KedoDispatch[] }>("/kedo/edo/dispatches"),
+  listDispatches: () => unwrap(laravel.get<{ data: KedoDispatch[] }>("/kedo/edo/dispatches"),
 };
 
 export const KEDO_CATEGORY_LABELS: Record<string, string> = {
