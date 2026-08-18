@@ -216,10 +216,13 @@ export function useKeyResults(goalId?: string) {
   return useQuery({
     queryKey: ["tracker.kr", goalId],
     enabled: !!goalId,
+    // Сбой загрузки KR не должен ронять карточку цели: показываем цель без KR.
+    retry: false,
     queryFn: async () => {
       const res = await laravelDb
         .from("tracker_key_results").select("*")
         .eq("goal_id", goalId!).order("position", { ascending: true });
+      if ((res as any)?.error) return [] as TrackerKeyResult[];
       return handle<TrackerKeyResult[]>(res as any) ?? [];
     },
   });

@@ -354,7 +354,7 @@ class DbController extends Controller
         $query = \Illuminate\Support\Facades\DB::table($tableName);
         $this->applyFilters($query, $request);
         $this->applyCompanyScope($query, $instance, $tableName, $columns);
-        $this->applyOrder($query, $request);
+        $this->applyOrder($query, $request, $columns);
 
         // Проекция колонок: берём только те, что реально есть в схеме — иначе
         // рассинхрон фронта и БД даёт SQL-ошибку на ровном месте.
@@ -872,11 +872,19 @@ class DbController extends Controller
         return $out;
     }
 
-    protected function applyOrder($query, Request $request): void
+    /**
+     * @param array|null $columns Реальные колонки таблицы. Если переданы,
+     *  сортировка по неизвестной колонке игнорируется — устаревший клиент не
+     *  должен ронять запрос SQL-ошибкой.
+     */
+    protected function applyOrder($query, Request $request, ?array $columns = null): void
     {
         if (! $request->filled('order')) return;
         foreach (explode(',', (string) $request->query('order')) as $part) {
             [$col, $dir] = array_pad(explode('.', trim($part), 2), 2, 'asc');
+            $col = trim($col);
+            if ($col === '') continue;
+            if ($columns !== null && ! in_array($col, $columns, true)) continue;
             $query->orderBy($col, strtolower($dir) === 'desc' ? 'desc' : 'asc');
         }
     }
