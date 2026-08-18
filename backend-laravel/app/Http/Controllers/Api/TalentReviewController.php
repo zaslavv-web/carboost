@@ -184,7 +184,7 @@ class TalentReviewController extends Controller
 
         $data = $request->validate([
             'ratings' => 'required|array|min:1',
-            'ratings.*.user_id' => 'required|uuid',
+            'ratings.*.user_id' => 'required|string|max:64',
             'ratings.*.perf_level' => 'required|integer|min:1|max:4',
             'ratings.*.pot_level' => 'required|integer|min:1|max:3',
             'ratings.*.performance_score' => 'nullable|numeric',
@@ -264,8 +264,8 @@ class TalentReviewController extends Controller
         $data = $request->validate([
             'body' => 'required|string|max:4000',
             'kind' => 'sometimes|in:note,decision,action',
-            'subject_id' => 'nullable|uuid',
-            'assignee_id' => 'nullable|uuid',
+            'subject_id' => 'nullable|string|max:64',
+            'assignee_id' => 'nullable|string|max:64',
             'due_date' => 'nullable|date',
         ]);
 
@@ -328,7 +328,7 @@ class TalentReviewController extends Controller
     {
         $this->assertHr($request);
         $data = $request->validate([
-            'user_id' => 'required|uuid',
+            'user_id' => 'required|string|max:64',
             'pool' => 'sometimes|in:hipo,successor,key_talent,risk',
             'note' => 'nullable|string|max:1000',
         ]);
@@ -455,7 +455,7 @@ class TalentReviewController extends Controller
         $data = $request->validate([
             'position_title' => 'required|string|max:200',
             'position_id' => 'nullable|uuid',
-            'incumbent_id' => 'nullable|uuid',
+            'incumbent_id' => 'nullable|string|max:64',
             'criticality' => 'sometimes|in:low,medium,high',
             'risk_of_loss' => 'sometimes|in:low,medium,high',
             'note' => 'nullable|string|max:2000',
@@ -505,7 +505,7 @@ class TalentReviewController extends Controller
     {
         $this->assertHr($request);
         $data = $request->validate([
-            'user_id' => 'required|uuid',
+            'user_id' => 'required|string|max:64',
             'readiness' => 'sometimes|in:ready_now,1_2_years,3_plus',
             'rank' => 'nullable|integer|min:0|max:999',
             'note' => 'nullable|string|max:1000',
