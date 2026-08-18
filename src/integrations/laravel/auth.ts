@@ -38,10 +38,40 @@ function unwrap<T>({ data, error }: LaravelInvokeResult<T>): T {
 }
 
 
+/** Сервер требует второй фактор: логин/пароль верны, нужен TOTP-код. */
+export class TwoFactorRequiredError extends Error {
+  challengeToken: string;
+  constructor(challengeToken: string) {
+    super("Требуется код двухфакторной аутентификации");
+    this.name = "TwoFactorRequiredError";
+    this.challengeToken = challengeToken;
+  }
+}
+
 export const laravelAuthApi = {
   async login(email: string, password: string): Promise<LaravelUser> {
     clearStoredAuthState({ includeToken: true, reason: "login_start", notify: false });
-    const res = unwrap(await laravel.post<LaravelLoginResponse>("/auth/login", { email, password }));
+    const res = unwrap(
+      await laravel.post<LaravelLoginResponse & { "2fa_required"?: boolean; challenge_token?: string }>(
+        "/auth/login",
+        { email, password },
+      ),
+    );
+    if (res["2fa_required"] && res.challenge_token) {
+      throw new TwoFactorRequiredError(res.challenge_token);
+    }
+    laravelAuth.setToken(res.token);
+    return res.user;
+  },
+
+  /** Завершение входа кодом TOTP или резервным кодом. */
+  async verifyTwoFactor(challengeToken: string, code: string): Promise<LaravelUser> {
+    const res = unwrap(
+      await laravel.post<LaravelLoginResponse>("/auth/2fa/challenge", {
+        challenge_token: challengeToken,
+        code,
+      }),
+    );
     laravelAuth.setToken(res.token);
     return res.user;
   },

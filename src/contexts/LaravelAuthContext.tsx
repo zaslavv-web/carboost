@@ -41,6 +41,7 @@ interface LaravelAuthContextType {
   authError: string | null;
   signOut: () => Promise<void>;
   signInWithPassword: (email: string, password: string) => Promise<LaravelUser>;
+  completeTwoFactor: (challengeToken: string, code: string) => Promise<LaravelUser>;
   signUp: (payload: Parameters<typeof laravelAuthApi.register>[0]) => Promise<LaravelUser>;
   signInWithGoogle: (redirectTo?: string) => void;
   signInWithYandex: (redirectTo?: string) => void;
@@ -62,6 +63,7 @@ const LaravelAuthContext = createContext<LaravelAuthContextType>({
   authError: null,
   signOut: async () => {},
   signInWithPassword: stub as never,
+  completeTwoFactor: stub as never,
   signUp: stub as never,
   signInWithGoogle: noop,
   signInWithYandex: noop,
@@ -194,6 +196,22 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [queryClient]);
 
+  const completeTwoFactor = useCallback(async (challengeToken: string, code: string) => {
+    setLoading(true);
+    setAuthStatus("checking");
+    setAuthError(null);
+    try {
+      const u = await laravelAuthApi.verifyTwoFactor(challengeToken, code);
+      queryClient.clear();
+      setUser(u);
+      setAuthStatus("authenticated");
+      setAuthReady(true);
+      return u;
+    } finally {
+      setLoading(false);
+    }
+  }, [queryClient]);
+
   const signUp = useCallback(
     async (payload: Parameters<typeof laravelAuthApi.register>[0]) => {
       setLoading(true);
@@ -224,6 +242,7 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
       authError,
       signOut,
       signInWithPassword,
+      completeTwoFactor,
       signUp,
       signInWithGoogle: laravelAuthApi.signInWithGoogle,
       signInWithYandex: laravelAuthApi.signInWithYandex,
