@@ -23,14 +23,14 @@ class TrackerChildPolicy extends BasePolicy
         // Комментарии и вложения может править/удалять только автор
         // (либо HR/админ компании через TrackerOwnedPolicy на родителе).
         if ($this->isOwnedChild($model)) {
-            return $this->isOwner($user, $model) || $this->isCompanyAdmin($user, $model);
+            return $this->isOwner($user, $model) || $this->isCompanyStaffFor($user, $model);
         }
         return $this->parentAllows($user, $model, 'update');
     }
     public function delete(User $user, $model): bool
     {
         if ($this->isOwnedChild($model)) {
-            return $this->isOwner($user, $model) || $this->isCompanyAdmin($user, $model);
+            return $this->isOwner($user, $model) || $this->isCompanyStaffFor($user, $model);
         }
         return $this->parentAllows($user, $model, 'update');
     }
@@ -46,7 +46,12 @@ class TrackerChildPolicy extends BasePolicy
         return (string) $model->{$ownerField} === (string) $user->id;
     }
 
-    protected function isCompanyAdmin(User $user, $model): bool
+    /**
+     * HR/админ той же компании, что и запись. Имя намеренно отличается от
+     * BasePolicy::isCompanyAdmin(User): переопределение с другой сигнатурой
+     * даёт фатальную ошибку PHP при загрузке класса (500 на всём модуле).
+     */
+    protected function isCompanyStaffFor(User $user, $model): bool
     {
         if ((string) ($model->company_id ?? '') !== (string) ($user->companyId() ?? '')) return false;
         return $user->hasRole('hrd') || $user->hasRole('company_admin') || $user->hasRole('superadmin');
