@@ -5,7 +5,7 @@ import { Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "lucide-react
 import brandLogo from "@/assets/logo-growth-peak.png";
 import LandingHeader from "@/components/landing/LandingHeader";
 import { useAuth } from "@/contexts/AuthContext";
-import { laravelAuthApi } from "@/integrations/laravel/auth";
+import { laravelAuthApi, TwoFactorRequiredError } from "@/integrations/laravel/auth";
 import { useAuthProviders } from "@/hooks/useAuthProviders";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import {
@@ -44,8 +44,10 @@ const Login = () => {
   const [selectedRole, setSelectedRole] = useState<RequestedAppRole>("employee");
   const [companyName, setCompanyName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
   const navigate = useNavigate();
-  const { signInWithPassword, signUp, signInWithGoogle, signInWithYandex } = useAuth();
+  const { signInWithPassword, completeTwoFactor, signUp, signInWithGoogle, signInWithYandex } = useAuth();
   const { geo, loading: geoLoading } = useAuthProviders();
 
   const isHRD = selectedRole === "hrd";
@@ -110,7 +112,28 @@ const Login = () => {
         navigate("/dashboard");
       }
     } catch (error: any) {
-      setErrorMessage(translateError(error.message || t("auth:errors.generic")));
+      if (error instanceof TwoFactorRequiredError) {
+        setChallengeToken(error.challengeToken);
+        setErrorMessage("");
+      } else {
+        setErrorMessage(translateError(error.message || t("auth:errors.generic")));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /** Второй шаг входа: код из приложения-аутентификатора или резервный код. */
+  const handleTwoFactorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!challengeToken) return;
+    setLoading(true);
+    setErrorMessage("");
+    try {
+      await completeTwoFactor(challengeToken, twoFactorCode.trim());
+      navigate("/dashboard");
+    } catch (error: any) {
+      setErrorMessage(error.message || "Неверный код подтверждения");
     } finally {
       setLoading(false);
     }
