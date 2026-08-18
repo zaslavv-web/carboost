@@ -193,7 +193,7 @@ class TwoFactorController extends Controller
         ]);
 
         return response()->json([
-            'user'  => app(\App\Http\Controllers\Api\Auth\AuthController::class)->presentUserPublic($user),
+            'user'  => app(\App\Http\Controllers\Api\Auth\AuthController::class)->presentUser($user),
             'token' => $token,
         ]);
     }
