@@ -19,6 +19,9 @@ export interface TrackerGoal {
   author_id: string;
   parent_goal_id: string | null;
   team_id: string | null;
+  scope_type: "employee" | "division" | "department" | "company";
+  scope_ref: string | null;
+  scope_label: string | null;
   title: string;
   description: string | null;
   status: GoalStatus;
