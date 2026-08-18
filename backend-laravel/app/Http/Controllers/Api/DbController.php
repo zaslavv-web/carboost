@@ -354,7 +354,7 @@ class DbController extends Controller
         $query = \Illuminate\Support\Facades\DB::table($tableName);
         $this->applyFilters($query, $request);
         $this->applyCompanyScope($query, $instance, $tableName, $columns);
-        $this->applyOrder($query, $request);
+        $this->applyOrder($query, $request, $columns);
 
         // Проекция колонок: берём только те, что реально есть в схеме — иначе
         // рассинхрон фронта и БД даёт SQL-ошибку на ровном месте.
