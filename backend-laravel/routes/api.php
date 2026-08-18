@@ -629,6 +629,24 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::get   ('/webhooks/{id}/deliveries',     [\App\Http\Controllers\Api\WebhookController::class, 'deliveries']);
         Route::get   ('/integrations/ical/leaves-url', [\App\Http\Controllers\Api\IcalController::class, 'leavesUrl']);
 
+        // ---- Epic B1: 1С:ЗУП 8.3 ----
+        Route::get   ('/integrations/1c/connections',            [\App\Http\Controllers\Api\OneCIntegrationController::class, 'indexConnections']);
+        Route::post  ('/integrations/1c/connections',            [\App\Http\Controllers\Api\OneCIntegrationController::class, 'storeConnection']);
+        Route::patch ('/integrations/1c/connections/{id}',       [\App\Http\Controllers\Api\OneCIntegrationController::class, 'updateConnection']);
+        Route::delete('/integrations/1c/connections/{id}',       [\App\Http\Controllers\Api\OneCIntegrationController::class, 'destroyConnection']);
+        Route::post  ('/integrations/1c/connections/{id}/test',  [\App\Http\Controllers\Api\OneCIntegrationController::class, 'testConnection']);
+        Route::get   ('/integrations/1c/target-fields',          [\App\Http\Controllers\Api\OneCIntegrationController::class, 'targetFields']);
+        Route::get   ('/integrations/1c/mappings',               [\App\Http\Controllers\Api\OneCIntegrationController::class, 'indexMappings']);
+        Route::post  ('/integrations/1c/mappings',               [\App\Http\Controllers\Api\OneCIntegrationController::class, 'saveMappings']);
+        Route::post  ('/integrations/1c/preview',                [\App\Http\Controllers\Api\OneCIntegrationController::class, 'preview']);
+        Route::post  ('/integrations/1c/import',                 [\App\Http\Controllers\Api\OneCIntegrationController::class, 'importFile']);
+        Route::post  ('/integrations/1c/pull',                   [\App\Http\Controllers\Api\OneCIntegrationController::class, 'pull']);
+        Route::get   ('/integrations/1c/runs',                   [\App\Http\Controllers\Api\OneCIntegrationController::class, 'indexRuns']);
+        Route::get   ('/integrations/1c/runs/{id}',              [\App\Http\Controllers\Api\OneCIntegrationController::class, 'runRecords']);
+        Route::post  ('/integrations/1c/runs/{id}/retry',        [\App\Http\Controllers\Api\OneCIntegrationController::class, 'retryRun']);
+        Route::get   ('/integrations/1c/payroll-summary',        [\App\Http\Controllers\Api\OneCIntegrationController::class, 'payrollSummary']);
+
+
 
 
 
