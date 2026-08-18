@@ -174,6 +174,21 @@ Route::get('/health', function () {
 Route::middleware('throttle:10,1')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login',    [AuthController::class, 'login']);
+    // ---- Epic B3: 2FA challenge + SSO (публичные, пользователь ещё не авторизован) ----
+    Route::post('/auth/2fa/challenge', [\App\Http\Controllers\Api\TwoFactorController::class, 'challenge']);
+    Route::get ('/sso/discover',       [\App\Http\Controllers\Api\SsoController::class, 'discover']);
+    Route::get ('/sso/{id}/start',     [\App\Http\Controllers\Api\SsoController::class, 'start']);
+    Route::get ('/sso/{id}/callback',  [\App\Http\Controllers\Api\SsoController::class, 'callback']);
+    Route::get ('/sso/{id}/metadata',  [\App\Http\Controllers\Api\SsoController::class, 'metadata']);
+    Route::post('/sso/{id}/acs',       [\App\Http\Controllers\Api\SsoController::class, 'acs']);
+    // ---- SCIM 2.0 (авторизация собственным bearer-токеном) ----
+    Route::get   ('/scim/v2/ServiceProviderConfig', [\App\Http\Controllers\Api\ScimController::class, 'serviceProviderConfig']);
+    Route::get   ('/scim/v2/Users',       [\App\Http\Controllers\Api\ScimController::class, 'index']);
+    Route::post  ('/scim/v2/Users',       [\App\Http\Controllers\Api\ScimController::class, 'store']);
+    Route::get   ('/scim/v2/Users/{id}',  [\App\Http\Controllers\Api\ScimController::class, 'show']);
+    Route::put   ('/scim/v2/Users/{id}',  [\App\Http\Controllers\Api\ScimController::class, 'replace']);
+    Route::patch ('/scim/v2/Users/{id}',  [\App\Http\Controllers\Api\ScimController::class, 'patch']);
+    Route::delete('/scim/v2/Users/{id}',  [\App\Http\Controllers\Api\ScimController::class, 'destroy']);
     Route::post('/auth/forgot-password', [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'forgot']);
     Route::post('/auth/reset-password',  [\App\Http\Controllers\Api\Auth\PasswordResetController::class, 'reset']);
 });
@@ -521,6 +536,33 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::delete('/kedo/edo/connections/{id}',        [\App\Http\Controllers\Api\KedoController::class, 'destroyEdoConnection']);
         Route::post  ('/kedo/edo/dispatch',                [\App\Http\Controllers\Api\KedoController::class, 'dispatchToEdo']);
         Route::get   ('/kedo/edo/dispatches',              [\App\Http\Controllers\Api\KedoController::class, 'indexDispatches']);
+
+        // ---- Epic B3: безопасность (SSO/SCIM/политики/аудит/RBAC) ----
+        Route::get   ('/security/stats',                 [\App\Http\Controllers\Api\SecurityController::class, 'stats']);
+        Route::get   ('/security/providers',             [\App\Http\Controllers\Api\SecurityController::class, 'indexProviders']);
+        Route::post  ('/security/providers',             [\App\Http\Controllers\Api\SecurityController::class, 'storeProvider']);
+        Route::patch ('/security/providers/{id}',        [\App\Http\Controllers\Api\SecurityController::class, 'updateProvider']);
+        Route::delete('/security/providers/{id}',        [\App\Http\Controllers\Api\SecurityController::class, 'destroyProvider']);
+        Route::get   ('/security/scim-tokens',           [\App\Http\Controllers\Api\SecurityController::class, 'indexScimTokens']);
+        Route::post  ('/security/scim-tokens',           [\App\Http\Controllers\Api\SecurityController::class, 'storeScimToken']);
+        Route::delete('/security/scim-tokens/{id}',      [\App\Http\Controllers\Api\SecurityController::class, 'destroyScimToken']);
+        Route::get   ('/security/policy',                [\App\Http\Controllers\Api\SecurityController::class, 'showPolicy']);
+        Route::patch ('/security/policy',                [\App\Http\Controllers\Api\SecurityController::class, 'updatePolicy']);
+        Route::get   ('/security/audit',                 [\App\Http\Controllers\Api\SecurityController::class, 'indexAudit']);
+        Route::get   ('/security/audit/export',          [\App\Http\Controllers\Api\SecurityController::class, 'exportAudit']);
+        Route::get   ('/security/roles',                 [\App\Http\Controllers\Api\SecurityController::class, 'indexRoles']);
+        Route::post  ('/security/roles',                 [\App\Http\Controllers\Api\SecurityController::class, 'storeRole']);
+        Route::patch ('/security/roles/{id}',            [\App\Http\Controllers\Api\SecurityController::class, 'updateRole']);
+        Route::delete('/security/roles/{id}',            [\App\Http\Controllers\Api\SecurityController::class, 'destroyRole']);
+        Route::get   ('/security/roles/{id}/members',    [\App\Http\Controllers\Api\SecurityController::class, 'roleMembers']);
+        Route::post  ('/security/roles/{id}/members',    [\App\Http\Controllers\Api\SecurityController::class, 'assignRole']);
+        Route::delete('/security/roles/{id}/members/{userId}', [\App\Http\Controllers\Api\SecurityController::class, 'unassignRole']);
+
+        // ---- 2FA (личный кабинет) ----
+        Route::get ('/auth/2fa/status',  [\App\Http\Controllers\Api\TwoFactorController::class, 'status']);
+        Route::post('/auth/2fa/setup',   [\App\Http\Controllers\Api\TwoFactorController::class, 'setup']);
+        Route::post('/auth/2fa/confirm', [\App\Http\Controllers\Api\TwoFactorController::class, 'confirm']);
+        Route::post('/auth/2fa/disable', [\App\Http\Controllers\Api\TwoFactorController::class, 'disable']);
 
 
         // ---- Probation periods ----
