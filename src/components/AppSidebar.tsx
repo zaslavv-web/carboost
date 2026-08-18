@@ -14,7 +14,7 @@ import {
   ShoppingBag, Store, Rocket, Mail, Heart, Activity, ClipboardCheck,
   Banknote, CalendarDays, Star, AlertOctagon, TimerReset, Palette, Brain,
   BookText, GraduationCap, Crosshair, BookOpen, Sparkles, Newspaper, Webhook,
-  ArrowLeftRight,
+  ArrowLeftRight, Grid3X3,
 } from "lucide-react";
 import { isTodayCanary, writeHrdUiMode } from "@/lib/hrdUiMode";
 
