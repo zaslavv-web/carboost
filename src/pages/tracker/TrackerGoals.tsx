@@ -212,6 +212,7 @@ const GoalCard = ({ goal }: { goal: TrackerGoal }) => {
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-medium truncate">{goal.title}</h3>
               <GoalStatusBadge status={goal.status} />
+              <ScopeBadge goal={goal} />
             </div>
             {goal.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{goal.description}</p>}
             <div className="mt-3 flex items-center gap-3">
