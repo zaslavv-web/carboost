@@ -167,6 +167,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
               performance,
               { icon: Users, label: t("nav.perf360", { defaultValue: "360° ревью" }), path: "/performance-360" },
               { icon: Sparkles, label: t("nav.skillsMatrix", { defaultValue: "Матрица компетенций" }), path: "/skills-matrix" },
+              { icon: Grid3X3, label: t("nav.talentReview", { defaultValue: "Talent Review (9-box)" }), path: "/talent-review" },
               { icon: TimerReset, label: t("performance:probation.title", { defaultValue: "Испытательный срок" }), path: "/probation" },
               { icon: AlertOctagon, label: t("performance:disciplinary.title", { defaultValue: "Дисциплинарные" }), path: "/disciplinary" },
             ],
