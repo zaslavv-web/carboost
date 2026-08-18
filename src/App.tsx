@@ -59,6 +59,7 @@ import UserProfileFull from "@/pages/UserProfileFull";
 import Chats from "@/pages/Chats";
 import Leaves from "@/pages/Leaves";
 import Performance from "@/pages/Performance";
+import TalentReview from "@/pages/TalentReview";
 import Probation from "@/pages/Probation";
 import Disciplinary from "@/pages/Disciplinary";
 import SkillsMatrix from "@/pages/SkillsMatrix";
@@ -206,6 +207,7 @@ const App = () => (
                 <Route path="/disciplinary" element={<Disciplinary />} />
                 <Route path="/skills-matrix" element={<SkillsMatrix />} />
                 <Route path="/performance-360" element={<PerformanceReview360 />} />
+                <Route path="/talent-review" element={<TalentReview />} />
                 <Route path="/feed" element={<CorporateFeed />} />
                 <Route path="/communities" element={<Communities />} />
                 <Route path="/pulse-surveys" element={<PulseSurveys />} />

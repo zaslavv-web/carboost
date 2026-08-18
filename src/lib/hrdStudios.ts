@@ -29,7 +29,7 @@ export const STUDIOS: readonly StudioEntry[] = [
 ] as const;
 
 export const STUDIO_MATCH: Record<StudioKey, RegExp> = {
-  people:    /^\/(users|passport|skills-matrix|positions|career-tracks|idp|career-reviews|employees|team)/,
+  people:    /^\/(users|passport|talent-review|skills-matrix|positions|career-tracks|idp|career-reviews|employees|team)/,
   analytics: /^\/(analytics|risk-analytics|people-analytics|product-analytics|dashboard)/,
   learning:  /^\/(university|onboarding|adaptation-plans|probation|assessment)/,
   culture:   /^\/(feed|recognition|gamification|shop|pulse-surveys|communities)/,
