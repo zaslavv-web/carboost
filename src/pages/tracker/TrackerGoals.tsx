@@ -225,7 +225,27 @@ const GoalCard = ({ goal }: { goal: TrackerGoal }) => {
             <SelectContent>{GOAL_STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        {expanded && <KeyResultsBlock goalId={goal.id} />}
+        {expanded && (
+          <>
+            <div className="mt-4 pt-4 border-t max-w-md">
+              <GoalScopePicker
+                scopeType={(goal.scope_type ?? "employee") as GoalScopeType}
+                scopeRef={goal.scope_ref ?? null}
+                holderId={goal.holder_id ?? null}
+                onChange={(v) =>
+                  update.mutate({
+                    id: goal.id,
+                    scope_type: v.scopeType,
+                    scope_ref: v.scopeRef,
+                    scope_label: v.scopeLabel,
+                    ...(v.scopeType === "employee" && v.holderId ? { holder_id: v.holderId } : {}),
+                  } as any)
+                }
+              />
+            </div>
+            <KeyResultsBlock goalId={goal.id} />
+          </>
+        )}
       </CardContent>
     </Card>
   );
