@@ -139,7 +139,7 @@ class AuthController extends Controller
         }
     }
 
-    private function presentUser(User $user): array
+    public function presentUser(User $user): array
     {
         $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
         $profile      = DB::table('profiles')->where('user_id', $domainUserId)->first();
