@@ -5,7 +5,7 @@ import { Mail, Lock, Eye, EyeOff, AlertCircle, X, Building2 } from "lucide-react
 import brandLogo from "@/assets/logo-growth-peak.png";
 import LandingHeader from "@/components/landing/LandingHeader";
 import { useAuth } from "@/contexts/AuthContext";
-import { laravelAuthApi } from "@/integrations/laravel/auth";
+import { laravelAuthApi, TwoFactorRequiredError } from "@/integrations/laravel/auth";
 import { useAuthProviders } from "@/hooks/useAuthProviders";
 import { laravelRpc } from "@/integrations/laravel/rpc";
 import {
@@ -44,8 +44,10 @@ const Login = () => {
   const [selectedRole, setSelectedRole] = useState<RequestedAppRole>("employee");
   const [companyName, setCompanyName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
   const navigate = useNavigate();
-  const { signInWithPassword, signUp, signInWithGoogle, signInWithYandex } = useAuth();
+  const { signInWithPassword, completeTwoFactor, signUp, signInWithGoogle, signInWithYandex } = useAuth();
   const { geo, loading: geoLoading } = useAuthProviders();
 
   const isHRD = selectedRole === "hrd";
@@ -110,7 +112,28 @@ const Login = () => {
         navigate("/dashboard");
       }
     } catch (error: any) {
-      setErrorMessage(translateError(error.message || t("auth:errors.generic")));
+      if (error instanceof TwoFactorRequiredError) {
+        setChallengeToken(error.challengeToken);
+        setErrorMessage("");
+      } else {
+        setErrorMessage(translateError(error.message || t("auth:errors.generic")));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /** Второй шаг входа: код из приложения-аутентификатора или резервный код. */
+  const handleTwoFactorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!challengeToken) return;
+    setLoading(true);
+    setErrorMessage("");
+    try {
+      await completeTwoFactor(challengeToken, twoFactorCode.trim());
+      navigate("/dashboard");
+    } catch (error: any) {
+      setErrorMessage(error.message || "Неверный код подтверждения");
     } finally {
       setLoading(false);
     }
@@ -223,6 +246,40 @@ const Login = () => {
             </div>
           )}
 
+          {challengeToken ? (
+            <form onSubmit={handleTwoFactorSubmit} className="mt-6 space-y-5">
+              <div>
+                <label className="text-sm font-medium text-foreground">Код подтверждения</label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Введите шестизначный код из приложения-аутентификатора или один из резервных кодов.
+                </p>
+                <input
+                  autoFocus
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={twoFactorCode}
+                  onChange={(e) => { setTwoFactorCode(e.target.value); setErrorMessage(""); }}
+                  placeholder="000000"
+                  required
+                  className="w-full mt-2 px-4 py-2.5 rounded-lg border border-input bg-card text-sm tracking-[0.3em] text-center text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading || !twoFactorCode.trim()}
+                className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60"
+              >
+                {loading ? t("common:loading", { defaultValue: "Загрузка…" }) : "Подтвердить вход"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setChallengeToken(null); setTwoFactorCode(""); setErrorMessage(""); }}
+                className="w-full text-xs text-muted-foreground hover:text-foreground"
+              >
+                Назад ко входу
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
             <div>
               <label className="text-sm font-medium text-foreground">{t("auth:fields.email")}</label>
@@ -366,6 +423,7 @@ const Login = () => {
               </button>
             </p>
           </form>
+          )}
         </div>
       </div>
       </div>
