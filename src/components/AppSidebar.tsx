@@ -69,6 +69,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const aiSettings: NavItem = { icon: Brain, label: t("nav.aiSettings", { defaultValue: "AI-провайдер" }), path: "/ai-settings" };
     const settings: NavItem = { icon: Settings, label: t("nav.settings"), path: "/settings" };
     const integrations: NavItem = { icon: Webhook, label: "Интеграции", path: "/integrations" };
+    const oneC: NavItem = { icon: Database, label: "1С:ЗУП", path: "/integrations/1c" };
     const chats: NavItem = { icon: MessageCircle, label: t("nav.chats", { defaultValue: "Сообщения" }), path: "/chats" };
     const feed: NavItem = { icon: Newspaper, label: t("nav.feed", { defaultValue: "Лента компании" }), path: "/feed" };
     const communities: NavItem = { icon: Users, label: t("nav.communities", { defaultValue: "Сообщества" }), path: "/communities" };
@@ -93,7 +94,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Banknote, label: t("nav.pricingInquiries"), path: "/pricing-inquiries" },
         ]},
         { key: "knowledge", label: S("knowledge"), entries: [university, knowledgeBase] },
-        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, settings] },
+        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, settings] },
       ];
     }
 
@@ -118,7 +119,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: BookOpen, label: t("nav.knowledgeBase", { defaultValue: "База знаний" }), path: "/knowledge-base" },
           { icon: Target, label: t("nav.idp", { defaultValue: "Планы развития (ИПР)" }), path: "/idp" },
         ] },
-        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, settings] },
+        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, settings] },
       ];
     }
 
@@ -187,7 +188,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Store, label: t("nav.shopAdmin"), path: "/shop-admin" },
         ]},
         { key: "knowledge", label: S("knowledge"), entries: [university, knowledgeBase] },
-        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, settings] },
+        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, settings] },
       ];
     }
 

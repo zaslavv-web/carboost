@@ -70,6 +70,7 @@ import PulseSurveys from "@/pages/PulseSurveys";
 import HrDocumentsPersonal from "@/pages/HrDocumentsPersonal";
 import PeopleAnalytics from "@/pages/PeopleAnalytics";
 import Integrations from "@/pages/Integrations";
+import IntegrationOneC from "@/pages/IntegrationOneC";
 
 import { ChatProvider } from "@/contexts/ChatContext";
 import { BrandingProvider } from "@/contexts/BrandingContext";
@@ -195,6 +196,7 @@ const App = () => (
                 <Route path="/hr-documents-personal" element={<HrDocumentsPersonal />} />
                 <Route path="/people-analytics" element={<PeopleAnalytics />} />
                 <Route path="/integrations" element={<Integrations />} />
+                <Route path="/integrations/1c" element={<IntegrationOneC />} />
                 <Route path="/analytics/comfort" element={<ComfortCompany />} />
                 <Route path="/analytics/comfort/department/:id" element={<ComfortDepartment />} />
                 <Route path="/analytics/comfort/user/:id" element={<ComfortEmployee />} />
