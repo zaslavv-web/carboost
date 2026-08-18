@@ -556,8 +556,10 @@ class OneCIntegrationController extends Controller
         DB::table('positions')->insert($this->onlyExistingColumns('positions', array_merge($payload, [
             'id'         => $id,
             'company_id' => $companyId,
+            'created_by' => $this->currentUserId,
             'created_at' => now(),
         ])));
+
         return ['created', $id, $name, null];
     }
 
