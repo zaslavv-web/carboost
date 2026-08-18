@@ -19,17 +19,29 @@ let knownVersion: string | null = null;
 let started = false;
 
 async function fetchVersion(): Promise<string | null> {
+  // Офлайн/смена сети — не дёргаем сеть, иначе браузер пишет
+  // ERR_NETWORK_CHANGED / ERR_INTERNET_DISCONNECTED в консоль.
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return null;
   try {
-    const res = await fetch(`${VERSION_URL}?t=${Date.now()}`, { cache: "no-store" });
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = ctrl ? window.setTimeout(() => ctrl.abort(), 8000) : null;
+    const res = await fetch(`${VERSION_URL}?t=${Date.now()}`, {
+      cache: "no-store",
+      signal: ctrl?.signal,
+    }).finally(() => {
+      if (timer) window.clearTimeout(timer);
+    });
     if (!res.ok) return null;
     const ct = res.headers.get("content-type") || "";
     if (!ct.includes("json")) return null; // SPA-фолбэк отдал index.html
     const body = (await res.json()) as { version?: string };
     return typeof body?.version === "string" && body.version ? body.version : null;
   } catch {
+    // Сетевые сбои (смена Wi-Fi/VPN, обрыв) — не ошибка приложения.
     return null;
   }
 }
+
 
 function reloadOnce() {
   try {
@@ -73,4 +85,7 @@ export function startVersionWatcher() {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void check();
   });
+  // Сеть вернулась после обрыва/смены — досверяем версию.
+  window.addEventListener("online", () => void check());
+
 }
