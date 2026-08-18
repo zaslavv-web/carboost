@@ -98,7 +98,29 @@ class AuthController extends Controller
             ]);
         }
 
+        // Epic B3 — если включена 2FA, вместо токена отдаём challenge.
+        try {
+            $domainId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
+            if (\App\Http\Controllers\Api\TwoFactorController::isEnabledFor((string) $domainId)
+                || \App\Http\Controllers\Api\TwoFactorController::isEnabledFor((string) $user->id)) {
+                return response()->json([
+                    '2fa_required'    => true,
+                    'challenge_token' => \App\Http\Controllers\Api\TwoFactorController::issueChallenge($user),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('2FA check skipped', ['reason' => $e->getMessage()]);
+        }
+
         $token = $user->createToken('spa')->plainTextToken;
+
+        \App\Services\SecurityAudit::log([
+            'company_id'  => DB::table('profiles')->where('user_id', method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id)->value('company_id'),
+            'user_id'     => $user->id,
+            'actor_email' => $user->email,
+            'event'       => 'login.success',
+            'category'    => 'auth',
+        ]);
 
         return response()->json([
             'user'  => $this->presentUser($user),
