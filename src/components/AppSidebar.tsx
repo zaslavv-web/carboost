@@ -193,7 +193,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Store, label: t("nav.shopAdmin"), path: "/shop-admin" },
         ]},
         { key: "knowledge", label: S("knowledge"), entries: [university, knowledgeBase] },
-        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, settings] },
+        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, securityNav, settings] },
       ];
     }
 
