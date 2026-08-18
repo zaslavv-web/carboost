@@ -246,6 +246,40 @@ const Login = () => {
             </div>
           )}
 
+          {challengeToken ? (
+            <form onSubmit={handleTwoFactorSubmit} className="mt-6 space-y-5">
+              <div>
+                <label className="text-sm font-medium text-foreground">Код подтверждения</label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Введите шестизначный код из приложения-аутентификатора или один из резервных кодов.
+                </p>
+                <input
+                  autoFocus
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={twoFactorCode}
+                  onChange={(e) => { setTwoFactorCode(e.target.value); setErrorMessage(""); }}
+                  placeholder="000000"
+                  required
+                  className="w-full mt-2 px-4 py-2.5 rounded-lg border border-input bg-card text-sm tracking-[0.3em] text-center text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading || !twoFactorCode.trim()}
+                className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60"
+              >
+                {loading ? t("common:loading", { defaultValue: "Загрузка…" }) : "Подтвердить вход"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setChallengeToken(null); setTwoFactorCode(""); setErrorMessage(""); }}
+                className="w-full text-xs text-muted-foreground hover:text-foreground"
+              >
+                Назад ко входу
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
             <div>
               <label className="text-sm font-medium text-foreground">{t("auth:fields.email")}</label>
