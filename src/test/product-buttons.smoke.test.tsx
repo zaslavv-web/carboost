@@ -95,7 +95,7 @@ describe("смоук-тесты критичных кнопок продукта
     vi.clearAllMocks();
     // Сайдбар запоминает раскрытые секции в localStorage — сбрасываем,
     // чтобы тесты не зависели друг от друга.
-    window.localStorage.removeItem("ct-sidebar-sections");
+    window.localStorage.removeItem("sidebar.openSections.v2");
     mocks.role = "superadmin";
     mocks.realRole = "superadmin";
     mocks.currentUser = { id: "admin-1", email: "admin@example.com", roles: ["superadmin"] };
