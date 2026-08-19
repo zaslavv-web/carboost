@@ -200,9 +200,11 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           leaves,
         ]},
         { key: "motivation", label: S("motivation"), entries: [
+          ...myMotivation,
           { icon: Trophy, label: t("nav.gamification"), path: "/gamification" },
           { icon: Store, label: t("nav.shopAdmin"), path: "/shop-admin" },
         ]},
+
         { key: "knowledge", label: S("knowledge"), entries: [university, knowledgeBase] },
         { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, securityNav, settings] },
       ];
