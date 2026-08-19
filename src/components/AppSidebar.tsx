@@ -79,6 +79,15 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const kedo: NavItem = { icon: FileSignature, label: "КЭДО", path: "/kedo" };
     const securityNav: NavItem = { icon: Shield, label: "Безопасность", path: "/security" };
     const myDocs: NavItem = { icon: FileSignature, label: "Мои документы", path: "/my-documents" };
+    // Личная мотивация — доступна всем ролям, не только сотруднику.
+    const myMotivation: NavItem[] = [
+      { icon: Heart, label: t("nav.recognition"), path: "/recognition" },
+      { icon: ShoppingBag, label: t("nav.shop"), path: "/shop" },
+      { icon: Sparkles, label: "Как заработать", path: "/motivation/earn" },
+      { icon: ClipboardCheck, label: "Мои заказы", path: "/my-orders" },
+    ];
+
+
 
     if (role === "superadmin") {
       return [
