@@ -258,10 +258,10 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         performance,
       ]},
       { key: "motivation", label: S("motivation"), entries: [
-        { icon: Heart, label: t("nav.recognition"), path: "/recognition" },
-        { icon: ShoppingBag, label: t("nav.shop"), path: "/shop" },
+        ...myMotivation,
         { icon: ClipboardCheck, label: t("nav.questionnaire"), path: "/employee-questionnaire" },
       ]},
+
       { key: "knowledge", label: S("knowledge"), entries: [
         { icon: User, label: t("nav.passport"), path: "/passport" },
         university,
