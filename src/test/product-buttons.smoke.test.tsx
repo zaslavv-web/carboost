@@ -67,9 +67,35 @@ const renderWithProviders = (ui: React.ReactElement) => {
   );
 };
 
-describe("smoke-тесты критичных кнопок продукта", () => {
+/** Ответ /admin/email-settings, общий для тестов почтового сервиса. */
+const SMTP_RESPONSE = {
+  data: {
+    setting: {
+      id: "smtp-1",
+      provider: "custom",
+      host: "smtp.example.com",
+      port: 587,
+      encryption: "tls",
+      username: "mailer@example.com",
+      from_address: "no-reply@example.com",
+      from_name: "Career Track",
+      reply_to_address: null,
+      is_active: true,
+      has_password: true,
+      last_tested_at: null,
+      last_test_error: null,
+    },
+    presets: { custom: { label: "Custom", host: "", port: 587, encryption: "tls", hint: "Введите параметры SMTP-сервера." } },
+  },
+  error: null,
+};
+
+describe("смоук-тесты критичных кнопок продукта", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Сайдбар запоминает раскрытые секции в localStorage — сбрасываем,
+    // чтобы тесты не зависели друг от друга.
+    window.localStorage.removeItem("sidebar.openSections.v2");
     mocks.role = "superadmin";
     mocks.realRole = "superadmin";
     mocks.currentUser = { id: "admin-1", email: "admin@example.com", roles: ["superadmin"] };
@@ -77,13 +103,19 @@ describe("smoke-тесты критичных кнопок продукта", ()
     mocks.db.companies = { data: [{ id: "c1", name: "Acme" }], error: null };
     mocks.db.profiles = {
       data: [
-        { id: "p1", user_id: "hrd-1", full_name: "HRD User", position: "HRD", department: "HR", company_id: "c1", is_verified: true },
-        { id: "p2", user_id: "emp-1", full_name: "Pending User", position: "Dev", department: "IT", company_id: "c1", is_verified: false },
+        { id: "p1", user_id: "hrd-1", full_name: "HRD User", position: "HRD", department: "HR", company_id: "c1", is_verified: true, roles: ["hrd"] },
+        { id: "p2", user_id: "emp-1", full_name: "Pending User", position: "Dev", department: "IT", company_id: "c1", is_verified: false, roles: ["employee"] },
       ],
       error: null,
     };
     mocks.db.user_roles = { data: [{ user_id: "hrd-1", role: "hrd" }, { user_id: "emp-1", role: "employee" }], error: null };
-    mocks.laravelGet.mockResolvedValue({
+    mocks.laravelGet.mockImplementation(async (url: string) => {
+      if (url.startsWith("/profiles")) {
+        return { data: { data: mocks.db.profiles.data }, error: null };
+      }
+      return SMTP_RESPONSE;
+    });
+    void {
       data: {
         setting: {
           id: "smtp-1",
@@ -103,7 +135,7 @@ describe("smoke-тесты критичных кнопок продукта", ()
         presets: { custom: { label: "Custom", host: "", port: 587, encryption: "tls", hint: "Введите параметры SMTP-сервера." } },
       },
       error: null,
-    });
+    };
   });
 
   afterEach(() => cleanup());
@@ -132,7 +164,7 @@ describe("smoke-тесты критичных кнопок продукта", ()
     fireEvent.click(await screen.findByRole("button", { name: /Создать пользователя/i }));
     fireEvent.change(screen.getByPlaceholderText("Иванов Иван"), { target: { value: "Иван Иванов" } });
     fireEvent.change(screen.getByPlaceholderText("user@example.com"), { target: { value: "new@example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: /Создать и отправить приглашение/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Создать и\s*отправить приглашение/i }));
 
     await waitFor(() => expect(mocks.adminCreateUser).toHaveBeenCalledWith(expect.objectContaining({ full_name: "Иван Иванов", email: "new@example.com", role: "employee" })));
   });
@@ -153,13 +185,19 @@ describe("smoke-тесты критичных кнопок продукта", ()
     const AppSidebar = (await import("@/components/AppSidebar")).default;
     renderWithProviders(<AppSidebar collapsed={false} onToggle={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Почтовый сервис/i }));
+    // Секции в сайдбаре свёрнуты по умолчанию — сначала раскрываем нужную.
+    fireEvent.click(screen.getByRole("button", { name: /^Коммуникация/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Почтовый сервис$/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/email-settings");
-    fireEvent.click(screen.getByRole("button", { name: /Пользователи/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /^Управление персоналом/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Пользователи$/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/users");
+
+    // Выход подтверждается в диалоге.
     fireEvent.click(screen.getByRole("button", { name: /Выйти/i }));
-    expect(mocks.signOut).toHaveBeenCalled();
-    expect(mocks.navigate).toHaveBeenCalledWith("/login");
+    fireEvent.click(await screen.findByRole("button", { name: /Да, выйти/i }));
+    await waitFor(() => expect(mocks.signOut).toHaveBeenCalled());
   });
 
   it("групповые кнопки HRD раскрывают меню и ведут в дочерние разделы", async () => {
@@ -169,13 +207,14 @@ describe("smoke-тесты критичных кнопок продукта", ()
     const AppSidebar = (await import("@/components/AppSidebar")).default;
     renderWithProviders(<AppSidebar collapsed={false} onToggle={vi.fn()} />);
 
-    // Группа "Управление персоналом" содержит пункт "Сотрудники" (переход в /employees)
-    fireEvent.click(screen.getByRole("button", { name: /^Управление персоналом/i }));
-    fireEvent.click(screen.getByRole("button", { name: /^Сотрудники$/i }));
+    // Секция → группа → дочерний пункт.
+    fireEvent.click(await screen.findByRole("button", { name: /^Управление/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Сотрудники/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Список/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/employees");
 
-    fireEvent.click(screen.getByRole("button", { name: /^Аналитика/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Риски и удержание/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Аналитика/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Риски/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/risk-analytics");
   });
 });

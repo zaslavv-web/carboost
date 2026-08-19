@@ -52,7 +52,9 @@ describe("LaravelAuthProvider", () => {
   });
 
   it("hydrates from existing token via /auth/me", async () => {
-    laravelAuth.setToken("tok-x");
+    // Токен должен выглядеть как Sanctum-токен (`id|hash`), иначе провайдер
+    // считает сессию повреждённой и не идёт в /auth/me.
+    laravelAuth.setToken("12|abcdefghijklmnopqrstuvwxyz0123456789ABCD");
     mockJson({ id: "u1", email: "me@x.io" });
     renderWithProviders(<LaravelAuthProvider><Probe /></LaravelAuthProvider>);
     await waitFor(() => expect(screen.getByTestId("email").textContent).toBe("me@x.io"));
