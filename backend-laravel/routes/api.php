@@ -494,7 +494,21 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::post  ('/performance-reviews/{id}/feedback', [\App\Http\Controllers\Api\PerformanceController::class, 'submitFeedback']);
         Route::post  ('/performance-reviews/{id}/finalize', [\App\Http\Controllers\Api\PerformanceController::class, 'finalize']);
 
+        // ---- Предиктивная аналитика и бенчмаркинг (Epic D3) ----
+        Route::get   ('/predictive/overview',            [\App\Http\Controllers\Api\PredictiveController::class, 'overview']);
+        Route::post  ('/predictive/recompute',           [\App\Http\Controllers\Api\PredictiveController::class, 'recompute']);
+        Route::get   ('/predictive/employees',           [\App\Http\Controllers\Api\PredictiveController::class, 'employees']);
+        Route::get   ('/predictive/employees/{userId}',  [\App\Http\Controllers\Api\PredictiveController::class, 'employee']);
+        Route::get   ('/predictive/drivers',             [\App\Http\Controllers\Api\PredictiveController::class, 'drivers']);
+        Route::get   ('/predictive/benchmarks',          [\App\Http\Controllers\Api\PredictiveController::class, 'benchmarks']);
+        Route::patch ('/predictive/company-profile',     [\App\Http\Controllers\Api\PredictiveController::class, 'updateCompanyProfile']);
+        Route::post  ('/predictive/what-if',             [\App\Http\Controllers\Api\PredictiveController::class, 'whatIf']);
+        Route::get   ('/predictive/scenarios',           [\App\Http\Controllers\Api\PredictiveController::class, 'indexScenarios']);
+        Route::post  ('/predictive/scenarios',           [\App\Http\Controllers\Api\PredictiveController::class, 'storeScenario']);
+        Route::delete('/predictive/scenarios/{id}',      [\App\Http\Controllers\Api\PredictiveController::class, 'destroyScenario']);
+
         // ---- Talent Review (Epic D1): 9-box, сессии, преемственность, кадровый резерв ----
+
         Route::get   ('/talent-review/sessions',                    [\App\Http\Controllers\Api\TalentReviewController::class, 'indexSessions']);
         Route::post  ('/talent-review/sessions',                    [\App\Http\Controllers\Api\TalentReviewController::class, 'storeSession']);
         Route::patch ('/talent-review/sessions/{id}',               [\App\Http\Controllers\Api\TalentReviewController::class, 'updateSession']);
