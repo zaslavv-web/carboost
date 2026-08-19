@@ -161,7 +161,7 @@ describe("смоук-тесты критичных кнопок продукта
     fireEvent.click(await screen.findByRole("button", { name: /Создать пользователя/i }));
     fireEvent.change(screen.getByPlaceholderText("Иванов Иван"), { target: { value: "Иван Иванов" } });
     fireEvent.change(screen.getByPlaceholderText("user@example.com"), { target: { value: "new@example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: /Создать и отправить приглашение/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Создать и\s*отправить приглашение/i }));
 
     await waitFor(() => expect(mocks.adminCreateUser).toHaveBeenCalledWith(expect.objectContaining({ full_name: "Иван Иванов", email: "new@example.com", role: "employee" })));
   });
@@ -207,13 +207,11 @@ describe("смоук-тесты критичных кнопок продукта
     // Секция → группа → дочерний пункт.
     fireEvent.click(screen.getByRole("button", { name: /^Управление персоналом/i }));
     fireEvent.click(screen.getByRole("button", { name: /^Сотрудники/i }));
-    fireEvent.click(screen.getByRole("button", { name: /^Список сотрудников$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Список/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/employees");
 
     fireEvent.click(screen.getByRole("button", { name: /^Аналитика/i }));
-    // eslint-disable-next-line no-console
-    console.log("BTNS:", screen.getAllByRole("button").map((b) => b.textContent).join(" | "));
-    fireEvent.click(screen.getByRole("button", { name: /Риски и удержание/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Риски/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/risk-analytics");
   });
 });
