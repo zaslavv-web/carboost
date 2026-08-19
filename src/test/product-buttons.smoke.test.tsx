@@ -211,6 +211,8 @@ describe("смоук-тесты критичных кнопок продукта
     expect(mocks.navigate).toHaveBeenCalledWith("/employees");
 
     fireEvent.click(screen.getByRole("button", { name: /^Аналитика/i }));
+    // eslint-disable-next-line no-console
+    console.log("BTNS:", screen.getAllByRole("button").map((b) => b.textContent).join(" | "));
     fireEvent.click(screen.getByRole("button", { name: /Риски и удержание/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/risk-analytics");
   });
