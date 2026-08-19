@@ -205,13 +205,13 @@ describe("смоук-тесты критичных кнопок продукта
     renderWithProviders(<AppSidebar collapsed={false} onToggle={vi.fn()} />);
 
     // Секция → группа → дочерний пункт.
-    fireEvent.click(screen.getByRole("button", { name: /^Управление персоналом/i }));
-    fireEvent.click(screen.getByRole("button", { name: /^Сотрудники/i }));
-    fireEvent.click(screen.getByRole("button", { name: /^Список/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Управление/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Сотрудники/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Список/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/employees");
 
-    fireEvent.click(screen.getByRole("button", { name: /^Аналитика/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Риски/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Аналитика/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Риски/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/risk-analytics");
   });
 });
