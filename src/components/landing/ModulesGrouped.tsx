@@ -10,7 +10,7 @@ interface Props {
 const serif = { fontFamily: "'Instrument Serif', Georgia, serif" };
 
 /**
- * 4 categories × 4 modules — designed to fit a single viewport (100svh) on
+ * 5 categories × up to 5 modules — designed to fit a single viewport (100svh) on
  * laptop screens without scrolling. Tiles use authored animated SVG icons
  * (see ModuleIcons.tsx) that play a "rise to peak" motion on hover.
  */
@@ -37,7 +37,7 @@ const ModulesGrouped = ({ onModuleClick }: Props) => {
             </div>
 
             {/* Tiles: 1 col mobile (horizontal), 2 col tablet, 4 col desktop */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 md:gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-2.5">
               {cat.slugs.map((slug, i) => (
                 <button
                   key={slug}

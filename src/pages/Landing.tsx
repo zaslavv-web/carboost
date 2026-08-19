@@ -17,7 +17,7 @@ import type { FeatureSlug } from "@/data/features";
 /* ----------------------------------------------------------------
  * Landing — HRD-first positioning:
  *  1) Hero with mission statement + KPI strip + live HRD dashboard mock
- *  2) 16 modules grouped by 4 categories, fits in 100svh, opens detail modal
+ *  2) 23 modules grouped by 5 categories, fits in 100svh, opens detail modal
  * ---------------------------------------------------------------- */
 
 const serif = { fontFamily: "'Instrument Serif', Georgia, serif" };
