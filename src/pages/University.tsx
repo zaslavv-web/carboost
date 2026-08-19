@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { GraduationCap, Plus, Clock, Award, Lock, PlayCircle, Pencil, FileArchive } from "lucide-react";
+import { GraduationCap, Plus, Clock, Award, Lock, PlayCircle, Pencil, FileArchive, BarChart3 } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ScormUploadDialog } from "@/components/university/ScormUploadDialog";
 
 interface Course {
@@ -43,6 +44,7 @@ export default function University() {
   const { data: profile } = useUserProfile();
   const canAuthor = ["hr", "hrd", "company_admin", "superadmin"].includes(role);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
 
   const { data: catalog } = useQuery({
     queryKey: ["uni-courses"],
@@ -72,15 +74,15 @@ export default function University() {
       (await laravel.post<{ id: string }>("/university/courses", { title: "Новый курс" })).data!,
     onSuccess: (d) => {
       toast.success("Курс создан");
-      qc.invalidateQueries({ queryKey: ["uni-catalog"] });
+      qc.invalidateQueries({ queryKey: ["uni-courses"] });
       navigate(`/university/${d.id}/edit`);
     },
     onError: (e: any) => toast.error(e?.message ?? "Не удалось создать курс"),
   });
 
-  const courses = (catalog?.courses ?? []).filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase())
-  );
+  const courses = (catalog?.courses ?? [])
+    .filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
+    .filter((c) => (!canAuthor || statusFilter === "all" ? true : c.status === statusFilter));
   const enrolledIds = new Set((mine?.enrollments ?? []).map((e) => e.course_id));
 
   return (
@@ -99,6 +101,9 @@ export default function University() {
                 <FileArchive className="w-4 h-4 mr-2" /> SCORM
               </Button>
             </ScormUploadDialog>
+            <Button variant="outline" type="button" onClick={() => navigate("/university/analytics")}>
+              <BarChart3 className="w-4 h-4 mr-2" /> Аналитика
+            </Button>
             <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
               <Plus className="w-4 h-4 mr-2" /> Создать курс
             </Button>
@@ -142,6 +147,19 @@ export default function University() {
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-md"
           />
+          {canAuthor && (
+            <ToggleGroup
+              type="single"
+              value={statusFilter}
+              onValueChange={(v) => v && setStatusFilter(v as typeof statusFilter)}
+              variant="outline"
+              size="sm"
+            >
+              <ToggleGroupItem value="all">Все</ToggleGroupItem>
+              <ToggleGroupItem value="published">Опубликованные</ToggleGroupItem>
+              <ToggleGroupItem value="draft">Черновики</ToggleGroupItem>
+            </ToggleGroup>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {courses.map((c) => (
               <Card key={c.id} className="overflow-hidden flex flex-col">

@@ -25,7 +25,55 @@ class CourseController extends Controller
         $u = Auth::user();
         if (! $u) return false;
         $roles = DB::table('user_roles')->where('user_id', $u->id)->pluck('role')->all();
-        return (bool) array_intersect($roles, ['hrd','company_admin','superadmin']);
+        return (bool) array_intersect($roles, ['hr','hrd','company_admin','superadmin']);
+    }
+
+    /** Автор либо назначенный редактор конкретного курса. */
+    protected function canEditCourse(?string $courseId): bool
+    {
+        if ($this->canAuthor()) return true;
+        $uid = (string) (Auth::id() ?: '');
+        if (! $uid || ! $courseId) return false;
+        $row = DB::table('courses')->where('id', $courseId)->select('author_id', 'editor_ids')->first();
+        if (! $row) return false;
+        if ((string) $row->author_id === $uid) return true;
+        $editors = json_decode((string) ($row->editor_ids ?? '[]'), true) ?: [];
+        return in_array($uid, $editors, true);
+    }
+
+    protected function courseIdOfModule(string $moduleId): ?string
+    {
+        return DB::table('course_modules')->where('id', $moduleId)->value('course_id');
+    }
+
+    protected function courseIdOfLesson(string $lessonId): ?string
+    {
+        return DB::table('lessons as l')->join('course_modules as m', 'm.id', '=', 'l.module_id')
+            ->where('l.id', $lessonId)->value('m.course_id');
+    }
+
+    /** Список редакторов курса. */
+    public function editors(string $id)
+    {
+        if (! $this->canEditCourse($id)) return response()->json(['error' => 'forbidden'], 403);
+        $row = DB::table('courses')->where('id', $id)->select('author_id', 'editor_ids')->first();
+        if (! $row) return response()->json(['error' => 'not found'], 404);
+        $ids = json_decode((string) ($row->editor_ids ?? '[]'), true) ?: [];
+        $users = $ids ? DB::table('profiles')->whereIn('user_id', $ids)
+            ->select('user_id', 'full_name', 'email', 'department', 'position')->get() : collect();
+        return response()->json(['author_id' => $row->author_id, 'editors' => $users]);
+    }
+
+    /** Замена списка редакторов курса. */
+    public function setEditors(Request $r, string $id)
+    {
+        if (! $this->canEditCourse($id)) return response()->json(['error' => 'forbidden'], 403);
+        $data = $r->validate(['editor_ids' => 'present|array', 'editor_ids.*' => 'uuid']);
+        DB::table('courses')->where('id', $id)->update([
+            'editor_ids' => json_encode(array_values(array_unique($data['editor_ids']))),
+            'updated_at' => now(),
+        ]);
+        return response()->json(['ok' => true]);
     }
 
     public function index(Request $r)
@@ -102,7 +150,7 @@ class CourseController extends Controller
 
     public function update(Request $r, string $id)
     {
-        if (! $this->canAuthor()) return response()->json(['error' => 'forbidden'], 403);
+        if (! $this->canEditCourse($id)) return response()->json(['error' => 'forbidden'], 403);
         $data = $r->validate([
             'title' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
@@ -127,7 +175,7 @@ class CourseController extends Controller
 
     public function destroy(string $id)
     {
-        if (! $this->canAuthor()) return response()->json(['error' => 'forbidden'], 403);
+        if (! $this->canEditCourse($id)) return response()->json(['error' => 'forbidden'], 403);
         DB::table('courses')->where('id', $id)->delete();
         return response()->json(['ok' => true]);
     }
@@ -135,7 +183,7 @@ class CourseController extends Controller
     // ---- Modules ----
     public function storeModule(Request $r, string $courseId)
     {
-        if (! $this->canAuthor()) return response()->json(['error' => 'forbidden'], 403);
+        if (! $this->canEditCourse($courseId)) return response()->json(['error' => 'forbidden'], 403);
         $data = $r->validate(['title' => 'required|string|max:255', 'order_index' => 'nullable|integer']);
         $id = (string) Str::uuid();
         DB::table('course_modules')->insert([
@@ -149,7 +197,7 @@ class CourseController extends Controller
 
     public function updateModule(Request $r, string $id)
     {
-        if (! $this->canAuthor()) return response()->json(['error' => 'forbidden'], 403);
+        if (! $this->canEditCourse($this->courseIdOfModule($id))) return response()->json(['error' => 'forbidden'], 403);
         $data = $r->validate(['title' => 'sometimes|string', 'order_index' => 'sometimes|integer']);
         $data['updated_at'] = now();
         DB::table('course_modules')->where('id', $id)->update($data);
@@ -158,7 +206,7 @@ class CourseController extends Controller
 
     public function destroyModule(string $id)
     {
-        if (! $this->canAuthor()) return response()->json(['error' => 'forbidden'], 403);
+        if (! $this->canEditCourse($this->courseIdOfModule($id))) return response()->json(['error' => 'forbidden'], 403);
         DB::table('course_modules')->where('id', $id)->delete();
         return response()->json(['ok' => true]);
     }
@@ -166,7 +214,7 @@ class CourseController extends Controller
     // ---- Lessons ----
     public function storeLesson(Request $r, string $moduleId)
     {
-        if (! $this->canAuthor()) return response()->json(['error' => 'forbidden'], 403);
+        if (! $this->canEditCourse($this->courseIdOfModule($moduleId))) return response()->json(['error' => 'forbidden'], 403);
         $data = $r->validate([
             'title' => 'required|string|max:255',
             'type' => 'required|in:video,markdown,pdf,test',
@@ -190,7 +238,7 @@ class CourseController extends Controller
 
     public function updateLesson(Request $r, string $id)
     {
-        if (! $this->canAuthor()) return response()->json(['error' => 'forbidden'], 403);
+        if (! $this->canEditCourse($this->courseIdOfLesson($id))) return response()->json(['error' => 'forbidden'], 403);
         $data = $r->validate([
             'title' => 'sometimes|string',
             'type' => 'sometimes|in:video,markdown,pdf,test,scorm',
@@ -209,7 +257,7 @@ class CourseController extends Controller
 
     public function destroyLesson(string $id)
     {
-        if (! $this->canAuthor()) return response()->json(['error' => 'forbidden'], 403);
+        if (! $this->canEditCourse($this->courseIdOfLesson($id))) return response()->json(['error' => 'forbidden'], 403);
         DB::table('lessons')->where('id', $id)->delete();
         return response()->json(['ok' => true]);
     }

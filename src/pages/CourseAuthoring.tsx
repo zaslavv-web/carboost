@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, ArrowLeft, Save, GripVertical } from "lucide-react";
 import { CourseAudience } from "@/components/university/CourseAudience";
+import { CourseEditors } from "@/components/university/CourseEditors";
 
 interface Lesson {
   id: string; module_id: string; order_index: number;
@@ -145,6 +146,8 @@ export default function CourseAuthoring() {
           </div>
         </CardContent>
       </Card>
+
+      <CourseEditors courseId={course.id} />
 
       <CourseAudience courseId={course.id} />
 

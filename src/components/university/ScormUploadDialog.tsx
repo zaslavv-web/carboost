@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { laravel } from "@/integrations/laravel/client";
@@ -19,6 +19,7 @@ import { Upload, FileArchive, Loader2, CheckCircle2 } from "lucide-react";
 
 export function ScormUploadDialog({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -44,7 +45,9 @@ export function ScormUploadDialog({ children }: { children: React.ReactNode }) {
       return importRes.data;
     },
     onSuccess: (data) => {
-      toast.success(`SCORM-курс «${data.title}» импортирован`);
+      toast.success(`SCORM-курс «${data.title}» импортирован как черновик`);
+      qc.invalidateQueries({ queryKey: ["uni-courses"] });
+      qc.invalidateQueries({ queryKey: ["uni-mine"] });
       setOpen(false);
       setFile(null);
       setTitle("");
