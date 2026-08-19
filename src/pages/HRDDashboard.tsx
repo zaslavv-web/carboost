@@ -435,7 +435,9 @@ const HRDDashboard = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <MotivationBlock />
       {/* Hero */}
+
       <div className="relative overflow-hidden rounded-2xl gradient-hero p-6 md:p-8 shadow-elevated">
         <div className="absolute inset-0 gradient-glow opacity-60 pointer-events-none" />
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
