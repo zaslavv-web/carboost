@@ -62,6 +62,7 @@ import Chats from "@/pages/Chats";
 import Leaves from "@/pages/Leaves";
 import Performance from "@/pages/Performance";
 import TalentReview from "@/pages/TalentReview";
+import PredictiveAnalytics from "@/pages/PredictiveAnalytics";
 import Kedo from "@/pages/Kedo";
 import Security from "@/pages/Security";
 import SsoCallback from "@/pages/SsoCallback";
@@ -219,6 +220,7 @@ const App = () => (
                 <Route path="/skills-matrix" element={<SkillsMatrix />} />
                 <Route path="/performance-360" element={<PerformanceReview360 />} />
                 <Route path="/talent-review" element={<TalentReview />} />
+                <Route path="/predictive-analytics" element={<PredictiveAnalytics />} />
                 <Route path="/kedo" element={<Kedo />} />
                 <Route path="/security" element={<Security />} />
                 <Route path="/my-documents" element={<MyDocuments />} />
