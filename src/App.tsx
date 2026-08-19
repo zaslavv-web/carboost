@@ -33,6 +33,8 @@ import CareerReviews from "@/pages/CareerReviews";
 import GamificationManagement from "@/pages/GamificationManagement";
 import HRDTests from "@/pages/HRDTests";
 import Shop from "@/pages/Shop";
+import EarnCoins from "@/pages/EarnCoins";
+
 import ShopProductDetail from "@/pages/ShopProductDetail";
 import Cart from "@/pages/Cart";
 import MyOrders from "@/pages/MyOrders";
@@ -184,6 +186,8 @@ const App = () => (
                 <Route path="/shop/:id" element={<ShopProductDetail />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/my-orders" element={<MyOrders />} />
+                <Route path="/motivation/earn" element={<EarnCoins />} />
+
                 <Route path="/shop-admin" element={<ShopAdmin />} />
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/adaptation-plans" element={<AdaptationPlans />} />

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { MetricLabel } from "@/components/metrics/MetricLabel";
 import { ChartExplainer } from "@/components/metrics/ChartExplainer";
+import MotivationBlock from "@/components/motivation/MotivationBlock";
 
 import HRDCareerTracksAnalytics from "@/components/HRDCareerTracksAnalytics";
 import HRDEmployeeMap from "@/components/HRDEmployeeMap";
@@ -435,7 +436,9 @@ const HRDDashboard = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <MotivationBlock />
       {/* Hero */}
+
       <div className="relative overflow-hidden rounded-2xl gradient-hero p-6 md:p-8 shadow-elevated">
         <div className="absolute inset-0 gradient-glow opacity-60 pointer-events-none" />
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">

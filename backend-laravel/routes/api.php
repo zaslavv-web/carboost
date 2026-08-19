@@ -459,6 +459,15 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::apiResource('gamification-levels', \App\Http\Controllers\Api\GamificationLevelController::class)
             ->except(['show']);
 
+        // ---- Внутренняя валюта: баланс, история, способы заработать, переводы ----
+        Route::get ('/currency/balance',      [\App\Http\Controllers\Api\CurrencyController::class, 'balance']);
+        Route::get ('/currency/transactions', [\App\Http\Controllers\Api\CurrencyController::class, 'transactions']);
+        Route::get ('/currency/earn-rules',   [\App\Http\Controllers\Api\CurrencyController::class, 'earnRules']);
+        Route::get ('/currency/recipients',   [\App\Http\Controllers\Api\CurrencyController::class, 'recipients']);
+        Route::post('/currency/transfer',     [\App\Http\Controllers\Api\CurrencyController::class, 'transfer']);
+
+
+
 
         // ---- Leaves module (Iteration 1) ----
         Route::apiResource('leave-types', \App\Http\Controllers\Api\LeaveTypeController::class);

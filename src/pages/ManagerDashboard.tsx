@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { Users, TrendingUp, Target, Award, Eye, Loader2, UserPlus, X, Search } from "lucide-react";
+import MotivationBlock from "@/components/motivation/MotivationBlock";
 import MetricCard from "@/components/MetricCard";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { toast } from "sonner";
@@ -172,6 +173,8 @@ const ManagerDashboard = () => {
 
   return (
     <div className="space-y-8 animate-fade-in">
+      <MotivationBlock />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{t("managerDashboard.title")}</h1>

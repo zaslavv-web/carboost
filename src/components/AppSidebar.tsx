@@ -79,6 +79,15 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const kedo: NavItem = { icon: FileSignature, label: "КЭДО", path: "/kedo" };
     const securityNav: NavItem = { icon: Shield, label: "Безопасность", path: "/security" };
     const myDocs: NavItem = { icon: FileSignature, label: "Мои документы", path: "/my-documents" };
+    // Личная мотивация — доступна всем ролям, не только сотруднику.
+    const myMotivation: NavItem[] = [
+      { icon: Heart, label: t("nav.recognition"), path: "/recognition" },
+      { icon: ShoppingBag, label: t("nav.shop"), path: "/shop" },
+      { icon: Sparkles, label: "Как заработать", path: "/motivation/earn" },
+      { icon: ClipboardCheck, label: "Мои заказы", path: "/my-orders" },
+    ];
+
+
 
     if (role === "superadmin") {
       return [
@@ -118,7 +127,9 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
           kedo,
         ]},
+        { key: "motivation", label: S("motivation"), entries: [...myMotivation] },
         { key: "knowledge", label: S("knowledge"), entries: [
+
           university,
           { icon: BookOpen, label: t("nav.knowledgeBase", { defaultValue: "База знаний" }), path: "/knowledge-base" },
           { icon: Target, label: t("nav.idp", { defaultValue: "Планы развития (ИПР)" }), path: "/idp" },
@@ -189,9 +200,11 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           leaves,
         ]},
         { key: "motivation", label: S("motivation"), entries: [
+          ...myMotivation,
           { icon: Trophy, label: t("nav.gamification"), path: "/gamification" },
           { icon: Store, label: t("nav.shopAdmin"), path: "/shop-admin" },
         ]},
+
         { key: "knowledge", label: S("knowledge"), entries: [university, knowledgeBase] },
         { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, securityNav, settings] },
       ];
@@ -222,7 +235,9 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             ],
           },
         ]},
+        { key: "motivation", label: S("motivation"), entries: [...myMotivation] },
         { key: "knowledge", label: S("knowledge"), entries: [university] },
+
         { key: "system", label: S("system"), entries: [settings] },
       ];
     }
@@ -243,10 +258,10 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         performance,
       ]},
       { key: "motivation", label: S("motivation"), entries: [
-        { icon: Heart, label: t("nav.recognition"), path: "/recognition" },
-        { icon: ShoppingBag, label: t("nav.shop"), path: "/shop" },
+        ...myMotivation,
         { icon: ClipboardCheck, label: t("nav.questionnaire"), path: "/employee-questionnaire" },
       ]},
+
       { key: "knowledge", label: S("knowledge"), entries: [
         { icon: User, label: t("nav.passport"), path: "/passport" },
         university,
