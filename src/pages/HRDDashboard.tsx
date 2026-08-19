@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { MetricLabel } from "@/components/metrics/MetricLabel";
 import { ChartExplainer } from "@/components/metrics/ChartExplainer";
+import MotivationBlock from "@/components/motivation/MotivationBlock";
 
 import HRDCareerTracksAnalytics from "@/components/HRDCareerTracksAnalytics";
 import HRDEmployeeMap from "@/components/HRDEmployeeMap";
