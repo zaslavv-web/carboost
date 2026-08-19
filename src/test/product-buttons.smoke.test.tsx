@@ -93,6 +93,9 @@ const SMTP_RESPONSE = {
 describe("смоук-тесты критичных кнопок продукта", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Сайдбар запоминает раскрытые секции в localStorage — сбрасываем,
+    // чтобы тесты не зависели друг от друга.
+    window.localStorage.removeItem("ct-sidebar-sections");
     mocks.role = "superadmin";
     mocks.realRole = "superadmin";
     mocks.currentUser = { id: "admin-1", email: "admin@example.com", roles: ["superadmin"] };
