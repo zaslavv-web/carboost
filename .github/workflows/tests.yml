@@ -1,0 +1,111 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Ежедневный E2E-смоук боевого стенда в 03:00 UTC (06:00 МСК).
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      run_load_test:
+        description: "Прогнать нагрузочный тест на 100 VU"
+        type: boolean
+        default: false
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Фронтенд — unit + сборка
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Unit-тесты (vitest)
+        run: npm run test
+      - name: Типы
+        run: npx tsc -b --noEmit || npx tsc --noEmit
+      - name: Сборка
+        run: npm run build
+
+  backend:
+    name: Бэкенд — PHPUnit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-laravel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, sqlite3, pdo_sqlite, zip, bcmath
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: php artisan test
+
+  e2e:
+    name: E2E-смоук (прод)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Playwright (api + ui)
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_HRD_EMAIL: ${{ secrets.E2E_HRD_EMAIL }}
+          E2E_HRD_PASSWORD: ${{ secrets.E2E_HRD_PASSWORD }}
+          E2E_HR_EMAIL: ${{ secrets.E2E_HR_EMAIL }}
+          E2E_HR_PASSWORD: ${{ secrets.E2E_HR_PASSWORD }}
+          E2E_MANAGER_EMAIL: ${{ secrets.E2E_MANAGER_EMAIL }}
+          E2E_MANAGER_PASSWORD: ${{ secrets.E2E_MANAGER_PASSWORD }}
+          E2E_EMPLOYEE_EMAIL: ${{ secrets.E2E_EMPLOYEE_EMAIL }}
+          E2E_EMPLOYEE_PASSWORD: ${{ secrets.E2E_EMPLOYEE_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+        run: npx playwright test --project=api --project=ui-desktop --project=ui-mobile
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+  load:
+    name: Нагрузка 100 VU
+    if: github.event_name == 'workflow_dispatch' && inputs.run_load_test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Нагрузочный прогон
+        env:
+          LT_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          LT_EMAIL: ${{ secrets.E2E_HRD_EMAIL }}
+          LT_PASSWORD: ${{ secrets.E2E_HRD_PASSWORD }}
+          LT_USERS: ${{ secrets.LT_USERS }}
+          LT_VUS: "100"
+        run: node scripts/loadtest/load-test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-test-report
+          path: |
+            docs/LOAD-TEST-REPORT.md
+            docs/loadtest/
