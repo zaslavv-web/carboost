@@ -657,6 +657,10 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::post  ('/university/modules/{id}/lessons',    [\App\Http\Controllers\Api\CourseController::class, 'storeLesson']);
         Route::patch ('/university/lessons/{id}',            [\App\Http\Controllers\Api\CourseController::class, 'updateLesson']);
         Route::delete('/university/lessons/{id}',            [\App\Http\Controllers\Api\CourseController::class, 'destroyLesson']);
+        Route::get   ('/university/courses/{id}/editors',    [\App\Http\Controllers\Api\CourseController::class, 'editors']);
+        Route::put   ('/university/courses/{id}/editors',    [\App\Http\Controllers\Api\CourseController::class, 'setEditors']);
+        Route::get   ('/university/analytics/overview',      [\App\Http\Controllers\Api\UniversityAnalyticsController::class, 'overview']);
+        Route::get   ('/university/analytics/course/{id}',   [\App\Http\Controllers\Api\UniversityAnalyticsController::class, 'course']);
 
         Route::get   ('/university/my-enrollments',          [\App\Http\Controllers\Api\EnrollmentController::class, 'mine']);
         Route::get   ('/university/courses/{id}/enrollments',[\App\Http\Controllers\Api\EnrollmentController::class, 'byCourse']);
