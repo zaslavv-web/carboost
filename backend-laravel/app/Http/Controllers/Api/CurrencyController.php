@@ -100,7 +100,8 @@ class CurrencyController extends Controller
     public function transfer(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'recipient_id' => 'required|uuid',
+            // id пользователей в этой БД могут быть как uuid, так и числовыми
+            'recipient_id' => 'required|string|max:64',
             'amount'       => 'required|integer|min:1|max:1000000',
             'message'      => 'nullable|string|max:300',
         ]);
