@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { Users, TrendingUp, Target, Award, Eye, Loader2, UserPlus, X, Search } from "lucide-react";
+import MotivationBlock from "@/components/motivation/MotivationBlock";
 import MetricCard from "@/components/MetricCard";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { toast } from "sonner";

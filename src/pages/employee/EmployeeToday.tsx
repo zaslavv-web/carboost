@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { format, isToday, isPast } from "date-fns";
 import { ru } from "date-fns/locale";
+import MotivationBlock from "@/components/motivation/MotivationBlock";
 
 const greetingFor = (h: number) =>
   h < 6 ? "Доброй ночи" : h < 12 ? "Доброе утро" : h < 18 ? "Добрый день" : "Добрый вечер";

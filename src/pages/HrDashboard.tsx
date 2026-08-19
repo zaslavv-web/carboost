@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Users, Mail, ClipboardList, GraduationCap, Route as RouteIcon, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import MotivationBlock from "@/components/motivation/MotivationBlock";
 
 /**
  * Упрощённый дашборд для роли HR (подчинение HRD, тот же уровень доступа).
