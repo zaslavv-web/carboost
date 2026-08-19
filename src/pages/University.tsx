@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { laravel } from "@/integrations/laravel/client";
 import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
@@ -45,6 +45,8 @@ export default function University() {
   const canAuthor = ["hr", "hrd", "company_admin", "superadmin"].includes(role);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
+  const [params, setParams] = useSearchParams();
+  const [tab, setTab] = useState<string>(params.get("tab") === "mine" ? "mine" : "catalog");
 
   const { data: catalog } = useQuery({
     queryKey: ["uni-courses"],
@@ -84,6 +86,17 @@ export default function University() {
     .filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
     .filter((c) => (!canAuthor || statusFilter === "all" ? true : c.status === statusFilter));
   const enrolledIds = new Set((mine?.enrollments ?? []).map((e) => e.course_id));
+
+  // Назначенное обучение важнее каталога: если сотруднику что-то назначили — открываем «Моё обучение».
+  useEffect(() => {
+    if (params.get("tab")) return;
+    if ((mine?.enrollments?.length ?? 0) > 0) setTab("mine");
+  }, [mine, params]);
+
+  const onTabChange = (v: string) => {
+    setTab(v);
+    setParams(v === "mine" ? { tab: "mine" } : {}, { replace: true });
+  };
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
@@ -134,7 +147,7 @@ export default function University() {
         </Card>
       )}
 
-      <Tabs defaultValue="catalog">
+      <Tabs value={tab} onValueChange={onTabChange}>
         <TabsList>
           <TabsTrigger value="catalog">Каталог</TabsTrigger>
           <TabsTrigger value="mine">Моё обучение {mine?.enrollments?.length ? `(${mine.enrollments.length})` : ""}</TabsTrigger>
@@ -187,6 +200,7 @@ export default function University() {
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-base">{c.title}</CardTitle>
+                    {enrolledIds.has(c.id) && <Badge>Назначен вам</Badge>}
                     {c.status === "draft" && <Badge variant="secondary">Черновик</Badge>}
                     {c.mandatory && <Badge variant="destructive">Обязат.</Badge>}
                   </div>
