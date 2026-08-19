@@ -109,7 +109,8 @@ describe("смоук-тесты критичных кнопок продукта
       error: null,
     };
     mocks.db.user_roles = { data: [{ user_id: "hrd-1", role: "hrd" }, { user_id: "emp-1", role: "employee" }], error: null };
-    mocks.laravelGet.mockImplementation(async (url: string) => {
+    mocks.laravelGet.mockImplementation(async (...args: unknown[]) => {
+      const url = String(args[0] ?? "");
       if (url.startsWith("/profiles")) {
         return { data: { data: mocks.db.profiles.data }, error: null };
       }
