@@ -5,6 +5,7 @@ import { useUpdateTask, type TrackerTask } from "@/hooks/tracker";
 import { useEmployeeTodayData } from "@/hooks/useNotificationInbox";
 import { UrgencyBadge, TaskStatusBadge } from "@/components/tracker/Badges";
 import { Card, CardContent } from "@/components/ui/card";
+import { MyLearningBlock } from "@/components/university/MyLearningBlock";
 import { Button } from "@/components/ui/button";
 import ProgressRing from "@/components/ProgressRing";
 import {
@@ -122,6 +123,8 @@ const EmployeeToday = () => {
               </div>
             )}
           </section>
+
+          <MyLearningBlock />
 
           <section className="space-y-2">
             <SectionHeader
