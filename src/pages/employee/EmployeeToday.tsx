@@ -92,6 +92,8 @@ const EmployeeToday = () => {
         <p className="text-sm text-muted-foreground mt-1">{summary}</p>
       </header>
 
+      <MotivationBlock />
+
       {/* Быстрые метрики */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <MetricCard icon={<ListChecks className="w-4 h-4" />} label="Активных задач" value={activeTasks.length} onClick={() => navigate("/tracker/my-backlog")} />
