@@ -1,7 +1,15 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, screen, waitFor, act } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LaravelAuthProvider, useLaravelAuth } from "../LaravelAuthContext";
 import { laravelAuth } from "@/integrations/laravel/client";
+
+// LaravelAuthProvider использует useQueryClient (сброс кеша при выходе/логине),
+// поэтому в тестах его нужно оборачивать в QueryClientProvider.
+const renderWithProviders = (ui: React.ReactElement) => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
 
 function mockJson(body: any, status = 200) {
   (globalThis.fetch as any).mockResolvedValueOnce({
@@ -38,7 +46,7 @@ describe("LaravelAuthProvider", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("starts loading, then null user when no token", async () => {
-    render(<LaravelAuthProvider><Probe /></LaravelAuthProvider>);
+    renderWithProviders(<LaravelAuthProvider><Probe /></LaravelAuthProvider>);
     await waitFor(() => expect(screen.getByTestId("loading").textContent).toBe("0"));
     expect(screen.getByTestId("email").textContent).toBe("-");
   });
@@ -46,12 +54,12 @@ describe("LaravelAuthProvider", () => {
   it("hydrates from existing token via /auth/me", async () => {
     laravelAuth.setToken("tok-x");
     mockJson({ id: "u1", email: "me@x.io" });
-    render(<LaravelAuthProvider><Probe /></LaravelAuthProvider>);
+    renderWithProviders(<LaravelAuthProvider><Probe /></LaravelAuthProvider>);
     await waitFor(() => expect(screen.getByTestId("email").textContent).toBe("me@x.io"));
   });
 
   it("login + logout cycle updates user", async () => {
-    render(<LaravelAuthProvider><Probe /></LaravelAuthProvider>);
+    renderWithProviders(<LaravelAuthProvider><Probe /></LaravelAuthProvider>);
     await waitFor(() => expect(screen.getByTestId("loading").textContent).toBe("0"));
 
     mockJson({ token: "t-1", user: { id: "u1", email: "a@b.c" } });
