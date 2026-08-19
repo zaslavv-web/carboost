@@ -18,12 +18,18 @@
     "note": "Launch in 2 weeks · Cloud or on-premise · 100% RU infrastructure"
   },
   "heroMetrics": {
-    "turnover": { "label": "first-year attrition reduction" },
-    "routine": { "label": "hours of HR routine freed per week" },
-    "engagement": { "label": "team engagement uplift" }
+    "turnover": {
+      "label": "first-year attrition reduction"
+    },
+    "routine": {
+      "label": "hours of HR routine freed per week"
+    },
+    "engagement": {
+      "label": "team engagement uplift"
+    }
   },
   "modules": {
-    "kicker": "16 modules",
+    "kicker": "23 modules",
     "title": "Everything an HRD needs. In one window.",
     "subtitle": "Click any module to see what it does and what's inside.",
     "cta": "Open",
@@ -43,7 +49,14 @@
       "internal-chat": "Internal Chats",
       "rag-ai": "AI Helper",
       "scenarios": "Assessment Scenarios",
-      "org-structure": "Org Structure"
+      "org-structure": "Org Structure",
+      "talent-review": "Talent Review",
+      "predictive": "Predictive Analytics",
+      "pulse-surveys": "Pulse Surveys",
+      "tracker": "Tasks & OKR Tracker",
+      "kedo": "Digital HR Docs",
+      "integrations-1c": "1C:ZUP Integration",
+      "security-sso": "SSO & Security"
     },
     "short": {
       "ai-assessment": "Competency interview in 25 minutes",
@@ -61,72 +74,222 @@
       "internal-chat": "1:1 and groups without Telegram",
       "rag-ai": "AI answers from your documents",
       "scenarios": "Interview and test scenarios",
-      "org-structure": "Company tree with import"
+      "org-structure": "Company tree with import",
+      "talent-review": "9-box, successors and talent pool",
+      "predictive": "Attrition forecast and what-if",
+      "pulse-surveys": "eNPS and mood per department",
+      "tracker": "Goals, sprints, boards, 1:1s",
+      "kedo": "HR document flow and e-signatures",
+      "integrations-1c": "Sync people and org structure",
+      "security-sso": "SAML/OIDC, SCIM, 2FA, audit"
     },
     "detail": {
       "ai-assessment": {
         "summary": "An AI assistant runs a structured interview against your competencies and produces a comparable profile in 25 minutes. HRDs get an objective signal without burning out hiring managers.",
-        "bullets": ["Interviews from your scenarios", "Comparable candidate profile", "Auto-summary and recommendations", "Supports GigaChat / YandexGPT / Gemini"]
+        "bullets": [
+          "Interviews from your scenarios",
+          "Comparable candidate profile",
+          "Auto-summary and recommendations",
+          "Supports GigaChat / YandexGPT / Gemini"
+        ]
       },
       "career-tracks": {
         "summary": "Career tracks with stages, tests and check-points — from intern to leader. Employees see what's next, HRDs see where growth stalls.",
-        "bullets": ["Track templates per role", "Stages with check-points", "Auto-assignment by position", "Competency progress"]
+        "bullets": [
+          "Track templates per role",
+          "Stages with check-points",
+          "Auto-assignment by position",
+          "Competency progress"
+        ]
       },
       "performance": {
         "summary": "Goals, OKRs, check-ins, 1:1s and reviews in a single feed. Managers see who's carrying the team and who's stuck — without spreadsheet wars.",
-        "bullets": ["OKRs linked to strategy", "Regular 1:1s", "360° reviews", "Disciplinary workflows"]
+        "bullets": [
+          "OKRs linked to strategy",
+          "Regular 1:1s",
+          "360° reviews",
+          "Disciplinary workflows"
+        ]
       },
       "university": {
         "summary": "A corporate university: courses, tests, certificates. Tied to career-track stages so learning serves the business — not a checkbox.",
-        "bullets": ["Course builder", "Tests and certification", "Linked to tracks and competencies", "Per-employee progress"]
+        "bullets": [
+          "Course builder",
+          "Tests and certification",
+          "Linked to tracks and competencies",
+          "Per-employee progress"
+        ]
       },
       "analytics": {
         "summary": "Live analytics across the employee lifecycle: attrition, engagement, role readiness, people ROI. Dashboards a CEO actually reads.",
-        "bullets": ["Custom dashboards", "Predictive risk analytics", "Board-ready exports", "Segmentation by org unit"]
+        "bullets": [
+          "Custom dashboards",
+          "Predictive risk analytics",
+          "Board-ready exports",
+          "Segmentation by org unit"
+        ]
       },
       "digital-passport": {
         "summary": "A unified employee profile with full history: roles, skills, assessments, learning, awards. One source of truth instead of five spreadsheets.",
-        "bullets": ["Role and transition history", "Skill and competency map", "All assessments and feedback", "Achievements and certificates"]
+        "bullets": [
+          "Role and transition history",
+          "Skill and competency map",
+          "All assessments and feedback",
+          "Achievements and certificates"
+        ]
       },
       "leaves": {
         "summary": "Leave requests, day balance, overtime and approvals — one calendar, no email or chat ping-pong.",
-        "bullets": ["Requests and approvals", "Balance and overtime", "Team calendar", "Manager notifications"]
+        "bullets": [
+          "Requests and approvals",
+          "Balance and overtime",
+          "Team calendar",
+          "Manager notifications"
+        ]
       },
       "recognition": {
         "summary": "Kudos feed and recognition points from peers and managers. Recognition becomes a daily habit, not a quarterly campaign.",
-        "bullets": ["Public kudos", "Points from peers and managers", "Tied to company values", "Activity feed"]
+        "bullets": [
+          "Public kudos",
+          "Points from peers and managers",
+          "Tied to company values",
+          "Activity feed"
+        ]
       },
       "gamification": {
         "summary": "Levels, badges and progress for platform activity. Turns growth into a game people actually want to play.",
-        "bullets": ["Levels and XP", "Achievement badges", "Team leaderboards", "Rewards for activity"]
+        "bullets": [
+          "Levels and XP",
+          "Achievement badges",
+          "Team leaderboards",
+          "Rewards for activity"
+        ]
       },
       "shop": {
         "summary": "A corporate shop on internal currency: merch, days off, learning. Motivation without growing payroll.",
-        "bullets": ["Catalog of goods and services", "Orders and delivery", "Balance management", "Demand analytics"]
+        "bullets": [
+          "Catalog of goods and services",
+          "Orders and delivery",
+          "Balance management",
+          "Demand analytics"
+        ]
       },
       "onboarding": {
         "summary": "XLSX bulk import, auto-assigning roles by email domain and tracks by position. New hires productive from day one.",
-        "bullets": ["XLSX/CSV import", "Email-domain routing", "Onboarding checklists", "Probation control"]
+        "bullets": [
+          "XLSX/CSV import",
+          "Email-domain routing",
+          "Onboarding checklists",
+          "Probation control"
+        ]
       },
       "hr-policies": {
         "summary": "All HR policies, rules and guides in one versioned base. Employees find answers themselves — HR doesn't get pinged.",
-        "bullets": ["Structured base", "Versioning", "Search and bookmarks", "Wired to the RAG assistant"]
+        "bullets": [
+          "Structured base",
+          "Versioning",
+          "Search and bookmarks",
+          "Wired to the RAG assistant"
+        ]
       },
       "internal-chat": {
         "summary": "1:1 and group chats inside the platform. HR comms don't dissolve into Telegram and stay in the employee's context.",
-        "bullets": ["1:1 and groups", "Linked to workflows", "Realtime over WebSocket", "Russian-jurisdiction hosting"]
+        "bullets": [
+          "1:1 and groups",
+          "Linked to workflows",
+          "Realtime over WebSocket",
+          "Russian-jurisdiction hosting"
+        ]
       },
       "rag-ai": {
         "summary": "A RAG-powered AI assistant over your documents: policies, rules, knowledge bases. Answers employees with source links.",
-        "bullets": ["Parses your documents", "Answers with citations", "Multiple LLM support", "On-premise deployment"]
+        "bullets": [
+          "Parses your documents",
+          "Answers with citations",
+          "Multiple LLM support",
+          "On-premise deployment"
+        ]
       },
       "scenarios": {
         "summary": "A builder for interview scenarios, assessment tests and cases. HRDs define the logic — the system runs it and collects results.",
-        "bullets": ["Visual editor", "Branching logic", "Auto-scoring", "Role-based templates"]
+        "bullets": [
+          "Visual editor",
+          "Branching logic",
+          "Auto-scoring",
+          "Role-based templates"
+        ]
       },
       "org-structure": {
         "summary": "Company tree with file import and AI parsing. Structure changes in one click, no email thread with IT.",
-        "bullets": ["XLSX import", "AI document parsing", "Drag & drop editor", "Change history"]
+        "bullets": [
+          "XLSX import",
+          "AI document parsing",
+          "Drag & drop editor",
+          "Change history"
+        ]
+      },
+      "talent-review": {
+        "summary": "Talent calibration on a 9-box grid, succession plans for critical roles and a live talent pool. See who is ready to step up and where you risk losing a key role.",
+        "bullets": [
+          "9-box grid by potential and performance",
+          "Succession plans per position",
+          "Talent pool with readiness (0–2 years)",
+          "Calibration sessions with managers"
+        ]
+      },
+      "predictive": {
+        "summary": "A model scores attrition risk across 9 factors, explains each driver's contribution and benchmarks you against the market. The what-if calculator shows the effect of a decision before you make it.",
+        "bullets": [
+          "Per-employee attrition risk score",
+          "Driver breakdown",
+          "Industry benchmarks",
+          "What-if simulator"
+        ]
+      },
+      "pulse-surveys": {
+        "summary": "Short recurring surveys targeted by department, position and grade. Import questions from CSV, collect anonymous answers and watch eNPS trends without spreadsheets.",
+        "bullets": [
+          "CSV question import",
+          "Targeting by department and grade",
+          "Anonymous answers",
+          "eNPS and comfort index trends"
+        ]
+      },
+      "tracker": {
+        "summary": "A working tracker: goals and key results assigned to a person, team, unit or the whole company, kanban boards, backlog, sprints and 1:1s in one place.",
+        "bullets": [
+          "OKRs assignable at any level",
+          "Kanban boards and custom workflows",
+          "Backlog and personal backlog",
+          "1:1 meetings with history"
+        ]
+      },
+      "kedo": {
+        "summary": "Paperless HR document flow: approval routes, bulk signing, SMS-code simple signatures and qualified signatures. Every action lands in a tamper-evident SHA-256 hash-chain journal.",
+        "bullets": [
+          "Approval route builder",
+          "Bulk signing batches",
+          "Simple and qualified e-signatures",
+          "Immutable SHA-256 event journal"
+        ]
+      },
+      "integrations-1c": {
+        "summary": "Two-way exchange with 1C:ZUP 8.3 over OData: employees, departments, positions and HR events. Plus webhooks and iCal export for everything else.",
+        "bullets": [
+          "OData exchange with 1C:ZUP 8.3",
+          "Employee and org structure sync",
+          "Sync log with conflicts",
+          "Webhooks and iCal export"
+        ]
+      },
+      "security-sso": {
+        "summary": "Corporate login via SAML 2.0 and OIDC, automatic account provisioning through SCIM 2.0, two-factor authentication with backup codes and an admin action audit log.",
+        "bullets": [
+          "SAML 2.0 and OIDC",
+          "SCIM 2.0 provisioning",
+          "2FA (TOTP) and backup codes",
+          "Action audit and role-based access"
+        ]
       }
     }
   },
@@ -135,13 +298,15 @@
       "growth": "01",
       "culture": "02",
       "ops": "03",
-      "data": "04"
+      "data": "04",
+      "enterprise": "05"
     },
     "categories": {
       "growth": "Growth & careers",
       "culture": "People & culture",
       "ops": "HR operations",
-      "data": "Data & AI"
+      "data": "Data & AI",
+      "enterprise": "Enterprise & Integrations"
     }
   },
   "moduleDialog": {
@@ -152,9 +317,18 @@
   "audience": {
     "kicker": "Made for",
     "title": "Every role gets its own screen.",
-    "hrd": { "label": "HRD", "caption": "Risk dashboard, analytics, recognition. Decide in minutes, not weeks." },
-    "manager": { "label": "Manager", "caption": "Team, goals and progress on one screen. No spreadsheets." },
-    "employee": { "label": "Employee", "caption": "Career track, levels and rewards. You always know what's next." }
+    "hrd": {
+      "label": "HRD",
+      "caption": "Risk dashboard, analytics, recognition. Decide in minutes, not weeks."
+    },
+    "manager": {
+      "label": "Manager",
+      "caption": "Team, goals and progress on one screen. No spreadsheets."
+    },
+    "employee": {
+      "label": "Employee",
+      "caption": "Career track, levels and rewards. You always know what's next."
+    }
   },
   "stats2": {
     "kicker": "By the numbers",
@@ -166,7 +340,9 @@
       "weeks": "weeks to launch"
     }
   },
-  "marquee2": { "kicker": "Trusted by" },
+  "marquee2": {
+    "kicker": "Trusted by"
+  },
   "finalCta2": {
     "title": "Ready to see it live?",
     "subtitle": "30 minutes — and you'll see how we replace your five HR tools.",
@@ -183,10 +359,22 @@
     "ctaLogin": "Open the demo",
     "imageAlt": "Career Track OS — unified HR-tech platform",
     "metrics": {
-      "modules": { "value": "16", "label": "integrated modules" },
-      "roles": { "value": "5", "label": "roles out of the box" },
-      "deploy": { "value": "On-prem", "label": "Docker / nginx / cloud" },
-      "ai": { "value": "AI", "label": "at every step" }
+      "modules": {
+        "value": "16",
+        "label": "integrated modules"
+      },
+      "roles": {
+        "value": "5",
+        "label": "roles out of the box"
+      },
+      "deploy": {
+        "value": "On-prem",
+        "label": "Docker / nginx / cloud"
+      },
+      "ai": {
+        "value": "AI",
+        "label": "at every step"
+      }
     }
   },
   "pains": {
@@ -328,12 +516,30 @@
     "title": "Frequently asked",
     "ask": "Ask on the demo call",
     "items": [
-      { "q": "How long does setup take?", "a": "From 30 minutes to 1 day. The onboarding wizard walks through org structure, positions, tests, tracks and invitations. Bulk employee import via XLSX/CSV." },
-      { "q": "Can we install on-premise?", "a": "Yes. Docker, nginx and install.sh are supported. Bring your own AI provider (Gemini / GigaChat / YandexGPT / OpenAI-compatible) — data stays within your perimeter." },
-      { "q": "How is employee data protected?", "a": "Multi-tenant architecture with database-level RLS: company data is fully isolated. Roles live in a separate table with security-definer functions and audit." },
-      { "q": "Which modules ship by default?", "a": "AI assessment, career tracks, performance, digital passport, org structure, learning, leaves, recognition, points shop, HR policies, internal chats, RAG documents, assessment scenarios and HRD analytics." },
-      { "q": "Can we use just a subset of modules?", "a": "Yes. Enable what you need at launch — the rest can be turned on later without migrations. Pricing scales with active headcount." },
-      { "q": "Is it suitable for small business?", "a": "Yes, from 10 employees. Cloud SaaS from $12/employee/month. Get in touch and we'll quote for you." }
+      {
+        "q": "How long does setup take?",
+        "a": "From 30 minutes to 1 day. The onboarding wizard walks through org structure, positions, tests, tracks and invitations. Bulk employee import via XLSX/CSV."
+      },
+      {
+        "q": "Can we install on-premise?",
+        "a": "Yes. Docker, nginx and install.sh are supported. Bring your own AI provider (Gemini / GigaChat / YandexGPT / OpenAI-compatible) — data stays within your perimeter."
+      },
+      {
+        "q": "How is employee data protected?",
+        "a": "Multi-tenant architecture with database-level RLS: company data is fully isolated. Roles live in a separate table with security-definer functions and audit."
+      },
+      {
+        "q": "Which modules ship by default?",
+        "a": "AI assessment, career tracks, performance, digital passport, org structure, learning, leaves, recognition, points shop, HR policies, internal chats, RAG documents, assessment scenarios and HRD analytics."
+      },
+      {
+        "q": "Can we use just a subset of modules?",
+        "a": "Yes. Enable what you need at launch — the rest can be turned on later without migrations. Pricing scales with active headcount."
+      },
+      {
+        "q": "Is it suitable for small business?",
+        "a": "Yes, from 10 employees. Cloud SaaS from $12/employee/month. Get in touch and we'll quote for you."
+      }
     ]
   },
   "footer": {
@@ -434,10 +640,30 @@
       },
       "hero": "Replace subjective interviews with structured AI dialogue based on your scenarios.",
       "sections": [
-        { "heading": "How it works", "body": "Upload your scenario (DOCX/PDF) or use a template. The AI runs the dialogue and scores with rationale.", "bullets": ["Scenarios for your methodology", "Gemini-based edge function", "Transparent rationale for every score"] },
-        { "heading": "What HRD gets", "body": "Per-employee report and roll-up analytics.", "bullets": ["Competency radar", "Reference role comparison", "Readiness for next level"] }
+        {
+          "heading": "How it works",
+          "body": "Upload your scenario (DOCX/PDF) or use a template. The AI runs the dialogue and scores with rationale.",
+          "bullets": [
+            "Scenarios for your methodology",
+            "Gemini-based edge function",
+            "Transparent rationale for every score"
+          ]
+        },
+        {
+          "heading": "What HRD gets",
+          "body": "Per-employee report and roll-up analytics.",
+          "bullets": [
+            "Competency radar",
+            "Reference role comparison",
+            "Readiness for next level"
+          ]
+        }
       ],
-      "hrdValue": ["30+ hours saved per quarter", "Standardized scoring", "Removes manager bias"]
+      "hrdValue": [
+        "30+ hours saved per quarter",
+        "Standardized scoring",
+        "Removes manager bias"
+      ]
     },
     "career-tracks": {
       "title": "Career tracks",
@@ -450,10 +676,30 @@
       },
       "hero": "Design reference growth paths and auto-assign them to employees by role.",
       "sections": [
-        { "heading": "Track builder", "body": "Build templates from stages: task, test, files, manager review.", "bullets": ["Drag-and-drop editor", "AI-generated steps", "Template versioning"] },
-        { "heading": "Assignment and control", "body": "Auto-assigned on employee creation. Real-time progress per stage.", "bullets": ["Review queue", "Overdue alerts", "Linked to passport"] }
+        {
+          "heading": "Track builder",
+          "body": "Build templates from stages: task, test, files, manager review.",
+          "bullets": [
+            "Drag-and-drop editor",
+            "AI-generated steps",
+            "Template versioning"
+          ]
+        },
+        {
+          "heading": "Assignment and control",
+          "body": "Auto-assigned on employee creation. Real-time progress per stage.",
+          "bullets": [
+            "Review queue",
+            "Overdue alerts",
+            "Linked to passport"
+          ]
+        }
       ],
-      "hrdValue": ["Clear growth path", "Attrition −20–30%", "Managed succession"]
+      "hrdValue": [
+        "Clear growth path",
+        "Attrition −20–30%",
+        "Managed succession"
+      ]
     },
     "performance": {
       "title": "Performance & reviews",
@@ -466,9 +712,21 @@
       },
       "hero": "A managed performance cycle: OKRs, regular 1:1s, reviews and disciplinary cases.",
       "sections": [
-        { "heading": "Cycle in one place", "body": "From goal setting to review decisions — no tool switching.", "bullets": ["OKRs with cascading", "1:1 and check-in calendar", "Review templates per role"] }
+        {
+          "heading": "Cycle in one place",
+          "body": "From goal setting to review decisions — no tool switching.",
+          "bullets": [
+            "OKRs with cascading",
+            "1:1 and check-in calendar",
+            "Review templates per role"
+          ]
+        }
       ],
-      "hrdValue": ["Low performers visible in a week", "Standardized reviews", "Audit trail for decisions"]
+      "hrdValue": [
+        "Low performers visible in a week",
+        "Standardized reviews",
+        "Audit trail for decisions"
+      ]
     },
     "leaves": {
       "title": "Leaves & overtime",
@@ -481,9 +739,22 @@
       },
       "hero": "Requests, balances, overtime, time-off and approvals in one calendar.",
       "sections": [
-        { "heading": "What's inside", "body": "Automated accounting per company policy.", "bullets": ["Tenure-based balance", "Manager approval", "Overtime and comp days", "Team calendar"] }
+        {
+          "heading": "What's inside",
+          "body": "Automated accounting per company policy.",
+          "bullets": [
+            "Tenure-based balance",
+            "Manager approval",
+            "Overtime and comp days",
+            "Team calendar"
+          ]
+        }
       ],
-      "hrdValue": ["0 accounting errors", "Transparency for the team", "Less load on HR admins"]
+      "hrdValue": [
+        "0 accounting errors",
+        "Transparency for the team",
+        "Less load on HR admins"
+      ]
     },
     "recognition": {
       "title": "Peer recognition",
@@ -496,9 +767,21 @@
       },
       "hero": "Turn recognition from a rare event into daily practice.",
       "sections": [
-        { "heading": "How it works", "body": "Anyone can recognize a colleague — points convert in the shop.", "bullets": ["Kudos feed", "Points tied to company values", "Shop integration"] }
+        {
+          "heading": "How it works",
+          "body": "Anyone can recognize a colleague — points convert in the shop.",
+          "bullets": [
+            "Kudos feed",
+            "Points tied to company values",
+            "Shop integration"
+          ]
+        }
       ],
-      "hrdValue": ["eNPS growth", "Visible gratitude culture", "Objective review data"]
+      "hrdValue": [
+        "eNPS growth",
+        "Visible gratitude culture",
+        "Objective review data"
+      ]
     },
     "university": {
       "title": "Corporate university",
@@ -511,9 +794,22 @@
       },
       "hero": "Courses, tests and certificates linked to tracks and competencies.",
       "sections": [
-        { "heading": "What's inside", "body": "Course authoring, closed tests, certificates, progress.", "bullets": ["Authoring with steps", "Auto-graded tests", "Certificates", "Competency mapping"] }
+        {
+          "heading": "What's inside",
+          "body": "Course authoring, closed tests, certificates, progress.",
+          "bullets": [
+            "Authoring with steps",
+            "Auto-graded tests",
+            "Certificates",
+            "Competency mapping"
+          ]
+        }
       ],
-      "hrdValue": ["Learning that drives business", "Transparent certificates", "Linked to tracks"]
+      "hrdValue": [
+        "Learning that drives business",
+        "Transparent certificates",
+        "Linked to tracks"
+      ]
     },
     "analytics": {
       "title": "HRD analytics",
@@ -526,9 +822,22 @@
       },
       "hero": "Live Recharts dashboards: scoring trends, role readiness, track progress.",
       "sections": [
-        { "heading": "What's inside", "body": "All key metrics in one place, export to XLSX/PDF.", "bullets": ["Scoring dynamics", "Role readiness", "Track funnel", "Learning activity"] }
+        {
+          "heading": "What's inside",
+          "body": "All key metrics in one place, export to XLSX/PDF.",
+          "bullets": [
+            "Scoring dynamics",
+            "Role readiness",
+            "Track funnel",
+            "Learning activity"
+          ]
+        }
       ],
-      "hrdValue": ["Numbers to defend HR budget", "Early attrition signals", "Evidence-based strategy"]
+      "hrdValue": [
+        "Numbers to defend HR budget",
+        "Early attrition signals",
+        "Evidence-based strategy"
+      ]
     },
     "digital-passport": {
       "title": "Digital passport",
@@ -541,9 +850,22 @@
       },
       "hero": "360° employee profile: skills, experience, assessments, tracks and achievements in one place.",
       "sections": [
-        { "heading": "Collected automatically", "body": "The passport updates with no manual entry.", "bullets": ["AI assessment results", "Tests passed", "Track stages", "Achievements and rewards"] }
+        {
+          "heading": "Collected automatically",
+          "body": "The passport updates with no manual entry.",
+          "bullets": [
+            "AI assessment results",
+            "Tests passed",
+            "Track stages",
+            "Achievements and rewards"
+          ]
+        }
       ],
-      "hrdValue": ["Internal recruiting 5× faster", "Transparent history", "Review prep in a minute"]
+      "hrdValue": [
+        "Internal recruiting 5× faster",
+        "Transparent history",
+        "Review prep in a minute"
+      ]
     },
     "onboarding": {
       "title": "Onboarding & invitations",
@@ -556,10 +878,25 @@
       },
       "hero": "Bulk employee import, auto-assignment of positions and tracks, company launch wizard.",
       "sections": [
-        { "heading": "Onboarding wizard", "body": "Step-by-step: positions → tests → tracks → shop → invites." },
-        { "heading": "Bulk import", "body": "Employees just sign in with email — profile is already configured.", "bullets": ["XLSX/CSV upload", "Auto-assign by email domain", "Welcome bonus on first sign-in"] }
+        {
+          "heading": "Onboarding wizard",
+          "body": "Step-by-step: positions → tests → tracks → shop → invites."
+        },
+        {
+          "heading": "Bulk import",
+          "body": "Employees just sign in with email — profile is already configured.",
+          "bullets": [
+            "XLSX/CSV upload",
+            "Auto-assign by email domain",
+            "Welcome bonus on first sign-in"
+          ]
+        }
       ],
-      "hrdValue": ["10× faster onboarding", "Fewer manual errors", "Consistent standards"]
+      "hrdValue": [
+        "10× faster onboarding",
+        "Fewer manual errors",
+        "Consistent standards"
+      ]
     },
     "gamification": {
       "title": "Gamification & currency",
@@ -572,9 +909,21 @@
       },
       "hero": "Flexible points, achievements and currency for non-cash motivation.",
       "sections": [
-        { "heading": "Rewards under your rules", "body": "Configure triggers: completed stage, passed test, anniversary.", "bullets": ["Welcome bonus", "Tenure rewards", "Custom triggers"] }
+        {
+          "heading": "Rewards under your rules",
+          "body": "Configure triggers: completed stage, passed test, anniversary.",
+          "bullets": [
+            "Welcome bonus",
+            "Tenure rewards",
+            "Custom triggers"
+          ]
+        }
       ],
-      "hrdValue": ["Alternative to cash bonuses", "Engagement +30–40%", "Transparent rules"]
+      "hrdValue": [
+        "Alternative to cash bonuses",
+        "Engagement +30–40%",
+        "Transparent rules"
+      ]
     },
     "shop": {
       "title": "Points shop",
@@ -587,9 +936,21 @@
       },
       "hero": "Corporate shop with order approval and purchase history.",
       "sections": [
-        { "heading": "What's inside", "body": "Catalog, cart, orders, history, demand analytics.", "bullets": ["Categorized catalog", "Orders and HRD approval", "Demand analytics"] }
+        {
+          "heading": "What's inside",
+          "body": "Catalog, cart, orders, history, demand analytics.",
+          "bullets": [
+            "Categorized catalog",
+            "Orders and HRD approval",
+            "Demand analytics"
+          ]
+        }
       ],
-      "hrdValue": ["Closed loop recognition → shop", "Fewer cash bonuses", "Data for benefit strategy"]
+      "hrdValue": [
+        "Closed loop recognition → shop",
+        "Fewer cash bonuses",
+        "Data for benefit strategy"
+      ]
     },
     "hr-policies": {
       "title": "HR policies & discipline",
@@ -602,9 +963,21 @@
       },
       "hero": "Versioned HR policies with acknowledgement and audit.",
       "sections": [
-        { "heading": "What's inside", "body": "Policy editor, versions, acknowledgement, disciplinary cases.", "bullets": ["Version history", "Read acknowledgement", "Linked to discipline"] }
+        {
+          "heading": "What's inside",
+          "body": "Policy editor, versions, acknowledgement, disciplinary cases.",
+          "bullets": [
+            "Version history",
+            "Read acknowledgement",
+            "Linked to discipline"
+          ]
+        }
       ],
-      "hrdValue": ["Legal clarity", "Transparency for employees", "Acknowledgement audit"]
+      "hrdValue": [
+        "Legal clarity",
+        "Transparency for employees",
+        "Acknowledgement audit"
+      ]
     },
     "internal-chat": {
       "title": "Internal chats",
@@ -617,9 +990,21 @@
       },
       "hero": "Chats inside the company, scoped to roles and access — no external messengers.",
       "sections": [
-        { "heading": "Capabilities", "body": "Launched via floating icon from any page.", "bullets": ["1:1 and group chats", "Contact search", "Scoped to roles and company"] }
+        {
+          "heading": "Capabilities",
+          "body": "Launched via floating icon from any page.",
+          "bullets": [
+            "1:1 and group chats",
+            "Contact search",
+            "Scoped to roles and company"
+          ]
+        }
       ],
-      "hrdValue": ["Secure HR comms", "Context inside the platform", "Audit trail"]
+      "hrdValue": [
+        "Secure HR comms",
+        "Context inside the platform",
+        "Audit trail"
+      ]
     },
     "rag-ai": {
       "title": "AI assistant with RAG",
@@ -632,9 +1017,21 @@
       },
       "hero": "Upload documents — AI answers employees with source citations.",
       "sections": [
-        { "heading": "What's inside", "body": "Document indexing, chat with citations, popular-question analytics.", "bullets": ["DOCX/PDF upload", "Citations from sources", "Bring your own AI provider"] }
+        {
+          "heading": "What's inside",
+          "body": "Document indexing, chat with citations, popular-question analytics.",
+          "bullets": [
+            "DOCX/PDF upload",
+            "Citations from sources",
+            "Bring your own AI provider"
+          ]
+        }
       ],
-      "hrdValue": ["−70% typical questions", "Knowledge always available", "Source control"]
+      "hrdValue": [
+        "−70% typical questions",
+        "Knowledge always available",
+        "Source control"
+      ]
     },
     "scenarios": {
       "title": "Assessment scenarios",
@@ -647,9 +1044,21 @@
       },
       "hero": "Build assessment scenarios visually — AI runs them by your rules.",
       "sections": [
-        { "heading": "Builder", "body": "React Flow editor with branches and conditions.", "bullets": ["Drag-and-drop nodes", "Versioning", "AI parsing from DOCX/PDF"] }
+        {
+          "heading": "Builder",
+          "body": "React Flow editor with branches and conditions.",
+          "bullets": [
+            "Drag-and-drop nodes",
+            "Versioning",
+            "AI parsing from DOCX/PDF"
+          ]
+        }
       ],
-      "hrdValue": ["Unified methodology", "Audit-ready versions", "Fast launch of new scenarios"]
+      "hrdValue": [
+        "Unified methodology",
+        "Audit-ready versions",
+        "Fast launch of new scenarios"
+      ]
     },
     "org-structure": {
       "title": "Org structure",
@@ -662,9 +1071,273 @@
       },
       "hero": "Live company tree with XLSX/CSV import and AI parsing of documents.",
       "sections": [
-        { "heading": "What's inside", "body": "Hierarchy of units and positions, linked to employees.", "bullets": ["XLSX/CSV/JSON import", "AI parsing of DOCX/PDF", "Linked to passport"] }
+        {
+          "heading": "What's inside",
+          "body": "Hierarchy of units and positions, linked to employees.",
+          "bullets": [
+            "XLSX/CSV/JSON import",
+            "AI parsing of DOCX/PDF",
+            "Linked to passport"
+          ]
+        }
       ],
-      "hrdValue": ["Up-to-date structure", "Less manual upkeep", "Context for analytics"]
+      "hrdValue": [
+        "Up-to-date structure",
+        "Less manual upkeep",
+        "Context for analytics"
+      ]
+    },
+    "talent-review": {
+      "title": "Talent Review",
+      "tagline": "Know who is next for every key role.",
+      "story": {
+        "persona": "Irina, HRD of a manufacturing group",
+        "pain": "A key manager resigns and it takes three months to hire externally.",
+        "solution": "Regular 9-box calibration and succession plans for every critical position.",
+        "result": "70% of key roles filled by internal candidates."
+      },
+      "hero": "Calibrate talent on a 9-box grid and keep successors ready for every critical role.",
+      "sections": [
+        {
+          "heading": "9-box grid",
+          "body": "Potential and performance assessed and calibrated in manager sessions.",
+          "bullets": [
+            "Drag people between cells",
+            "Calibration history",
+            "Filters by department"
+          ]
+        },
+        {
+          "heading": "Succession",
+          "body": "Every key position gets a successor list with readiness levels.",
+          "bullets": [
+            "Readiness: now / 1 year / 2 years",
+            "Role risk",
+            "Linked to career tracks"
+          ]
+        }
+      ],
+      "hrdValue": [
+        "Transparent talent pool",
+        "Less external hiring for key roles",
+        "Board-ready evidence"
+      ]
+    },
+    "predictive": {
+      "title": "Predictive Analytics",
+      "tagline": "See the resignation before the letter.",
+      "story": {
+        "persona": "Marina, HR director of a retail chain",
+        "pain": "You learn about a strong performer leaving on the day they resign.",
+        "solution": "The model scores risk from engagement, workload, growth and recognition — and explains what drags it down.",
+        "result": "4 out of 10 high-risk employees retained."
+      },
+      "hero": "Attrition forecasting with driver explanations, benchmarks and scenario modelling.",
+      "sections": [
+        {
+          "heading": "Forecast and drivers",
+          "body": "Risk score per employee with factor contributions: workload, recognition, growth, comfort.",
+          "bullets": [
+            "9 model factors",
+            "Per-driver contribution",
+            "Scheduled recompute"
+          ]
+        },
+        {
+          "heading": "Benchmarks and scenarios",
+          "body": "Compare with your industry and simulate decisions: pay review, learning, rotations.",
+          "bullets": [
+            "Industry benchmarks",
+            "What-if calculator",
+            "Board export"
+          ]
+        }
+      ],
+      "hrdValue": [
+        "Proactive retention",
+        "Justified retention budget",
+        "Market comparison"
+      ]
+    },
+    "pulse-surveys": {
+      "title": "Pulse Surveys",
+      "tagline": "Company mood, every week.",
+      "story": {
+        "persona": "Olga, HR business partner",
+        "pain": "The annual engagement survey reveals a problem six months too late.",
+        "solution": "Weekly short pulses auto-assigned to the right departments.",
+        "result": "Struggling teams are visible in 2 weeks instead of a year."
+      },
+      "hero": "Recurring short surveys with targeting, anonymity and live eNPS trends.",
+      "sections": [
+        {
+          "heading": "Launch in 5 minutes",
+          "body": "Question builder or CSV import, schedule and audience.",
+          "bullets": [
+            "CSV import",
+            "Target by department / position / grade",
+            "Auto reminders"
+          ]
+        },
+        {
+          "heading": "Results",
+          "body": "Trends across company, units and teams linked to comfort indices.",
+          "bullets": [
+            "eNPS and indices",
+            "Department cuts",
+            "Linked to attrition risk"
+          ]
+        }
+      ],
+      "hrdValue": [
+        "Fast feedback loop",
+        "Early burnout detection",
+        "Data for initiatives"
+      ]
+    },
+    "tracker": {
+      "title": "Tasks & OKR Tracker",
+      "tagline": "Goals and work in one loop.",
+      "story": {
+        "persona": "Alexey, COO",
+        "pain": "Goals live in a deck, tasks live in another tracker, and nothing connects them.",
+        "solution": "OKRs, tasks, boards and 1:1s in one system next to the HR data.",
+        "result": "Every task rolls up to a goal, every goal into performance reviews."
+      },
+      "hero": "OKRs, tasks, boards and 1:1s connected to company goals and people reviews.",
+      "sections": [
+        {
+          "heading": "Goals and results",
+          "body": "A company goal tree cascading to units, teams and individuals.",
+          "bullets": [
+            "Assign to person / team / unit / company",
+            "Key results and progress",
+            "Check-ins"
+          ]
+        },
+        {
+          "heading": "Team work",
+          "body": "Boards, backlog, workflows and tasks next to the goals.",
+          "bullets": [
+            "Kanban and statuses",
+            "Personal backlog",
+            "1:1 history"
+          ]
+        }
+      ],
+      "hrdValue": [
+        "Strategy linked to work",
+        "Transparent team load",
+        "Input for performance reviews"
+      ]
+    },
+    "kedo": {
+      "title": "Digital HR Docs",
+      "tagline": "HR paperwork without paper.",
+      "story": {
+        "persona": "Natalia, head of HR administration",
+        "pain": "Orders are signed on paper, shipped by courier, two weeks per branch.",
+        "solution": "Electronic routes, mobile signing and batches of 200 documents at once.",
+        "result": "Signing cycle down from two weeks to one day."
+      },
+      "hero": "Electronic HR documents: routes, bulk signing and a protected audit journal.",
+      "sections": [
+        {
+          "heading": "Routes and signing",
+          "body": "Configurable approval and signing chains with notifications.",
+          "bullets": [
+            "Route builder",
+            "Bulk document batches",
+            "Mobile signing"
+          ]
+        },
+        {
+          "heading": "Legal reliability",
+          "body": "Every event is hash-chained, so backdating is impossible.",
+          "bullets": [
+            "Simple / qualified signatures",
+            "SHA-256 hash chain",
+            "Export for audits"
+          ]
+        }
+      ],
+      "hrdValue": [
+        "Paperless HR",
+        "Faster HR processes",
+        "Audit ready"
+      ]
+    },
+    "integrations-1c": {
+      "title": "1C:ZUP Integration",
+      "tagline": "One source of truth for people data.",
+      "story": {
+        "persona": "Sergey, IT director",
+        "pain": "A new hire is entered three times — in 1C, in HR and in mail — with typos.",
+        "solution": "Scheduled OData sync of directories and HR events.",
+        "result": "One employee record instead of three manual entries."
+      },
+      "hero": "Sync employees, departments and HR events with 1C:ZUP over OData.",
+      "sections": [
+        {
+          "heading": "Data exchange",
+          "body": "Connection setup, schedule and directory selection.",
+          "bullets": [
+            "OData 8.3",
+            "Field mapping",
+            "Manual and scheduled runs"
+          ]
+        },
+        {
+          "heading": "Control",
+          "body": "Sync journal with errors and conflicts per record.",
+          "bullets": [
+            "Run history",
+            "Conflict resolution",
+            "Webhooks to external systems"
+          ]
+        }
+      ],
+      "hrdValue": [
+        "No double entry",
+        "Up-to-date people data",
+        "Less IT workload"
+      ]
+    },
+    "security-sso": {
+      "title": "SSO & Security",
+      "tagline": "Login on your corporate terms.",
+      "story": {
+        "persona": "Pavel, CISO",
+        "pain": "Separate passwords in the HR system and manual offboarding.",
+        "solution": "SSO through the corporate provider and automatic SCIM provisioning.",
+        "result": "Access is revoked the moment someone leaves — with no HR involvement."
+      },
+      "hero": "SAML/OIDC login, SCIM provisioning, 2FA and a full audit trail.",
+      "sections": [
+        {
+          "heading": "Single sign-on",
+          "body": "Connect your identity provider and set role-based access rules.",
+          "bullets": [
+            "SAML 2.0",
+            "OIDC",
+            "Domain restrictions"
+          ]
+        },
+        {
+          "heading": "Accounts and audit",
+          "body": "Automatic account creation and deactivation, admin action log.",
+          "bullets": [
+            "SCIM 2.0",
+            "2FA and backup codes",
+            "Audit journal"
+          ]
+        }
+      ],
+      "hrdValue": [
+        "Meets security policy",
+        "Less manual admin",
+        "Control over people data access"
+      ]
     }
   }
 }
