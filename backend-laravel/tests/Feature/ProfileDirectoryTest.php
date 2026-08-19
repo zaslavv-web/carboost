@@ -83,4 +83,28 @@ class ProfileDirectoryTest extends TestCase
             ->assertJsonCount(6, 'data')
             ->assertJsonPath('has_more', false);
     }
+
+    public function test_per_page_is_capped_and_large_values_do_not_5xx(): void
+    {
+        $company = $this->makeCompany();
+        $hrd = $this->makeUser('hrd', $company->id);
+
+        // per_page=500 (максимум) не должен приводить к ошибке сервера
+        $this->actingAs($hrd, 'sanctum')
+            ->getJson('/api/profiles?per_page=500')
+            ->assertOk()
+            ->assertJsonPath('per_page', 500);
+
+        // запрошенное значение выше потолка обрезается до 500, а не падает
+        $this->actingAs($hrd, 'sanctum')
+            ->getJson('/api/profiles?per_page=100000')
+            ->assertOk()
+            ->assertJsonPath('per_page', 500);
+
+        // значение меньше 1 приводится к минимуму 1, а не к ошибке
+        $this->actingAs($hrd, 'sanctum')
+            ->getJson('/api/profiles?per_page=0')
+            ->assertOk()
+            ->assertJsonPath('per_page', 1);
+    }
 }

@@ -169,8 +169,9 @@ describe("smoke-тесты критичных кнопок продукта", ()
     const AppSidebar = (await import("@/components/AppSidebar")).default;
     renderWithProviders(<AppSidebar collapsed={false} onToggle={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^Сотрудники/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Список сотрудников/i }));
+    // Группа "Управление персоналом" содержит пункт "Сотрудники" (переход в /employees)
+    fireEvent.click(screen.getByRole("button", { name: /^Управление персоналом/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Сотрудники$/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/employees");
 
     fireEvent.click(screen.getByRole("button", { name: /^Аналитика/i }));
