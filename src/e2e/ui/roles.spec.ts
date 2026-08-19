@@ -31,6 +31,9 @@ const IGNORED_CONSOLE = [
   /favicon/i,
   /ResizeObserver loop/i,
   /net::ERR_NETWORK_CHANGED/i,
+  // Ошибки загрузки сторонних ресурсов (картинки с внешних CDN отдают 403)
+  // — это не дефект приложения; серверные 5xx проверяются отдельно.
+  /Failed to load resource/i,
 ];
 
 async function instrument(page: Page) {
