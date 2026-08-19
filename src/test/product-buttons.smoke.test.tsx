@@ -204,12 +204,14 @@ describe("смоук-тесты критичных кнопок продукта
     const AppSidebar = (await import("@/components/AppSidebar")).default;
     renderWithProviders(<AppSidebar collapsed={false} onToggle={vi.fn()} />);
 
+    // Секция → группа → дочерний пункт.
     fireEvent.click(screen.getByRole("button", { name: /^Управление персоналом/i }));
-    fireEvent.click(screen.getByRole("button", { name: /^Сотрудники$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Сотрудники/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Список сотрудников$/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/employees");
 
     fireEvent.click(screen.getByRole("button", { name: /^Аналитика/i }));
-    const analyticsItems = screen.getAllByRole("button");
-    expect(analyticsItems.length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /Риски и удержание/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/risk-analytics");
   });
 });
