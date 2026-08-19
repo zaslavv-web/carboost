@@ -134,7 +134,7 @@ const SCENARIO = [
   { w: 2, name: "currency_balance", path: "/currency/balance" },
   { w: 1, name: "chats_list", path: "/chats" },
   { w: 1, name: "tracker_tasks", path: "/db/tracker_tasks" },
-  { w: 1, name: "courses", path: "/db/courses" },
+  { w: 1, name: "courses", path: "/university/courses" },
   { w: 1, name: "positions", path: "/db/positions" },
   { w: 1, name: "profiles_page", path: "/profiles?per_page=50" },
 ];
@@ -274,7 +274,9 @@ async function healthLine() {
   try {
     const res = await fetch(`${API}/health`, { headers: { Accept: "application/json" } });
     const j = await res.json();
-    return `db=${j.db}, mem=${j.usage_mb}/${j.memory_limit}, ver=${j.version ?? "?"}`;
+    // /api/health отдаёт метрики внутри `checks`.
+    const c = j.checks ?? j;
+    return `db=${c.db}, mem=${c.usage_mb}МБ/${c.memory_limit}, ver=${c.version ?? "?"}, fatals/1h=${c.fatals_last_hour ?? "?"}`;
   } catch (e) {
     return `недоступен (${e.message})`;
   }

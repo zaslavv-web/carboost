@@ -29,7 +29,7 @@ const HR_ENDPOINTS = [
   "/db/departments",
   "/db/competencies",
   "/db/career_track_templates",
-  "/db/courses",
+  "/university/courses",
   "/db/tracker_tasks",
   "/predictive/overview",
   "/predictive/benchmarks",
@@ -41,9 +41,9 @@ const ROLES: Role[] = ["HRD", "HR", "MANAGER", "EMPLOYEE", "ADMIN"];
 
 test.describe("API smoke", () => {
   test("health отвечает и БД доступна", async () => {
-    const res = await api<{ db?: string; api?: string }>("/health");
+    const res = await api<{ checks?: { db?: string } }>("/health");
     expect(res.status, "GET /api/health").toBe(200);
-    expect(res.body?.db, "health.db").toBe("ok");
+    expect(res.body?.checks?.db, "health.checks.db").toBe("ok");
   });
 
   for (const role of ROLES) {

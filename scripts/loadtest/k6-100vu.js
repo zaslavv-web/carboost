@@ -46,7 +46,7 @@ const ENDPOINTS = [
   "/currency/balance",
   "/chats",
   "/db/tracker_tasks",
-  "/db/courses",
+  "/university/courses",
   "/db/positions",
   "/profiles?per_page=50",
 ];
