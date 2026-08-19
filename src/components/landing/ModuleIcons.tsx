@@ -277,9 +277,101 @@ const ModuleIcon = ({ slug }: { slug: FeatureSlug }) => {
           <circle cx="20" cy="20" r="1.2" className="accent" />
         </svg>
       );
+    /* ── NEW: GROWTH / CULTURE / OPS ────────────── */
+    case "talent-review":
+      // 9-box grid with a highlighted top-right star cell
+      return (
+        <svg className="module-icon" viewBox={VB} aria-hidden>
+          <rect className="bg" x="2" y="2" width="44" height="44" rx="10" />
+          <g className="soft">
+            <rect x="9" y="9" width="30" height="30" rx="3" />
+            <path d="M19 9 V39 M29 9 V39 M9 19 H39 M9 29 H39" />
+          </g>
+          <rect x="29" y="9" width="10" height="10" rx="2" className="accent h-pop d-1" />
+          <rect x="19" y="19" width="10" height="10" rx="2" className="accent h-pop d-3" opacity="0.55" />
+          <rect x="9" y="29" width="10" height="10" rx="2" className="accent h-pop d-5" opacity="0.3" />
+        </svg>
+      );
+    case "pulse-surveys":
+      // Heartbeat pulse line inside a survey card
+      return (
+        <svg className="module-icon" viewBox={VB} aria-hidden>
+          <rect className="bg" x="2" y="2" width="44" height="44" rx="10" />
+          <rect x="8" y="12" width="32" height="24" rx="4" className="ink" />
+          <path className="accent h-draw" style={{ ["--len" as any]: 46 }} strokeDasharray="46"
+            stroke="hsl(var(--primary))" strokeWidth="2" fill="none" strokeLinecap="round"
+            d="M12 24 H18 L21 18 L25 30 L28 24 H36" />
+          <circle cx="36" cy="24" r="2" className="accent pulse-1" />
+        </svg>
+      );
+    case "tracker":
+      // Kanban columns rising to a peak
+      return (
+        <svg className="module-icon" viewBox={VB} aria-hidden>
+          <rect className="bg" x="2" y="2" width="44" height="44" rx="10" />
+          <rect x="9" y="10" width="9" height="28" rx="2.5" className="soft" />
+          <rect x="20" y="10" width="9" height="28" rx="2.5" className="soft" />
+          <rect x="31" y="10" width="9" height="28" rx="2.5" className="soft" />
+          <rect x="10.5" y="26" width="6" height="5" rx="1.5" className="accent h-rise d-1" />
+          <rect x="21.5" y="19" width="6" height="5" rx="1.5" className="accent h-rise d-3" />
+          <rect x="32.5" y="13" width="6" height="5" rx="1.5" className="accent h-rise d-5" />
+        </svg>
+      );
+    /* ── NEW: DATA & ENTERPRISE ─────────────────── */
+    case "predictive":
+      // Solid history line continuing into a dashed forecast toward the peak
+      return (
+        <svg className="module-icon" viewBox={VB} aria-hidden>
+          <rect className="bg" x="2" y="2" width="44" height="44" rx="10" />
+          <path className="ink h-draw" style={{ ["--len" as any]: 40 }} strokeDasharray="40" d="M9 34 L17 28 L23 30" />
+          <path className="soft" strokeDasharray="3 3" d="M23 30 L31 20 L39 13" />
+          <circle cx="39" cy="13" r="3" className="accent pulse-1" />
+          <path className="soft" d="M9 39 H39" />
+        </svg>
+      );
+    case "kedo":
+      // Document with a signature stroke and a seal
+      return (
+        <svg className="module-icon" viewBox={VB} aria-hidden>
+          <rect className="bg" x="2" y="2" width="44" height="44" rx="10" />
+          <path className="ink" d="M12 8 H28 L36 16 V40 H12 Z" />
+          <path className="soft" d="M28 8 V16 H36" />
+          <path className="accent h-draw" style={{ ["--len" as any]: 34 }} strokeDasharray="34"
+            stroke="hsl(var(--primary))" strokeWidth="1.8" fill="none" strokeLinecap="round"
+            d="M16 30 q4 -7 8 0 t8 -3" />
+          <circle cx="33" cy="35" r="4" className="accent h-pop d-4" opacity="0.85" />
+        </svg>
+      );
+    case "integrations-1c":
+      // Two nodes exchanging data both ways
+      return (
+        <svg className="module-icon" viewBox={VB} aria-hidden>
+          <rect className="bg" x="2" y="2" width="44" height="44" rx="10" />
+          <rect x="7" y="16" width="13" height="16" rx="3" className="ink" />
+          <rect x="28" y="16" width="13" height="16" rx="3" className="ink" />
+          <path className="accent h-draw d-2" style={{ ["--len" as any]: 12 }} strokeDasharray="12"
+            stroke="hsl(var(--primary))" strokeWidth="1.8" fill="none" strokeLinecap="round"
+            d="M20 21 H28 M25 18 L28 21 L25 24" />
+          <path className="accent h-draw d-4" style={{ ["--len" as any]: 12 }} strokeDasharray="12"
+            stroke="hsl(var(--primary))" strokeWidth="1.8" fill="none" strokeLinecap="round"
+            d="M28 27 H20 M23 24 L20 27 L23 30" />
+        </svg>
+      );
+    case "security-sso":
+      // Shield with a keyhole, locking in
+      return (
+        <svg className="module-icon" viewBox={VB} aria-hidden>
+          <rect className="bg" x="2" y="2" width="44" height="44" rx="10" />
+          <path className="ink h-draw" style={{ ["--len" as any]: 80 }} strokeDasharray="80"
+            d="M24 8 L38 13 V25 Q38 34 24 40 Q10 34 10 25 V13 Z" />
+          <circle cx="24" cy="22" r="3.2" className="accent h-pop d-3" />
+          <path className="accent h-pop d-4" d="M22.8 24 h2.4 l.8 6 h-4 z" />
+        </svg>
+      );
     case "default" as any:
     default:
       return null;
+
   }
 };
 
