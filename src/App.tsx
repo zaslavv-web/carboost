@@ -85,6 +85,7 @@ import CompanyBranding from "@/pages/CompanyBranding";
 import AiSettings from "@/pages/AiSettings";
 import RagDocuments from "@/pages/RagDocuments";
 import University from "@/pages/University";
+import UniversityAnalytics from "@/pages/UniversityAnalytics";
 import CourseView from "@/pages/CourseView";
 import CourseAuthoring from "@/pages/CourseAuthoring";
 import CertificateView from "@/pages/CertificateView";
@@ -231,6 +232,7 @@ const App = () => (
                 <Route path="/ai-settings" element={<AiSettings />} />
                 <Route path="/rag-documents" element={<RagDocuments />} />
                 <Route path="/university" element={<University />} />
+                <Route path="/university/analytics" element={<UniversityAnalytics />} />
                 <Route path="/university/cert/:serial" element={<CertificateView />} />
                 <Route path="/university/:courseId" element={<CourseView />} />
                 <Route path="/university/:courseId/edit" element={<CourseAuthoring />} />
