@@ -1,4 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
+
+vi.mock("laravel-echo", () => ({ default: vi.fn() }));
+vi.mock("pusher-js", () => ({ default: vi.fn() }));
+
 import { laravelRealtime } from "../realtime";
 
 describe("laravelRealtime", () => {
@@ -8,7 +12,7 @@ describe("laravelRealtime", () => {
     expect(result).toBe(ch);
   });
 
-  it("subscribe() reports CHANNEL_ERROR when laravel-echo/pusher-js are unavailable", async () => {
+  it("subscribe() reports CHANNEL_ERROR when Echo cannot connect", async () => {
     const ch = laravelRealtime.channel("test-channel");
     const cb = vi.fn();
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
