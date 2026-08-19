@@ -127,7 +127,9 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
           kedo,
         ]},
+        { key: "motivation", label: S("motivation"), entries: [...myMotivation] },
         { key: "knowledge", label: S("knowledge"), entries: [
+
           university,
           { icon: BookOpen, label: t("nav.knowledgeBase", { defaultValue: "База знаний" }), path: "/knowledge-base" },
           { icon: Target, label: t("nav.idp", { defaultValue: "Планы развития (ИПР)" }), path: "/idp" },
