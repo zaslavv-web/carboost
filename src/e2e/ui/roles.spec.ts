@@ -7,12 +7,22 @@ import { test, expect, type Page } from "@playwright/test";
 import { BASE_URL, loginAs, credsFor, type Role } from "../support/api";
 
 const ROUTE_MAP: Record<Role, string[]> = {
-  EMPLOYEE: ["/", "/profile", "/courses", "/chats", "/motivation/earn"],
-  MANAGER: ["/", "/team", "/tracker", "/chats", "/motivation/earn"],
-  HR: ["/", "/employees", "/courses", "/surveys", "/motivation/earn"],
-  HRD: ["/", "/employees", "/analytics", "/predictive-analytics", "/talent-review", "/courses"],
-  ADMIN: ["/", "/employees", "/security", "/settings"],
-  SUPERADMIN: ["/", "/admin"],
+  EMPLOYEE: ["/dashboard", "/me", "/university", "/chats", "/motivation/earn", "/my-documents"],
+  MANAGER: ["/dashboard", "/team", "/tracker", "/chats", "/motivation/earn", "/performance"],
+  HR: ["/dashboard", "/employees", "/university", "/pulse-surveys", "/motivation/earn", "/invitations"],
+  HRD: [
+    "/dashboard",
+    "/employees",
+    "/analytics",
+    "/predictive-analytics",
+    "/talent-review",
+    "/university",
+    "/performance",
+    "/kedo",
+    "/motivation/earn",
+  ],
+  ADMIN: ["/dashboard", "/employees", "/security", "/settings", "/integrations"],
+  SUPERADMIN: ["/dashboard", "/superadmin", "/companies", "/users"],
 };
 
 /** Шум, который не является дефектом приложения. */
