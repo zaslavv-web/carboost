@@ -235,7 +235,9 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             ],
           },
         ]},
+        { key: "motivation", label: S("motivation"), entries: [...myMotivation] },
         { key: "knowledge", label: S("knowledge"), entries: [university] },
+
         { key: "system", label: S("system"), entries: [settings] },
       ];
     }
