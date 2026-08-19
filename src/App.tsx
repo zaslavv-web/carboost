@@ -33,6 +33,8 @@ import CareerReviews from "@/pages/CareerReviews";
 import GamificationManagement from "@/pages/GamificationManagement";
 import HRDTests from "@/pages/HRDTests";
 import Shop from "@/pages/Shop";
+import EarnCoins from "@/pages/EarnCoins";
+
 import ShopProductDetail from "@/pages/ShopProductDetail";
 import Cart from "@/pages/Cart";
 import MyOrders from "@/pages/MyOrders";
