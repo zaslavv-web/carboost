@@ -103,8 +103,8 @@ describe("смоук-тесты критичных кнопок продукта
     mocks.db.companies = { data: [{ id: "c1", name: "Acme" }], error: null };
     mocks.db.profiles = {
       data: [
-        { id: "p1", user_id: "hrd-1", full_name: "HRD User", position: "HRD", department: "HR", company_id: "c1", is_verified: true },
-        { id: "p2", user_id: "emp-1", full_name: "Pending User", position: "Dev", department: "IT", company_id: "c1", is_verified: false },
+        { id: "p1", user_id: "hrd-1", full_name: "HRD User", position: "HRD", department: "HR", company_id: "c1", is_verified: true, roles: ["hrd"] },
+        { id: "p2", user_id: "emp-1", full_name: "Pending User", position: "Dev", department: "IT", company_id: "c1", is_verified: false, roles: ["employee"] },
       ],
       error: null,
     };
