@@ -117,7 +117,7 @@ const AdaptationPlans = () => {
   const employeesQ = useQuery({
     queryKey: ["profiles_min", companyId],
     queryFn: async () => {
-      const { data, error } = await laravelDb.from("profiles").select("id,user_id,first_name,last_name,email").eq("company_id", companyId!);
+      const { data, error } = await laravelDb.from("profiles").select("id,user_id,full_name,position,department").eq("company_id", companyId!);
       if (error) throw error;
       return data as any[];
     },
