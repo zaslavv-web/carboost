@@ -124,4 +124,49 @@ XML;
             ->getJson("/api/university/scorm/{$courseId}/launch/{$lessonId}")
             ->assertStatus(403);
     }
+
+    public function test_import_falls_back_to_resources_when_items_have_no_ref(): void
+    {
+        $company = $this->makeCompany();
+        $hr = $this->makeUser('hr', $company->id);
+
+        $manifest = <<<XML
+<?xml version="1.0"?>
+<manifest identifier="M2" xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2" xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2">
+  <organizations default="ORG-1">
+    <organization identifier="ORG-1">
+      <title>Курс без ссылок</title>
+      <item identifier="ITEM-1"><title>Раздел</title></item>
+    </organization>
+  </organizations>
+  <resources xml:base="content/">
+    <resource identifier="RES-1" type="webcontent" adlcp:scormtype="sco">
+      <file href="start.html"/>
+    </resource>
+  </resources>
+</manifest>
+XML;
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'scorm') . '.zip';
+        $zip = new \ZipArchive();
+        $zip->open($zipPath, \ZipArchive::CREATE);
+        $zip->addFromString('imsmanifest.xml', $manifest);
+        $zip->addFromString('content/start.html', '<html>SCO</html>');
+        $zip->close();
+
+        $file = new UploadedFile($zipPath, 'package.zip', 'application/zip', null, true);
+
+        $token = $this->actingAs($hr, 'sanctum')
+            ->postJson('/api/university/scorm/upload', ['file' => $file])
+            ->assertOk()->json('upload_token');
+
+        $import = $this->actingAs($hr, 'sanctum')
+            ->postJson('/api/university/scorm/import', ['upload_token' => $token])
+            ->assertOk();
+
+        $this->assertSame(1, $import->json('lessons'));
+        $this->assertDatabaseHas('lessons', ['launch_url' => 'content/start.html', 'type' => 'scorm']);
+
+        @unlink($zipPath);
+    }
 }
