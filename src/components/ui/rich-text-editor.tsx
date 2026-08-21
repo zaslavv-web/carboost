@@ -5,7 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
-import TextStyle from "@tiptap/extension-text-style";
+import { TextStyle } from "@tiptap/extension-text-style";
 import FontFamily from "@tiptap/extension-font-family";
 import { Bold, Italic, UnderlineIcon, List, ListOrdered, Link2, ImageIcon, Video, Upload, Undo2, Redo2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
