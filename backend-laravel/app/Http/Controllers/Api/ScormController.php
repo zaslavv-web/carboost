@@ -745,22 +745,95 @@ class ScormController extends Controller
 
 
         $disk = Storage::disk('scorm-packages');
-        $full = $disk->path($path);
-        if (! file_exists($full) || is_dir($full)) {
-            // Пакеты, импортированные до фикса путей, ссылаются на файл от корня,
-            // хотя он лежит рядом с imsmanifest.xml (подпапка архива).
-            $relative = ltrim(implode('/', array_slice($segments, 2)), '/');
-            $resolved = $relative === '' ? '' : $this->resolveHrefOnDisk($disk, $packagePath, '', $relative);
-            $full = $resolved ? $disk->path($packagePath . '/' . $resolved) : '';
-            if (! $full || ! file_exists($full) || is_dir($full)) {
-                return response()->json(['error' => 'not found'], 404);
+        $relative = ltrim(implode('/', array_slice($segments, 2)), '/');
+        $found = $this->findAssetOnDisk($disk, $packagePath, $relative);
+
+        if (! $found) {
+            \Log::warning('scorm_asset_404', ['package' => $packagePath, 'relative' => $relative]);
+            return response()->json([
+                'error' => 'not found',
+                'package_path' => $packagePath,
+                'relative' => $relative,
+            ], 404);
+        }
+
+        $full = $disk->path($packagePath . '/' . $found);
+        $mime = $this->guessMime($full);
+        return response()->file($full, ['Content-Type' => $mime]);
+    }
+
+    /**
+     * Ищем файл внутри распакованного пакета максимально терпимо:
+     * точное совпадение → декодированный URL → без query → регистронезависимо →
+     * совпадение по хвосту пути → совпадение по имени файла.
+     */
+    protected function findAssetOnDisk($disk, string $base, string $relative): ?string
+    {
+        $relative = ltrim(str_replace('\\', '/', $relative), '/');
+        if ($relative === '') return null;
+
+        $variants = [];
+        foreach ([$relative, rawurldecode($relative), urldecode($relative)] as $v) {
+            $v = preg_replace('/[?#].*$/', '', $v);
+            $v = $this->normalizeRelative((string) $v);
+            if ($v !== '' && ! in_array($v, $variants, true)) $variants[] = $v;
+        }
+
+        foreach ($variants as $v) {
+            $p = $disk->path($base . '/' . $v);
+            if (is_file($p)) return $v;
+        }
+
+        // Полный обход пакета (кешируем на запрос).
+        try {
+            $all = $disk->allFiles($base);
+        } catch (\Throwable $e) {
+            return null;
+        }
+        $rels = [];
+        foreach ($all as $f) {
+            $rels[] = ltrim(substr($f, strlen($base)), '/');
+        }
+
+        foreach ($variants as $v) {
+            $lower = mb_strtolower($v);
+            foreach ($rels as $rel) {
+                if (mb_strtolower($rel) === $lower) return $rel;
+            }
+            // Пакет распакован в подпапку: /content/pages/01-intro.html vs pages/01-intro.html
+            foreach ($rels as $rel) {
+                $rl = mb_strtolower($rel);
+                if ($rl === $lower || str_ends_with($rl, '/' . $lower)) return $rel;
             }
         }
 
+        // Последний шанс — по имени файла (если оно уникально).
+        foreach ($variants as $v) {
+            $needle = mb_strtolower(basename($v));
+            $matches = array_values(array_filter($rels, fn ($r) => mb_strtolower(basename($r)) === $needle));
+            if (count($matches) === 1) return $matches[0];
+        }
 
-        $mime = mime_content_type($full) ?: 'application/octet-stream';
-        return response()->file($full, ['Content-Type' => $mime]);
+        return null;
     }
+
+    protected function guessMime(string $full): string
+    {
+        $ext = mb_strtolower(pathinfo($full, PATHINFO_EXTENSION));
+        $map = [
+            'html' => 'text/html', 'htm' => 'text/html', 'xml' => 'application/xml',
+            'js' => 'application/javascript', 'mjs' => 'application/javascript',
+            'css' => 'text/css', 'json' => 'application/json', 'svg' => 'image/svg+xml',
+            'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif', 'webp' => 'image/webp', 'ico' => 'image/x-icon',
+            'mp4' => 'video/mp4', 'mp3' => 'audio/mpeg', 'wav' => 'audio/wav',
+            'woff' => 'font/woff', 'woff2' => 'font/woff2', 'ttf' => 'font/ttf',
+            'pdf' => 'application/pdf', 'txt' => 'text/plain',
+        ];
+        if (isset($map[$ext])) return $map[$ext];
+        return (function_exists('mime_content_type') ? (mime_content_type($full) ?: '') : '') ?: 'application/octet-stream';
+    }
+
 
     protected function launchHtml(string $launchUrl, ?string $enrollmentId, string $lessonId, string $version): string
     {
