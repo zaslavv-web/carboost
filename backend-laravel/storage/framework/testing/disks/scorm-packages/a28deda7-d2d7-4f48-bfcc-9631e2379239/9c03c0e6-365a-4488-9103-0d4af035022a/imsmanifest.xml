@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<manifest identifier="M2" xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2" xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2">
+  <organizations default="ORG-1">
+    <organization identifier="ORG-1">
+      <title>Курс без ссылок</title>
+      <item identifier="ITEM-1"><title>Раздел</title></item>
+    </organization>
+  </organizations>
+  <resources xml:base="content/">
+    <resource identifier="RES-1" type="webcontent" adlcp:scormtype="sco">
+      <file href="start.html"/>
+    </resource>
+  </resources>
+</manifest>
