@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -18,11 +19,43 @@ class ScormController extends Controller
 {
     protected const MAX_ZIP_MB = 100;
 
-    protected function uid(): ?string { return (string) (Auth::id() ?: '') ?: null; }
+    /** Cookie короткоживущей SCORM-сессии (iframe не умеет слать bearer). */
+    protected const SESSION_COOKIE = 'scorm_sess';
+
+    protected function uid(): ?string
+    {
+        $id = Auth::id() ?: Auth::guard('sanctum')->id();
+        return $id ? (string) $id : null;
+    }
+
+    /** uid из bearer-токена либо из подписанной SCORM-cookie. */
+    protected function resolveUid(Request $r): ?string
+    {
+        return $this->uid() ?: ($this->sessionPayload($r)['uid'] ?? null);
+    }
+
+    /** Разбор и проверка подписи cookie SCORM-сессии. */
+    protected function sessionPayload(Request $r): ?array
+    {
+        $raw = (string) $r->cookie(self::SESSION_COOKIE, '');
+        if ($raw === '') return null;
+        [$body, $sig] = array_pad(explode('.', $raw, 2), 2, '');
+        if ($body === '' || $sig === '') return null;
+        if (! hash_equals(hash_hmac('sha256', $body, (string) config('app.key')), $sig)) return null;
+        $data = json_decode((string) base64_decode(strtr($body, '-_', '+/'), true), true);
+        if (! is_array($data) || (int) ($data['exp'] ?? 0) < time()) return null;
+        return $data;
+    }
+
+    protected function signSession(array $payload): string
+    {
+        $body = rtrim(strtr(base64_encode((string) json_encode($payload)), '+/', '-_'), '=');
+        return $body . '.' . hash_hmac('sha256', $body, (string) config('app.key'));
+    }
 
     protected function canAuthor(): bool
     {
-        $u = Auth::user();
+        $u = Auth::user() ?: Auth::guard('sanctum')->user();
         if (! $u) return false;
         $roles = DB::table('user_roles')->where('user_id', $u->id)->pluck('role')->all();
         return (bool) array_intersect($roles, ['hr','hrd','company_admin','superadmin']);
@@ -30,9 +63,10 @@ class ScormController extends Controller
 
     protected function companyId(): ?string
     {
-        $u = Auth::user();
+        $u = Auth::user() ?: Auth::guard('sanctum')->user();
         return $u?->companyId() ?: null;
     }
+
 
     /**
      * STEP 1: Upload and unpack a SCORM ZIP package.
@@ -207,14 +241,97 @@ class ScormController extends Controller
     }
 
     /**
-     * Serve a launch page for a SCORM lesson.
-     * The page injects the SCORM API adapter and loads the SCO in an iframe.
+     * Выдать одноразовый тикет запуска (вызывается фронтом с bearer-токеном).
+     * Iframe не может передать Authorization, поэтому запуск идёт по тикету.
+     */
+    public function launchTicket(Request $r, string $courseId, string $lessonId)
+    {
+        $uid = $this->uid();
+        if (! $uid) return response()->json(['error' => 'auth required'], 401);
+
+        $ctx = $this->resolveLaunchContext($uid, $courseId, $lessonId);
+        if ($ctx instanceof \Illuminate\Http\JsonResponse) return $ctx;
+
+        $ticket = Str::random(48);
+        Cache::put('scorm_ticket:' . $ticket, [
+            'user_id'       => $uid,
+            'course_id'     => $courseId,
+            'lesson_id'     => $lessonId,
+            'enrollment_id' => $ctx['enrollment_id'],
+            'package_path'  => $ctx['package_path'],
+        ], now()->addSeconds(60));
+
+        return response()->json([
+            'ticket'     => $ticket,
+            'launch_url' => '/api/university/scorm/launch/' . $ticket,
+        ]);
+    }
+
+    /**
+     * Публичный запуск по одноразовому тикету: ставит короткоживущую cookie
+     * SCORM-сессии и отдаёт HTML-лаунчер.
+     */
+    public function launchByTicket(Request $r, string $ticket)
+    {
+        $key = 'scorm_ticket:' . $ticket;
+        $payload = Cache::get($key);
+        if (! is_array($payload)) {
+            return new Response('Ссылка устарела, откройте урок заново.', 410, ['Content-Type' => 'text/plain; charset=utf-8']);
+        }
+        Cache::forget($key);
+
+        $course = DB::table('courses')->where('id', $payload['course_id'])->first();
+        $lesson = DB::table('lessons')->where('id', $payload['lesson_id'])->first();
+        if (! $course || ! $lesson) {
+            return new Response('Материал не найден.', 404, ['Content-Type' => 'text/plain; charset=utf-8']);
+        }
+
+        $version = $course->scorm_version === '2004' ? '2004' : '1.2';
+        $launchUrl = $this->assetUrl($course->scorm_package_path, (string) $lesson->launch_url);
+        $html = $this->launchHtml($launchUrl, $payload['enrollment_id'], (string) $payload['lesson_id'], $version);
+
+        $cookie = cookie(
+            self::SESSION_COOKIE,
+            $this->signSession([
+                'uid'           => $payload['user_id'],
+                'package_path'  => $payload['package_path'],
+                'enrollment_id' => $payload['enrollment_id'],
+                'exp'           => time() + 4 * 3600,
+            ]),
+            240,                       // минут
+            '/api/university/scorm',   // path
+            null,                      // domain
+            $r->isSecure(),            // secure
+            true,                      // httpOnly
+            false,
+            'Lax'
+        );
+
+        return (new Response($html, 200, ['Content-Type' => 'text/html; charset=utf-8']))->withCookie($cookie);
+    }
+
+    /**
+     * Serve a launch page for a SCORM lesson (bearer-режим, обратная совместимость).
      */
     public function launch(Request $r, string $courseId, string $lessonId)
     {
         $uid = $this->uid();
         if (! $uid) return response()->json(['error' => 'auth required'], 401);
 
+        $ctx = $this->resolveLaunchContext($uid, $courseId, $lessonId);
+        if ($ctx instanceof \Illuminate\Http\JsonResponse) return $ctx;
+
+        $html = $this->launchHtml($ctx['launch_url'], $ctx['enrollment_id'], $lessonId, $ctx['version']);
+        return new Response($html, 200, ['Content-Type' => 'text/html; charset=utf-8']);
+    }
+
+    /**
+     * Общие проверки доступа к SCORM-уроку.
+     *
+     * @return array{enrollment_id: ?string, package_path: string, launch_url: string, version: string}|\Illuminate\Http\JsonResponse
+     */
+    protected function resolveLaunchContext(string $uid, string $courseId, string $lessonId)
+    {
         $course = DB::table('courses')->where('id', $courseId)->first();
         if (! $course || $course->source_type !== 'scorm') {
             return response()->json(['error' => 'not found'], 404);
@@ -225,7 +342,6 @@ class ScormController extends Controller
         })->first();
         if (! $lesson) return response()->json(['error' => 'lesson not found'], 404);
 
-        // Enrollment check: either the user is enrolled or is an author.
         $enrollment = DB::table('enrollments')
             ->where('course_id', $courseId)
             ->where('user_id', $uid)
@@ -235,21 +351,23 @@ class ScormController extends Controller
             return response()->json(['error' => 'not enrolled'], 403);
         }
 
-        $enrollmentId = $enrollment?->id;
-        $version = $course->scorm_version === '2004' ? '2004' : '1.2';
-        $launchUrl = $this->assetUrl($course->scorm_package_path, $lesson->launch_url);
-
-        $html = $this->launchHtml($launchUrl, $enrollmentId, $lessonId, $version);
-        return new Response($html, 200, ['Content-Type' => 'text/html; charset=utf-8']);
+        return [
+            'enrollment_id' => $enrollment?->id,
+            'package_path'  => (string) $course->scorm_package_path,
+            'launch_url'    => $this->assetUrl((string) $course->scorm_package_path, (string) $lesson->launch_url),
+            'version'       => $course->scorm_version === '2004' ? '2004' : '1.2',
+        ];
     }
+
 
     /**
      * Store cmi data coming from the SCORM content.
      */
     public function storeCmi(Request $r, string $enrollmentId)
     {
-        $uid = $this->uid();
+        $uid = $this->resolveUid($r);
         if (! $uid) return response()->json(['error' => 'auth required'], 401);
+
 
         $enrollment = DB::table('enrollments')
             ->where('id', $enrollmentId)
@@ -288,7 +406,7 @@ class ScormController extends Controller
      */
     public function getCmi(Request $r, string $enrollmentId)
     {
-        $uid = $this->uid();
+        $uid = $this->resolveUid($r);
         if (! $uid) return response()->json(['error' => 'auth required'], 401);
 
         $enrollment = DB::table('enrollments')
@@ -487,7 +605,8 @@ class ScormController extends Controller
      */
     public function asset(Request $r)
     {
-        $uid = $this->uid();
+        $session = $this->sessionPayload($r);
+        $uid = $this->resolveUid($r);
         if (! $uid) return response()->json(['error' => 'auth required'], 401);
 
         $path = (string) $r->route('path', '');
@@ -500,23 +619,29 @@ class ScormController extends Controller
             return response()->json(['error' => 'invalid path'], 400);
         }
 
-        // Verify the path belongs to an enrolled course or authored course.
-        $companyId = $this->companyId();
-        $allowed = DB::table('courses')
-            ->where('scorm_package_path', $packagePath)
-            ->where(function ($q) use ($uid, $companyId) {
-                $q->whereExists(function ($sq) use ($uid) {
-                    $sq->selectRaw('1')->from('enrollments')
-                       ->whereColumn('enrollments.course_id', 'courses.id')
-                       ->where('enrollments.user_id', $uid);
-                });
-                if ($companyId) {
-                    $q->orWhere('author_id', $uid);
-                }
-            })
-            ->exists();
+        // Быстрый путь: cookie SCORM-сессии выдана именно на этот пакет.
+        $allowed = $session && ($session['package_path'] ?? null) === $packagePath;
+
+        if (! $allowed) {
+            // Verify the path belongs to an enrolled course or authored course.
+            $companyId = $this->companyId();
+            $allowed = DB::table('courses')
+                ->where('scorm_package_path', $packagePath)
+                ->where(function ($q) use ($uid, $companyId) {
+                    $q->whereExists(function ($sq) use ($uid) {
+                        $sq->selectRaw('1')->from('enrollments')
+                           ->whereColumn('enrollments.course_id', 'courses.id')
+                           ->where('enrollments.user_id', $uid);
+                    });
+                    if ($companyId) {
+                        $q->orWhere('author_id', $uid);
+                    }
+                })
+                ->exists();
+        }
 
         if (! $allowed) return response()->json(['error' => 'forbidden'], 403);
+
 
         $disk = Storage::disk('scorm-packages');
         $full = $disk->path($path);

@@ -288,6 +288,13 @@ Route::middleware(['auth:sanctum'])->get('/diag', function () {
     ]);
 });
 
+// ---- SCORM runtime (iframe не умеет слать bearer: доступ по одноразовому
+// тикету и подписанной короткоживущей cookie, проверки внутри контроллера) ----
+Route::get ('/university/scorm/launch/{ticket}',  [ScormController::class, 'launchByTicket']);
+Route::get ('/university/scorm/asset/{path}',     [ScormController::class, 'asset'])->where('path', '.*');
+Route::post('/university/scorm/{enrollmentId}/cmi', [ScormController::class, 'storeCmi']);
+Route::get ('/university/scorm/{enrollmentId}/cmi', [ScormController::class, 'getCmi']);
+
 // ---- Authenticated (Sanctum token) ----
 Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     // Auth + impersonation
@@ -680,10 +687,9 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         // ---- SCORM upload / launch / runtime ----
         Route::post  ('/university/scorm/upload',            [ScormController::class, 'upload']);
         Route::post  ('/university/scorm/import',             [ScormController::class, 'import']);
+        Route::post  ('/university/scorm/{courseId}/launch-ticket/{lessonId}', [ScormController::class, 'launchTicket']);
         Route::get   ('/university/scorm/{courseId}/launch/{lessonId}', [ScormController::class, 'launch']);
-        Route::post  ('/university/scorm/{enrollmentId}/cmi', [ScormController::class, 'storeCmi']);
-        Route::get   ('/university/scorm/{enrollmentId}/cmi', [ScormController::class, 'getCmi']);
-        Route::get   ('/university/scorm/asset/{path}',      [ScormController::class, 'asset'])->where('path', '.*');
+
 
 
         // ---- Risk analytics (predictive HRD alerts) ----

@@ -31,6 +31,64 @@ function toEmbed(url: string): string {
   return url;
 }
 
+/**
+ * SCORM-плеер. Iframe не может передать bearer-токен, поэтому сначала
+ * запрашиваем одноразовый тикет запуска и подставляем выданный URL.
+ */
+function ScormFrame({ courseId, lessonId, title }: { courseId: string; lessonId: string; title: string }) {
+  const [state, setState] = useState<{ url?: string; error?: string; loading: boolean }>({ loading: true });
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ loading: true });
+    laravel
+      .post<{ launch_url: string }>(`/university/scorm/${courseId}/launch-ticket/${lessonId}`)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          const msg =
+            error.status === 403
+              ? "Курс вам не назначен"
+              : error.status === 404
+                ? "Материал не найден"
+                : error.status === 410
+                  ? "Ссылка устарела, откройте урок заново"
+                  : error.message || "Не удалось открыть материал";
+          setState({ loading: false, error: msg });
+          return;
+        }
+        setState({ loading: false, url: data?.launch_url });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId, lessonId, attempt]);
+
+  if (state.loading) {
+    return <div className="aspect-[16/10] w-full rounded border bg-muted/30 animate-pulse" />;
+  }
+  if (state.error || !state.url) {
+    return (
+      <div className="aspect-[16/10] w-full rounded border bg-muted/30 flex flex-col items-center justify-center gap-3 text-center p-6">
+        <p className="text-sm text-muted-foreground">{state.error ?? "Не удалось открыть материал"}</p>
+        <Button variant="outline" onClick={() => setAttempt((a) => a + 1)}>Повторить</Button>
+      </div>
+    );
+  }
+  return (
+    <div className="aspect-[16/10] w-full rounded overflow-hidden border bg-black">
+      <iframe
+        src={state.url}
+        className="w-full h-full"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+        title={title}
+      />
+    </div>
+  );
+}
+
+
 export default function CourseView() {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
@@ -191,15 +249,9 @@ export default function CourseView() {
                   </div>
                 )}
                 {activeLesson.type === "scorm" && (
-                  <div className="aspect-[16/10] w-full rounded overflow-hidden border bg-black">
-                    <iframe
-                      src={`/api/university/scorm/${courseId}/launch/${activeLesson.id}`}
-                      className="w-full h-full"
-                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                      title={activeLesson.title}
-                    />
-                  </div>
+                  <ScormFrame courseId={courseId!} lessonId={activeLesson.id} title={activeLesson.title} />
                 )}
+
                 {activeLesson.content && activeLesson.type !== "scorm" && (
                   <div className="prose prose-sm max-w-none dark:prose-invert">
                     <ReactMarkdown>{activeLesson.content}</ReactMarkdown>
