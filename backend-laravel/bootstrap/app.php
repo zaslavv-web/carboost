@@ -160,9 +160,13 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             // Версионированный алиас: /api/v1/* повторяет текущий контракт.
             // Клиент продолжает ходить на /api/*, но контракт зафиксирован.
+            // Имена маршрутов префиксуем `v1.`, иначе route:cache падает
+            // на дублях (`notifications.index` уже занято основной группой).
             \Illuminate\Support\Facades\Route::prefix('api/v1')
                 ->middleware('api')
+                ->name('v1.')
                 ->group(__DIR__ . '/../routes/api.php');
+
         },
     )
     ->withMiddleware(function (Middleware $middleware) {
