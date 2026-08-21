@@ -25,7 +25,8 @@ class SeedDemoCompany extends Command
         {--reset : Полностью удалить прежнюю демо-компанию перед созданием}
         {--headcount=150 : Общее количество сотрудников}
         {--only-career : Только назначить карьерные треки уже созданным сотрудникам}
-        {--name=ООО "Демо" : Название компании}';
+        {--name=ООО "Демо" : Название компании}
+        {--email-domain= : Домен для логинов (по умолчанию demo.pikrosta.ru)}';
 
     protected $description = 'Создаёт демо-компанию и наполняет её контентом по всем модулям';
 
@@ -38,10 +39,12 @@ class SeedDemoCompany extends Command
     private array $trackIds = [];      // [title => uuid]
     private string $password = 'DemoPass!2026';
     private array $emailBook = [];     // [login => email]
+    private string $emailDomain = 'demo.pikrosta.ru';
 
     public function handle(AuthUserService $auth): int
     {
         $this->companyName = (string) $this->option('name');
+        $this->emailDomain = $this->resolveEmailDomain();
         $headcount = max(20, (int) $this->option('headcount'));
 
         if ($this->option('only-career')) {
@@ -1019,7 +1022,7 @@ class SeedDemoCompany extends Command
         $demo76 = DB::table('users')
             ->join('profiles', 'profiles.user_id', '=', 'users.id')
             ->where('profiles.company_id', $this->companyId)
-            ->where('users.email', 'employee.76@demo.pikrosta.ru')
+            ->where('users.email', 'employee.76@' . $this->emailDomain)
             ->value('profiles.user_id');
         if ($demo76) {
             $demo76Assignments = DB::table('employee_career_assignments')
@@ -1107,7 +1110,7 @@ class SeedDemoCompany extends Command
                 $last  = $isMale ? $this->randomValue($surM, 'male surnames') : $this->randomValue($surF, 'female surnames');
                 $full  = "{$first} {$last}";
                 $login = sprintf('%s.%02d', $role, $i + 1);
-                $email = "{$login}@demo.pikrosta.ru";
+                $email = "{$login}@{$this->emailDomain}";
                 $this->emailBook[$login] = $email;
 
                 try {
@@ -1946,5 +1949,22 @@ class SeedDemoCompany extends Command
                 ]);
             }
         }
+    }
+
+    /** Домен логинов: явный параметр либо slug названия компании (demo.pikrosta.ru для «ООО Демо»). */
+    private function resolveEmailDomain(): string
+    {
+        $explicit = trim((string) $this->option('email-domain'));
+        if ($explicit !== '') {
+            return ltrim(strtolower($explicit), '@');
+        }
+        if ($this->companyName === 'ООО "Демо"') {
+            return 'demo.pikrosta.ru';
+        }
+        $slug = \Illuminate\Support\Str::slug($this->companyName, '-');
+        if ($slug === '') {
+            $slug = 'demo-' . substr(md5($this->companyName), 0, 6);
+        }
+        return $slug . '.demo.pikrosta.ru';
     }
 }
