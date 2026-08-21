@@ -84,7 +84,7 @@ class AiControllerTest extends TestCase
                 'messages' => [['role' => 'user', 'content' => 'привет']],
             ])
             ->assertOk()
-            ->assertSee('data: hi');
+            ->assertStreamedContent('data: hi');
     }
 
     protected function tearDown(): void
