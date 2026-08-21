@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 
 interface DemoUser { email: string; full_name: string; role: string | null }
+interface DemoPosition { id: string; title: string; department: string | null }
 interface DemoStatus {
   exists: boolean;
   company_id?: string;
@@ -18,7 +19,9 @@ interface DemoStatus {
   counts?: Record<string, number>;
   password?: string;
   users?: DemoUser[];
+  positions?: DemoPosition[];
 }
+
 
 export default function SeedDemoCompany() {
   const qc = useQueryClient();
@@ -137,6 +140,30 @@ export default function SeedDemoCompany() {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Должности ({status.positions?.length ?? 0})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {status.positions?.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {status.positions.map((p) => (
+                    <Badge key={p.id} variant="outline" className="font-normal">
+                      {p.title}
+                      <span className="ml-1 text-muted-foreground">· {p.department || "—"}</span>
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Должностей нет — карьерные треки строиться не смогут.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">

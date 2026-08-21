@@ -129,6 +129,17 @@ class SeedDemoCompany extends Command
             ->map(fn ($v) => (string) $v)
             ->all();
 
+        $this->departmentIds = DB::table('departments')
+            ->where('company_id', $this->companyId)
+            ->pluck('id', 'name')
+            ->map(fn ($v) => (string) $v)
+            ->all();
+
+        $this->line('Диагностика демо-компании:');
+        $this->line('  company_id: ' . $this->companyId);
+        $this->line('  отделов: ' . count($this->departmentIds) . ', должностей: ' . count($this->positionIds));
+        $this->line('  должности: ' . (count($this->positionIds) ? implode(', ', array_keys($this->positionIds)) : '—'));
+
         $hrdIds = DB::table('profiles')
             ->join('user_roles', 'user_roles.user_id', '=', 'profiles.user_id')
             ->where('profiles.company_id', $this->companyId)
@@ -140,17 +151,17 @@ class SeedDemoCompany extends Command
 
         DB::transaction(function () {
             $existing = DB::table('career_track_templates')->where('company_id', $this->companyId)->count();
-            if ($existing === 0) {
-                $this->info('Шаблонов треков нет — создаю…');
-                $this->createCareerTracks();
-            } else {
-                $this->line("Шаблонов треков: {$existing}");
-            }
+            $this->line("Шаблонов треков до прогона: {$existing}");
+            // Прогон идемпотентен: недостающие пары дозаполняются, дубли не создаются
+            $this->createCareerTracks();
             $this->assignCareerTracks();
         });
 
-        $this->info('✅ Карьерные треки обновлены.');
+        $templates = DB::table('career_track_templates')->where('company_id', $this->companyId)->count();
+        $assignments = DB::table('employee_career_assignments')->where('company_id', $this->companyId)->count();
+        $this->info("✅ Карьерные треки обновлены. Шаблонов: {$templates}, назначений: {$assignments}.");
         return self::SUCCESS;
+
     }
 
     private function randomValue(array $items, string $context = 'array')
@@ -341,9 +352,10 @@ class SeedDemoCompany extends Command
     }
 
     // ---------- 2. org ----------
-    private function createOrgStructure(): void
+    /** Каталог «отдел => должности» демо-компании. */
+    private function departmentCatalog(): array
     {
-        $depts = [
+        return [
             'Продукт'    => ['Product Manager','Product Owner','Product Analyst'],
             'Разработка' => ['Fullstack Developer','Backend Developer','Frontend Developer','QA Engineer','DevOps Engineer'],
             'Дизайн'     => ['UX/UI Designer','Product Designer'],
@@ -353,6 +365,12 @@ class SeedDemoCompany extends Command
             'Финансы'    => ['Financial Analyst','Accountant'],
             'Поддержка'  => ['Support Engineer','Customer Success Manager'],
         ];
+    }
+
+    private function createOrgStructure(): void
+    {
+        $depts = $this->departmentCatalog();
+
 
         $competencyMap = $this->positionCompetencyMap();
         $psychoMap = $this->positionPsychologicalMap();
@@ -483,8 +501,152 @@ class SeedDemoCompany extends Command
 
 
     // ---------- 3. career tracks ----------
+
+    private function normalizeTitle(string $title): string
+    {
+        $t = mb_strtolower(trim($title));
+        $t = preg_replace('/[\s\x{00A0}]+/u', ' ', $t);
+        $t = str_replace(['ё'], ['е'], $t);
+        return (string) preg_replace('/[^\p{L}\p{N} ]+/u', '', $t);
+    }
+
+    /** Русско-английские синонимы должностей: normalized(alias) => каноничное название. */
+    private function positionSynonyms(): array
+    {
+        $map = [
+            'разработчик'                 => 'Backend Developer',
+            'бэкенд разработчик'          => 'Backend Developer',
+            'backend разработчик'         => 'Backend Developer',
+            'программист'                 => 'Backend Developer',
+            'фронтенд разработчик'        => 'Frontend Developer',
+            'frontend разработчик'        => 'Frontend Developer',
+            'фулстек разработчик'         => 'Fullstack Developer',
+            'тестировщик'                 => 'QA Engineer',
+            'инженер по тестированию'     => 'QA Engineer',
+            'девопс'                      => 'DevOps Engineer',
+            'девопс инженер'              => 'DevOps Engineer',
+            'дизайнер'                    => 'UX/UI Designer',
+            'uxui дизайнер'               => 'UX/UI Designer',
+            'продуктовый дизайнер'        => 'Product Designer',
+            'менеджер по продажам'        => 'Sales Manager',
+            'руководитель отдела продаж'  => 'Head of Sales',
+            'аккаунт менеджер'            => 'Account Manager',
+            'маркетолог'                  => 'Marketing Manager',
+            'контент менеджер'            => 'Content Manager',
+            'seo специалист'              => 'SEO Specialist',
+            'hr бизнес партнер'           => 'HR Business Partner',
+            'рекрутер'                    => 'Recruiter',
+            'специалист по обучению'      => 'L&D Specialist',
+            'продакт менеджер'            => 'Product Manager',
+            'менеджер продукта'           => 'Product Manager',
+            'продакт оунер'               => 'Product Owner',
+            'владелец продукта'           => 'Product Owner',
+            'продуктовый аналитик'        => 'Product Analyst',
+            'аналитик'                    => 'Product Analyst',
+            'финансовый аналитик'         => 'Financial Analyst',
+            'бухгалтер'                   => 'Accountant',
+            'инженер поддержки'           => 'Support Engineer',
+            'специалист поддержки'        => 'Support Engineer',
+            'менеджер по работе с клиентами' => 'Customer Success Manager',
+        ];
+        $out = [];
+        foreach ($map as $alias => $canonical) {
+            $out[$this->normalizeTitle($alias)] = $canonical;
+        }
+        return $out;
+    }
+
+    /** Отдел, к которому относится каноничная должность. */
+    private function departmentForPosition(string $title): string
+    {
+        foreach ($this->departmentCatalog() as $dept => $titles) {
+            if (in_array($title, $titles, true)) return $dept;
+        }
+        return 'Разработка';
+    }
+
+    /**
+     * Находит должность компании по названию, устойчиво к регистру, пробелам
+     * и русским синонимам. Если должности нет — создаёт её.
+     */
+    private function resolvePositionId(string $title): string
+    {
+        if (isset($this->positionIds[$title])) return $this->positionIds[$title];
+
+        $normIndex = [];
+        foreach ($this->positionIds as $known => $id) {
+            $normIndex[$this->normalizeTitle((string) $known)] = $id;
+        }
+        $norm = $this->normalizeTitle($title);
+        if (isset($normIndex[$norm])) {
+            $this->positionIds[$title] = $normIndex[$norm];
+            return $normIndex[$norm];
+        }
+
+        // Обратный поиск: существующая должность — русский синоним искомой
+        $syn = $this->positionSynonyms();
+        foreach ($normIndex as $knownNorm => $id) {
+            if (($syn[$knownNorm] ?? null) === $title) {
+                $this->positionIds[$title] = $id;
+                return $id;
+            }
+        }
+
+        // Не нашли — создаём должность (демо-компания, безопасно)
+        $dept = $this->departmentForPosition($title);
+        if (!isset($this->departmentIds[$dept])) {
+            $existingDept = DB::table('departments')
+                ->where('company_id', $this->companyId)
+                ->where('name', $dept)
+                ->value('id');
+            if ($existingDept) {
+                $this->departmentIds[$dept] = (string) $existingDept;
+            } else {
+                $did = (string) Str::uuid();
+                DB::table('departments')->insert([
+                    'id'          => $did,
+                    'company_id'  => $this->companyId,
+                    'name'        => $dept,
+                    'description' => "Отдел «{$dept}» демо-компании",
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
+                $this->departmentIds[$dept] = $did;
+            }
+        }
+
+        $competencies = $this->positionCompetencyMap()[$title] ?? [
+            ['skill' => 'Коммуникация', 'required_level' => 3],
+            ['skill' => 'Ответственность', 'required_level' => 4],
+        ];
+        $psycho = $this->positionPsychologicalMap()[$title] ?? [
+            ['trait' => 'Проактивность', 'level' => 'выше среднего'],
+        ];
+
+        $pid = (string) Str::uuid();
+        DB::table('positions')->insert([
+            'id'              => $pid,
+            'company_id'      => $this->companyId,
+            'title'           => $title,
+            'description'     => $this->positionDescription($title, $dept),
+            'department'      => $dept,
+            'created_by'      => $this->companyId,
+            'profile_status'  => 'approved',
+            'profile_version' => 1,
+            'psychological_profile' => json_encode($psycho, JSON_UNESCAPED_UNICODE),
+            'competency_profile'    => json_encode($competencies, JSON_UNESCAPED_UNICODE),
+            'profile_template'      => json_encode(new \stdClass()),
+            'created_at'      => now(),
+            'updated_at'      => now(),
+        ]);
+        $this->positionIds[$title] = $pid;
+        $this->line("      + создана должность «{$title}» (отдел {$dept})");
+        return $pid;
+    }
+
     private function createCareerTracks(): void
     {
+
         // Основные (вертикальные) треки развития
         $tracks = [
             ['Backend Developer',  'Fullstack Developer',      12, 'Расширение фронтенд-стека к сильной серверной базе.'],
@@ -502,9 +664,23 @@ class SeedDemoCompany extends Command
             ['Product Owner',      'Product Manager',          9,  'От управления бэклогом к продуктовой стратегии.'],
             ['UX/UI Designer',     'Product Designer',         12, 'Развитие в end-to-end продуктовый дизайн.'],
         ];
+        // Уже существующие пары — не дублируем при повторном прогоне
+        $existingPairs = DB::table('career_track_templates')
+            ->where('company_id', $this->companyId)
+            ->get(['from_position_id', 'to_position_id'])
+            ->mapWithKeys(fn ($r) => [((string) $r->from_position_id . '>' . (string) $r->to_position_id) => true])
+            ->all();
+        $created = 0;
+
         foreach ($tracks as [$from, $to, $months, $strategy]) {
-            if (!isset($this->positionIds[$from], $this->positionIds[$to])) continue;
+            $fromId = $this->resolvePositionId($from);
+            $toId = $this->resolvePositionId($to);
+            $pairKey = $fromId . '>' . $toId;
+            if ($fromId === $toId || isset($existingPairs[$pairKey])) continue;
+            $existingPairs[$pairKey] = true;
+            $created++;
             $tid = (string) Str::uuid();
+
             $steps = $this->trackStepsFor($from, $to);
             DB::table('career_track_templates')->insert([
                 'id'                => $tid,
@@ -605,7 +781,82 @@ class SeedDemoCompany extends Command
                 ]
             );
         }
+
+        $this->line("      шаблонов треков создано за прогон: {$created}");
+        $this->ensureMinimumTracks($existingPairs);
     }
+
+    /**
+     * Фолбэк: если шаблонов всё ещё мало, строим треки из фактических должностей
+     * компании — внутри одного отдела, парами «соседних» должностей.
+     */
+    private function ensureMinimumTracks(array $existingPairs, int $minimum = 10): void
+    {
+        $total = DB::table('career_track_templates')->where('company_id', $this->companyId)->count();
+        if ($total >= $minimum) {
+            $this->line("      всего шаблонов треков: {$total}");
+            return;
+        }
+
+        $positions = DB::table('positions')
+            ->where('company_id', $this->companyId)
+            ->orderBy('department')
+            ->orderBy('title')
+            ->get(['id', 'title', 'department']);
+
+        $byDept = [];
+        foreach ($positions as $p) {
+            $byDept[(string) ($p->department ?? '—')][] = $p;
+        }
+
+        foreach ($byDept as $dept => $list) {
+            for ($i = 0; $i < count($list) - 1 && $total < $minimum; $i++) {
+                $from = $list[$i];
+                $to = $list[$i + 1];
+                $key = (string) $from->id . '>' . (string) $to->id;
+                if (isset($existingPairs[$key])) continue;
+                $existingPairs[$key] = true;
+
+                $steps = $this->trackStepsFor((string) $from->title, (string) $to->title);
+                $tid = (string) Str::uuid();
+                DB::table('career_track_templates')->insert([
+                    'id'               => $tid,
+                    'company_id'       => $this->companyId,
+                    'from_position_id' => $from->id,
+                    'to_position_id'   => $to->id,
+                    'title'            => "Трек: {$from->title} → {$to->title}",
+                    'description'      => "Развитие внутри отдела «{$dept}»: переход из «{$from->title}» в «{$to->title}».",
+                    'motivation_text'  => 'Пройдите трек, чтобы получить повышение и рост дохода.',
+                    'estimated_months' => 12,
+                    'steps'            => json_encode($steps, JSON_UNESCAPED_UNICODE),
+                    'is_active'        => true,
+                    'created_by'       => $this->companyId,
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]);
+                foreach ($steps as $si => $step) {
+                    DB::table('career_step_scenarios')->insert([
+                        'id'               => (string) Str::uuid(),
+                        'template_id'      => $tid,
+                        'company_id'       => $this->companyId,
+                        'step_order'       => $si + 1,
+                        'requires_test'    => $si >= 1,
+                        'min_test_score'   => 75,
+                        'requires_files'   => $si >= 1,
+                        'min_files'        => 1,
+                        'requires_comment' => true,
+                        'instructions'     => "Шаг {$step['title']}: сдайте требуемые артефакты и получите одобрение руководителя.",
+                        'created_at'       => now(),
+                        'updated_at'       => now(),
+                    ]);
+                }
+                $total++;
+                $this->line("      + фолбэк-трек «{$from->title} → {$to->title}»");
+            }
+        }
+        $this->line("      всего шаблонов треков: {$total}");
+    }
+
 
     /**
      * Назначает карьерные треки части сотрудников: активные назначения,
@@ -651,8 +902,6 @@ class SeedDemoCompany extends Command
 
             $tpl = $candidates[array_rand($candidates)];
 
-
-            $tpl = $candidates[array_rand($candidates)];
             $steps = json_decode((string) $tpl->steps, true);
             $steps = is_array($steps) ? $steps : [];
             $total = max(1, count($steps));
