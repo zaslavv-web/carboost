@@ -44,10 +44,15 @@ class SeedDemoCompany extends Command
         $this->companyName = (string) $this->option('name');
         $headcount = max(20, (int) $this->option('headcount'));
 
+        if ($this->option('only-career')) {
+            return $this->runOnlyCareer();
+        }
+
         if ($this->option('reset')) {
             $this->warn("Удаляю прежнюю демо-компанию: {$this->companyName}");
             $this->resetCompany();
         }
+
 
         DB::transaction(function () use ($auth, $headcount) {
             $this->info('1/12  Создаю компанию…');
