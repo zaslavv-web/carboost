@@ -891,8 +891,6 @@ class SeedDemoCompany extends Command
 
             $tpl = $candidates[array_rand($candidates)];
 
-
-            $tpl = $candidates[array_rand($candidates)];
             $steps = json_decode((string) $tpl->steps, true);
             $steps = is_array($steps) ? $steps : [];
             $total = max(1, count($steps));
