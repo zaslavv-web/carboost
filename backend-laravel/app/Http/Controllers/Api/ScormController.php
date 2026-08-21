@@ -198,7 +198,12 @@ class ScormController extends Controller
             }
         });
 
-        return response()->json(['course_id' => $courseId, 'title' => $title]);
+        return response()->json([
+            'course_id' => $courseId,
+            'title' => $title,
+            'lessons' => count($manifest['items']),
+        ]);
+
     }
 
     /**
