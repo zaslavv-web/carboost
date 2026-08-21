@@ -206,7 +206,7 @@ const AdaptationPlans = () => {
   const employeeLabel = (uid: string) => {
     const e = employees.find((x) => x.user_id === uid || x.id === uid);
     if (!e) return uid.slice(0, 8);
-    return `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim() || e.email;
+    return (e.full_name ?? "").trim() || uid.slice(0, 8);
   };
 
   return (
