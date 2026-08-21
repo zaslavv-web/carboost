@@ -105,6 +105,10 @@ export default function SeedDemoCompany() {
               {reset.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
               Сбросить и создать заново
             </Button>
+            <Button variant="outline" onClick={() => careerTracks.mutate()} disabled={busy}>
+              {careerTracks.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Route className="h-4 w-4 mr-2" />}
+              Назначить карьерные треки
+            </Button>
           </div>
           {output && (
             <pre className="text-xs bg-muted p-3 rounded overflow-x-auto max-h-64">{output}</pre>
