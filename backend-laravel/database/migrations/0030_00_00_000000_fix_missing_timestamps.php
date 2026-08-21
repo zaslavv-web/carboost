@@ -117,7 +117,8 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $t) {
                 $t->timestamp('updated_at')->nullable();
             });
-            DB::statement("UPDATE \"{$table}\" SET updated_at = COALESCE(created_at, CURRENT_TIMESTAMP) WHERE updated_at IS NULL");
+            $fallback = Schema::hasColumn($table, 'created_at') ? 'COALESCE(created_at, CURRENT_TIMESTAMP)' : 'CURRENT_TIMESTAMP';
+            DB::statement("UPDATE \"{$table}\" SET updated_at = {$fallback} WHERE updated_at IS NULL");
             return;
         }
 
