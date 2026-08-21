@@ -410,16 +410,29 @@ class ScormController extends Controller
             ->whereIn('module_id', function ($q) use ($courseId) {
                 $q->select('id')->from('course_modules')->where('course_id', $courseId);
             })
-            ->get(['id', 'title', 'launch_url']);
+            ->get(['id', 'title', 'launch_url'])
+            ->map(function ($l) use ($disk, $base) {
+                $resolved = $l->launch_url ? $this->findAssetOnDisk($disk, $base, (string) $l->launch_url) : null;
+                return [
+                    'id' => $l->id,
+                    'title' => $l->title,
+                    'launch_url' => $l->launch_url,
+                    'resolved_path' => $resolved,
+                    'exists' => (bool) $resolved,
+                ];
+            });
 
         return response()->json([
             'package_path' => $base,
             'abs_path'     => $disk->path($base),
             'exists'       => is_dir($disk->path($base)),
+            'writable'     => is_writable($disk->path($base)),
             'file_count'   => count($files),
             'files'        => array_slice($files, 0, 300),
             'lessons'      => $lessons,
+            'missing_lessons' => $lessons->where('exists', false)->count(),
         ]);
+
     }
 
 
