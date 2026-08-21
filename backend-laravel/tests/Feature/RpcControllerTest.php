@@ -54,8 +54,9 @@ class RpcControllerTest extends TestCase
             'SQLSTATE[42501]: insufficient_privilege: 7 ERROR: new row violates row-level security policy for table'
         ));
 
+        // register_company идёт по общему SQL-пути (DB::select), где и работает локализация.
         $this->actingAs($user, 'sanctum')
-            ->postJson('/api/rpc/verify_user', ['params' => ['_target_user_id' => '00000000-0000-0000-0000-000000000000']])
+            ->postJson('/api/rpc/register_company', ['params' => ['_name' => 'ООО Тест']])
             ->assertStatus(422)
             ->assertJsonPath('error', 'Недостаточно прав для этой операции');
     }
