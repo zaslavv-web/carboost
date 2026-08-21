@@ -16,7 +16,7 @@ return new class extends Migration {
             $table->timestamps(6);
             $table->primary('id');
             $table->unique(["user_id", "company_id"]);
-            $table->unique(["user_id", "company_id"]);
+
         });
         }
     }
