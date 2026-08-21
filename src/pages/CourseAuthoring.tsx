@@ -221,6 +221,8 @@ export default function CourseAuthoring() {
                 lesson={activeLesson}
                 onSave={(patch) => updLesson.mutate({ id: activeLesson.id, patch })}
                 onDelete={() => { if (confirm("Удалить урок?")) { delLesson.mutate(activeLesson.id); setActiveLessonId(null); } }}
+                onCheckScorm={() => checkScorm.mutate()}
+                checkingScorm={checkScorm.isPending}
               />
             ) : (
               <p className="text-sm text-muted-foreground">Выберите урок слева</p>
@@ -232,7 +234,7 @@ export default function CourseAuthoring() {
   );
 }
 
-function LessonEditor({ lesson, onSave, onDelete }: { lesson: Lesson; onSave: (patch: Partial<Lesson>) => void; onDelete: () => void }) {
+function LessonEditor({ lesson, onSave, onDelete, onCheckScorm, checkingScorm }: { lesson: Lesson; onSave: (patch: Partial<Lesson>) => void; onDelete: () => void; onCheckScorm: () => void; checkingScorm: boolean }) {
   const [form, setForm] = useState<Lesson>(lesson);
   const set = (k: keyof Lesson, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -282,8 +284,8 @@ function LessonEditor({ lesson, onSave, onDelete }: { lesson: Lesson; onSave: (p
           <Label>SCORM launch URL</Label>
           <Input value={form.launch_url ?? ""} disabled />
           <p className="text-xs text-muted-foreground mt-1">Заполняется автоматически при импорте SCORM-пакета.</p>
-          <Button type="button" variant="outline" size="sm" onClick={() => checkScorm.mutate()} disabled={checkScorm.isPending}>
-            <Stethoscope className="mr-2 h-4 w-4" />{checkScorm.isPending ? "Проверяем…" : "Проверить пакет"}
+          <Button type="button" variant="outline" size="sm" onClick={onCheckScorm} disabled={checkingScorm}>
+            <Stethoscope className="mr-2 h-4 w-4" />{checkingScorm ? "Проверяем…" : "Проверить пакет"}
           </Button>
         </div>
       )}
