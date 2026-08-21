@@ -346,14 +346,15 @@ class ScormController extends Controller
         }
 
         $version = $course->scorm_version === '2004' ? '2004' : '1.2';
-        $launchUrl = $this->assetUrl($course->scorm_package_path, (string) $lesson->launch_url);
+        $base = $this->healPackagePath($course, (string) $lesson->launch_url);
+        $launchUrl = $this->assetUrl($base, (string) $lesson->launch_url);
         $html = $this->launchHtml($launchUrl, $payload['enrollment_id'], (string) $payload['lesson_id'], $version);
 
         $cookie = cookie(
             self::SESSION_COOKIE,
             $this->signSession([
                 'uid'           => $payload['user_id'],
-                'package_path'  => $payload['package_path'],
+                'package_path'  => $base,
                 'enrollment_id' => $payload['enrollment_id'],
                 'exp'           => time() + 4 * 3600,
             ]),
