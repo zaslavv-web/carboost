@@ -707,8 +707,16 @@ class ScormController extends Controller
         $disk = Storage::disk('scorm-packages');
         $full = $disk->path($path);
         if (! file_exists($full) || is_dir($full)) {
-            return response()->json(['error' => 'not found'], 404);
+            // Пакеты, импортированные до фикса путей, ссылаются на файл от корня,
+            // хотя он лежит рядом с imsmanifest.xml (подпапка архива).
+            $relative = ltrim(implode('/', array_slice($segments, 2)), '/');
+            $resolved = $relative === '' ? '' : $this->resolveHrefOnDisk($disk, $packagePath, '', $relative);
+            $full = $resolved ? $disk->path($packagePath . '/' . $resolved) : '';
+            if (! $full || ! file_exists($full) || is_dir($full)) {
+                return response()->json(['error' => 'not found'], 404);
+            }
         }
+
 
         $mime = mime_content_type($full) ?: 'application/octet-stream';
         return response()->file($full, ['Content-Type' => $mime]);
