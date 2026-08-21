@@ -144,6 +144,33 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
   const companyId = profile?.company_id;
   const qc = useQueryClient();
 
+  // Справочник должностей (для подписи динамической аудитории задач)
+  const { data: positionsList = [] } = useQuery({
+    queryKey: ["hr_task_positions", companyId],
+    queryFn: async () => {
+      const { data, error } = await laravel.get<{ positions: { id: string; title: string }[] }>(
+        "/hr-tasks/audience/options",
+      );
+      if (error) throw new Error(error.message);
+      return data?.positions || [];
+    },
+    enabled: !!companyId,
+    staleTime: 5 * 60 * 1000,
+  });
+  const positionTitleById = useMemo(
+    () => new Map(positionsList.map((p) => [p.id, p.title])),
+    [positionsList],
+  );
+
+  // Досоздание исполнителей у задач с динамической аудиторией
+  useEffect(() => {
+    if (!companyId) return;
+    laravel
+      .post("/hr-tasks/audience/sync", {})
+      .then(() => qc.invalidateQueries({ queryKey: ["hrd_map_hr_tasks"] }))
+      .catch(() => {});
+  }, [companyId, qc]);
+
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [taskFormFromId, setTaskFormFromId] = useState<string | null>(null);
