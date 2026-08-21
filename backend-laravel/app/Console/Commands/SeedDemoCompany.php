@@ -109,8 +109,53 @@ class SeedDemoCompany extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Догоняющий прогон: компания и сотрудники уже есть, нужно только
+     * (при необходимости) создать шаблоны треков и назначить их людям.
+     */
+    private function runOnlyCareer(): int
+    {
+        $company = DB::table('companies')->where('name', $this->companyName)->first();
+        if (! $company) {
+            $this->error("Демо-компания «{$this->companyName}» не найдена. Сначала запустите полный сидинг.");
+            return self::FAILURE;
+        }
+        $this->companyId = (string) $company->id;
+
+        // Карта должностей и список HRD — нужны для создания/назначения треков
+        $this->positionIds = DB::table('positions')
+            ->where('company_id', $this->companyId)
+            ->pluck('id', 'title')
+            ->map(fn ($v) => (string) $v)
+            ->all();
+
+        $hrdIds = DB::table('profiles')
+            ->join('user_roles', 'user_roles.user_id', '=', 'profiles.user_id')
+            ->where('profiles.company_id', $this->companyId)
+            ->whereIn('user_roles.role', ['hrd', 'hr', 'company_admin'])
+            ->pluck('profiles.user_id')
+            ->map(fn ($v) => (string) $v)
+            ->all();
+        $this->userIds['hrd'] = $hrdIds;
+
+        DB::transaction(function () {
+            $existing = DB::table('career_track_templates')->where('company_id', $this->companyId)->count();
+            if ($existing === 0) {
+                $this->info('Шаблонов треков нет — создаю…');
+                $this->createCareerTracks();
+            } else {
+                $this->line("Шаблонов треков: {$existing}");
+            }
+            $this->assignCareerTracks();
+        });
+
+        $this->info('✅ Карьерные треки обновлены.');
+        return self::SUCCESS;
+    }
+
     private function randomValue(array $items, string $context = 'array')
     {
+
         if ($items === []) {
             throw new \RuntimeException("Demo seed: пустой массив для случайного выбора ({$context}).");
         }
