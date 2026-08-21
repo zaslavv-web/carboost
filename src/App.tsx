@@ -15,6 +15,7 @@ import CareerTrack from "@/pages/CareerTrack";
 import Notifications from "@/pages/Notifications";
 import ManagerDashboard from "@/pages/ManagerDashboard";
 import HRDDashboard from "@/pages/HRDDashboard";
+import EmployeeMapPage from "@/pages/EmployeeMapPage";
 import SuperadminDashboard from "@/pages/SuperadminDashboard";
 import SeedDemoCompany from "@/pages/SeedDemoCompany";
 import UsersManagement from "@/pages/UsersManagement";
@@ -168,6 +169,14 @@ const App = () => (
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/team" element={<ManagerDashboard />} />
                 <Route path="/employees" element={<HRDDashboard />} />
+                <Route
+                  path="/employee-map"
+                  element={
+                    <RoleOnly roles={["hrd", "hr", "company_admin", "manager", "superadmin"]} fallback="/employees">
+                      <EmployeeMapPage />
+                    </RoleOnly>
+                  }
+                />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/product-analytics" element={<SuperadminOnly><ProductAnalytics /></SuperadminOnly>} />
                 <Route path="/superadmin" element={<SuperadminDashboard />} />
