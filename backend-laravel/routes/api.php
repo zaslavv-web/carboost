@@ -679,6 +679,12 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::get   ('/university/blockers',                [\App\Http\Controllers\Api\EnrollmentController::class, 'blockers']);
         Route::get   ('/university/certificate/{serial}',    [\App\Http\Controllers\Api\EnrollmentController::class, 'certificate']);
 
+        // HR-задачи с динамической аудиторией (отдел / должность / грейд)
+        Route::get   ('/hr-tasks/audience/options', [\App\Http\Controllers\Api\HrTaskAudienceController::class, 'options']);
+        Route::post  ('/hr-tasks/audience/preview', [\App\Http\Controllers\Api\HrTaskAudienceController::class, 'preview']);
+        Route::post  ('/hr-tasks/audience/sync',    [\App\Http\Controllers\Api\HrTaskAudienceController::class, 'sync']);
+        Route::post  ('/hr-tasks',                  [\App\Http\Controllers\Api\HrTaskAudienceController::class, 'store']);
+
         // Привязка обучения к аудитории (пользователи / отделы / грейды / стаж / должности / импорт списка)
         Route::get   ('/university/audience/options',        [\App\Http\Controllers\Api\EnrollmentController::class, 'audienceOptions']);
         Route::get   ('/university/audience/search',         [\App\Http\Controllers\Api\EnrollmentController::class, 'audienceSearch']);

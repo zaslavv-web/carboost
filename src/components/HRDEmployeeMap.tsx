@@ -5,7 +5,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   type Node,
   type Edge,
   MarkerType,
@@ -14,6 +13,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { laravelDb } from "@/integrations/laravel/db";
+import { laravel } from "@/integrations/laravel/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,7 @@ import {
   ChevronRight,
   ArrowUp,
   Building2,
+  ExternalLink,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -77,6 +78,12 @@ interface Employee {
   role_readiness: number | null;
 }
 
+interface TaskAudience {
+  departments?: string[];
+  position_ids?: string[];
+  grades?: string[];
+}
+
 interface TeamLink {
   manager_id: string;
   employee_id: string;
@@ -93,6 +100,7 @@ interface HrTask {
   created_by: string;
   created_at: string;
   reviewed_at: string | null;
+  audience_rules?: TaskAudience | string | null;
   assignees: { user_id: string; individual_status: string; reward_paid: boolean }[];
 }
 
@@ -106,12 +114,62 @@ const initials = (name: string) =>
     .map((s) => s[0]?.toUpperCase())
     .join("");
 
-const HRDEmployeeMap = () => {
+const parseAudience = (raw: TaskAudience | string | null | undefined): TaskAudience | null => {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw) as TaskAudience; } catch { return null; }
+  }
+  return raw;
+};
+
+/** Человекочитаемая подпись динамической аудитории задачи. */
+const audienceLabel = (
+  raw: TaskAudience | string | null | undefined,
+  positionTitleById: Map<string, string>,
+): string | null => {
+  const a = parseAudience(raw);
+  if (!a) return null;
+  const parts: string[] = [];
+  if (a.departments?.length) parts.push(`Отдел: ${a.departments.join(", ")}`);
+  if (a.position_ids?.length)
+    parts.push(`Должность: ${a.position_ids.map((id) => positionTitleById.get(id) || id).join(", ")}`);
+  if (a.grades?.length) parts.push(`Грейд: ${a.grades.join(", ")}`);
+  return parts.length ? parts.join(" • ") : null;
+};
+
+const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) => {
   const { t } = useTranslation("manager");
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
   const companyId = profile?.company_id;
   const qc = useQueryClient();
+
+  // Справочник должностей (для подписи динамической аудитории задач)
+  const { data: positionsList = [] } = useQuery({
+    queryKey: ["hr_task_positions", companyId],
+    queryFn: async () => {
+      const { data, error } = await laravel.get<{ positions: { id: string; title: string }[] }>(
+        "/hr-tasks/audience/options",
+      );
+      if (error) throw new Error(error.message);
+      return data?.positions || [];
+    },
+    enabled: !!companyId,
+    staleTime: 5 * 60 * 1000,
+  });
+  const positionTitleById = useMemo(
+    () => new Map(positionsList.map((p) => [p.id, p.title])),
+    [positionsList],
+  );
+
+  // Досоздание исполнителей у задач с динамической аудиторией
+  useEffect(() => {
+    if (!companyId) return;
+    laravel
+      .post("/hr-tasks/audience/sync", {})
+      .then(() => qc.invalidateQueries({ queryKey: ["hrd_map_hr_tasks"] }))
+      .catch(() => {});
+  }, [companyId, qc]);
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
@@ -633,29 +691,20 @@ const HRDEmployeeMap = () => {
       reward: number;
       deadline: string | null;
       assigneeIds: string[];
+      audience?: TaskAudience | null;
     }) => {
       if (!companyId || !user) throw new Error(t("employeeMap.toasts.noCompany"));
-      const { data: task, error } = await laravelDb
-        .from("hr_tasks")
-        .insert({
-          company_id: companyId,
-          created_by: user.id,
-          title: payload.title,
-          description: payload.description || null,
-          category: payload.category,
-          reward_coins: payload.reward,
-          deadline: payload.deadline,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      if (payload.assigneeIds.length > 0) {
-        const { error: aErr } = await laravelDb.from("hr_task_assignees").insert(
-          payload.assigneeIds.map((uid) => ({ task_id: task.id, user_id: uid })),
-        );
-        if (aErr) throw aErr;
-      }
-      return task;
+      const { data, error } = await laravel.post<{ id: string; assignees: number }>("/hr-tasks", {
+        title: payload.title,
+        description: payload.description || null,
+        category: payload.category,
+        reward_coins: payload.reward,
+        deadline: payload.deadline,
+        assignee_ids: payload.assigneeIds,
+        audience: payload.audience || null,
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hrd_map_hr_tasks"] });
@@ -743,21 +792,30 @@ const HRDEmployeeMap = () => {
             {t("employeeMap.subtitle")}
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setTaskFormFromId(user?.id || null);
-            setTaskFormToId(selectedEmployeeId);
-            setCreateTaskOpen(true);
-          }}
-        >
-          <Plus className="w-4 h-4 mr-2" /> {t("employeeMap.newTask")}
-        </Button>
+        <div className="flex items-center gap-2">
+          {!standalone && (
+            <Button variant="outline" asChild>
+              <a href="/employee-map" target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="w-4 h-4 mr-2" /> Открыть в новом окне
+              </a>
+            </Button>
+          )}
+          <Button
+            onClick={() => {
+              setTaskFormFromId(user?.id || null);
+              setTaskFormToId(selectedEmployeeId);
+              setCreateTaskOpen(true);
+            }}
+          >
+            <Plus className="w-4 h-4 mr-2" /> {t("employeeMap.newTask")}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
         <div
           className="bg-card rounded-xl border border-border overflow-hidden react-flow-contrast-cursor flex flex-col"
-          style={{ height: "70vh" }}
+          style={{ height: standalone ? "calc(100vh - 190px)" : "70vh" }}
         >
           {/* Breadcrumbs / drill-down navigation */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30 text-xs">
@@ -837,11 +895,6 @@ const HRDEmployeeMap = () => {
             >
               <Background color="hsl(var(--border))" gap={20} />
               <Controls />
-              <MiniMap
-                nodeColor={() => "hsl(var(--primary))"}
-                maskColor="hsl(var(--background) / 0.7)"
-                style={{ background: "hsl(var(--card))" }}
-              />
             </ReactFlow>
           </div>
         </div>
@@ -974,6 +1027,11 @@ const HRDEmployeeMap = () => {
                             </span>
                           )}
                           <span>· {t("employeeMap.tasks.assigneesShort", { count: task.assignees.length })}</span>
+                          {audienceLabel(task.audience_rules, positionTitleById) && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              {audienceLabel(task.audience_rules, positionTitleById)}
+                            </Badge>
+                          )}
                         </div>
                         {task.status !== "completed" && task.status !== "cancelled" && (
                           <div className="flex gap-2">
@@ -1085,6 +1143,7 @@ interface CreateHrTaskDialogProps {
     reward: number;
     deadline: string | null;
     assigneeIds: string[];
+    audience?: TaskAudience | null;
   }) => void;
   isPending: boolean;
 }
@@ -1106,6 +1165,44 @@ const CreateHrTaskDialog = ({
   const [reward, setReward] = useState(50);
   const [deadline, setDeadline] = useState("");
   const [assigneeIds, setAssigneeIds] = useState<string[]>(defaultAssigneeId ? [defaultAssigneeId] : []);
+  const [mode, setMode] = useState<"people" | "audience">("people");
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [positionIds, setPositionIds] = useState<string[]>([]);
+  const [grades, setGrades] = useState<string[]>([]);
+
+  const { data: options } = useQuery({
+    queryKey: ["hr_task_audience_options"],
+    queryFn: async () => {
+      const { data, error } = await laravel.get<{
+        departments: string[];
+        positions: { id: string; title: string }[];
+        grades: string[];
+      }>("/hr-tasks/audience/options");
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const audience: TaskAudience = useMemo(
+    () => ({ departments, position_ids: positionIds, grades }),
+    [departments, positionIds, grades],
+  );
+  const audienceEmpty = departments.length === 0 && positionIds.length === 0 && grades.length === 0;
+
+  const { data: preview } = useQuery({
+    queryKey: ["hr_task_audience_preview", audience],
+    queryFn: async () => {
+      const { data, error } = await laravel.post<{ count: number }>("/hr-tasks/audience/preview", audience);
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    enabled: open && mode === "audience" && !audienceEmpty,
+  });
+
+  const toggleIn = (arr: string[], set: (v: string[]) => void, v: string) =>
+    set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   // Reset on open
   useEffect(() => {
@@ -1116,6 +1213,10 @@ const CreateHrTaskDialog = ({
       setReward(50);
       setDeadline("");
       setAssigneeIds(defaultAssigneeId ? [defaultAssigneeId] : []);
+      setMode("people");
+      setDepartments([]);
+      setPositionIds([]);
+      setGrades([]);
     }
   }, [open, defaultAssigneeId]);
 
@@ -1128,8 +1229,12 @@ const CreateHrTaskDialog = ({
       toast.error(t("employeeMap.toasts.needTitle"));
       return;
     }
-    if (assigneeIds.length === 0) {
+    if (mode === "people" && assigneeIds.length === 0) {
       toast.error(t("employeeMap.toasts.needAssignee"));
+      return;
+    }
+    if (mode === "audience" && audienceEmpty) {
+      toast.error("Выберите отдел, должность или грейд");
       return;
     }
     onSubmit({
@@ -1138,7 +1243,8 @@ const CreateHrTaskDialog = ({
       category,
       reward: Number(reward) || 0,
       deadline: deadline || null,
-      assigneeIds,
+      assigneeIds: mode === "people" ? assigneeIds : [],
+      audience: mode === "audience" ? audience : null,
     });
   };
 
@@ -1178,36 +1284,76 @@ const CreateHrTaskDialog = ({
             <Label>{t("employeeMap.dialog.deadline")}</Label>
             <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
           </div>
-          <div>
-            <Label>{t("employeeMap.dialog.assignees", { count: assigneeIds.length })}</Label>
-            <ScrollArea className="h-40 border border-border rounded-lg p-2 mt-1">
-              <div className="space-y-1">
-                {employees.map((e) => (
-                  <button
-                    key={e.user_id}
-                    type="button"
-                    onClick={() => toggleAssignee(e.user_id)}
-                    className={`w-full flex items-center gap-2 p-2 rounded text-left text-sm transition-colors ${
-                      assigneeIds.includes(e.user_id)
-                        ? "bg-primary/10 text-foreground"
-                        : "hover:bg-secondary"
-                    }`}
-                  >
-                    <Avatar className="w-6 h-6">
-                      <AvatarFallback className="text-[10px]">{initials(e.full_name || "?")}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="truncate text-xs font-medium">{e.full_name}</div>
-                      <div className="truncate text-[10px] text-muted-foreground">
-                        {e.position || "—"}
-                      </div>
-                    </div>
-                    {assigneeIds.includes(e.user_id) && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
-                  </button>
-                ))}
-              </div>
-            </ScrollArea>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant={mode === "people" ? "default" : "outline"} onClick={() => setMode("people")}>
+              Конкретные сотрудники
+            </Button>
+            <Button type="button" size="sm" variant={mode === "audience" ? "default" : "outline"} onClick={() => setMode("audience")}>
+              Отдел / группа
+            </Button>
           </div>
+
+          {mode === "people" ? (
+            <div>
+              <Label>{t("employeeMap.dialog.assignees", { count: assigneeIds.length })}</Label>
+              <ScrollArea className="h-40 border border-border rounded-lg p-2 mt-1">
+                <div className="space-y-1">
+                  {employees.map((e) => (
+                    <button
+                      key={e.user_id}
+                      type="button"
+                      onClick={() => toggleAssignee(e.user_id)}
+                      className={`w-full flex items-center gap-2 p-2 rounded text-left text-sm transition-colors ${
+                        assigneeIds.includes(e.user_id)
+                          ? "bg-primary/10 text-foreground"
+                          : "hover:bg-secondary"
+                      }`}
+                    >
+                      <Avatar className="w-6 h-6">
+                        <AvatarFallback className="text-[10px]">{initials(e.full_name || "?")}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate text-xs font-medium">{e.full_name}</div>
+                        <div className="truncate text-[10px] text-muted-foreground">{e.position || "—"}</div>
+                      </div>
+                      {assigneeIds.includes(e.user_id) && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Задача останется привязанной к выбранной группе: новые сотрудники получат её автоматически.
+              </p>
+              <ScrollArea className="h-44 border border-border rounded-lg p-2">
+                <div className="space-y-3">
+                  <AudienceGroup
+                    title="Отделы"
+                    items={(options?.departments || []).map((d) => ({ id: d, label: d }))}
+                    selected={departments}
+                    onToggle={(v) => toggleIn(departments, setDepartments, v)}
+                  />
+                  <AudienceGroup
+                    title="Должности"
+                    items={(options?.positions || []).map((p) => ({ id: p.id, label: p.title }))}
+                    selected={positionIds}
+                    onToggle={(v) => toggleIn(positionIds, setPositionIds, v)}
+                  />
+                  <AudienceGroup
+                    title="Грейды"
+                    items={(options?.grades || []).map((g) => ({ id: g, label: g }))}
+                    selected={grades}
+                    onToggle={(v) => toggleIn(grades, setGrades, v)}
+                  />
+                </div>
+              </ScrollArea>
+              <div className="text-xs text-muted-foreground">
+                {audienceEmpty ? "Выберите условия аудитории" : `Попадает сотрудников: ${preview?.count ?? "…"}`}
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t("employeeMap.dialog.cancel")}</Button>
@@ -1218,6 +1364,41 @@ const CreateHrTaskDialog = ({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const AudienceGroup = ({
+  title,
+  items,
+  selected,
+  onToggle,
+}: {
+  title: string;
+  items: { id: string; label: string }[];
+  selected: string[];
+  onToggle: (id: string) => void;
+}) => {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <div className="text-[11px] uppercase text-muted-foreground mb-1">{title}</div>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((it) => (
+          <button
+            key={it.id}
+            type="button"
+            onClick={() => onToggle(it.id)}
+            className={`text-xs px-2 py-1 rounded border transition-colors ${
+              selected.includes(it.id)
+                ? "bg-primary text-primary-foreground border-primary"
+                : "border-border hover:bg-secondary"
+            }`}
+          >
+            {it.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 };
 

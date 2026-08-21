@@ -22,6 +22,24 @@ class Profile extends Model
         'is_verified' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        // Динамическая аудитория HR-задач: при смене отдела/должности/грейда
+        // сотрудник автоматически получает подходящие задачи.
+        static::updated(function (self $m) {
+            if (! $m->wasChanged(['department', 'position_id', 'grade'])) return;
+            try {
+                \App\Http\Controllers\Api\HrTaskAudienceController::syncCompany(
+                    $m->company_id ? (string) $m->company_id : null,
+                    (string) $m->user_id
+                );
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
+    }
+
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'id');

@@ -66,6 +66,9 @@ class SeedDemoCompany extends Command
             $this->info('5/12  Расставляю руководителей и team_members…');
             $this->assignManagers();
 
+            $this->info('5.1   Назначаю карьерные треки сотрудникам…');
+            $this->assignCareerTracks();
+
             $this->info('6/12  Валюта, кошельки, транзакции…');
             $this->seedCurrency();
 
@@ -551,6 +554,125 @@ class SeedDemoCompany extends Command
                 ]
             );
         }
+    }
+
+    /**
+     * Назначает карьерные треки части сотрудников: активные назначения,
+     * личные цели по шагам и несколько отправленных/одобренных шагов —
+     * чтобы раздел «Карьера» в демо не выглядел пустым.
+     */
+    private function assignCareerTracks(): void
+    {
+        $templates = DB::table('career_track_templates')
+            ->where('company_id', $this->companyId)
+            ->get(['id', 'from_position_id', 'steps']);
+        if ($templates->isEmpty()) return;
+
+        $byFrom = [];
+        foreach ($templates as $tpl) {
+            $byFrom[(string) $tpl->from_position_id][] = $tpl;
+        }
+
+        $profiles = DB::table('profiles')
+            ->where('company_id', $this->companyId)
+            ->whereNotNull('position_id')
+            ->get(['user_id', 'position_id']);
+
+        $hrd = $this->userIds['hrd'][0] ?? null;
+        $assigned = 0;
+
+        foreach ($profiles as $prof) {
+            $candidates = $byFrom[(string) $prof->position_id] ?? null;
+            if (! $candidates) continue;
+            if (random_int(1, 100) > 40) continue; // ~40% сотрудников на треке
+
+            $tpl = $candidates[array_rand($candidates)];
+            $steps = json_decode((string) $tpl->steps, true);
+            $steps = is_array($steps) ? $steps : [];
+            $total = max(1, count($steps));
+
+            $currentStep = random_int(1, $total);
+            $status = $currentStep >= $total && random_int(1, 100) <= 40 ? 'completed' : 'active';
+
+            $assignmentId = (string) Str::uuid();
+            DB::table('employee_career_assignments')->insert([
+                'id'                  => $assignmentId,
+                'company_id'          => $this->companyId,
+                'user_id'             => $prof->user_id,
+                'template_id'         => $tpl->id,
+                'current_step'        => $currentStep,
+                'personal_motivation' => 'Хочу вырасти в целевую роль в течение года.',
+                'status'              => $status,
+                'assigned_by'         => $hrd,
+                'assigned_at'         => now()->subDays(random_int(10, 200)),
+                'updated_at'          => now(),
+            ]);
+            $assigned++;
+
+            // Личные цели по шагам трека
+            foreach ($steps as $i => $step) {
+                $order = $i + 1;
+                $goals = (array) ($step['goals'] ?? []);
+                foreach ($goals as $goal) {
+                    $done = $order < $currentStep || $status === 'completed';
+                    DB::table('career_goals')->insert([
+                        'id'             => (string) Str::uuid(),
+                        'company_id'     => $this->companyId,
+                        'user_id'        => $prof->user_id,
+                        'assignment_id'  => $assignmentId,
+                        'step_order'     => $order,
+                        'auto_generated' => true,
+                        'title'          => (string) $goal,
+                        'description'    => 'Шаг: ' . (string) ($step['title'] ?? "Этап {$order}"),
+                        'status'         => $done ? 'completed' : 'in_progress',
+                        'progress'       => $done ? 100 : ($order === $currentStep ? random_int(10, 80) : 0),
+                        'deadline'       => now()->addMonths($order * 2)->toDateString(),
+                        'created_at'     => now(),
+                        'updated_at'     => now(),
+                    ]);
+                }
+            }
+
+            // Отправленные/одобренные шаги для пройденной части трека
+            for ($order = 1; $order < $currentStep; $order++) {
+                DB::table('career_step_submissions')->insert([
+                    'id'            => (string) Str::uuid(),
+                    'assignment_id' => $assignmentId,
+                    'template_id'   => $tpl->id,
+                    'step_order'    => $order,
+                    'user_id'       => $prof->user_id,
+                    'company_id'    => $this->companyId,
+                    'attempt_no'    => 1,
+                    'is_reinforced' => false,
+                    'comment'       => 'Артефакты по шагу приложены, готов к ревью.',
+                    'status'        => 'approved',
+                    'reviewed_by'   => $hrd,
+                    'reviewed_at'   => now()->subDays(random_int(1, 60)),
+                    'created_at'    => now()->subDays(random_int(60, 120)),
+                    'updated_at'    => now(),
+                ]);
+            }
+
+            // Текущий шаг части сотрудников — на проверке
+            if ($status === 'active' && random_int(1, 100) <= 30) {
+                DB::table('career_step_submissions')->insert([
+                    'id'            => (string) Str::uuid(),
+                    'assignment_id' => $assignmentId,
+                    'template_id'   => $tpl->id,
+                    'step_order'    => $currentStep,
+                    'user_id'       => $prof->user_id,
+                    'company_id'    => $this->companyId,
+                    'attempt_no'    => 1,
+                    'is_reinforced' => false,
+                    'comment'       => 'Прошу проверить результаты текущего шага.',
+                    'status'        => 'pending',
+                    'created_at'    => now()->subDays(random_int(1, 10)),
+                    'updated_at'    => now(),
+                ]);
+            }
+        }
+
+        $this->line("      назначено треков: {$assigned}");
     }
 
     private function trackStepsFor(string $from, string $to): array
