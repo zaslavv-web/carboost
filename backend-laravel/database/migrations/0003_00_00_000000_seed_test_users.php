@@ -14,10 +14,24 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 return new class extends Migration {
+    /** Кросс-драйверная интроспекция: MySQL на бою, SQLite в тестах. */
+    private function columnsOf(string $table): array
+    {
+        try {
+            return Schema::getColumns($table);
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
     private function tableIdIsInteger(string $table): bool
     {
-        $column = DB::selectOne("SHOW COLUMNS FROM `{$table}` LIKE 'id'");
-        return $column && str_contains(strtolower((string) $column->Type), 'int');
+        foreach ($this->columnsOf($table) as $col) {
+            if (strcasecmp((string) ($col['name'] ?? ''), 'id') === 0) {
+                return str_contains(strtolower((string) ($col['type'] ?? '')), 'int');
+            }
+        }
+        return false;
     }
 
     private function newIdFor(string $table): ?string
@@ -32,20 +46,19 @@ return new class extends Migration {
      */
     private function fillRequiredColumns(string $table, array $row, array $hints = []): array
     {
-        $columns = DB::select("SHOW COLUMNS FROM `{$table}`");
-        foreach ($columns as $col) {
-            $field = $col->Field;
-            if (array_key_exists($field, $row)) continue;
-            if (strtolower($col->Null) === 'yes') continue;
-            if ($col->Default !== null) continue;
-            if (stripos((string) $col->Extra, 'auto_increment') !== false) continue;
+        foreach ($this->columnsOf($table) as $col) {
+            $field = (string) ($col['name'] ?? '');
+            if ($field === '' || array_key_exists($field, $row)) continue;
+            if (($col['nullable'] ?? false) === true) continue;
+            if (($col['default'] ?? null) !== null) continue;
+            if (($col['auto_increment'] ?? false) === true) continue;
 
             if (array_key_exists($field, $hints)) {
                 $row[$field] = $hints[$field];
                 continue;
             }
 
-            $type = strtolower((string) $col->Type);
+            $type = strtolower((string) ($col['type'] ?? ''));
             if (str_contains($type, 'int') || str_contains($type, 'decimal') || str_contains($type, 'float') || str_contains($type, 'double')) {
                 $row[$field] = 0;
             } elseif (str_contains($type, 'json')) {
@@ -58,6 +71,7 @@ return new class extends Migration {
         }
         return $row;
     }
+
 
     public function up(): void
     {
