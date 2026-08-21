@@ -25,7 +25,10 @@ class ImpersonationTest extends TestCase
         $super  = $this->makeUser('superadmin');
         $target = $this->makeUser('employee');
 
-        $res = $this->actingAs($super, 'sanctum')
+        // Endpoint переиспускает текущий bearer-токен, поэтому шлём реальный.
+        $token = $super->createToken('test')->plainTextToken;
+
+        $res = $this->withHeader('Authorization', 'Bearer ' . $token)
             ->postJson('/api/impersonation/start', ['target_user_id' => $target->id]);
         $res->assertStatus(201)->assertJsonStructure(['token']);
     }
