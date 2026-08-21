@@ -73,7 +73,7 @@ export default function SeedDemoCompany() {
     toast.success(`Скопировано ${status.users.length} логинов`);
   };
 
-  const busy = seed.isPending || reset.isPending;
+  const busy = seed.isPending || reset.isPending || careerTracks.isPending;
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
