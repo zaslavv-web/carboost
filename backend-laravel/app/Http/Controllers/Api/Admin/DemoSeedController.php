@@ -96,13 +96,21 @@ class DemoSeedController extends Controller
         $templates = $company
             ? DB::table('career_track_templates')->where('company_id', $company->id)->count()
             : 0;
+        $controlEmployeeAssignments = $company
+            ? DB::table('employee_career_assignments')
+                ->join('users', 'users.id', '=', 'employee_career_assignments.user_id')
+                ->where('employee_career_assignments.company_id', $company->id)
+                ->where('users.email', 'employee.76@demo.pikrosta.ru')
+                ->count()
+            : 0;
 
         return response()->json([
-            'ok' => $assignments > 0,
+            'ok' => $assignments > 0 && $controlEmployeeAssignments > 0,
             'output' => $output,
             'career_templates' => $templates,
             'career_assignments' => $assignments,
-        ], $assignments > 0 ? 200 : 422);
+            'control_employee_assignments' => $controlEmployeeAssignments,
+        ], $assignments > 0 && $controlEmployeeAssignments > 0 ? 200 : 422);
     }
 
 

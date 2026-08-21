@@ -793,11 +793,6 @@ class SeedDemoCompany extends Command
     private function ensureMinimumTracks(array $existingPairs, int $minimum = 10): void
     {
         $total = DB::table('career_track_templates')->where('company_id', $this->companyId)->count();
-        if ($total >= $minimum) {
-            $this->line("      всего шаблонов треков: {$total}");
-            return;
-        }
-
         $positions = DB::table('positions')
             ->where('company_id', $this->companyId)
             ->orderBy('department')
@@ -810,9 +805,17 @@ class SeedDemoCompany extends Command
         }
 
         foreach ($byDept as $dept => $list) {
-            for ($i = 0; $i < count($list) - 1 && $total < $minimum; $i++) {
+            if (count($list) < 2) continue;
+
+            for ($i = 0; $i < count($list); $i++) {
                 $from = $list[$i];
-                $to = $list[$i + 1];
+                $hasOutgoingTrack = collect(array_keys($existingPairs))
+                    ->contains(fn ($pair) => str_starts_with($pair, (string) $from->id . '>'));
+                if ($hasOutgoingTrack && $total >= $minimum) continue;
+
+                // Для последней должности отдела замыкаем демонстрационный граф
+                // на первую: так у каждого сотрудника есть хотя бы один вариант.
+                $to = $list[($i + 1) % count($list)];
                 $key = (string) $from->id . '>' . (string) $to->id;
                 if (isset($existingPairs[$key])) continue;
                 $existingPairs[$key] = true;
@@ -905,9 +908,18 @@ class SeedDemoCompany extends Command
             }
             $matched += count($candidates);
 
+            $candidateIds = array_map(fn ($tpl) => (string) $tpl->id, $candidates);
+            $assignedIds = [];
+            foreach ($candidateIds as $candidateId) {
+                if (isset($already[(string) $prof->user_id . '>' . $candidateId])) {
+                    $assignedIds[] = $candidateId;
+                }
+            }
+            $missingIds = array_flip(self::missingTemplateIdsForEmployee($candidateIds, $assignedIds));
+
             foreach ($candidates as $tpl) {
+                if (! isset($missingIds[(string) $tpl->id])) continue;
                 $pairKey = (string) $prof->user_id . '>' . (string) $tpl->id;
-                if (isset($already[$pairKey])) continue;
                 $already[$pairKey] = true;
 
                 $steps = json_decode((string) $tpl->steps, true);
@@ -1016,6 +1028,24 @@ class SeedDemoCompany extends Command
                 ->count();
             $this->line("      контроль employee.76: назначений {$demo76Assignments}");
         }
+    }
+
+    /**
+     * Возвращает все ещё не назначенные подходящие шаблоны. Вынесено отдельно,
+     * чтобы правило «все подходящие, без дублей» проверялось unit-тестом.
+     *
+     * @param array<int,string> $candidateIds
+     * @param array<int,string> $assignedIds
+     * @return array<int,string>
+     */
+    public static function missingTemplateIdsForEmployee(array $candidateIds, array $assignedIds): array
+    {
+        $assigned = array_fill_keys(array_map('strval', $assignedIds), true);
+
+        return array_values(array_filter(
+            array_unique(array_map('strval', $candidateIds)),
+            fn (string $id) => ! isset($assigned[$id]),
+        ));
     }
 
     private function trackStepsFor(string $from, string $to): array
