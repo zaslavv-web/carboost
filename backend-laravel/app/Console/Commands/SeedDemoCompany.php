@@ -490,8 +490,152 @@ class SeedDemoCompany extends Command
 
 
     // ---------- 3. career tracks ----------
+
+    private function normalizeTitle(string $title): string
+    {
+        $t = mb_strtolower(trim($title));
+        $t = preg_replace('/[\s\x{00A0}]+/u', ' ', $t);
+        $t = str_replace(['ё'], ['е'], $t);
+        return (string) preg_replace('/[^\p{L}\p{N} ]+/u', '', $t);
+    }
+
+    /** Русско-английские синонимы должностей: normalized(alias) => каноничное название. */
+    private function positionSynonyms(): array
+    {
+        $map = [
+            'разработчик'                 => 'Backend Developer',
+            'бэкенд разработчик'          => 'Backend Developer',
+            'backend разработчик'         => 'Backend Developer',
+            'программист'                 => 'Backend Developer',
+            'фронтенд разработчик'        => 'Frontend Developer',
+            'frontend разработчик'        => 'Frontend Developer',
+            'фулстек разработчик'         => 'Fullstack Developer',
+            'тестировщик'                 => 'QA Engineer',
+            'инженер по тестированию'     => 'QA Engineer',
+            'девопс'                      => 'DevOps Engineer',
+            'девопс инженер'              => 'DevOps Engineer',
+            'дизайнер'                    => 'UX/UI Designer',
+            'uxui дизайнер'               => 'UX/UI Designer',
+            'продуктовый дизайнер'        => 'Product Designer',
+            'менеджер по продажам'        => 'Sales Manager',
+            'руководитель отдела продаж'  => 'Head of Sales',
+            'аккаунт менеджер'            => 'Account Manager',
+            'маркетолог'                  => 'Marketing Manager',
+            'контент менеджер'            => 'Content Manager',
+            'seo специалист'              => 'SEO Specialist',
+            'hr бизнес партнер'           => 'HR Business Partner',
+            'рекрутер'                    => 'Recruiter',
+            'специалист по обучению'      => 'L&D Specialist',
+            'продакт менеджер'            => 'Product Manager',
+            'менеджер продукта'           => 'Product Manager',
+            'продакт оунер'               => 'Product Owner',
+            'владелец продукта'           => 'Product Owner',
+            'продуктовый аналитик'        => 'Product Analyst',
+            'аналитик'                    => 'Product Analyst',
+            'финансовый аналитик'         => 'Financial Analyst',
+            'бухгалтер'                   => 'Accountant',
+            'инженер поддержки'           => 'Support Engineer',
+            'специалист поддержки'        => 'Support Engineer',
+            'менеджер по работе с клиентами' => 'Customer Success Manager',
+        ];
+        $out = [];
+        foreach ($map as $alias => $canonical) {
+            $out[$this->normalizeTitle($alias)] = $canonical;
+        }
+        return $out;
+    }
+
+    /** Отдел, к которому относится каноничная должность. */
+    private function departmentForPosition(string $title): string
+    {
+        foreach ($this->departmentCatalog() as $dept => $titles) {
+            if (in_array($title, $titles, true)) return $dept;
+        }
+        return 'Разработка';
+    }
+
+    /**
+     * Находит должность компании по названию, устойчиво к регистру, пробелам
+     * и русским синонимам. Если должности нет — создаёт её.
+     */
+    private function resolvePositionId(string $title): string
+    {
+        if (isset($this->positionIds[$title])) return $this->positionIds[$title];
+
+        $normIndex = [];
+        foreach ($this->positionIds as $known => $id) {
+            $normIndex[$this->normalizeTitle((string) $known)] = $id;
+        }
+        $norm = $this->normalizeTitle($title);
+        if (isset($normIndex[$norm])) {
+            $this->positionIds[$title] = $normIndex[$norm];
+            return $normIndex[$norm];
+        }
+
+        // Обратный поиск: существующая должность — русский синоним искомой
+        $syn = $this->positionSynonyms();
+        foreach ($normIndex as $knownNorm => $id) {
+            if (($syn[$knownNorm] ?? null) === $title) {
+                $this->positionIds[$title] = $id;
+                return $id;
+            }
+        }
+
+        // Не нашли — создаём должность (демо-компания, безопасно)
+        $dept = $this->departmentForPosition($title);
+        if (!isset($this->departmentIds[$dept])) {
+            $existingDept = DB::table('departments')
+                ->where('company_id', $this->companyId)
+                ->where('name', $dept)
+                ->value('id');
+            if ($existingDept) {
+                $this->departmentIds[$dept] = (string) $existingDept;
+            } else {
+                $did = (string) Str::uuid();
+                DB::table('departments')->insert([
+                    'id'          => $did,
+                    'company_id'  => $this->companyId,
+                    'name'        => $dept,
+                    'description' => "Отдел «{$dept}» демо-компании",
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
+                $this->departmentIds[$dept] = $did;
+            }
+        }
+
+        $competencies = $this->positionCompetencyMap()[$title] ?? [
+            ['skill' => 'Коммуникация', 'required_level' => 3],
+            ['skill' => 'Ответственность', 'required_level' => 4],
+        ];
+        $psycho = $this->positionPsychologicalMap()[$title] ?? [
+            ['trait' => 'Проактивность', 'level' => 'выше среднего'],
+        ];
+
+        $pid = (string) Str::uuid();
+        DB::table('positions')->insert([
+            'id'              => $pid,
+            'company_id'      => $this->companyId,
+            'title'           => $title,
+            'description'     => $this->positionDescription($title, $dept),
+            'department'      => $dept,
+            'created_by'      => $this->companyId,
+            'profile_status'  => 'approved',
+            'profile_version' => 1,
+            'psychological_profile' => json_encode($psycho, JSON_UNESCAPED_UNICODE),
+            'competency_profile'    => json_encode($competencies, JSON_UNESCAPED_UNICODE),
+            'profile_template'      => json_encode(new \stdClass()),
+            'created_at'      => now(),
+            'updated_at'      => now(),
+        ]);
+        $this->positionIds[$title] = $pid;
+        $this->line("      + создана должность «{$title}» (отдел {$dept})");
+        return $pid;
+    }
+
     private function createCareerTracks(): void
     {
+
         // Основные (вертикальные) треки развития
         $tracks = [
             ['Backend Developer',  'Fullstack Developer',      12, 'Расширение фронтенд-стека к сильной серверной базе.'],
