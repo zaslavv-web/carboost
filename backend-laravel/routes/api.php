@@ -327,6 +327,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     Route::delete('/admin/email-settings', [\App\Http\Controllers\Api\Admin\EmailSettingsController::class, 'clear']);
 
     // Superadmin: демо-компания «ООО Демо» (наполнение и сброс)
+    Route::get('/superadmin/demo/companies', [\App\Http\Controllers\Api\Admin\DemoSeedController::class, 'companies']);
     Route::get('/superadmin/demo/status', [\App\Http\Controllers\Api\Admin\DemoSeedController::class, 'status']);
     Route::post('/superadmin/demo/seed',  [\App\Http\Controllers\Api\Admin\DemoSeedController::class, 'seed']);
     Route::post('/superadmin/demo/reset', [\App\Http\Controllers\Api\Admin\DemoSeedController::class, 'reset']);
