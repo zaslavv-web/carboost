@@ -191,15 +191,9 @@ export default function CourseView() {
                   </div>
                 )}
                 {activeLesson.type === "scorm" && (
-                  <div className="aspect-[16/10] w-full rounded overflow-hidden border bg-black">
-                    <iframe
-                      src={`/api/university/scorm/${courseId}/launch/${activeLesson.id}`}
-                      className="w-full h-full"
-                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                      title={activeLesson.title}
-                    />
-                  </div>
+                  <ScormFrame courseId={courseId!} lessonId={activeLesson.id} title={activeLesson.title} />
                 )}
+
                 {activeLesson.content && activeLesson.type !== "scorm" && (
                   <div className="prose prose-sm max-w-none dark:prose-invert">
                     <ReactMarkdown>{activeLesson.content}</ReactMarkdown>
