@@ -88,7 +88,21 @@ class DemoSeedController extends Controller
     {
         $this->requireSuperadmin($request);
         Artisan::call('demo:seed', ['--only-career' => true]);
-        return response()->json(['ok' => true, 'output' => Artisan::output()]);
+        $output = Artisan::output();
+        $company = DB::table('companies')->where('name', self::NAME)->first();
+        $assignments = $company
+            ? DB::table('employee_career_assignments')->where('company_id', $company->id)->count()
+            : 0;
+        $templates = $company
+            ? DB::table('career_track_templates')->where('company_id', $company->id)->count()
+            : 0;
+
+        return response()->json([
+            'ok' => $assignments > 0,
+            'output' => $output,
+            'career_templates' => $templates,
+            'career_assignments' => $assignments,
+        ], $assignments > 0 ? 200 : 422);
     }
 
 

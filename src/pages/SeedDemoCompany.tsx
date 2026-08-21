@@ -57,10 +57,14 @@ export default function SeedDemoCompany() {
 
   const careerTracks = useMutation({
     mutationFn: async () =>
-      (await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/career-tracks", {})).data,
+      (await laravel.post<{ ok: boolean; output: string; career_templates: number; career_assignments: number }>("/superadmin/demo/career-tracks", {})).data,
     onSuccess: (r) => {
       setOutput(r.output || "");
-      toast.success("Карьерные треки назначены");
+      if (r.ok && r.career_assignments > 0) {
+        toast.success(`Назначено треков: ${r.career_assignments}`);
+      } else {
+        toast.error("Треки не назначены — проверьте диагностику ниже");
+      }
       qc.invalidateQueries({ queryKey: ["demo-status"] });
     },
     onError: (e: any) => toast.error(e?.message || "Ошибка назначения треков"),

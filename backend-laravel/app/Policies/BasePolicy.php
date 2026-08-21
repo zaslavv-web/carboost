@@ -41,7 +41,9 @@ abstract class BasePolicy
 
     protected function isHrd(User $user): bool
     {
-        return $user->hasRole('hrd');
+        // HR и HRD имеют одинаковые права управления HR-модулями внутри
+        // своей компании; tenant-проверка остаётся в конкретной политике.
+        return $user->hasRole(['hrd', 'hr']);
     }
 
     protected function isManager(User $user): bool
