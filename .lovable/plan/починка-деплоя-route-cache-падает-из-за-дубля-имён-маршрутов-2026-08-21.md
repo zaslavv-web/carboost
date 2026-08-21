@@ -23,6 +23,7 @@ Another route has already been assigned name [notifications.index].
 - Локально/на сервере: `php artisan route:clear && php artisan route:cache` должен пройти без ошибок.
 - `php artisan route:list --path=notifications` покажет обе группы с разными именами.
 - После пуша GitHub Actions прогонит деплой целиком, включая health-check с проверкой версии.
+- проверь - почему-то каждый твой билд на репе отображается дважды - 1 раз с ошибкой, второй - успешно
 
 ## Технические детали
 
