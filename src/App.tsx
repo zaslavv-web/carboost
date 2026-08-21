@@ -229,6 +229,7 @@ const App = () => (
                 <Route path="/communities" element={<Communities />} />
                 <Route path="/pulse-surveys" element={<PulseSurveys />} />
                 <Route path="/surveys" element={<Navigate to="/pulse-surveys" replace />} />
+                <Route path="/knowledge" element={<Navigate to="/knowledge-base" replace />} />
                 <Route path="/company-branding" element={<CompanyBranding />} />
                 <Route path="/ai-settings" element={<AiSettings />} />
                 <Route path="/rag-documents" element={<RagDocuments />} />
