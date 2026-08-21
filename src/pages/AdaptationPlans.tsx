@@ -117,7 +117,7 @@ const AdaptationPlans = () => {
   const employeesQ = useQuery({
     queryKey: ["profiles_min", companyId],
     queryFn: async () => {
-      const { data, error } = await laravelDb.from("profiles").select("id,user_id,first_name,last_name,email").eq("company_id", companyId!);
+      const { data, error } = await laravelDb.from("profiles").select("id,user_id,full_name,position,department").eq("company_id", companyId!);
       if (error) throw error;
       return data as any[];
     },
@@ -206,7 +206,7 @@ const AdaptationPlans = () => {
   const employeeLabel = (uid: string) => {
     const e = employees.find((x) => x.user_id === uid || x.id === uid);
     if (!e) return uid.slice(0, 8);
-    return `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim() || e.email;
+    return (e.full_name ?? "").trim() || uid.slice(0, 8);
   };
 
   return (
@@ -412,7 +412,7 @@ const NewAssignmentForm = ({
   plans, employees, onSubmit, loading,
 }: { plans: Plan[]; employees: any[]; onSubmit: (v: any) => void; loading: boolean }) => {
   const [v, setV] = useState({ user_id: "", plan_id: "", buddy_id: "", manager_id: "", start_date: new Date().toISOString().slice(0, 10) });
-  const employeeOptions = employees.map((e) => ({ value: e.user_id ?? e.id, label: `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim() || e.email }));
+  const employeeOptions = employees.map((e) => ({ value: e.user_id ?? e.id, label: (e.full_name ?? "").trim() || String(e.user_id ?? e.id).slice(0, 8) }));
   return (
     <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); if (!v.user_id || !v.plan_id) return; onSubmit({ ...v, buddy_id: v.buddy_id || null, manager_id: v.manager_id || null }); }}>
       <div>
