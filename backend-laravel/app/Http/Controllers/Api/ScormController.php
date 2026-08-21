@@ -179,6 +179,16 @@ class ScormController extends Controller
             ], 422);
         }
 
+        // href в манифесте задаются относительно каталога самого imsmanifest.xml,
+        // который в реальных архивах часто лежит в подпапке. Приводим к пути
+        // относительно корня пакета и проверяем существование файла на диске.
+        $manifestDir = trim(str_replace('\\', '/', dirname($manifestRel)), '/.');
+        foreach ($manifest['items'] as $i => $item) {
+            $manifest['items'][$i]['href'] = $this->resolveHrefOnDisk($disk, $base, $manifestDir, (string) $item['href']);
+        }
+
+
+
         $courseId = (string) Str::uuid();
         $title = $data['title'] ?? ($manifest['title'] ?: 'SCORM курс');
 
@@ -431,6 +441,55 @@ class ScormController extends Controller
 
     // ------------------------------------------------------------------
 
+    /**
+     * Приводим href из манифеста к пути относительно корня пакета:
+     * сначала каталог манифеста, затем корень, затем поиск по имени файла.
+     */
+    protected function resolveHrefOnDisk($disk, string $base, string $manifestDir, string $href): string
+    {
+        $href = ltrim(str_replace('\\', '/', trim($href)), '/');
+        if ($href === '' || preg_match('#^https?://#i', $href)) return $href;
+
+        // Query/anchor сохраняем, но при проверке файла отбрасываем.
+        [$file, $suffix] = array_pad(preg_split('/([?#])/', $href, 2, PREG_SPLIT_DELIM_CAPTURE) ?: [$href], 2, '');
+        $tail = substr($href, strlen($file));
+
+        $candidates = [];
+        if ($manifestDir !== '') $candidates[] = $manifestDir . '/' . $file;
+        $candidates[] = $file;
+
+        foreach ($candidates as $cand) {
+            $cand = $this->normalizeRelative($cand);
+            if ($cand !== '' && is_file($disk->path($base . '/' . $cand))) {
+                return $cand . $tail;
+            }
+        }
+
+        // Последний шанс: ищем файл с таким именем внутри пакета.
+        $needle = basename($file);
+        foreach ($disk->allFiles($base) as $f) {
+            if (basename($f) === $needle) {
+                return ltrim(substr($f, strlen($base)), '/') . $tail;
+            }
+        }
+
+        return $this->normalizeRelative($manifestDir !== '' ? $manifestDir . '/' . $file : $file) . $tail;
+    }
+
+    /** Убираем ./ и ../ из относительного пути. */
+    protected function normalizeRelative(string $path): string
+    {
+        $out = [];
+        foreach (explode('/', str_replace('\\', '/', $path)) as $seg) {
+            if ($seg === '' || $seg === '.') continue;
+            if ($seg === '..') { array_pop($out); continue; }
+            $out[] = $seg;
+        }
+        return implode('/', $out);
+    }
+
+
+
     protected function locateManifest($disk, string $base): ?string
     {
         // Возвращаем путь относительно $base.
@@ -648,8 +707,16 @@ class ScormController extends Controller
         $disk = Storage::disk('scorm-packages');
         $full = $disk->path($path);
         if (! file_exists($full) || is_dir($full)) {
-            return response()->json(['error' => 'not found'], 404);
+            // Пакеты, импортированные до фикса путей, ссылаются на файл от корня,
+            // хотя он лежит рядом с imsmanifest.xml (подпапка архива).
+            $relative = ltrim(implode('/', array_slice($segments, 2)), '/');
+            $resolved = $relative === '' ? '' : $this->resolveHrefOnDisk($disk, $packagePath, '', $relative);
+            $full = $resolved ? $disk->path($packagePath . '/' . $resolved) : '';
+            if (! $full || ! file_exists($full) || is_dir($full)) {
+                return response()->json(['error' => 'not found'], 404);
+            }
         }
+
 
         $mime = mime_content_type($full) ?: 'application/octet-stream';
         return response()->file($full, ['Content-Type' => $mime]);
