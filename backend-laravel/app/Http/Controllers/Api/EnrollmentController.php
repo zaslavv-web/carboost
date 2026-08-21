@@ -170,24 +170,38 @@ class EnrollmentController extends Controller
 
     protected function audienceRules(Request $r): array
     {
-        return $r->validate([
+        // ID пользователей/должностей могут быть не только UUID (внешние системы, 1С),
+        // поэтому валидируем как непустые строки, а пустые значения отбрасываем.
+        $data = $r->validate([
             'user_ids' => 'nullable|array',
-            'user_ids.*' => 'uuid',
+            'user_ids.*' => 'nullable|string|max:64',
             'emails' => 'nullable|array',
-            'emails.*' => 'string',
+            'emails.*' => 'nullable|string|max:190',
             'departments' => 'nullable|array',
-            'departments.*' => 'string',
+            'departments.*' => 'nullable|string|max:190',
             'grades' => 'nullable|array',
-            'grades.*' => 'string',
+            'grades.*' => 'nullable|string|max:190',
             'position_ids' => 'nullable|array',
-            'position_ids.*' => 'uuid',
+            'position_ids.*' => 'nullable|string|max:64',
             'tenure_min_months' => 'nullable|integer|min:0|max:600',
             'tenure_max_months' => 'nullable|integer|min:0|max:600',
             'mandatory' => 'nullable|boolean',
             'due_at' => 'nullable|date',
             'blocks_other' => 'nullable|boolean',
         ]);
+
+        foreach (['user_ids', 'emails', 'departments', 'grades', 'position_ids'] as $key) {
+            if (isset($data[$key]) && is_array($data[$key])) {
+                $data[$key] = array_values(array_filter(
+                    array_map(fn ($v) => is_string($v) ? trim($v) : $v, $data[$key]),
+                    fn ($v) => $v !== null && $v !== ''
+                ));
+            }
+        }
+
+        return $data;
     }
+
 
     /** Предпросмотр аудитории: кто попадёт под правила. */
     public function assignPreview(Request $r, string $courseId)
