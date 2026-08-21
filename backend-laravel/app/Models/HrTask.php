@@ -13,12 +13,13 @@ class HrTask extends Model
     protected $table = 'hr_tasks';
     protected $fillable = [
         'company_id', 'created_by', 'title', 'description', 'category',
-        'reward_coins', 'deadline', 'status', 'reviewed_by', 'reviewed_at',
+        'reward_coins', 'deadline', 'status', 'reviewed_by', 'reviewed_at', 'audience_rules',
     ];
     protected $casts = [
         'deadline' => 'date',
         'reviewed_at' => 'datetime',
         'reward_coins' => 'integer',
+        'audience_rules' => 'array',
     ];
 
     protected static function booted(): void
