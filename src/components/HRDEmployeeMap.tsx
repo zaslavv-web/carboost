@@ -5,7 +5,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   type Node,
   type Edge,
   MarkerType,
@@ -14,6 +13,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { laravelDb } from "@/integrations/laravel/db";
+import { laravel } from "@/integrations/laravel/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -106,7 +106,7 @@ const initials = (name: string) =>
     .map((s) => s[0]?.toUpperCase())
     .join("");
 
-const HRDEmployeeMap = () => {
+const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) => {
   const { t } = useTranslation("manager");
   const { user } = useAuth();
   const { data: profile } = useUserProfile();
@@ -757,7 +757,7 @@ const HRDEmployeeMap = () => {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
         <div
           className="bg-card rounded-xl border border-border overflow-hidden react-flow-contrast-cursor flex flex-col"
-          style={{ height: "70vh" }}
+          style={{ height: standalone ? "calc(100vh - 190px)" : "70vh" }}
         >
           {/* Breadcrumbs / drill-down navigation */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30 text-xs">
@@ -837,11 +837,6 @@ const HRDEmployeeMap = () => {
             >
               <Background color="hsl(var(--border))" gap={20} />
               <Controls />
-              <MiniMap
-                nodeColor={() => "hsl(var(--primary))"}
-                maskColor="hsl(var(--background) / 0.7)"
-                style={{ background: "hsl(var(--card))" }}
-              />
             </ReactFlow>
           </div>
         </div>
