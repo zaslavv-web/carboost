@@ -115,6 +115,7 @@ class ScormController extends Controller
             return response()->json(['error' => 'cannot open zip'], 400);
         }
 
+        $entries = [];
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
             if (str_contains($name, '..') || str_starts_with($name, '/')) {
@@ -122,9 +123,37 @@ class ScormController extends Controller
                 $disk->deleteDirectory($base);
                 return response()->json(['error' => 'invalid zip entry: ' . $name], 400);
             }
+            if (! str_ends_with($name, '/')) $entries[] = $name;
         }
-        $zip->extractTo($extractTo);
+        $extracted = $zip->extractTo($extractTo);
         $zip->close();
+
+        if ($extracted !== true) {
+            $disk->deleteDirectory($base);
+            \Log::warning('scorm_unpack', ['package' => $base, 'result' => 'extract_failed', 'entries' => count($entries)]);
+            return response()->json([
+                'error' => 'Не удалось распаковать архив на сервере. Проверьте права на запись в хранилище SCORM и свободное место на диске.',
+            ], 422);
+        }
+
+        // Сверяем содержимое архива с тем, что реально легло на диск.
+        $missing = [];
+        foreach ($entries as $name) {
+            if ($name === 'package.zip') continue;
+            if (! is_file($extractTo . '/' . $name)) $missing[] = $name;
+        }
+        \Log::info('scorm_unpack', [
+            'package' => $base,
+            'zip_entries' => count($entries),
+            'missing' => count($missing),
+        ]);
+        if ($missing) {
+            $disk->deleteDirectory($base);
+            return response()->json([
+                'error' => 'Пакет распакован не полностью: на диск не попали ' . count($missing) . ' файл(ов). Проверьте права на запись в хранилище SCORM и свободное место.',
+                'missing' => array_slice($missing, 0, 20),
+            ], 422);
+        }
 
         // Locate imsmanifest.xml
         $manifestRel = $this->locateManifest($disk, $base);
@@ -137,8 +166,10 @@ class ScormController extends Controller
             'upload_token' => $uuid,
             'package_path' => $base,
             'manifest_path' => $manifestRel,
+            'files' => count($entries),
         ]);
     }
+
 
     /**
      * STEP 2: Parse manifest and create a course with modules/lessons.
@@ -186,6 +217,24 @@ class ScormController extends Controller
         foreach ($manifest['items'] as $i => $item) {
             $manifest['items'][$i]['href'] = $this->resolveHrefOnDisk($disk, $base, $manifestDir, (string) $item['href']);
         }
+
+        // Самопроверка: каждый launch_url обязан существовать на диске,
+        // иначе создастся «пустой» курс, который потом отдаёт 404 на уроках.
+        $missingHrefs = [];
+        foreach ($manifest['items'] as $item) {
+            $href = (string) ($item['href'] ?? '');
+            if ($href === '' || ! $this->findAssetOnDisk($disk, $base, $href)) {
+                $missingHrefs[] = $href !== '' ? $href : ($item['title'] ?? 'без ссылки');
+            }
+        }
+        if ($missingHrefs) {
+            \Log::warning('scorm_import_missing_files', ['package' => $base, 'missing' => $missingHrefs]);
+            return response()->json([
+                'error' => 'В распакованном пакете отсутствуют файлы уроков (' . count($missingHrefs) . '). Загрузите архив заново.',
+                'missing' => array_slice($missingHrefs, 0, 20),
+            ], 422);
+        }
+
 
 
 
@@ -361,16 +410,29 @@ class ScormController extends Controller
             ->whereIn('module_id', function ($q) use ($courseId) {
                 $q->select('id')->from('course_modules')->where('course_id', $courseId);
             })
-            ->get(['id', 'title', 'launch_url']);
+            ->get(['id', 'title', 'launch_url'])
+            ->map(function ($l) use ($disk, $base) {
+                $resolved = $l->launch_url ? $this->findAssetOnDisk($disk, $base, (string) $l->launch_url) : null;
+                return [
+                    'id' => $l->id,
+                    'title' => $l->title,
+                    'launch_url' => $l->launch_url,
+                    'resolved_path' => $resolved,
+                    'exists' => (bool) $resolved,
+                ];
+            });
 
         return response()->json([
             'package_path' => $base,
             'abs_path'     => $disk->path($base),
             'exists'       => is_dir($disk->path($base)),
+            'writable'     => is_writable($disk->path($base)),
             'file_count'   => count($files),
             'files'        => array_slice($files, 0, 300),
             'lessons'      => $lessons,
+            'missing_lessons' => $lessons->where('exists', false)->count(),
         ]);
+
     }
 
 
@@ -750,11 +812,26 @@ class ScormController extends Controller
 
         if (! $found) {
             \Log::warning('scorm_asset_404', ['package' => $packagePath, 'relative' => $relative]);
-            return response()->json([
+            $body = [
                 'error' => 'not found',
                 'package_path' => $packagePath,
                 'relative' => $relative,
-            ], 404);
+            ];
+            if ($this->canAuthor()) {
+                try {
+                    $all = $disk->allFiles($packagePath);
+                } catch (\Throwable $e) {
+                    $all = [];
+                }
+                $rels = array_map(fn ($f) => ltrim(substr($f, strlen($packagePath)), '/'), $all);
+                $body['debug'] = [
+                    'dir_exists'  => is_dir($disk->path($packagePath)),
+                    'file_count'  => count($rels),
+                    'sample'      => array_slice($rels, 0, 20),
+                ];
+            }
+            return response()->json($body, 404);
+
         }
 
         $full = $disk->path($packagePath . '/' . $found);

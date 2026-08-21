@@ -266,4 +266,110 @@ XML;
             ->postJson("/api/university/scorm/{$courseId}/launch-ticket/{$lessonId}")
             ->assertStatus(403);
     }
+
+    public function test_import_rejects_package_when_lesson_file_missing_on_disk(): void
+    {
+        $company = $this->makeCompany();
+        $hr = $this->makeUser('hr', $company->id);
+
+        $manifest = <<<XML
+<?xml version="1.0"?>
+<manifest identifier="M3" xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2">
+  <organizations default="ORG-1">
+    <organization identifier="ORG-1">
+      <title>Битый курс</title>
+      <item identifier="ITEM-1" identifierref="RES-1"><title>Урок 1</title></item>
+    </organization>
+  </organizations>
+  <resources>
+    <resource identifier="RES-1" type="webcontent" href="pages/01-intro.html"/>
+  </resources>
+</manifest>
+XML;
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'scorm') . '.zip';
+        $zip = new \ZipArchive();
+        $zip->open($zipPath, \ZipArchive::CREATE);
+        $zip->addFromString('imsmanifest.xml', $manifest);
+        $zip->close();
+
+        $file = new UploadedFile($zipPath, 'package.zip', 'application/zip', null, true);
+
+        $token = $this->actingAs($hr, 'sanctum')
+            ->postJson('/api/university/scorm/upload', ['file' => $file])
+            ->assertOk()->json('upload_token');
+
+        $this->actingAs($hr, 'sanctum')
+            ->postJson('/api/university/scorm/import', ['upload_token' => $token])
+            ->assertStatus(422);
+
+        $this->assertSame(0, DB::table('courses')->where('source_type', 'scorm')->count());
+
+        @unlink($zipPath);
+    }
+
+    public function test_multipage_package_imports_and_serves_every_asset(): void
+    {
+        $company = $this->makeCompany();
+        $hr = $this->makeUser('hr', $company->id);
+
+        $pages = ['01-intro', '02-start', 'quiz'];
+        $items = '';
+        $resources = '';
+        foreach ($pages as $p) {
+            $items .= "<item identifier=\"I-$p\" identifierref=\"R-$p\"><title>$p</title></item>";
+            $resources .= "<resource identifier=\"R-$p\" type=\"webcontent\" href=\"pages/$p.html\"><file href=\"pages/$p.html\"/><dependency identifierref=\"R-common\"/></resource>";
+        }
+        $resources .= '<resource identifier="R-common" type="webcontent"><file href="assets/style.css"/><file href="assets/scorm.js"/></resource>';
+
+        $manifest = <<<XML
+<?xml version="1.0"?>
+<manifest identifier="M4" xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2">
+  <metadata><schema>ADL SCORM</schema><schemaversion>1.2</schemaversion></metadata>
+  <organizations default="ORG-1">
+    <organization identifier="ORG-1"><title>Мультистраничный курс</title>$items</organization>
+  </organizations>
+  <resources>$resources</resources>
+</manifest>
+XML;
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'scorm') . '.zip';
+        $zip = new \ZipArchive();
+        $zip->open($zipPath, \ZipArchive::CREATE);
+        $zip->addFromString('imsmanifest.xml', $manifest);
+        foreach ($pages as $p) {
+            $zip->addFromString("pages/$p.html", "<html>$p</html>");
+        }
+        $zip->addFromString('assets/style.css', 'body{}');
+        $zip->addFromString('assets/scorm.js', '// api');
+        $zip->close();
+
+        $file = new UploadedFile($zipPath, 'package.zip', 'application/zip', null, true);
+
+        $token = $this->actingAs($hr, 'sanctum')
+            ->postJson('/api/university/scorm/upload', ['file' => $file])
+            ->assertOk()->json('upload_token');
+
+        $import = $this->actingAs($hr, 'sanctum')
+            ->postJson('/api/university/scorm/import', ['upload_token' => $token])
+            ->assertOk();
+
+        $this->assertSame(count($pages), $import->json('lessons'));
+
+        $courseId = $import->json('course_id');
+        $files = $this->actingAs($hr, 'sanctum')
+            ->getJson("/api/university/scorm/{$courseId}/files")
+            ->assertOk();
+        $this->assertSame(0, $files->json('missing_lessons'));
+
+        $base = $company->id . '/' . $token;
+        foreach (['pages/01-intro.html', 'assets/style.css', 'assets/scorm.js'] as $rel) {
+            $this->actingAs($hr, 'sanctum')
+                ->get("/api/university/scorm/asset/{$base}/{$rel}")
+                ->assertOk();
+        }
+
+        @unlink($zipPath);
+    }
 }
+
