@@ -32,6 +32,11 @@ return new class extends Migration
 
     public function up(): void
     {
+        // Сканирование information_schema и ALTER ... MODIFY доступны только в MySQL.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         $db = DB::getDatabaseName();
         $cols = DB::select(
             "SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_TYPE

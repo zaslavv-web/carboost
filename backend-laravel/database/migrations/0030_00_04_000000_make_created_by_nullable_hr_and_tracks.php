@@ -22,6 +22,11 @@ return new class extends Migration
 
     public function up(): void
     {
+        // ALTER ... MODIFY — синтаксис MySQL; в тестовой SQLite колонка уже nullable.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         foreach ($this->tables as $table) {
             if (!Schema::hasTable($table) || !Schema::hasColumn($table, 'created_by')) {
                 continue;
