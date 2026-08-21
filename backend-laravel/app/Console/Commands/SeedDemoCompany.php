@@ -129,6 +129,17 @@ class SeedDemoCompany extends Command
             ->map(fn ($v) => (string) $v)
             ->all();
 
+        $this->departmentIds = DB::table('departments')
+            ->where('company_id', $this->companyId)
+            ->pluck('id', 'name')
+            ->map(fn ($v) => (string) $v)
+            ->all();
+
+        $this->line('Диагностика демо-компании:');
+        $this->line('  company_id: ' . $this->companyId);
+        $this->line('  отделов: ' . count($this->departmentIds) . ', должностей: ' . count($this->positionIds));
+        $this->line('  должности: ' . (count($this->positionIds) ? implode(', ', array_keys($this->positionIds)) : '—'));
+
         $hrdIds = DB::table('profiles')
             ->join('user_roles', 'user_roles.user_id', '=', 'profiles.user_id')
             ->where('profiles.company_id', $this->companyId)
@@ -140,17 +151,17 @@ class SeedDemoCompany extends Command
 
         DB::transaction(function () {
             $existing = DB::table('career_track_templates')->where('company_id', $this->companyId)->count();
-            if ($existing === 0) {
-                $this->info('Шаблонов треков нет — создаю…');
-                $this->createCareerTracks();
-            } else {
-                $this->line("Шаблонов треков: {$existing}");
-            }
+            $this->line("Шаблонов треков до прогона: {$existing}");
+            // Прогон идемпотентен: недостающие пары дозаполняются, дубли не создаются
+            $this->createCareerTracks();
             $this->assignCareerTracks();
         });
 
-        $this->info('✅ Карьерные треки обновлены.');
+        $templates = DB::table('career_track_templates')->where('company_id', $this->companyId)->count();
+        $assignments = DB::table('employee_career_assignments')->where('company_id', $this->companyId)->count();
+        $this->info("✅ Карьерные треки обновлены. Шаблонов: {$templates}, назначений: {$assignments}.");
         return self::SUCCESS;
+
     }
 
     private function randomValue(array $items, string $context = 'array')
