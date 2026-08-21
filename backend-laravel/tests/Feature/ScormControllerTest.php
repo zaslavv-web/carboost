@@ -220,13 +220,21 @@ XML;
         // Повторное использование тикета запрещено.
         $this->get("/api/university/scorm/launch/{$ticket}")->assertStatus(410);
 
-        // Ассет без cookie и без токена — 401.
-        $this->get("/api/university/scorm/asset/{$pkg}/index.html")->assertStatus(401);
-
         // С cookie — доступен.
         $this->withUnencryptedCookie('scorm_sess', $cookie->getValue())
             ->get("/api/university/scorm/asset/{$pkg}/index.html")
             ->assertOk();
+
+        // Чужой пакет с той же cookie — запрещён.
+        $this->withUnencryptedCookie('scorm_sess', $cookie->getValue())
+            ->get("/api/university/scorm/asset/other-company/pkg/index.html")
+            ->assertStatus(403);
+    }
+
+    public function test_asset_without_any_credentials_is_unauthorized(): void
+    {
+        $this->get('/api/university/scorm/asset/some-company/pkg/index.html')
+            ->assertStatus(401);
     }
 
     public function test_launch_ticket_forbidden_for_non_enrolled_employee(): void
