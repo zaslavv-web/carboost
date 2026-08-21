@@ -425,8 +425,15 @@ class ScormController extends Controller
     {
         if (! $res || $depth > 3) return '';
 
+        // xml:base на уровне <resources> и <resource> (префиксы уже срезаны).
+        $base = trim((string) (($manifestNs->resources['base'] ?? '')));
+        $base .= trim((string) ($res['base'] ?? ''));
+        $base = $base ? rtrim($base, '/') . '/' : '';
+
         $href = trim((string) ($res['href'] ?? ''));
-        if ($href) return $href;
+        if ($href) return $base . ltrim($href, '/');
+
+
 
         foreach ($res->file as $f) {
             $fh = trim((string) ($f['href'] ?? ''));
