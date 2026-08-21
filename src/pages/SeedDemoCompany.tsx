@@ -142,6 +142,30 @@ export default function SeedDemoCompany() {
           </Card>
 
           <Card>
+            <CardHeader>
+              <CardTitle>Должности ({status.positions?.length ?? 0})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {status.positions?.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {status.positions.map((p) => (
+                    <Badge key={p.id} variant="outline" className="font-normal">
+                      {p.title}
+                      <span className="ml-1 text-muted-foreground">· {p.department || "—"}</span>
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Должностей нет — карьерные треки строиться не смогут.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+
+
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Логины ({status.users?.length ?? 0})</CardTitle>
               <Button size="sm" variant="outline" onClick={copyAllLogins}>
