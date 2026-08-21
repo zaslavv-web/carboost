@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -18,11 +19,43 @@ class ScormController extends Controller
 {
     protected const MAX_ZIP_MB = 100;
 
-    protected function uid(): ?string { return (string) (Auth::id() ?: '') ?: null; }
+    /** Cookie короткоживущей SCORM-сессии (iframe не умеет слать bearer). */
+    protected const SESSION_COOKIE = 'scorm_sess';
+
+    protected function uid(): ?string
+    {
+        $id = Auth::id() ?: Auth::guard('sanctum')->id();
+        return $id ? (string) $id : null;
+    }
+
+    /** uid из bearer-токена либо из подписанной SCORM-cookie. */
+    protected function resolveUid(Request $r): ?string
+    {
+        return $this->uid() ?: ($this->sessionPayload($r)['uid'] ?? null);
+    }
+
+    /** Разбор и проверка подписи cookie SCORM-сессии. */
+    protected function sessionPayload(Request $r): ?array
+    {
+        $raw = (string) $r->cookie(self::SESSION_COOKIE, '');
+        if ($raw === '') return null;
+        [$body, $sig] = array_pad(explode('.', $raw, 2), 2, '');
+        if ($body === '' || $sig === '') return null;
+        if (! hash_equals(hash_hmac('sha256', $body, (string) config('app.key')), $sig)) return null;
+        $data = json_decode((string) base64_decode(strtr($body, '-_', '+/'), true), true);
+        if (! is_array($data) || (int) ($data['exp'] ?? 0) < time()) return null;
+        return $data;
+    }
+
+    protected function signSession(array $payload): string
+    {
+        $body = rtrim(strtr(base64_encode((string) json_encode($payload)), '+/', '-_'), '=');
+        return $body . '.' . hash_hmac('sha256', $body, (string) config('app.key'));
+    }
 
     protected function canAuthor(): bool
     {
-        $u = Auth::user();
+        $u = Auth::user() ?: Auth::guard('sanctum')->user();
         if (! $u) return false;
         $roles = DB::table('user_roles')->where('user_id', $u->id)->pluck('role')->all();
         return (bool) array_intersect($roles, ['hr','hrd','company_admin','superadmin']);
@@ -30,9 +63,10 @@ class ScormController extends Controller
 
     protected function companyId(): ?string
     {
-        $u = Auth::user();
+        $u = Auth::user() ?: Auth::guard('sanctum')->user();
         return $u?->companyId() ?: null;
     }
+
 
     /**
      * STEP 1: Upload and unpack a SCORM ZIP package.
