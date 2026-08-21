@@ -337,7 +337,9 @@ class ScormController extends Controller
             return response()->json(['error' => 'not found'], 404);
         }
 
-        $lesson = DB::table('lessons')->where('id', $lessonId)->where('module_id', function ($q) use ($courseId) {
+        // ВАЖНО: у курса несколько модулей, поэтому whereIn (скалярный подзапрос
+        // падал с "Subquery returns more than 1 row" → 500).
+        $lesson = DB::table('lessons')->where('id', $lessonId)->whereIn('module_id', function ($q) use ($courseId) {
             $q->select('id')->from('course_modules')->where('course_id', $courseId);
         })->first();
         if (! $lesson) return response()->json(['error' => 'lesson not found'], 404);
