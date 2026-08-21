@@ -78,6 +78,12 @@ interface Employee {
   role_readiness: number | null;
 }
 
+interface TaskAudience {
+  departments?: string[];
+  position_ids?: string[];
+  grades?: string[];
+}
+
 interface TeamLink {
   manager_id: string;
   employee_id: string;
@@ -1081,6 +1087,7 @@ interface CreateHrTaskDialogProps {
     reward: number;
     deadline: string | null;
     assigneeIds: string[];
+    audience?: TaskAudience | null;
   }) => void;
   isPending: boolean;
 }
@@ -1102,6 +1109,44 @@ const CreateHrTaskDialog = ({
   const [reward, setReward] = useState(50);
   const [deadline, setDeadline] = useState("");
   const [assigneeIds, setAssigneeIds] = useState<string[]>(defaultAssigneeId ? [defaultAssigneeId] : []);
+  const [mode, setMode] = useState<"people" | "audience">("people");
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [positionIds, setPositionIds] = useState<string[]>([]);
+  const [grades, setGrades] = useState<string[]>([]);
+
+  const { data: options } = useQuery({
+    queryKey: ["hr_task_audience_options"],
+    queryFn: async () => {
+      const { data, error } = await laravel.get<{
+        departments: string[];
+        positions: { id: string; title: string }[];
+        grades: string[];
+      }>("/hr-tasks/audience/options");
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const audience: TaskAudience = useMemo(
+    () => ({ departments, position_ids: positionIds, grades }),
+    [departments, positionIds, grades],
+  );
+  const audienceEmpty = departments.length === 0 && positionIds.length === 0 && grades.length === 0;
+
+  const { data: preview } = useQuery({
+    queryKey: ["hr_task_audience_preview", audience],
+    queryFn: async () => {
+      const { data, error } = await laravel.post<{ count: number }>("/hr-tasks/audience/preview", audience);
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    enabled: open && mode === "audience" && !audienceEmpty,
+  });
+
+  const toggleIn = (arr: string[], set: (v: string[]) => void, v: string) =>
+    set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   // Reset on open
   useEffect(() => {
@@ -1112,6 +1157,10 @@ const CreateHrTaskDialog = ({
       setReward(50);
       setDeadline("");
       setAssigneeIds(defaultAssigneeId ? [defaultAssigneeId] : []);
+      setMode("people");
+      setDepartments([]);
+      setPositionIds([]);
+      setGrades([]);
     }
   }, [open, defaultAssigneeId]);
 
@@ -1124,8 +1173,12 @@ const CreateHrTaskDialog = ({
       toast.error(t("employeeMap.toasts.needTitle"));
       return;
     }
-    if (assigneeIds.length === 0) {
+    if (mode === "people" && assigneeIds.length === 0) {
       toast.error(t("employeeMap.toasts.needAssignee"));
+      return;
+    }
+    if (mode === "audience" && audienceEmpty) {
+      toast.error("Выберите отдел, должность или грейд");
       return;
     }
     onSubmit({
@@ -1134,7 +1187,8 @@ const CreateHrTaskDialog = ({
       category,
       reward: Number(reward) || 0,
       deadline: deadline || null,
-      assigneeIds,
+      assigneeIds: mode === "people" ? assigneeIds : [],
+      audience: mode === "audience" ? audience : null,
     });
   };
 
