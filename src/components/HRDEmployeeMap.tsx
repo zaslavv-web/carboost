@@ -52,6 +52,7 @@ import {
   ChevronRight,
   ArrowUp,
   Building2,
+  ExternalLink,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -633,29 +634,20 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
       reward: number;
       deadline: string | null;
       assigneeIds: string[];
+      audience?: TaskAudience | null;
     }) => {
       if (!companyId || !user) throw new Error(t("employeeMap.toasts.noCompany"));
-      const { data: task, error } = await laravelDb
-        .from("hr_tasks")
-        .insert({
-          company_id: companyId,
-          created_by: user.id,
-          title: payload.title,
-          description: payload.description || null,
-          category: payload.category,
-          reward_coins: payload.reward,
-          deadline: payload.deadline,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      if (payload.assigneeIds.length > 0) {
-        const { error: aErr } = await laravelDb.from("hr_task_assignees").insert(
-          payload.assigneeIds.map((uid) => ({ task_id: task.id, user_id: uid })),
-        );
-        if (aErr) throw aErr;
-      }
-      return task;
+      const { data, error } = await laravel.post<{ id: string; assignees: number }>("/hr-tasks", {
+        title: payload.title,
+        description: payload.description || null,
+        category: payload.category,
+        reward_coins: payload.reward,
+        deadline: payload.deadline,
+        assignee_ids: payload.assigneeIds,
+        audience: payload.audience || null,
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hrd_map_hr_tasks"] });
@@ -743,15 +735,24 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
             {t("employeeMap.subtitle")}
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setTaskFormFromId(user?.id || null);
-            setTaskFormToId(selectedEmployeeId);
-            setCreateTaskOpen(true);
-          }}
-        >
-          <Plus className="w-4 h-4 mr-2" /> {t("employeeMap.newTask")}
-        </Button>
+        <div className="flex items-center gap-2">
+          {!standalone && (
+            <Button variant="outline" asChild>
+              <a href="/employee-map" target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="w-4 h-4 mr-2" /> Открыть в новом окне
+              </a>
+            </Button>
+          )}
+          <Button
+            onClick={() => {
+              setTaskFormFromId(user?.id || null);
+              setTaskFormToId(selectedEmployeeId);
+              setCreateTaskOpen(true);
+            }}
+          >
+            <Plus className="w-4 h-4 mr-2" /> {t("employeeMap.newTask")}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
