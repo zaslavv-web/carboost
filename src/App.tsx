@@ -57,6 +57,7 @@ import ScrollToTop from "@/components/ScrollToTop";
 import AnalyticsBootstrap from "@/components/AnalyticsBootstrap";
 import ProductAnalytics from "@/pages/ProductAnalytics";
 import SuperadminOnly from "@/components/SuperadminOnly";
+import RoleOnly from "@/components/RoleOnly";
 import UserProfileFull from "@/pages/UserProfileFull";
 import Chats from "@/pages/Chats";
 import Leaves from "@/pages/Leaves";
@@ -182,7 +183,7 @@ const App = () => (
                 <Route path="/career-tracks" element={<CareerTracksManagement />} />
                 <Route path="/career-tracks-mgmt" element={<CareerTracksManagement />} />
                 <Route path="/career-reviews" element={<CareerReviews />} />
-                <Route path="/gamification" element={<GamificationManagement />} />
+                <Route path="/gamification" element={<RoleOnly roles={["hrd", "hr", "company_admin"]} fallback="/shop"><GamificationManagement /></RoleOnly>} />
                 <Route path="/tests" element={<HRDTests />} />
                 <Route path="/shop" element={<Shop />} />
                 <Route path="/shop/:id" element={<ShopProductDetail />} />
