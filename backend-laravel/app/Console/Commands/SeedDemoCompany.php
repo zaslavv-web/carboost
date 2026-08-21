@@ -24,6 +24,7 @@ class SeedDemoCompany extends Command
     protected $signature = 'demo:seed
         {--reset : Полностью удалить прежнюю демо-компанию перед созданием}
         {--headcount=150 : Общее количество сотрудников}
+        {--only-career : Только назначить карьерные треки уже созданным сотрудникам}
         {--name=ООО "Демо" : Название компании}';
 
     protected $description = 'Создаёт демо-компанию и наполняет её контентом по всем модулям';
@@ -43,10 +44,15 @@ class SeedDemoCompany extends Command
         $this->companyName = (string) $this->option('name');
         $headcount = max(20, (int) $this->option('headcount'));
 
+        if ($this->option('only-career')) {
+            return $this->runOnlyCareer();
+        }
+
         if ($this->option('reset')) {
             $this->warn("Удаляю прежнюю демо-компанию: {$this->companyName}");
             $this->resetCompany();
         }
+
 
         DB::transaction(function () use ($auth, $headcount) {
             $this->info('1/12  Создаю компанию…');
@@ -103,8 +109,53 @@ class SeedDemoCompany extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Догоняющий прогон: компания и сотрудники уже есть, нужно только
+     * (при необходимости) создать шаблоны треков и назначить их людям.
+     */
+    private function runOnlyCareer(): int
+    {
+        $company = DB::table('companies')->where('name', $this->companyName)->first();
+        if (! $company) {
+            $this->error("Демо-компания «{$this->companyName}» не найдена. Сначала запустите полный сидинг.");
+            return self::FAILURE;
+        }
+        $this->companyId = (string) $company->id;
+
+        // Карта должностей и список HRD — нужны для создания/назначения треков
+        $this->positionIds = DB::table('positions')
+            ->where('company_id', $this->companyId)
+            ->pluck('id', 'title')
+            ->map(fn ($v) => (string) $v)
+            ->all();
+
+        $hrdIds = DB::table('profiles')
+            ->join('user_roles', 'user_roles.user_id', '=', 'profiles.user_id')
+            ->where('profiles.company_id', $this->companyId)
+            ->whereIn('user_roles.role', ['hrd', 'hr', 'company_admin'])
+            ->pluck('profiles.user_id')
+            ->map(fn ($v) => (string) $v)
+            ->all();
+        $this->userIds['hrd'] = $hrdIds;
+
+        DB::transaction(function () {
+            $existing = DB::table('career_track_templates')->where('company_id', $this->companyId)->count();
+            if ($existing === 0) {
+                $this->info('Шаблонов треков нет — создаю…');
+                $this->createCareerTracks();
+            } else {
+                $this->line("Шаблонов треков: {$existing}");
+            }
+            $this->assignCareerTracks();
+        });
+
+        $this->info('✅ Карьерные треки обновлены.');
+        return self::SUCCESS;
+    }
+
     private function randomValue(array $items, string $context = 'array')
     {
+
         if ($items === []) {
             throw new \RuntimeException("Demo seed: пустой массив для случайного выбора ({$context}).");
         }
@@ -566,25 +617,40 @@ class SeedDemoCompany extends Command
         $templates = DB::table('career_track_templates')
             ->where('company_id', $this->companyId)
             ->get(['id', 'from_position_id', 'steps']);
-        if ($templates->isEmpty()) return;
+        if ($templates->isEmpty()) {
+            $this->warn('      шаблонов карьерных треков нет — назначать нечего');
+            return;
+        }
 
         $byFrom = [];
         foreach ($templates as $tpl) {
             $byFrom[(string) $tpl->from_position_id][] = $tpl;
         }
+        $allTemplates = $templates->all();
 
         $profiles = DB::table('profiles')
             ->where('company_id', $this->companyId)
-            ->whereNotNull('position_id')
             ->get(['user_id', 'position_id']);
+
+        // Уже назначенные — не дублируем (идемпотентность повторного прогона)
+        $already = DB::table('employee_career_assignments')
+            ->where('company_id', $this->companyId)
+            ->pluck('user_id')
+            ->map(fn ($v) => (string) $v)
+            ->flip();
 
         $hrd = $this->userIds['hrd'][0] ?? null;
         $assigned = 0;
 
         foreach ($profiles as $prof) {
-            $candidates = $byFrom[(string) $prof->position_id] ?? null;
+            if ($already->has((string) $prof->user_id)) continue;
+            // Приоритет — трек «от текущей должности», иначе любой активный трек
+            $candidates = $byFrom[(string) $prof->position_id] ?? $allTemplates;
             if (! $candidates) continue;
-            if (random_int(1, 100) > 40) continue; // ~40% сотрудников на треке
+            if (random_int(1, 100) > 60) continue; // ~60% сотрудников на треке
+
+            $tpl = $candidates[array_rand($candidates)];
+
 
             $tpl = $candidates[array_rand($candidates)];
             $steps = json_decode((string) $tpl->steps, true);

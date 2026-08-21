@@ -33,6 +33,8 @@ class DemoSeedController extends Controller
             'shop_products' => DB::table('shop_products')->where('company_id', $company->id)->count(),
             'shop_orders'   => DB::table('shop_orders')->where('company_id', $company->id)->count(),
             'initiatives'   => \Schema::hasTable('initiatives') ? DB::table('initiatives')->where('company_id', $company->id)->count() : 0,
+            'career_templates'  => \Schema::hasTable('career_track_templates') ? DB::table('career_track_templates')->where('company_id', $company->id)->count() : 0,
+            'career_assignments' => \Schema::hasTable('employee_career_assignments') ? DB::table('employee_career_assignments')->where('company_id', $company->id)->count() : 0,
         ];
         // Собираем список логинов (email + full_name + role) для UI-таблицы
         $users = DB::table('users')
@@ -73,6 +75,15 @@ class DemoSeedController extends Controller
         Artisan::call('demo:seed', ['--reset' => true, '--headcount' => (int) $request->input('headcount', 150)]);
         return response()->json(['ok' => true, 'output' => Artisan::output()]);
     }
+
+    /** Догоняющее назначение карьерных треков без полного пересидинга. */
+    public function careerTracks(Request $request): JsonResponse
+    {
+        $this->requireSuperadmin($request);
+        Artisan::call('demo:seed', ['--only-career' => true]);
+        return response()->json(['ok' => true, 'output' => Artisan::output()]);
+    }
+
 
     private function requireSuperadmin(Request $request): void
     {

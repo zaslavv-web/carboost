@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Database, RotateCcw, Copy, Building2 } from "lucide-react";
+import { Loader2, Database, RotateCcw, Copy, Building2, Route } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
@@ -52,6 +52,18 @@ export default function SeedDemoCompany() {
     onError: (e: any) => toast.error(e?.message || "Ошибка сброса"),
   });
 
+  const careerTracks = useMutation({
+    mutationFn: async () =>
+      (await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/career-tracks", {})).data,
+    onSuccess: (r) => {
+      setOutput(r.output || "");
+      toast.success("Карьерные треки назначены");
+      qc.invalidateQueries({ queryKey: ["demo-status"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Ошибка назначения треков"),
+  });
+
+
   const copyAllLogins = () => {
     if (!status?.users) return;
     const rows = status.users
@@ -61,7 +73,7 @@ export default function SeedDemoCompany() {
     toast.success(`Скопировано ${status.users.length} логинов`);
   };
 
-  const busy = seed.isPending || reset.isPending;
+  const busy = seed.isPending || reset.isPending || careerTracks.isPending;
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -92,6 +104,10 @@ export default function SeedDemoCompany() {
             <Button variant="destructive" onClick={() => reset.mutate()} disabled={busy}>
               {reset.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
               Сбросить и создать заново
+            </Button>
+            <Button variant="outline" onClick={() => careerTracks.mutate()} disabled={busy}>
+              {careerTracks.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Route className="h-4 w-4 mr-2" />}
+              Назначить карьерные треки
             </Button>
           </div>
           {output && (
