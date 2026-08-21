@@ -330,6 +330,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
     Route::get('/superadmin/demo/status', [\App\Http\Controllers\Api\Admin\DemoSeedController::class, 'status']);
     Route::post('/superadmin/demo/seed',  [\App\Http\Controllers\Api\Admin\DemoSeedController::class, 'seed']);
     Route::post('/superadmin/demo/reset', [\App\Http\Controllers\Api\Admin\DemoSeedController::class, 'reset']);
+    Route::post('/superadmin/demo/career-tracks', [\App\Http\Controllers\Api\Admin\DemoSeedController::class, 'careerTracks']);
 
 
     // Профиль текущего пользователя — без has.company (нужен на CompleteRegistration)
