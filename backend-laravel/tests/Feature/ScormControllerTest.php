@@ -198,7 +198,7 @@ XML;
         ]);
         DB::table('enrollments')->insert([
             'id' => $enrollmentId, 'course_id' => $courseId, 'user_id' => $employee->id,
-            'status' => 'in_progress', 'progress_pct' => 0,
+            'status' => 'in_progress',
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
