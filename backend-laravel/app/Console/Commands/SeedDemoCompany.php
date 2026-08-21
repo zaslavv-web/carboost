@@ -770,7 +770,82 @@ class SeedDemoCompany extends Command
                 ]
             );
         }
+
+        $this->line("      шаблонов треков создано за прогон: {$created}");
+        $this->ensureMinimumTracks($existingPairs);
     }
+
+    /**
+     * Фолбэк: если шаблонов всё ещё мало, строим треки из фактических должностей
+     * компании — внутри одного отдела, парами «соседних» должностей.
+     */
+    private function ensureMinimumTracks(array $existingPairs, int $minimum = 10): void
+    {
+        $total = DB::table('career_track_templates')->where('company_id', $this->companyId)->count();
+        if ($total >= $minimum) {
+            $this->line("      всего шаблонов треков: {$total}");
+            return;
+        }
+
+        $positions = DB::table('positions')
+            ->where('company_id', $this->companyId)
+            ->orderBy('department')
+            ->orderBy('title')
+            ->get(['id', 'title', 'department']);
+
+        $byDept = [];
+        foreach ($positions as $p) {
+            $byDept[(string) ($p->department ?? '—')][] = $p;
+        }
+
+        foreach ($byDept as $dept => $list) {
+            for ($i = 0; $i < count($list) - 1 && $total < $minimum; $i++) {
+                $from = $list[$i];
+                $to = $list[$i + 1];
+                $key = (string) $from->id . '>' . (string) $to->id;
+                if (isset($existingPairs[$key])) continue;
+                $existingPairs[$key] = true;
+
+                $steps = $this->trackStepsFor((string) $from->title, (string) $to->title);
+                $tid = (string) Str::uuid();
+                DB::table('career_track_templates')->insert([
+                    'id'               => $tid,
+                    'company_id'       => $this->companyId,
+                    'from_position_id' => $from->id,
+                    'to_position_id'   => $to->id,
+                    'title'            => "Трек: {$from->title} → {$to->title}",
+                    'description'      => "Развитие внутри отдела «{$dept}»: переход из «{$from->title}» в «{$to->title}».",
+                    'motivation_text'  => 'Пройдите трек, чтобы получить повышение и рост дохода.',
+                    'estimated_months' => 12,
+                    'steps'            => json_encode($steps, JSON_UNESCAPED_UNICODE),
+                    'is_active'        => true,
+                    'created_by'       => $this->companyId,
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]);
+                foreach ($steps as $si => $step) {
+                    DB::table('career_step_scenarios')->insert([
+                        'id'               => (string) Str::uuid(),
+                        'template_id'      => $tid,
+                        'company_id'       => $this->companyId,
+                        'step_order'       => $si + 1,
+                        'requires_test'    => $si >= 1,
+                        'min_test_score'   => 75,
+                        'requires_files'   => $si >= 1,
+                        'min_files'        => 1,
+                        'requires_comment' => true,
+                        'instructions'     => "Шаг {$step['title']}: сдайте требуемые артефакты и получите одобрение руководителя.",
+                        'created_at'       => now(),
+                        'updated_at'       => now(),
+                    ]);
+                }
+                $total++;
+                $this->line("      + фолбэк-трек «{$from->title} → {$to->title}»");
+            }
+        }
+        $this->line("      всего шаблонов треков: {$total}");
+    }
+
 
     /**
      * Назначает карьерные треки части сотрудников: активные назначения,
