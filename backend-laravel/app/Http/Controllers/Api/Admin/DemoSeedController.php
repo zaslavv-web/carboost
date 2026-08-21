@@ -74,6 +74,15 @@ class DemoSeedController extends Controller
         return response()->json(['ok' => true, 'output' => Artisan::output()]);
     }
 
+    /** Догоняющее назначение карьерных треков без полного пересидинга. */
+    public function careerTracks(Request $request): JsonResponse
+    {
+        $this->requireSuperadmin($request);
+        Artisan::call('demo:seed', ['--only-career' => true]);
+        return response()->json(['ok' => true, 'output' => Artisan::output()]);
+    }
+
+
     private function requireSuperadmin(Request $request): void
     {
         $u = $request->user();
