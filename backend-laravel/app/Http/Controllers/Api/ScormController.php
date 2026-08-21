@@ -437,8 +437,9 @@ class ScormController extends Controller
 
         foreach ($res->file as $f) {
             $fh = trim((string) ($f['href'] ?? ''));
-            if ($fh && preg_match('/\.x?html?$/i', $fh)) return $fh;
+            if ($fh && preg_match('/\.x?html?$/i', $fh)) return $base . ltrim($fh, '/');
         }
+
 
         foreach ($res->dependency as $dep) {
             $target = $this->findResource($manifestNs, (string) ($dep['identifierref'] ?? ''));
