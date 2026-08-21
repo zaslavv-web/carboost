@@ -812,11 +812,26 @@ class ScormController extends Controller
 
         if (! $found) {
             \Log::warning('scorm_asset_404', ['package' => $packagePath, 'relative' => $relative]);
-            return response()->json([
+            $body = [
                 'error' => 'not found',
                 'package_path' => $packagePath,
                 'relative' => $relative,
-            ], 404);
+            ];
+            if ($this->canAuthor()) {
+                try {
+                    $all = $disk->allFiles($packagePath);
+                } catch (\Throwable $e) {
+                    $all = [];
+                }
+                $rels = array_map(fn ($f) => ltrim(substr($f, strlen($packagePath)), '/'), $all);
+                $body['debug'] = [
+                    'dir_exists'  => is_dir($disk->path($packagePath)),
+                    'file_count'  => count($rels),
+                    'sample'      => array_slice($rels, 0, 20),
+                ];
+            }
+            return response()->json($body, 404);
+
         }
 
         $full = $disk->path($packagePath . '/' . $found);
