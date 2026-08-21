@@ -12,7 +12,7 @@ import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, ArrowLeft, Save, GripVertical } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Save, GripVertical, Stethoscope } from "lucide-react";
 import { CourseAudience } from "@/components/university/CourseAudience";
 import { CourseEditors } from "@/components/university/CourseEditors";
 
@@ -84,6 +84,19 @@ export default function CourseAuthoring() {
   const delCourse = useMutation({
     mutationFn: async () => (await laravel.delete(`/university/courses/${courseId}`)).data,
     onSuccess: () => navigate("/university"),
+  });
+
+  const checkScorm = useMutation({
+    mutationFn: async () => {
+      const { data: result, error } = await laravel.get<{ file_count: number; missing_lessons: number }>(`/university/scorm/${courseId}/files`);
+      if (error) throw new Error(error.message);
+      return result;
+    },
+    onSuccess: (result) => {
+      if (!result || result.missing_lessons > 0) toast.error("В пакете отсутствуют файлы уроков. Загрузите ZIP повторно.");
+      else toast.success(`Пакет исправен: ${result.file_count} файлов`);
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Не удалось проверить пакет"),
   });
 
   if (!data) return <div className="p-6">Загрузка…</div>;
@@ -265,10 +278,13 @@ function LessonEditor({ lesson, onSave, onDelete }: { lesson: Lesson; onSave: (p
         </div>
       )}
       {form.type === "scorm" && (
-        <div>
+        <div className="space-y-2">
           <Label>SCORM launch URL</Label>
           <Input value={form.launch_url ?? ""} disabled />
           <p className="text-xs text-muted-foreground mt-1">Заполняется автоматически при импорте SCORM-пакета.</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => checkScorm.mutate()} disabled={checkScorm.isPending}>
+            <Stethoscope className="mr-2 h-4 w-4" />{checkScorm.isPending ? "Проверяем…" : "Проверить пакет"}
+          </Button>
         </div>
       )}
 

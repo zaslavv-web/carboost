@@ -7,7 +7,7 @@ import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import TextStyle from "@tiptap/extension-text-style";
 import FontFamily from "@tiptap/extension-font-family";
-import { Bold, Italic, UnderlineIcon, List, ListOrdered, Link2, ImageIcon, Video, Undo2, Redo2, Loader2 } from "lucide-react";
+import { Bold, Italic, UnderlineIcon, List, ListOrdered, Link2, ImageIcon, Video, Upload, Undo2, Redo2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -103,6 +103,16 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
     else editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
   };
 
+  const insertVideoUrl = () => {
+    const src = window.prompt("Прямая HTTPS-ссылка на видео (MP4 или WebM)", "https://");
+    if (!src) return;
+    if (!/^https:\/\/.+\.(mp4|webm)(?:[?#].*)?$/i.test(src)) {
+      toast.error("Укажите прямую HTTPS-ссылку на файл MP4 или WebM");
+      return;
+    }
+    editor.chain().focus().insertContent({ type: "video", attrs: { src } }).run();
+  };
+
   const tool = (label: string, icon: ReactNode, action: () => void, active = false, disabled = false) => (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -137,7 +147,8 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
           {tool("Нумерованный список", <ListOrdered className="h-4 w-4" />, () => editor.chain().focus().toggleOrderedList().run(), editor.isActive("orderedList"))}
           {tool("Ссылка", <Link2 className="h-4 w-4" />, setLink, editor.isActive("link"))}
           {tool("Изображение", <ImageIcon className="h-4 w-4" />, () => fileRef.current?.click(), false, uploading)}
-          {tool("Видео", uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />, () => videoRef.current?.click(), false, uploading)}
+          {tool("Видео по ссылке", <Video className="h-4 w-4" />, insertVideoUrl, false, uploading)}
+          {tool("Загрузить видео", uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />, () => videoRef.current?.click(), false, uploading)}
           <span className="ml-auto flex gap-1">
             {tool("Отменить", <Undo2 className="h-4 w-4" />, () => editor.chain().focus().undo().run(), false, !editor.can().undo())}
             {tool("Повторить", <Redo2 className="h-4 w-4" />, () => editor.chain().focus().redo().run(), false, !editor.can().redo())}

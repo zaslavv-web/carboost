@@ -291,8 +291,8 @@ Route::middleware(['auth:sanctum'])->get('/diag', function () {
 // ---- SCORM runtime (iframe не умеет слать bearer: доступ по одноразовому
 // тикету и подписанной короткоживущей cookie, проверки внутри контроллера) ----
 Route::get ('/university/scorm/launch/{ticket}',  [ScormController::class, 'launchByTicket']);
-Route::get ('/university/scorm/asset/{path}',     [ScormController::class, 'asset'])->where('path', '.*');
 Route::get ('/university/scorm/course/{courseId}/asset/{path}', [ScormController::class, 'courseAsset'])->where('path', '.*');
+Route::get ('/university/scorm/asset/{path}',     [ScormController::class, 'asset'])->where('path', '.*');
 Route::post('/university/scorm/{enrollmentId}/cmi', [ScormController::class, 'storeCmi']);
 Route::get ('/university/scorm/{enrollmentId}/cmi', [ScormController::class, 'getCmi']);
 Route::get ('/content-media/{path}', [StorageController::class, 'content'])->where('path', '.*');
