@@ -341,9 +341,10 @@ class SeedDemoCompany extends Command
     }
 
     // ---------- 2. org ----------
-    private function createOrgStructure(): void
+    /** Каталог «отдел => должности» демо-компании. */
+    private function departmentCatalog(): array
     {
-        $depts = [
+        return [
             'Продукт'    => ['Product Manager','Product Owner','Product Analyst'],
             'Разработка' => ['Fullstack Developer','Backend Developer','Frontend Developer','QA Engineer','DevOps Engineer'],
             'Дизайн'     => ['UX/UI Designer','Product Designer'],
@@ -353,6 +354,12 @@ class SeedDemoCompany extends Command
             'Финансы'    => ['Financial Analyst','Accountant'],
             'Поддержка'  => ['Support Engineer','Customer Success Manager'],
         ];
+    }
+
+    private function createOrgStructure(): void
+    {
+        $depts = $this->departmentCatalog();
+
 
         $competencyMap = $this->positionCompetencyMap();
         $psychoMap = $this->positionPsychologicalMap();
