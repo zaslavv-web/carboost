@@ -793,11 +793,6 @@ class SeedDemoCompany extends Command
     private function ensureMinimumTracks(array $existingPairs, int $minimum = 10): void
     {
         $total = DB::table('career_track_templates')->where('company_id', $this->companyId)->count();
-        if ($total >= $minimum) {
-            $this->line("      всего шаблонов треков: {$total}");
-            return;
-        }
-
         $positions = DB::table('positions')
             ->where('company_id', $this->companyId)
             ->orderBy('department')
@@ -810,9 +805,17 @@ class SeedDemoCompany extends Command
         }
 
         foreach ($byDept as $dept => $list) {
-            for ($i = 0; $i < count($list) - 1 && $total < $minimum; $i++) {
+            if (count($list) < 2) continue;
+
+            for ($i = 0; $i < count($list); $i++) {
                 $from = $list[$i];
-                $to = $list[$i + 1];
+                $hasOutgoingTrack = collect(array_keys($existingPairs))
+                    ->contains(fn ($pair) => str_starts_with($pair, (string) $from->id . '>'));
+                if ($hasOutgoingTrack && $total >= $minimum) continue;
+
+                // Для последней должности отдела замыкаем демонстрационный граф
+                // на первую: так у каждого сотрудника есть хотя бы один вариант.
+                $to = $list[($i + 1) % count($list)];
                 $key = (string) $from->id . '>' . (string) $to->id;
                 if (isset($existingPairs[$key])) continue;
                 $existingPairs[$key] = true;
@@ -867,6 +870,7 @@ class SeedDemoCompany extends Command
     {
         $templates = DB::table('career_track_templates')
             ->where('company_id', $this->companyId)
+            ->where('is_active', true)
             ->get(['id', 'from_position_id', 'steps']);
         if ($templates->isEmpty()) {
             $this->warn('      шаблонов карьерных треков нет — назначать нечего');
@@ -877,40 +881,56 @@ class SeedDemoCompany extends Command
         foreach ($templates as $tpl) {
             $byFrom[(string) $tpl->from_position_id][] = $tpl;
         }
-        $allTemplates = $templates->all();
-
         $profiles = DB::table('profiles')
             ->where('company_id', $this->companyId)
             ->get(['user_id', 'position_id']);
 
-        // Уже назначенные — не дублируем (идемпотентность повторного прогона)
+        // Уже назначенные пары user+template не дублируем. Наличие одного трека
+        // больше не блокирует дозаполнение остальных подходящих треков.
         $already = DB::table('employee_career_assignments')
             ->where('company_id', $this->companyId)
-            ->pluck('user_id')
-            ->map(fn ($v) => (string) $v)
-            ->flip();
+            ->get(['user_id', 'template_id'])
+            ->mapWithKeys(fn ($row) => [((string) $row->user_id . '>' . (string) $row->template_id) => true])
+            ->all();
 
         $hrd = $this->userIds['hrd'][0] ?? null;
         $assigned = 0;
+        $matched = 0;
+        $withoutMatches = 0;
 
         foreach ($profiles as $prof) {
-            if ($already->has((string) $prof->user_id)) continue;
-            // Приоритет — трек «от текущей должности», иначе любой активный трек
-            $candidates = $byFrom[(string) $prof->position_id] ?? $allTemplates;
-            if (! $candidates) continue;
-            if (random_int(1, 100) > 60) continue; // ~60% сотрудников на треке
+            // Назначаем все релевантные треки от текущей должности. Случайный
+            // фолбэк на чужую должность создавал нерелевантные рекомендации.
+            $candidates = $byFrom[(string) $prof->position_id] ?? [];
+            if (! $candidates) {
+                $withoutMatches++;
+                continue;
+            }
+            $matched += count($candidates);
 
-            $tpl = $candidates[array_rand($candidates)];
+            $candidateIds = array_map(fn ($tpl) => (string) $tpl->id, $candidates);
+            $assignedIds = [];
+            foreach ($candidateIds as $candidateId) {
+                if (isset($already[(string) $prof->user_id . '>' . $candidateId])) {
+                    $assignedIds[] = $candidateId;
+                }
+            }
+            $missingIds = array_flip(self::missingTemplateIdsForEmployee($candidateIds, $assignedIds));
 
-            $steps = json_decode((string) $tpl->steps, true);
-            $steps = is_array($steps) ? $steps : [];
-            $total = max(1, count($steps));
+            foreach ($candidates as $tpl) {
+                if (! isset($missingIds[(string) $tpl->id])) continue;
+                $pairKey = (string) $prof->user_id . '>' . (string) $tpl->id;
+                $already[$pairKey] = true;
 
-            $currentStep = random_int(1, $total);
-            $status = $currentStep >= $total && random_int(1, 100) <= 40 ? 'completed' : 'active';
+                $steps = json_decode((string) $tpl->steps, true);
+                $steps = is_array($steps) ? $steps : [];
+                $total = max(1, count($steps));
 
-            $assignmentId = (string) Str::uuid();
-            DB::table('employee_career_assignments')->insert([
+                $currentStep = random_int(1, $total);
+                $status = $currentStep >= $total && random_int(1, 100) <= 40 ? 'completed' : 'active';
+
+                $assignmentId = (string) Str::uuid();
+                DB::table('employee_career_assignments')->insert([
                 'id'                  => $assignmentId,
                 'company_id'          => $this->companyId,
                 'user_id'             => $prof->user_id,
@@ -921,11 +941,11 @@ class SeedDemoCompany extends Command
                 'assigned_by'         => $hrd,
                 'assigned_at'         => now()->subDays(random_int(10, 200)),
                 'updated_at'          => now(),
-            ]);
-            $assigned++;
+                ]);
+                $assigned++;
 
             // Личные цели по шагам трека
-            foreach ($steps as $i => $step) {
+                foreach ($steps as $i => $step) {
                 $order = $i + 1;
                 $goals = (array) ($step['goals'] ?? []);
                 foreach ($goals as $goal) {
@@ -946,10 +966,10 @@ class SeedDemoCompany extends Command
                         'updated_at'     => now(),
                     ]);
                 }
-            }
+                }
 
             // Отправленные/одобренные шаги для пройденной части трека
-            for ($order = 1; $order < $currentStep; $order++) {
+                for ($order = 1; $order < $currentStep; $order++) {
                 DB::table('career_step_submissions')->insert([
                     'id'            => (string) Str::uuid(),
                     'assignment_id' => $assignmentId,
@@ -966,10 +986,10 @@ class SeedDemoCompany extends Command
                     'created_at'    => now()->subDays(random_int(60, 120)),
                     'updated_at'    => now(),
                 ]);
-            }
+                }
 
             // Текущий шаг части сотрудников — на проверке
-            if ($status === 'active' && random_int(1, 100) <= 30) {
+                if ($status === 'active' && random_int(1, 100) <= 30) {
                 DB::table('career_step_submissions')->insert([
                     'id'            => (string) Str::uuid(),
                     'assignment_id' => $assignmentId,
@@ -984,10 +1004,48 @@ class SeedDemoCompany extends Command
                     'created_at'    => now()->subDays(random_int(1, 10)),
                     'updated_at'    => now(),
                 ]);
+                }
             }
         }
 
-        $this->line("      назначено треков: {$assigned}");
+        $totalAssignments = DB::table('employee_career_assignments')
+            ->where('company_id', $this->companyId)
+            ->count();
+        $this->line("      подходящих связок сотрудник–трек: {$matched}");
+        $this->line("      новых назначений: {$assigned}");
+        $this->line("      сотрудников без подходящих треков: {$withoutMatches}");
+        $this->line("      всего назначений в компании: {$totalAssignments}");
+
+        $demo76 = DB::table('users')
+            ->join('profiles', 'profiles.user_id', '=', 'users.id')
+            ->where('profiles.company_id', $this->companyId)
+            ->where('users.email', 'employee.76@demo.pikrosta.ru')
+            ->value('profiles.user_id');
+        if ($demo76) {
+            $demo76Assignments = DB::table('employee_career_assignments')
+                ->where('company_id', $this->companyId)
+                ->where('user_id', $demo76)
+                ->count();
+            $this->line("      контроль employee.76: назначений {$demo76Assignments}");
+        }
+    }
+
+    /**
+     * Возвращает все ещё не назначенные подходящие шаблоны. Вынесено отдельно,
+     * чтобы правило «все подходящие, без дублей» проверялось unit-тестом.
+     *
+     * @param array<int,string> $candidateIds
+     * @param array<int,string> $assignedIds
+     * @return array<int,string>
+     */
+    public static function missingTemplateIdsForEmployee(array $candidateIds, array $assignedIds): array
+    {
+        $assigned = array_fill_keys(array_map('strval', $assignedIds), true);
+
+        return array_values(array_filter(
+            array_unique(array_map('strval', $candidateIds)),
+            fn (string $id) => ! isset($assigned[$id]),
+        ));
     }
 
     private function trackStepsFor(string $from, string $to): array
