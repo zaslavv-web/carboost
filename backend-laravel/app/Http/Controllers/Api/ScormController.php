@@ -218,6 +218,24 @@ class ScormController extends Controller
             $manifest['items'][$i]['href'] = $this->resolveHrefOnDisk($disk, $base, $manifestDir, (string) $item['href']);
         }
 
+        // Самопроверка: каждый launch_url обязан существовать на диске,
+        // иначе создастся «пустой» курс, который потом отдаёт 404 на уроках.
+        $missingHrefs = [];
+        foreach ($manifest['items'] as $item) {
+            $href = (string) ($item['href'] ?? '');
+            if ($href === '' || ! $this->findAssetOnDisk($disk, $base, $href)) {
+                $missingHrefs[] = $href !== '' ? $href : ($item['title'] ?? 'без ссылки');
+            }
+        }
+        if ($missingHrefs) {
+            \Log::warning('scorm_import_missing_files', ['package' => $base, 'missing' => $missingHrefs]);
+            return response()->json([
+                'error' => 'В распакованном пакете отсутствуют файлы уроков (' . count($missingHrefs) . '). Загрузите архив заново.',
+                'missing' => array_slice($missingHrefs, 0, 20),
+            ], 422);
+        }
+
+
 
 
         $courseId = (string) Str::uuid();
