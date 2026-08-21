@@ -139,9 +139,15 @@ class ScormController extends Controller
         if (! $manifest) {
             return response()->json(['error' => 'invalid imsmanifest.xml'], 400);
         }
+        if (empty($manifest['items'])) {
+            return response()->json([
+                'error' => 'В imsmanifest.xml не найдено ни одного запускаемого материала (SCO). Проверьте, что архив содержит ресурсы с href.',
+            ], 422);
+        }
 
         $courseId = (string) Str::uuid();
         $title = $data['title'] ?? ($manifest['title'] ?: 'SCORM курс');
+
 
         DB::transaction(function () use ($companyId, $courseId, $title, $data, $base, $manifest) {
             DB::table('courses')->insert([
