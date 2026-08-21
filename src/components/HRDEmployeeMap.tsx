@@ -1228,36 +1228,76 @@ const CreateHrTaskDialog = ({
             <Label>{t("employeeMap.dialog.deadline")}</Label>
             <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
           </div>
-          <div>
-            <Label>{t("employeeMap.dialog.assignees", { count: assigneeIds.length })}</Label>
-            <ScrollArea className="h-40 border border-border rounded-lg p-2 mt-1">
-              <div className="space-y-1">
-                {employees.map((e) => (
-                  <button
-                    key={e.user_id}
-                    type="button"
-                    onClick={() => toggleAssignee(e.user_id)}
-                    className={`w-full flex items-center gap-2 p-2 rounded text-left text-sm transition-colors ${
-                      assigneeIds.includes(e.user_id)
-                        ? "bg-primary/10 text-foreground"
-                        : "hover:bg-secondary"
-                    }`}
-                  >
-                    <Avatar className="w-6 h-6">
-                      <AvatarFallback className="text-[10px]">{initials(e.full_name || "?")}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="truncate text-xs font-medium">{e.full_name}</div>
-                      <div className="truncate text-[10px] text-muted-foreground">
-                        {e.position || "—"}
-                      </div>
-                    </div>
-                    {assigneeIds.includes(e.user_id) && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
-                  </button>
-                ))}
-              </div>
-            </ScrollArea>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant={mode === "people" ? "default" : "outline"} onClick={() => setMode("people")}>
+              Конкретные сотрудники
+            </Button>
+            <Button type="button" size="sm" variant={mode === "audience" ? "default" : "outline"} onClick={() => setMode("audience")}>
+              Отдел / группа
+            </Button>
           </div>
+
+          {mode === "people" ? (
+            <div>
+              <Label>{t("employeeMap.dialog.assignees", { count: assigneeIds.length })}</Label>
+              <ScrollArea className="h-40 border border-border rounded-lg p-2 mt-1">
+                <div className="space-y-1">
+                  {employees.map((e) => (
+                    <button
+                      key={e.user_id}
+                      type="button"
+                      onClick={() => toggleAssignee(e.user_id)}
+                      className={`w-full flex items-center gap-2 p-2 rounded text-left text-sm transition-colors ${
+                        assigneeIds.includes(e.user_id)
+                          ? "bg-primary/10 text-foreground"
+                          : "hover:bg-secondary"
+                      }`}
+                    >
+                      <Avatar className="w-6 h-6">
+                        <AvatarFallback className="text-[10px]">{initials(e.full_name || "?")}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate text-xs font-medium">{e.full_name}</div>
+                        <div className="truncate text-[10px] text-muted-foreground">{e.position || "—"}</div>
+                      </div>
+                      {assigneeIds.includes(e.user_id) && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Задача останется привязанной к выбранной группе: новые сотрудники получат её автоматически.
+              </p>
+              <ScrollArea className="h-44 border border-border rounded-lg p-2">
+                <div className="space-y-3">
+                  <AudienceGroup
+                    title="Отделы"
+                    items={(options?.departments || []).map((d) => ({ id: d, label: d }))}
+                    selected={departments}
+                    onToggle={(v) => toggleIn(departments, setDepartments, v)}
+                  />
+                  <AudienceGroup
+                    title="Должности"
+                    items={(options?.positions || []).map((p) => ({ id: p.id, label: p.title }))}
+                    selected={positionIds}
+                    onToggle={(v) => toggleIn(positionIds, setPositionIds, v)}
+                  />
+                  <AudienceGroup
+                    title="Грейды"
+                    items={(options?.grades || []).map((g) => ({ id: g, label: g }))}
+                    selected={grades}
+                    onToggle={(v) => toggleIn(grades, setGrades, v)}
+                  />
+                </div>
+              </ScrollArea>
+              <div className="text-xs text-muted-foreground">
+                {audienceEmpty ? "Выберите условия аудитории" : `Попадает сотрудников: ${preview?.count ?? "…"}`}
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t("employeeMap.dialog.cancel")}</Button>
@@ -1268,6 +1308,41 @@ const CreateHrTaskDialog = ({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const AudienceGroup = ({
+  title,
+  items,
+  selected,
+  onToggle,
+}: {
+  title: string;
+  items: { id: string; label: string }[];
+  selected: string[];
+  onToggle: (id: string) => void;
+}) => {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <div className="text-[11px] uppercase text-muted-foreground mb-1">{title}</div>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((it) => (
+          <button
+            key={it.id}
+            type="button"
+            onClick={() => onToggle(it.id)}
+            className={`text-xs px-2 py-1 rounded border transition-colors ${
+              selected.includes(it.id)
+                ? "bg-primary text-primary-foreground border-primary"
+                : "border-border hover:bg-secondary"
+            }`}
+          >
+            {it.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 };
 
