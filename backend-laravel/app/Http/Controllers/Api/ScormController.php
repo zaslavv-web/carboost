@@ -658,12 +658,26 @@ class ScormController extends Controller
             ->first();
         if (! $enrollment) return response()->json(['error' => 'not found'], 404);
 
-        $data = $r->validate(['cmi' => 'required|array']);
+        // Some conforming SCOs call Commit/Finish before writing their first
+        // value. An empty CMI object is therefore a valid no-op, not a 422.
+        $data = $r->validate([
+            'lesson_id' => 'required|string|max:255',
+            'cmi' => 'present|array',
+        ]);
         $cmi = $data['cmi'];
+        $lessonId = $data['lesson_id'];
+
+        $lessonBelongsToCourse = DB::table('lessons')
+            ->join('course_modules', 'course_modules.id', '=', 'lessons.module_id')
+            ->where('lessons.id', $lessonId)
+            ->where('course_modules.course_id', $enrollment->course_id)
+            ->exists();
+        if (! $lessonBelongsToCourse) return response()->json(['error' => 'lesson not found'], 404);
 
         foreach ($cmi as $key => $value) {
+            if (! is_string($key) || mb_strlen($key) > 255) continue;
             DB::table('scorm_runtime_data')->updateOrInsert(
-                ['enrollment_id' => $enrollmentId, 'lesson_id' => $r->input('lesson_id', ''), 'cmi_key' => $key],
+                ['enrollment_id' => $enrollmentId, 'lesson_id' => $lessonId, 'cmi_key' => $key],
                 ['cmi_value' => is_string($value) ? $value : json_encode($value), 'updated_at' => now(), 'created_at' => now()]
             );
         }
@@ -671,14 +685,11 @@ class ScormController extends Controller
         // Detect completion
         $status = $this->extractCompletionStatus($cmi, $enrollment->course_id);
         if ($status === 'completed' || $status === 'passed') {
-            $lessonId = $r->input('lesson_id');
-            if ($lessonId) {
-                DB::table('lesson_progress')->updateOrInsert(
-                    ['enrollment_id' => $enrollmentId, 'lesson_id' => $lessonId],
-                    ['completed' => true, 'score' => $this->extractScore($cmi), 'updated_at' => now(), 'created_at' => now()]
-                );
-                $this->checkCourseCompletion($enrollmentId, $enrollment->course_id);
-            }
+            DB::table('lesson_progress')->updateOrInsert(
+                ['enrollment_id' => $enrollmentId, 'lesson_id' => $lessonId],
+                ['completed' => true, 'score' => $this->extractScore($cmi), 'updated_at' => now(), 'created_at' => now()]
+            );
+            $this->checkCourseCompletion($enrollmentId, $enrollment->course_id);
         }
 
         return response()->json(['ok' => true]);
@@ -1168,12 +1179,18 @@ class ScormController extends Controller
   const statusEl = document.getElementById('status');
   let initialized = false;
   let cmi = {};
+  let writeQueue = Promise.resolve();
 
   async function loadCmi() {
     if (!enrollmentId || enrollmentId === 'none') return;
     try {
       const r = await fetch(getUrl, {credentials:'include'});
-      if (r.ok) { const j = await r.json(); cmi = j.cmi || {}; }
+      if (r.ok) {
+        const j = await r.json();
+        // Do not overwrite values already written while the initial request
+        // was in flight.
+        cmi = Object.assign({}, j.cmi || {}, cmi);
+      }
     } catch(e){}
   }
 
@@ -1181,12 +1198,18 @@ class ScormController extends Controller
 
   function postCmi(delta) {
     if (!enrollmentId || enrollmentId === 'none') return Promise.resolve();
-    return fetch(postUrl, {
-      method:'POST',
-      credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({lesson_id: lessonId, cmi: delta})
+    if (!delta || Object.keys(delta).length === 0) return Promise.resolve();
+    const payload = Object.assign({}, delta);
+    writeQueue = writeQueue.catch(()=>{}).then(async function() {
+      const response = await fetch(postUrl, {
+        method:'POST',
+        credentials:'include',
+        headers:{'Content-Type':'application/json','Accept':'application/json'},
+        body: JSON.stringify({lesson_id: lessonId, cmi: payload})
+      });
+      if (!response.ok) throw new Error('CMI save failed: ' + response.status);
     });
+    return writeQueue;
   }
 
   function api12() {

@@ -242,6 +242,44 @@ XML;
             ->assertStatus(401);
     }
 
+    public function test_empty_cmi_commit_is_accepted_as_no_op(): void
+    {
+        $company = $this->makeCompany();
+        $employee = $this->makeUser('employee', $company->id);
+        $courseId = (string) Str::uuid();
+        $moduleId = (string) Str::uuid();
+        $lessonId = (string) Str::uuid();
+        $enrollmentId = (string) Str::uuid();
+
+        DB::table('courses')->insert([
+            'id' => $courseId, 'company_id' => $company->id, 'title' => 'SCORM CMI',
+            'slug' => 'scorm-cmi', 'source_type' => 'scorm', 'scorm_version' => '1.2',
+            'status' => 'published', 'level' => 'beginner', 'duration_min' => 0,
+            'mandatory' => false, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('course_modules')->insert([
+            'id' => $moduleId, 'course_id' => $courseId, 'order_index' => 0,
+            'title' => 'M1', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('lessons')->insert([
+            'id' => $lessonId, 'module_id' => $moduleId, 'order_index' => 0,
+            'type' => 'scorm', 'title' => 'L1', 'pass_score' => 70,
+            'duration_min' => 0, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('enrollments')->insert([
+            'id' => $enrollmentId, 'course_id' => $courseId, 'user_id' => $employee->id,
+            'status' => 'in_progress', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($employee, 'sanctum')
+            ->postJson("/api/university/scorm/{$enrollmentId}/cmi", [
+                'lesson_id' => $lessonId,
+                'cmi' => [],
+            ])
+            ->assertOk()
+            ->assertJson(['ok' => true]);
+    }
+
     public function test_launch_ticket_forbidden_for_non_enrolled_employee(): void
     {
         $company = $this->makeCompany();
