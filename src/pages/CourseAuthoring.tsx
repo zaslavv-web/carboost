@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -234,7 +235,7 @@ function LessonEditor({ lesson, onSave, onDelete }: { lesson: Lesson; onSave: (p
           <Select value={form.type} onValueChange={(v) => set("type", v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="markdown">Текст (Markdown)</SelectItem>
+              <SelectItem value="markdown">Текст</SelectItem>
               <SelectItem value="video">Видео (ссылка)</SelectItem>
               <SelectItem value="pdf">PDF (ссылка)</SelectItem>
               <SelectItem value="test">Тест</SelectItem>
@@ -272,8 +273,8 @@ function LessonEditor({ lesson, onSave, onDelete }: { lesson: Lesson; onSave: (p
       )}
 
       <div>
-        <Label>Описание / Содержание (Markdown)</Label>
-        <Textarea rows={8} value={form.content ?? ""} onChange={(e) => set("content", e.target.value)} />
+        <Label>Описание / содержание</Label>
+        <RichTextEditor value={form.content ?? ""} onChange={(value) => set("content", value)} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">

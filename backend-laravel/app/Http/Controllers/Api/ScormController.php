@@ -471,6 +471,12 @@ class ScormController extends Controller
         }
 
         $base = $this->healPackagePath($course, (string) $lesson->launch_url);
+        if (! $this->findAssetOnDisk(Storage::disk('scorm-packages'), $base, (string) $lesson->launch_url)) {
+            return response()->json([
+                'error' => 'Файлы курса отсутствуют в хранилище. Загрузите SCORM ZIP повторно.',
+                'code' => 'scorm_package_missing',
+            ], 410);
+        }
 
         return [
             'enrollment_id' => $enrollment?->id,
@@ -1042,7 +1048,7 @@ class ScormController extends Controller
 </head>
 <body>
 <div id="bar"><span>Пик Роста · SCORM {$version}</span><span id="status">Загрузка…</span></div>
-<div id="wrap"><iframe id="sco" src="{$launchUrl}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div>
+<div id="wrap"><iframe id="sco" src="{$launchUrl}" allow="autoplay; fullscreen"></iframe></div>
 <script>
 (function(){
   const version = '{$version}';
