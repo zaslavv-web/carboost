@@ -100,6 +100,7 @@ interface HrTask {
   created_by: string;
   created_at: string;
   reviewed_at: string | null;
+  audience_rules?: TaskAudience | string | null;
   assignees: { user_id: string; individual_status: string; reward_paid: boolean }[];
 }
 
@@ -112,6 +113,29 @@ const initials = (name: string) =>
     .slice(0, 2)
     .map((s) => s[0]?.toUpperCase())
     .join("");
+
+const parseAudience = (raw: TaskAudience | string | null | undefined): TaskAudience | null => {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw) as TaskAudience; } catch { return null; }
+  }
+  return raw;
+};
+
+/** Человекочитаемая подпись динамической аудитории задачи. */
+const audienceLabel = (
+  raw: TaskAudience | string | null | undefined,
+  positionTitleById: Map<string, string>,
+): string | null => {
+  const a = parseAudience(raw);
+  if (!a) return null;
+  const parts: string[] = [];
+  if (a.departments?.length) parts.push(`Отдел: ${a.departments.join(", ")}`);
+  if (a.position_ids?.length)
+    parts.push(`Должность: ${a.position_ids.map((id) => positionTitleById.get(id) || id).join(", ")}`);
+  if (a.grades?.length) parts.push(`Грейд: ${a.grades.join(", ")}`);
+  return parts.length ? parts.join(" • ") : null;
+};
 
 const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) => {
   const { t } = useTranslation("manager");
@@ -976,6 +1000,11 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
                             </span>
                           )}
                           <span>· {t("employeeMap.tasks.assigneesShort", { count: task.assignees.length })}</span>
+                          {audienceLabel(task.audience_rules, positionTitleById) && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              {audienceLabel(task.audience_rules, positionTitleById)}
+                            </Badge>
+                          )}
                         </div>
                         {task.status !== "completed" && task.status !== "cancelled" && (
                           <div className="flex gap-2">
