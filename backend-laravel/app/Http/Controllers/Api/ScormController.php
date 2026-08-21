@@ -336,6 +336,46 @@ class ScormController extends Controller
     }
 
     /**
+     * Диагностика: реальное содержимое распакованного пакета и launch_url уроков.
+     * Только для авторов/HR — помогает понять, почему ассет отдаёт 404.
+     */
+    public function packageFiles(Request $r, string $courseId)
+    {
+        if (! $this->canAuthor()) return response()->json(['error' => 'forbidden'], 403);
+
+        $course = DB::table('courses')->where('id', $courseId)->first();
+        if (! $course) return response()->json(['error' => 'not found'], 404);
+
+        $base = (string) $course->scorm_package_path;
+        $disk = Storage::disk('scorm-packages');
+        $files = [];
+        try {
+            foreach ($disk->allFiles($base) as $f) {
+                $files[] = ltrim(substr($f, strlen($base)), '/');
+            }
+        } catch (\Throwable $e) {
+            $files = ['__error__' => $e->getMessage()];
+        }
+
+        $lessons = DB::table('lessons')
+            ->whereIn('module_id', function ($q) use ($courseId) {
+                $q->select('id')->from('course_modules')->where('course_id', $courseId);
+            })
+            ->get(['id', 'title', 'launch_url']);
+
+        return response()->json([
+            'package_path' => $base,
+            'abs_path'     => $disk->path($base),
+            'exists'       => is_dir($disk->path($base)),
+            'file_count'   => count($files),
+            'files'        => array_slice($files, 0, 300),
+            'lessons'      => $lessons,
+        ]);
+    }
+
+
+
+    /**
      * Общие проверки доступа к SCORM-уроку.
      *
      * @return array{enrollment_id: ?string, package_path: string, launch_url: string, version: string}|\Illuminate\Http\JsonResponse

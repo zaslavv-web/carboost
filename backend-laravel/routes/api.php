@@ -689,6 +689,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::post  ('/university/scorm/import',             [ScormController::class, 'import']);
         Route::post  ('/university/scorm/{courseId}/launch-ticket/{lessonId}', [ScormController::class, 'launchTicket']);
         Route::get   ('/university/scorm/{courseId}/launch/{lessonId}', [ScormController::class, 'launch']);
+        Route::get   ('/university/scorm/{courseId}/files', [ScormController::class, 'packageFiles']);
 
 
 
