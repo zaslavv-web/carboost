@@ -608,6 +608,12 @@ class DbController extends Controller
         $model = self::resolve($table);
         $payload = $request->input('values', $request->all());
         $rows = isset($payload[0]) ? $payload : [$payload];
+        if ($table === 'portal_posts') {
+            foreach ($rows as &$row) {
+                if (array_key_exists('body_md', $row)) $row['body_md'] = \App\Support\RichTextSanitizer::clean($row['body_md']);
+            }
+            unset($row);
+        }
         $upsert = $request->boolean('upsert');
         $onConflict = $request->input('onConflict');
 
@@ -658,6 +664,9 @@ class DbController extends Controller
             $query = $model::query();
             $applied = $this->applyFilters($query, $request);
             $values = $request->input('values', []);
+            if ($table === 'portal_posts' && array_key_exists('body_md', $values)) {
+                $values['body_md'] = \App\Support\RichTextSanitizer::clean($values['body_md']);
+            }
             if (! $values) {
                 return response()->json(['error' => 'Нет данных для обновления'], 422);
             }

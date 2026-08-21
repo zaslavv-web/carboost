@@ -1,14 +1,14 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import ReactMarkdown from "react-markdown";
+import { RichContent } from "@/components/ui/rich-content";
 import { laravel } from "@/integrations/laravel/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Circle, PlayCircle, FileText, ClipboardList, ArrowLeft, Award, FileArchive } from "lucide-react";
+import { CheckCircle2, Circle, PlayCircle, FileText, ClipboardList, ArrowLeft, Award, FileArchive, ExternalLink, RefreshCw, Loader2 } from "lucide-react";
 
 interface Lesson {
   id: string; module_id: string; order_index: number;
@@ -36,7 +36,7 @@ function toEmbed(url: string): string {
  * запрашиваем одноразовый тикет запуска и подставляем выданный URL.
  */
 function ScormFrame({ courseId, lessonId, title }: { courseId: string; lessonId: string; title: string }) {
-  const [state, setState] = useState<{ url?: string; error?: string; loading: boolean }>({ loading: true });
+  const [state, setState] = useState<{ url?: string; error?: string; loading: boolean; loaded?: boolean }>({ loading: true });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -58,7 +58,7 @@ function ScormFrame({ courseId, lessonId, title }: { courseId: string; lessonId:
           setState({ loading: false, error: msg });
           return;
         }
-        setState({ loading: false, url: data?.launch_url });
+        setState({ loading: false, loaded: false, url: data?.launch_url });
       });
     return () => {
       cancelled = true;
@@ -70,20 +70,28 @@ function ScormFrame({ courseId, lessonId, title }: { courseId: string; lessonId:
   }
   if (state.error || !state.url) {
     return (
-      <div className="aspect-[16/10] w-full rounded border bg-muted/30 flex flex-col items-center justify-center gap-3 text-center p-6">
+      <div className="aspect-[16/10] w-full rounded border bg-muted/30 flex flex-col items-center justify-center gap-3 text-center p-6" role="alert">
         <p className="text-sm text-muted-foreground">{state.error ?? "Не удалось открыть материал"}</p>
-        <Button variant="outline" onClick={() => setAttempt((a) => a + 1)}>Повторить</Button>
+        <Button variant="outline" onClick={() => setAttempt((a) => a + 1)}><RefreshCw className="mr-2 h-4 w-4" />Повторить</Button>
       </div>
     );
   }
   return (
-    <div className="aspect-[16/10] w-full rounded overflow-hidden border bg-black">
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">{state.loaded ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : <Loader2 className="h-3.5 w-3.5 animate-spin" />}{state.loaded ? "Материал открыт" : "Открываем материал…"}</span>
+        <Button asChild size="sm" variant="ghost" className="h-7">
+          <a href={state.url} target="_blank" rel="noreferrer"><ExternalLink className="mr-1 h-3.5 w-3.5" />В новом окне</a>
+        </Button>
+      </div>
+      <div className="aspect-[16/10] w-full rounded overflow-hidden border bg-background">
       <iframe
         src={state.url}
         className="w-full h-full"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         title={title}
+        onLoad={() => setState((current) => ({ ...current, loaded: true }))}
       />
+      </div>
     </div>
   );
 }
@@ -94,6 +102,7 @@ export default function CourseView() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
+  const lessonPanelRef = useRef<HTMLDivElement>(null);
 
   const { data } = useQuery({
     queryKey: ["uni-course", courseId],
@@ -156,6 +165,13 @@ export default function CourseView() {
     progressMut.mutate({ enrollmentId: enrollmentId!, lesson_id: activeLesson.id, completed: true });
   };
 
+  const openLesson = (lessonId: string) => {
+    setActiveLessonId(lessonId);
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      window.setTimeout(() => lessonPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    }
+  };
+
   const total = allLessons.length;
   const done = completed.size + (enrollment?.progress_done ?? 0);
   const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
@@ -191,7 +207,8 @@ export default function CourseView() {
                     return (
                       <button
                         key={l.id}
-                        onClick={() => setActiveLessonId(l.id)}
+                        onClick={() => openLesson(l.id)}
+                        aria-current={l.id === activeLessonId ? "step" : undefined}
                         className={`w-full text-left text-sm px-2 py-1.5 rounded flex items-center gap-2 ${
                           l.id === activeLessonId ? "bg-primary/10 text-primary" : "hover:bg-muted"
                         }`}
@@ -210,7 +227,7 @@ export default function CourseView() {
         </Card>
 
         {/* Lesson body */}
-        <Card className="lg:col-span-2">
+        <Card ref={lessonPanelRef} className="lg:col-span-2 scroll-mt-4">
           {activeLesson ? (
             <>
               <CardHeader>
@@ -253,9 +270,7 @@ export default function CourseView() {
                 )}
 
                 {activeLesson.content && activeLesson.type !== "scorm" && (
-                  <div className="prose prose-sm max-w-none dark:prose-invert">
-                    <ReactMarkdown>{activeLesson.content}</ReactMarkdown>
-                  </div>
+                  <RichContent value={activeLesson.content} />
                 )}
 
                 {activeLesson.type !== "scorm" && (

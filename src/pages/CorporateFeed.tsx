@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
 import { Newspaper, Plus, Pin, MessageCircle, Heart, Trash2, Megaphone } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { RichContent } from "@/components/ui/rich-content";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -145,9 +146,7 @@ export default function CorporateFeed() {
             </CardHeader>
             <CardContent className="space-y-3">
               {p.body_md && (
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <ReactMarkdown>{p.body_md}</ReactMarkdown>
-                </div>
+                <RichContent value={p.body_md} />
               )}
               <div className="flex items-center gap-3 pt-2 border-t">
                 <Button size="sm" variant="ghost" onClick={() => react.mutate(p.id)}>
@@ -211,6 +210,7 @@ function CreatePostDialog({ onSubmit }: { onSubmit: (v: Partial<Post>) => void }
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [pin, setPin] = useState(false);
+  const hasBody = body.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0 || /<(img|video)\b/i.test(body);
   return (
     <DialogContent>
       <DialogHeader><DialogTitle>Новая публикация</DialogTitle></DialogHeader>
@@ -225,14 +225,14 @@ function CreatePostDialog({ onSubmit }: { onSubmit: (v: Partial<Post>) => void }
           </Select>
         </div>
         <div><Label>Заголовок</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
-        <div><Label>Текст (Markdown)</Label><Textarea rows={8} value={body} onChange={(e) => setBody(e.target.value)} /></div>
+        <div><Label>Текст публикации</Label><RichTextEditor value={body} onChange={setBody} minHeight="260px" /></div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={pin} onChange={(e) => setPin(e.target.checked)} />
           Закрепить в ленте
         </label>
       </div>
       <DialogFooter>
-        <Button disabled={!body.trim()} onClick={() => onSubmit({ kind, title, body_md: body, is_pinned: pin })}>
+        <Button disabled={!hasBody} onClick={() => onSubmit({ kind, title, body_md: body, is_pinned: pin })}>
           Опубликовать
         </Button>
       </DialogFooter>

@@ -347,7 +347,10 @@ class ScormController extends Controller
 
         $version = $course->scorm_version === '2004' ? '2004' : '1.2';
         $base = $this->healPackagePath($course, (string) $lesson->launch_url);
-        $launchUrl = $this->assetUrl($base, (string) $lesson->launch_url);
+        if (! $this->findAssetOnDisk(Storage::disk('scorm-packages'), $base, (string) $lesson->launch_url)) {
+            return new Response($this->missingPackageHtml(), 410, ['Content-Type' => 'text/html; charset=utf-8']);
+        }
+        $launchUrl = $this->courseAssetUrl((string) $course->id, (string) $lesson->launch_url);
         $html = $this->launchHtml($launchUrl, $payload['enrollment_id'], (string) $payload['lesson_id'], $version);
 
         $cookie = cookie(
@@ -355,6 +358,7 @@ class ScormController extends Controller
             $this->signSession([
                 'uid'           => $payload['user_id'],
                 'package_path'  => $base,
+                'course_id'     => (string) $course->id,
                 'enrollment_id' => $payload['enrollment_id'],
                 'exp'           => time() + 4 * 3600,
             ]),
@@ -425,7 +429,6 @@ class ScormController extends Controller
 
         return response()->json([
             'package_path' => $base,
-            'abs_path'     => $disk->path($base),
             'exists'       => is_dir($disk->path($base)),
             'writable'     => is_writable($disk->path($base)),
             'file_count'   => count($files),
@@ -467,11 +470,17 @@ class ScormController extends Controller
         }
 
         $base = $this->healPackagePath($course, (string) $lesson->launch_url);
+        if (! $this->findAssetOnDisk(Storage::disk('scorm-packages'), $base, (string) $lesson->launch_url)) {
+            return response()->json([
+                'error' => 'Файлы курса отсутствуют в хранилище. Загрузите SCORM ZIP повторно.',
+                'code' => 'scorm_package_missing',
+            ], 410);
+        }
 
         return [
             'enrollment_id' => $enrollment?->id,
             'package_path'  => $base,
-            'launch_url'    => $this->assetUrl($base, (string) $lesson->launch_url),
+            'launch_url'    => $this->courseAssetUrl($courseId, (string) $lesson->launch_url),
             'version'       => $course->scorm_version === '2004' ? '2004' : '1.2',
         ];
     }
@@ -813,6 +822,31 @@ class ScormController extends Controller
         return url('/api/university/scorm/asset/' . ltrim($packagePath, '/') . '/' . $relative);
     }
 
+    protected function courseAssetUrl(string $courseId, string $relative): string
+    {
+        return url('/api/university/scorm/course/' . $courseId . '/asset/' . ltrim($relative, '/'));
+    }
+
+    public function courseAsset(Request $r, string $courseId, string $path)
+    {
+        $session = $this->sessionPayload($r);
+        $uid = $this->resolveUid($r);
+        if (! $uid) return response()->json(['error' => 'auth required'], 401);
+        if ($path === '' || str_contains($path, '..')) return response()->json(['error' => 'invalid path'], 400);
+
+        $course = DB::table('courses')->where('id', $courseId)->first();
+        if (! $course || $course->source_type !== 'scorm') return response()->json(['error' => 'not found'], 404);
+        $allowed = $session && ($session['course_id'] ?? null) === $courseId && ($session['uid'] ?? null) === $uid;
+        if (! $allowed) {
+            $allowed = DB::table('enrollments')->where('course_id', $courseId)->where('user_id', $uid)->exists()
+                || ($this->canAuthor() && (string) $course->company_id === (string) $this->companyId());
+        }
+        if (! $allowed) return response()->json(['error' => 'forbidden'], 403);
+
+        $base = $this->healPackagePath($course, $path);
+        return $this->serveAsset($base, $path, $courseId);
+    }
+
     /**
      * Serve a single SCORM asset (html, js, images) with enrollment/auth guard.
      */
@@ -856,14 +890,20 @@ class ScormController extends Controller
         if (! $allowed) return response()->json(['error' => 'forbidden'], 403);
 
 
-        $disk = Storage::disk('scorm-packages');
         $relative = ltrim(implode('/', array_slice($segments, 2)), '/');
+        return $this->serveAsset($packagePath, $relative);
+    }
+
+    protected function serveAsset(string $packagePath, string $relative, ?string $courseId = null)
+    {
+        $disk = Storage::disk('scorm-packages');
         $found = $this->findAssetOnDisk($disk, $packagePath, $relative);
 
         // Каталог пакета потерян (перезалив/сбой распаковки) — ищем тот же файл
         // в другом пакете этой же компании.
         if (! $found) {
-            $sibling = $this->findPackageContaining($segments[0], $relative, $packagePath);
+            $companyDir = str_contains($packagePath, '/') ? explode('/', $packagePath)[0] : '';
+            $sibling = $this->findPackageContaining($companyDir, $relative, $packagePath);
             if ($sibling) {
                 $found = $this->findAssetOnDisk($disk, $sibling, $relative);
                 if ($found) {
@@ -900,7 +940,16 @@ class ScormController extends Controller
 
         $full = $disk->path($packagePath . '/' . $found);
         $mime = $this->guessMime($full);
-        return response()->file($full, ['Content-Type' => $mime]);
+        return response()->file($full, [
+            'Content-Type' => $mime,
+            'Cache-Control' => 'private, max-age=3600',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    protected function missingPackageHtml(): string
+    {
+        return '<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Материал недоступен</title><body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#1b1d22;color:#f3f4f6;font:16px Inter,sans-serif"><main style="max-width:560px;padding:32px;text-align:center"><h1 style="font-size:22px">Файлы курса недоступны</h1><p style="color:#b8bdc7;line-height:1.5">Пакет отсутствует в хранилище. Автору курса нужно загрузить SCORM ZIP повторно.</p></main></body></html>';
     }
 
     /**
@@ -998,7 +1047,7 @@ class ScormController extends Controller
 </head>
 <body>
 <div id="bar"><span>Пик Роста · SCORM {$version}</span><span id="status">Загрузка…</span></div>
-<div id="wrap"><iframe id="sco" src="{$launchUrl}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div>
+<div id="wrap"><iframe id="sco" src="{$launchUrl}" allow="autoplay; fullscreen"></iframe></div>
 <script>
 (function(){
   const version = '{$version}';

@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, ArrowLeft, Save, GripVertical } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Save, GripVertical, Stethoscope } from "lucide-react";
 import { CourseAudience } from "@/components/university/CourseAudience";
 import { CourseEditors } from "@/components/university/CourseEditors";
 
@@ -83,6 +84,19 @@ export default function CourseAuthoring() {
   const delCourse = useMutation({
     mutationFn: async () => (await laravel.delete(`/university/courses/${courseId}`)).data,
     onSuccess: () => navigate("/university"),
+  });
+
+  const checkScorm = useMutation({
+    mutationFn: async () => {
+      const { data: result, error } = await laravel.get<{ file_count: number; missing_lessons: number }>(`/university/scorm/${courseId}/files`);
+      if (error) throw new Error(error.message);
+      return result;
+    },
+    onSuccess: (result) => {
+      if (!result || result.missing_lessons > 0) toast.error("В пакете отсутствуют файлы уроков. Загрузите ZIP повторно.");
+      else toast.success(`Пакет исправен: ${result.file_count} файлов`);
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Не удалось проверить пакет"),
   });
 
   if (!data) return <div className="p-6">Загрузка…</div>;
@@ -207,6 +221,8 @@ export default function CourseAuthoring() {
                 lesson={activeLesson}
                 onSave={(patch) => updLesson.mutate({ id: activeLesson.id, patch })}
                 onDelete={() => { if (confirm("Удалить урок?")) { delLesson.mutate(activeLesson.id); setActiveLessonId(null); } }}
+                onCheckScorm={() => checkScorm.mutate()}
+                checkingScorm={checkScorm.isPending}
               />
             ) : (
               <p className="text-sm text-muted-foreground">Выберите урок слева</p>
@@ -218,7 +234,7 @@ export default function CourseAuthoring() {
   );
 }
 
-function LessonEditor({ lesson, onSave, onDelete }: { lesson: Lesson; onSave: (patch: Partial<Lesson>) => void; onDelete: () => void }) {
+function LessonEditor({ lesson, onSave, onDelete, onCheckScorm, checkingScorm }: { lesson: Lesson; onSave: (patch: Partial<Lesson>) => void; onDelete: () => void; onCheckScorm: () => void; checkingScorm: boolean }) {
   const [form, setForm] = useState<Lesson>(lesson);
   const set = (k: keyof Lesson, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -234,7 +250,7 @@ function LessonEditor({ lesson, onSave, onDelete }: { lesson: Lesson; onSave: (p
           <Select value={form.type} onValueChange={(v) => set("type", v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="markdown">Текст (Markdown)</SelectItem>
+              <SelectItem value="markdown">Текст</SelectItem>
               <SelectItem value="video">Видео (ссылка)</SelectItem>
               <SelectItem value="pdf">PDF (ссылка)</SelectItem>
               <SelectItem value="test">Тест</SelectItem>
@@ -264,16 +280,19 @@ function LessonEditor({ lesson, onSave, onDelete }: { lesson: Lesson; onSave: (p
         </div>
       )}
       {form.type === "scorm" && (
-        <div>
+        <div className="space-y-2">
           <Label>SCORM launch URL</Label>
           <Input value={form.launch_url ?? ""} disabled />
           <p className="text-xs text-muted-foreground mt-1">Заполняется автоматически при импорте SCORM-пакета.</p>
+          <Button type="button" variant="outline" size="sm" onClick={onCheckScorm} disabled={checkingScorm}>
+            <Stethoscope className="mr-2 h-4 w-4" />{checkingScorm ? "Проверяем…" : "Проверить пакет"}
+          </Button>
         </div>
       )}
 
       <div>
-        <Label>Описание / Содержание (Markdown)</Label>
-        <Textarea rows={8} value={form.content ?? ""} onChange={(e) => set("content", e.target.value)} />
+        <Label>Описание / содержание</Label>
+        <RichTextEditor value={form.content ?? ""} onChange={(value) => set("content", value)} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
