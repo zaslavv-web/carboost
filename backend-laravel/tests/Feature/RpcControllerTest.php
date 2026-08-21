@@ -46,12 +46,15 @@ class RpcControllerTest extends TestCase
 
     public function test_rpc_localizes_postgres_rls_error(): void
     {
+        // Пользователя создаём до подмены фасада DB — makeUser() пишет через DB::table().
+        $user = $this->makeUser('employee');
+
         DB::shouldReceive('statement')->zeroOrMoreTimes()->andReturnTrue();
         DB::shouldReceive('select')->andThrow(new \RuntimeException(
             'SQLSTATE[42501]: insufficient_privilege: 7 ERROR: new row violates row-level security policy for table'
         ));
 
-        $this->actingAs($this->makeUser('employee'), 'sanctum')
+        $this->actingAs($user, 'sanctum')
             ->postJson('/api/rpc/verify_user', ['params' => ['_target_user_id' => '00000000-0000-0000-0000-000000000000']])
             ->assertStatus(422)
             ->assertJsonPath('error', 'Недостаточно прав для этой операции');

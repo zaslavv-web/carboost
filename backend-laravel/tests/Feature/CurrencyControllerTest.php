@@ -62,13 +62,13 @@ class CurrencyControllerTest extends TestCase
             'id' => (string) Str::uuid(), 'company_id' => $company->id,
             'title' => 'Активное правило', 'description' => null, 'category' => 'general',
             'icon' => '⭐', 'points' => 10, 'reward_kind' => 'currency', 'trigger_mode' => 'manual',
-            'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+            'is_active' => true, 'created_by' => $user->getKey(), 'created_at' => now(), 'updated_at' => now(),
         ]);
         DB::table('gamification_reward_types')->insert([
             'id' => (string) Str::uuid(), 'company_id' => $company->id,
             'title' => 'Отключённое правило', 'description' => null, 'category' => 'general',
             'icon' => '⭐', 'points' => 5, 'reward_kind' => 'currency', 'trigger_mode' => 'manual',
-            'is_active' => false, 'created_at' => now(), 'updated_at' => now(),
+            'is_active' => false, 'created_by' => $user->getKey(), 'created_at' => now(), 'updated_at' => now(),
         ]);
 
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/currency/earn-rules')->assertOk();
