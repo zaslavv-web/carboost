@@ -736,6 +736,14 @@ class DbController extends Controller
                 }
             }
             $rows = $query->get();
+            if ($rows->isEmpty()) {
+                $foreign = $model::query()->withoutGlobalScopes();
+                $this->applyFilters($foreign, $request);
+                $other = $foreign->first();
+                if ($other) {
+                    $this->authorizeAny('delete', $other);
+                }
+            }
             foreach ($rows as $row) {
                 $this->authorizeAny('delete', $row);
                 $row->delete();
