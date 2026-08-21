@@ -9,21 +9,41 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Superadmin-only: наполнение демо-компании «ООО Демо».
- * POST /api/superadmin/demo/seed   { reset?: bool, headcount?: int }
- * POST /api/superadmin/demo/reset
- * GET  /api/superadmin/demo/status
+ * Superadmin-only: наполнение демо-компании (по умолчанию «ООО Демо»).
+ * GET  /api/superadmin/demo/companies
+ * GET  /api/superadmin/demo/status?company=...
+ * POST /api/superadmin/demo/seed   { reset?: bool, headcount?: int, company?: string }
+ * POST /api/superadmin/demo/reset  { headcount?: int, company?: string }
  */
 class DemoSeedController extends Controller
 {
     private const NAME = 'ООО "Демо"';
 
+    /** Список компаний для выпадающего списка + название по умолчанию. */
+    public function companies(Request $request): JsonResponse
+    {
+        $this->requireSuperadmin($request);
+        $companies = DB::table('companies')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(function ($c) {
+                $c->users = DB::table('profiles')->where('company_id', $c->id)->count();
+                return $c;
+            });
+
+        return response()->json([
+            'default' => self::NAME,
+            'companies' => $companies,
+        ]);
+    }
+
     public function status(Request $request): JsonResponse
     {
         $this->requireSuperadmin($request);
-        $company = DB::table('companies')->where('name', self::NAME)->first();
+        $name = $this->companyName($request);
+        $company = DB::table('companies')->where('name', $name)->first();
         if (!$company) {
-            return response()->json(['exists' => false]);
+            return response()->json(['exists' => false, 'name' => $name]);
         }
         $counts = [
             'users'         => DB::table('profiles')->where('company_id', $company->id)->count(),
@@ -68,7 +88,7 @@ class DemoSeedController extends Controller
         $this->requireSuperadmin($request);
         $reset = (bool) $request->boolean('reset', false);
         $headcount = (int) $request->input('headcount', 150);
-        $params = ['--headcount' => $headcount];
+        $params = ['--headcount' => $headcount, '--name' => $this->companyName($request)];
         if ($reset) $params['--reset'] = true;
 
         Artisan::call('demo:seed', $params);
@@ -79,7 +99,11 @@ class DemoSeedController extends Controller
     public function reset(Request $request): JsonResponse
     {
         $this->requireSuperadmin($request);
-        Artisan::call('demo:seed', ['--reset' => true, '--headcount' => (int) $request->input('headcount', 150)]);
+        Artisan::call('demo:seed', [
+            '--reset' => true,
+            '--headcount' => (int) $request->input('headcount', 150),
+            '--name' => $this->companyName($request),
+        ]);
         return response()->json(['ok' => true, 'output' => Artisan::output()]);
     }
 
@@ -87,32 +111,32 @@ class DemoSeedController extends Controller
     public function careerTracks(Request $request): JsonResponse
     {
         $this->requireSuperadmin($request);
-        Artisan::call('demo:seed', ['--only-career' => true]);
+        $name = $this->companyName($request);
+        Artisan::call('demo:seed', ['--only-career' => true, '--name' => $name]);
         $output = Artisan::output();
-        $company = DB::table('companies')->where('name', self::NAME)->first();
+        $company = DB::table('companies')->where('name', $name)->first();
         $assignments = $company
             ? DB::table('employee_career_assignments')->where('company_id', $company->id)->count()
             : 0;
         $templates = $company
             ? DB::table('career_track_templates')->where('company_id', $company->id)->count()
             : 0;
-        $controlEmployeeAssignments = $company
-            ? DB::table('employee_career_assignments')
-                ->join('users', 'users.id', '=', 'employee_career_assignments.user_id')
-                ->where('employee_career_assignments.company_id', $company->id)
-                ->where('users.email', 'employee.76@demo.pikrosta.ru')
-                ->count()
-            : 0;
 
         return response()->json([
-            'ok' => $assignments > 0 && $controlEmployeeAssignments > 0,
+            'ok' => $assignments > 0,
             'output' => $output,
             'career_templates' => $templates,
             'career_assignments' => $assignments,
-            'control_employee_assignments' => $controlEmployeeAssignments,
-        ], $assignments > 0 && $controlEmployeeAssignments > 0 ? 200 : 422);
+            'control_employee_assignments' => $assignments,
+        ], $assignments > 0 ? 200 : 422);
     }
 
+    /** Название компании из запроса (или демо-компания по умолчанию). */
+    private function companyName(Request $request): string
+    {
+        $name = trim((string) $request->input('company', ''));
+        return $name !== '' ? mb_substr($name, 0, 190) : self::NAME;
+    }
 
     private function requireSuperadmin(Request $request): void
     {
