@@ -9,7 +9,9 @@ import { toast } from "sonner";
 import { Loader2, Database, RotateCcw, Copy, Building2, Route } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+interface CompanyRow { id: string; name: string; users: number }
 interface DemoUser { email: string; full_name: string; role: string | null }
 interface DemoPosition { id: string; title: string; department: string | null }
 interface DemoStatus {
@@ -26,16 +28,27 @@ interface DemoStatus {
 export default function SeedDemoCompany() {
   const qc = useQueryClient();
   const [headcount, setHeadcount] = useState(150);
+  const [company, setCompany] = useState<string>('ООО "Демо"');
+  const [customName, setCustomName] = useState("");
   const [output, setOutput] = useState<string>("");
 
+  const { data: companiesData } = useQuery<{ default: string; companies: CompanyRow[] }>({
+    queryKey: ["demo-companies"],
+    queryFn: async () => (await laravel.get<{ default: string; companies: CompanyRow[] }>("/superadmin/demo/companies")).data,
+  });
+
+  const targetName = company === "__new__" ? customName.trim() : company;
+
   const { data: status, isLoading } = useQuery<DemoStatus>({
-    queryKey: ["demo-status"],
-    queryFn: async () => (await laravel.get<DemoStatus>("/superadmin/demo/status")).data,
+    queryKey: ["demo-status", targetName],
+    queryFn: async () =>
+      (await laravel.get<DemoStatus>(`/superadmin/demo/status?company=${encodeURIComponent(targetName)}`)).data,
+    enabled: targetName.length > 0,
   });
 
   const seed = useMutation({
     mutationFn: async (reset: boolean) =>
-      (await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/seed", { reset, headcount })).data,
+      (await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/seed", { reset, headcount, company: targetName })).data,
     onSuccess: (r) => {
       setOutput(r.output || "");
       toast.success(r.ok ? "Демо-компания создана" : "Готово");
@@ -46,7 +59,7 @@ export default function SeedDemoCompany() {
 
   const reset = useMutation({
     mutationFn: async () =>
-      (await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/reset", { headcount })).data,
+      (await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/reset", { headcount, company: targetName })).data,
     onSuccess: (r) => {
       setOutput(r.output || "");
       toast.success("Демо-компания сброшена и создана заново");
@@ -57,7 +70,7 @@ export default function SeedDemoCompany() {
 
   const careerTracks = useMutation({
     mutationFn: async () =>
-      (await laravel.post<{ ok: boolean; output: string; career_templates: number; career_assignments: number; control_employee_assignments: number }>("/superadmin/demo/career-tracks", {})).data,
+      (await laravel.post<{ ok: boolean; output: string; career_templates: number; career_assignments: number; control_employee_assignments: number }>("/superadmin/demo/career-tracks", { company: targetName })).data,
     onSuccess: (r) => {
       setOutput(r.output || "");
       if (r.ok && r.career_assignments > 0) {
@@ -80,13 +93,13 @@ export default function SeedDemoCompany() {
     toast.success(`Скопировано ${status.users.length} логинов`);
   };
 
-  const busy = seed.isPending || reset.isPending || careerTracks.isPending;
+  const busy = !targetName || seed.isPending || reset.isPending || careerTracks.isPending;
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <div className="flex items-center gap-3">
         <Building2 className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-semibold">Демо-компания «ООО Демо»</h1>
+        <h1 className="text-2xl font-semibold">Демо-данные: {targetName || "выберите компанию"}</h1>
       </div>
       <p className="text-sm text-muted-foreground">
         Инструмент для наполнения продукта реалистичным контентом — для внутренних демо клиентам и smoke-теста ключевых модулей.
@@ -99,6 +112,29 @@ export default function SeedDemoCompany() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[260px]">
+              <Label>Компания</Label>
+              <Select value={company} onValueChange={setCompany}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите компанию" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {(companiesData?.companies || []).map((c) => (
+                    <SelectItem key={c.id} value={c.name}>
+                      {c.name} · {c.users}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="__new__">+ Новая компания…</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {company === "__new__" && (
+              <div>
+                <Label htmlFor="cn">Название новой компании</Label>
+                <Input id="cn" value={customName} onChange={(e) => setCustomName(e.target.value)}
+                  placeholder='ООО "Тест"' className="w-56" />
+              </div>
+            )}
             <div>
               <Label htmlFor="hc">Количество сотрудников</Label>
               <Input id="hc" type="number" min={20} max={500} value={headcount}
@@ -214,7 +250,7 @@ export default function SeedDemoCompany() {
       ) : (
         <Card>
           <CardContent className="p-6 text-muted-foreground">
-            Демо-компания ещё не создана. Нажмите «Создать / дополнить», чтобы её наполнить.
+            Компания «{targetName}» ещё не создана. Нажмите «Создать / дополнить», чтобы её наполнить.
           </CardContent>
         </Card>
       )}
