@@ -179,6 +179,16 @@ class ScormController extends Controller
             ], 422);
         }
 
+        // href в манифесте задаются относительно каталога самого imsmanifest.xml,
+        // который в реальных архивах часто лежит в подпапке. Приводим к пути
+        // относительно корня пакета и проверяем существование файла на диске.
+        $manifestDir = trim(str_replace('\\', '/', dirname($manifestRel)), '/.');
+        foreach ($manifest['items'] as $i => $item) {
+            $manifest['items'][$i]['href'] = $this->resolveHrefOnDisk($disk, $base, $manifestDir, (string) $item['href']);
+        }
+
+
+
         $courseId = (string) Str::uuid();
         $title = $data['title'] ?? ($manifest['title'] ?: 'SCORM курс');
 
