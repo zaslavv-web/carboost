@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 
 interface DemoUser { email: string; full_name: string; role: string | null }
+interface DemoPosition { id: string; title: string; department: string | null }
 interface DemoStatus {
   exists: boolean;
   company_id?: string;
@@ -18,7 +19,9 @@ interface DemoStatus {
   counts?: Record<string, number>;
   password?: string;
   users?: DemoUser[];
+  positions?: DemoPosition[];
 }
+
 
 export default function SeedDemoCompany() {
   const qc = useQueryClient();
