@@ -52,6 +52,18 @@ export default function SeedDemoCompany() {
     onError: (e: any) => toast.error(e?.message || "Ошибка сброса"),
   });
 
+  const careerTracks = useMutation({
+    mutationFn: async () =>
+      (await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/career-tracks", {})).data,
+    onSuccess: (r) => {
+      setOutput(r.output || "");
+      toast.success("Карьерные треки назначены");
+      qc.invalidateQueries({ queryKey: ["demo-status"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Ошибка назначения треков"),
+  });
+
+
   const copyAllLogins = () => {
     if (!status?.users) return;
     const rows = status.users
