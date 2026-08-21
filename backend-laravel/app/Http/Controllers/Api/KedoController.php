@@ -597,7 +597,7 @@ class KedoController extends Controller
         $this->assertDocAccess($doc, $request);
 
         $rows = DB::table('kedo_events')->where('document_id', $id)
-            ->orderBy('created_at')->orderBy('id')->limit(1000)->get();
+            ->orderBy('chain_index')->orderBy('created_at')->orderBy('id')->limit(1000)->get();
 
         $prev = null;
         $broken = null;
