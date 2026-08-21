@@ -624,7 +624,7 @@ class SeedDemoCompany extends Command
                         'auto_generated' => true,
                         'title'          => (string) $goal,
                         'description'    => 'Шаг: ' . (string) ($step['title'] ?? "Этап {$order}"),
-                        'status'         => $done ? 'completed' : ($order === $currentStep ? 'in_progress' : 'planned'),
+                        'status'         => $done ? 'completed' : 'in_progress',
                         'progress'       => $done ? 100 : ($order === $currentStep ? random_int(10, 80) : 0),
                         'deadline'       => now()->addMonths($order * 2)->toDateString(),
                         'created_at'     => now(),
