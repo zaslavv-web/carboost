@@ -342,8 +342,17 @@ class ScormController extends Controller
         $manifestNs = $doc;
 
         $organizations = $manifestNs->organizations ?? $doc->organizations;
-        $organization = $organizations->organization ?? null;
-        if (! $organization && isset($organizations[0])) $organization = $organizations[0];
+        $organization = null;
+        if ($organizations) {
+            $default = (string) ($organizations['default'] ?? '');
+            foreach ($organizations->organization as $org) {
+                if (! $organization) $organization = $org;
+                if ($default && (string) ($org['identifier'] ?? '') === $default) {
+                    $organization = $org;
+                    break;
+                }
+            }
+        }
 
         if ($organization) {
             $title = trim((string) ($organization->title ?? ''));
@@ -360,7 +369,71 @@ class ScormController extends Controller
             }
         }
 
+        // Фолбэк: организация без валидных item/identifierref (или манифест
+        // с одним ресурсом). Берём запускаемые ресурсы напрямую, иначе курс
+        // создастся пустым.
+        if (! $items) {
+            $resources = $manifestNs->resources ?? null;
+            if ($resources) {
+                foreach ($resources->resource as $res) {
+                    $scormType = strtolower((string) ($res['scormtype'] ?? $res['scormType'] ?? ''));
+                    if ($scormType && $scormType !== 'sco') continue;
+                    $href = $this->resourceHref($res, $manifestNs);
+                    if (! $href) continue;
+                    $items[] = ['title' => $title ?: 'Урок ' . (count($items) + 1), 'href' => $href];
+                }
+            }
+        }
+        if (! $items) {
+            $resources = $manifestNs->resources ?? null;
+            if ($resources) {
+                foreach ($resources->resource as $res) {
+                    $href = $this->resourceHref($res, $manifestNs);
+                    if ($href) {
+                        $items[] = ['title' => $title ?: 'Урок', 'href' => $href];
+                        break;
+                    }
+                }
+            }
+        }
+
         return ['version' => $version, 'title' => $title, 'items' => $items];
+    }
+
+    /** Ищем ресурс по identifier. */
+    protected function findResource($manifestNs, string $identifier)
+    {
+        $resources = $manifestNs->resources ?? null;
+        if (! $resources || ! $identifier) return null;
+        foreach ($resources->resource as $res) {
+            if ((string) ($res['identifier'] ?? '') === $identifier) return $res;
+        }
+        return null;
+    }
+
+    /**
+     * Href ресурса: сначала атрибут href, затем первый html-файл ресурса,
+     * затем href зависимостей (<dependency identifierref="...">).
+     */
+    protected function resourceHref($res, $manifestNs, int $depth = 0): string
+    {
+        if (! $res || $depth > 3) return '';
+
+        $href = trim((string) ($res['href'] ?? ''));
+        if ($href) return $href;
+
+        foreach ($res->file as $f) {
+            $fh = trim((string) ($f['href'] ?? ''));
+            if ($fh && preg_match('/\.x?html?$/i', $fh)) return $fh;
+        }
+
+        foreach ($res->dependency as $dep) {
+            $target = $this->findResource($manifestNs, (string) ($dep['identifierref'] ?? ''));
+            $depHref = $this->resourceHref($target, $manifestNs, $depth + 1);
+            if ($depHref) return $depHref;
+        }
+
+        return '';
     }
 
     protected function walkItems($item, array &$out, $manifestNs, array $ns, string $prefix = '')
@@ -370,25 +443,19 @@ class ScormController extends Controller
         $href = '';
 
         if ($identifierref) {
-            $resources = $manifestNs->resources ?? null;
-            if ($resources) {
-                foreach ($resources->resource as $res) {
-                    if ((string) ($res['identifier'] ?? '') === $identifierref) {
-                        $href = (string) ($res['href'] ?? '');
-                        break;
-                    }
-                }
-            }
+            $href = $this->resourceHref($this->findResource($manifestNs, $identifierref), $manifestNs);
         }
 
         if ($href) {
-            $out[] = ['title' => ($prefix ? $prefix . ' / ' : '') . $title, 'href' => $href];
+            $out[] = ['title' => ($prefix ? $prefix . ' / ' : '') . ($title ?: 'Урок'), 'href' => $href];
         }
 
         foreach ($item->item as $child) {
             $this->walkItems($child, $out, $manifestNs, $ns, ($prefix ? $prefix . ' / ' : '') . $title);
         }
     }
+
+
 
     protected function assetUrl(string $packagePath, string $relative): string
     {
