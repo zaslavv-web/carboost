@@ -860,7 +860,21 @@ class ScormController extends Controller
         $relative = ltrim(implode('/', array_slice($segments, 2)), '/');
         $found = $this->findAssetOnDisk($disk, $packagePath, $relative);
 
+        // Каталог пакета потерян (перезалив/сбой распаковки) — ищем тот же файл
+        // в другом пакете этой же компании.
         if (! $found) {
+            $sibling = $this->findPackageContaining($segments[0], $relative, $packagePath);
+            if ($sibling) {
+                $found = $this->findAssetOnDisk($disk, $sibling, $relative);
+                if ($found) {
+                    \Log::warning('scorm_asset_sibling', ['from' => $packagePath, 'to' => $sibling, 'relative' => $relative]);
+                    $packagePath = $sibling;
+                }
+            }
+        }
+
+        if (! $found) {
+
             \Log::warning('scorm_asset_404', ['package' => $packagePath, 'relative' => $relative]);
             $body = [
                 'error' => 'not found',
