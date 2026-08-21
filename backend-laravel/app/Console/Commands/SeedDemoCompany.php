@@ -617,25 +617,40 @@ class SeedDemoCompany extends Command
         $templates = DB::table('career_track_templates')
             ->where('company_id', $this->companyId)
             ->get(['id', 'from_position_id', 'steps']);
-        if ($templates->isEmpty()) return;
+        if ($templates->isEmpty()) {
+            $this->warn('      шаблонов карьерных треков нет — назначать нечего');
+            return;
+        }
 
         $byFrom = [];
         foreach ($templates as $tpl) {
             $byFrom[(string) $tpl->from_position_id][] = $tpl;
         }
+        $allTemplates = $templates->all();
 
         $profiles = DB::table('profiles')
             ->where('company_id', $this->companyId)
-            ->whereNotNull('position_id')
             ->get(['user_id', 'position_id']);
+
+        // Уже назначенные — не дублируем (идемпотентность повторного прогона)
+        $already = DB::table('employee_career_assignments')
+            ->where('company_id', $this->companyId)
+            ->pluck('user_id')
+            ->map(fn ($v) => (string) $v)
+            ->flip();
 
         $hrd = $this->userIds['hrd'][0] ?? null;
         $assigned = 0;
 
         foreach ($profiles as $prof) {
-            $candidates = $byFrom[(string) $prof->position_id] ?? null;
+            if ($already->has((string) $prof->user_id)) continue;
+            // Приоритет — трек «от текущей должности», иначе любой активный трек
+            $candidates = $byFrom[(string) $prof->position_id] ?? $allTemplates;
             if (! $candidates) continue;
-            if (random_int(1, 100) > 40) continue; // ~40% сотрудников на треке
+            if (random_int(1, 100) > 60) continue; // ~60% сотрудников на треке
+
+            $tpl = $candidates[array_rand($candidates)];
+
 
             $tpl = $candidates[array_rand($candidates)];
             $steps = json_decode((string) $tpl->steps, true);
