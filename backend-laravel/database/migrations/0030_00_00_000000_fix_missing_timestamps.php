@@ -88,6 +88,16 @@ return new class extends Migration
         if (Schema::hasColumn($table, 'created_at')) {
             return;
         }
+
+        if (DB::getDriverName() !== 'mysql') {
+            // SQLite/Postgres (тесты, локальная разработка) — стандартный Blueprint.
+            Schema::table($table, function (Blueprint $t) {
+                $t->timestamp('created_at')->nullable();
+            });
+            DB::statement("UPDATE \"{$table}\" SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL");
+            return;
+        }
+
         // Use raw SQL to guarantee MySQL DEFAULT CURRENT_TIMESTAMP semantics
         // without requiring doctrine/dbal. Backfill existing rows to NOW().
         DB::statement("ALTER TABLE `{$table}` ADD COLUMN `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
@@ -102,7 +112,18 @@ return new class extends Migration
         if (Schema::hasColumn($table, 'updated_at')) {
             return;
         }
+
+        if (DB::getDriverName() !== 'mysql') {
+            Schema::table($table, function (Blueprint $t) {
+                $t->timestamp('updated_at')->nullable();
+            });
+            $fallback = Schema::hasColumn($table, 'created_at') ? 'COALESCE(created_at, CURRENT_TIMESTAMP)' : 'CURRENT_TIMESTAMP';
+            DB::statement("UPDATE \"{$table}\" SET updated_at = {$fallback} WHERE updated_at IS NULL");
+            return;
+        }
+
         DB::statement("ALTER TABLE `{$table}` ADD COLUMN `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
         DB::statement("UPDATE `{$table}` SET `updated_at` = COALESCE(`created_at`, NOW()) WHERE `updated_at` IS NULL");
     }
+
 };

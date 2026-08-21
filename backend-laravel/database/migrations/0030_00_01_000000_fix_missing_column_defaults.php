@@ -27,6 +27,11 @@ return new class extends Migration
 
     public function up(): void
     {
+        // MySQL-специфичный ALTER ... MODIFY: на SQLite/Postgres (тесты) пропускаем.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         foreach ($this->fixes as $table => $cols) {
             if (!Schema::hasTable($table)) {
                 continue;

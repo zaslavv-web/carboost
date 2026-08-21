@@ -74,7 +74,9 @@ class AiControllerTest extends TestCase
         $mock = Mockery::mock(AssessmentChatService::class);
         $mock->shouldReceive('stream')
             ->once()
-            ->andReturn(response('data: hi'));
+            ->andReturn(new \Symfony\Component\HttpFoundation\StreamedResponse(function () {
+                echo 'data: hi';
+            }));
         $this->app->instance(AssessmentChatService::class, $mock);
 
         $this->actingAs($this->makeUser('employee'), 'sanctum')
@@ -82,7 +84,7 @@ class AiControllerTest extends TestCase
                 'messages' => [['role' => 'user', 'content' => 'привет']],
             ])
             ->assertOk()
-            ->assertSee('data: hi');
+            ->assertStreamedContent('data: hi');
     }
 
     protected function tearDown(): void

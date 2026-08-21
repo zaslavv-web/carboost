@@ -597,7 +597,7 @@ class KedoController extends Controller
         $this->assertDocAccess($doc, $request);
 
         $rows = DB::table('kedo_events')->where('document_id', $id)
-            ->orderBy('created_at')->orderBy('id')->limit(1000)->get();
+            ->orderBy('chain_index')->orderBy('created_at')->orderBy('id')->limit(1000)->get();
 
         $prev = null;
         $broken = null;
@@ -935,8 +935,13 @@ class KedoController extends Controller
 
     private function appendEvent(?string $companyId, string $docId, ?string $actorId, string $event, array $payload): void
     {
-        $prev = DB::table('kedo_events')->where('document_id', $docId)
-            ->orderByDesc('created_at')->orderByDesc('id')->value('hash');
+        // Порядок в цепочке задаётся монотонным chain_index: несколько событий
+        // в пределах одной секунды больше не путают проверку цепочки.
+        $last = DB::table('kedo_events')->where('document_id', $docId)
+            ->orderByDesc('chain_index')->orderByDesc('created_at')->orderByDesc('id')
+            ->first(['hash', 'chain_index']);
+        $prev = $last->hash ?? null;
+        $index = $last ? ((int) $last->chain_index) + 1 : 0;
         $createdAt = now()->toDateTimeString();
         $payloadJson = json_encode($payload, JSON_UNESCAPED_UNICODE);
 
@@ -944,6 +949,7 @@ class KedoController extends Controller
             'id' => (string) Str::uuid(),
             'company_id' => $companyId,
             'document_id' => $docId,
+            'chain_index' => $index,
             'actor_id' => $actorId,
             'event' => $event,
             'payload' => $payloadJson,

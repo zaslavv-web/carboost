@@ -10,5 +10,5 @@ class Company extends Model
     use HasUuids;
 
     protected $table = 'companies';
-    protected $fillable = ['name', 'description', 'logo_url'];
+    protected $fillable = ['name', 'description', 'logo_url', 'industry', 'headcount_band'];
 }

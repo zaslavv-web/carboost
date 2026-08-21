@@ -131,7 +131,12 @@ class AuthController extends Controller
     /** POST /api/auth/logout (auth:sanctum) */
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        // При сессионной аутентификации (или TransientToken) активного токена нет —
+        // logout не должен падать 500.
+        $token = $request->user()?->currentAccessToken();
+        if ($token && method_exists($token, 'delete')) {
+            $token->delete();
+        }
         return response()->json(['ok' => true]);
     }
 
