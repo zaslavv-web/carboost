@@ -320,20 +320,26 @@ class ScormController extends Controller
     protected function parseManifest(string $xml): ?array
     {
         libxml_use_internal_errors(true);
-        $doc = simplexml_load_string($xml);
+
+        // Реальные imsmanifest.xml объявляют default- и префиксные namespace
+        // (imscp, adlcp, xsi). SimpleXML теряет вложенные узлы при обходе через
+        // children($ns), поэтому убираем namespace-объявления и префиксы —
+        // структура манифеста от этого не меняется.
+        $clean = preg_replace('/\sxmlns(:[A-Za-z0-9_.-]+)?\s*=\s*"[^"]*"/', '', $xml);
+        $clean = preg_replace('/<(\/?)[A-Za-z0-9_.-]+:/', '<$1', (string) $clean);
+        $clean = preg_replace('/\s[A-Za-z0-9_.-]+:([A-Za-z0-9_.-]+\s*=\s*")/', ' $1', (string) $clean);
+
+        $doc = simplexml_load_string((string) $clean) ?: simplexml_load_string($xml);
         if (! $doc) return null;
 
-        $ns = $doc->getNamespaces(true);
+        $ns = [];
         $version = '1.2';
-        $schema = strtolower(trim((string) ($doc->schemaversion ?? '')));
+        $schema = strtolower(trim((string) ($doc->metadata->schemaversion ?? $doc->schemaversion ?? '')));
         if (str_contains($schema, '2004')) $version = '2004';
 
         // Title from metadata or first organization
         $title = '';
         $manifestNs = $doc;
-        if (isset($ns[''])) {
-            $manifestNs = $doc->children($ns['']);
-        }
 
         $organizations = $manifestNs->organizations ?? $doc->organizations;
         $organization = $organizations->organization ?? null;
