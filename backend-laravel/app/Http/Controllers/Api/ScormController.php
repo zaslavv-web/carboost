@@ -406,7 +406,7 @@ class ScormController extends Controller
      */
     public function getCmi(Request $r, string $enrollmentId)
     {
-        $uid = $this->uid();
+        $uid = $this->resolveUid($r);
         if (! $uid) return response()->json(['error' => 'auth required'], 401);
 
         $enrollment = DB::table('enrollments')
