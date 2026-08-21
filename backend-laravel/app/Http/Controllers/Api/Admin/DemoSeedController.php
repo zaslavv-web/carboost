@@ -46,6 +46,11 @@ class DemoSeedController extends Controller
             ->select('users.email', 'profiles.full_name', 'user_roles.role')
             ->get();
 
+        $positions = DB::table('positions')
+            ->where('company_id', $company->id)
+            ->orderBy('department')->orderBy('title')
+            ->get(['id', 'title', 'department']);
+
         return response()->json([
             'exists'     => true,
             'company_id' => $company->id,
@@ -53,7 +58,9 @@ class DemoSeedController extends Controller
             'counts'     => $counts,
             'password'   => 'DemoPass!2026',
             'users'      => $users,
+            'positions'  => $positions,
         ]);
+
     }
 
     public function seed(Request $request): JsonResponse
