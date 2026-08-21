@@ -57,6 +57,7 @@ import ScrollToTop from "@/components/ScrollToTop";
 import AnalyticsBootstrap from "@/components/AnalyticsBootstrap";
 import ProductAnalytics from "@/pages/ProductAnalytics";
 import SuperadminOnly from "@/components/SuperadminOnly";
+import RoleOnly from "@/components/RoleOnly";
 import UserProfileFull from "@/pages/UserProfileFull";
 import Chats from "@/pages/Chats";
 import Leaves from "@/pages/Leaves";
@@ -182,7 +183,7 @@ const App = () => (
                 <Route path="/career-tracks" element={<CareerTracksManagement />} />
                 <Route path="/career-tracks-mgmt" element={<CareerTracksManagement />} />
                 <Route path="/career-reviews" element={<CareerReviews />} />
-                <Route path="/gamification" element={<GamificationManagement />} />
+                <Route path="/gamification" element={<RoleOnly roles={["hrd", "hr", "company_admin"]} fallback="/shop"><GamificationManagement /></RoleOnly>} />
                 <Route path="/tests" element={<HRDTests />} />
                 <Route path="/shop" element={<Shop />} />
                 <Route path="/shop/:id" element={<ShopProductDetail />} />
@@ -229,6 +230,7 @@ const App = () => (
                 <Route path="/communities" element={<Communities />} />
                 <Route path="/pulse-surveys" element={<PulseSurveys />} />
                 <Route path="/surveys" element={<Navigate to="/pulse-surveys" replace />} />
+                <Route path="/knowledge" element={<Navigate to="/knowledge-base" replace />} />
                 <Route path="/company-branding" element={<CompanyBranding />} />
                 <Route path="/ai-settings" element={<AiSettings />} />
                 <Route path="/rag-documents" element={<RagDocuments />} />
