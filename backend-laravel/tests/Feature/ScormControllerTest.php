@@ -307,6 +307,50 @@ XML;
             ->assertJsonPath('code', 'scorm_package_missing');
     }
 
+    public function test_launch_ticket_restores_unpacked_files_from_preserved_zip(): void
+    {
+        $company = $this->makeCompany();
+        $employee = $this->makeUser('employee', $company->id);
+        $courseId = (string) Str::uuid();
+        $moduleId = (string) Str::uuid();
+        $lessonId = (string) Str::uuid();
+        $package = $company->id . '/recoverable';
+
+        DB::table('courses')->insert([
+            'id' => $courseId, 'company_id' => $company->id, 'title' => 'Recoverable SCORM',
+            'slug' => 'recoverable-scorm', 'source_type' => 'scorm', 'scorm_version' => '1.2',
+            'scorm_package_path' => $package, 'status' => 'published',
+            'level' => 'beginner', 'duration_min' => 0, 'mandatory' => false,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('course_modules')->insert([
+            'id' => $moduleId, 'course_id' => $courseId, 'order_index' => 0,
+            'title' => 'M1', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('lessons')->insert([
+            'id' => $lessonId, 'module_id' => $moduleId, 'order_index' => 0,
+            'type' => 'scorm', 'title' => 'L1', 'launch_url' => 'pages/01-intro.html',
+            'pass_score' => 70, 'duration_min' => 0, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('enrollments')->insert([
+            'id' => (string) Str::uuid(), 'course_id' => $courseId, 'user_id' => $employee->id,
+            'status' => 'not_started', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'scorm-recovery');
+        $zip = new \ZipArchive();
+        $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFromString('pages/01-intro.html', '<html>Recovered SCO</html>');
+        $zip->close();
+        Storage::disk('scorm-packages')->put($package . '/package.zip', file_get_contents($zipPath));
+
+        $this->actingAs($employee, 'sanctum')
+            ->postJson("/api/university/scorm/{$courseId}/launch-ticket/{$lessonId}")
+            ->assertOk();
+        Storage::disk('scorm-packages')->assertExists($package . '/pages/01-intro.html');
+        @unlink($zipPath);
+    }
+
     public function test_import_rejects_package_when_lesson_file_missing_on_disk(): void
     {
         $company = $this->makeCompany();

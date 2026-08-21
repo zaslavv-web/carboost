@@ -499,6 +499,14 @@ class ScormController extends Controller
             return $base;
         }
 
+        // После переноса или очистки каталога распакованные файлы могли исчезнуть,
+        // хотя исходный ZIP остался. Восстанавливаем пакет атомарно на первом запуске.
+        if ($base !== '' && $this->restorePackageFromZip($disk, $base)
+            && $this->findAssetOnDisk($disk, $base, $launchUrl)) {
+            \Log::warning('scorm_package_restored_from_zip', ['course' => $course->id, 'package' => $base]);
+            return $base;
+        }
+
         $companyDir = (string) ($course->company_id ?? (str_contains($base, '/') ? explode('/', $base)[0] : ''));
         $candidate = $this->findPackageContaining($companyDir, $launchUrl, $base);
         if ($candidate) {
@@ -511,7 +519,109 @@ class ScormController extends Controller
             return $candidate;
         }
 
+        // Ранние версии приложения хранили SCORM в public/local. Деплой не
+        // удаляет storage, поэтому переносим найденный пакет в текущий private
+        // диск и больше не зависим от legacy-пути.
+        if ($base !== '' && $this->restorePackageFromLegacyStorage($disk, $base, $companyDir, $launchUrl)) {
+            \Log::warning('scorm_package_restored_from_legacy', ['course' => $course->id, 'package' => $base]);
+            return $base;
+        }
+
         return $base;
+    }
+
+    protected function restorePackageFromZip($disk, string $base): bool
+    {
+        try {
+            $zipPath = $disk->path($base . '/package.zip');
+            $target = $disk->path($base);
+            if (! is_file($zipPath)) return false;
+
+            $zip = new ZipArchive();
+            if ($zip->open($zipPath) !== true) return false;
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $name = (string) $zip->getNameIndex($i);
+                if (str_contains($name, '..') || str_starts_with($name, '/') || str_contains($name, "\0")) {
+                    $zip->close();
+                    return false;
+                }
+            }
+            $ok = $zip->extractTo($target) === true;
+            $zip->close();
+            return $ok;
+        } catch (\Throwable $e) {
+            \Log::warning('scorm_zip_restore_failed', ['package' => $base, 'error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    protected function restorePackageFromLegacyStorage($disk, string $base, string $companyDir, string $relative): bool
+    {
+        if ($companyDir === '' || $relative === '') return false;
+
+        $canonicalRoot = realpath($disk->path('')) ?: $disk->path('');
+        $legacyRoots = [
+            storage_path('app/public/scorm-packages'),
+            storage_path('app/scorm-packages'),
+        ];
+
+        foreach ($legacyRoots as $root) {
+            if (! is_dir($root) || (realpath($root) ?: $root) === $canonicalRoot) continue;
+            $companyRoot = $root . DIRECTORY_SEPARATOR . $companyDir;
+            if (! is_dir($companyRoot)) continue;
+
+            $dirs = glob($companyRoot . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR) ?: [];
+            foreach ($dirs as $packageDir) {
+                $found = $this->findAssetInLocalDirectory($packageDir, $relative);
+                if (! $found) continue;
+
+                try {
+                    $iterator = new \RecursiveIteratorIterator(
+                        new \RecursiveDirectoryIterator($packageDir, \FilesystemIterator::SKIP_DOTS)
+                    );
+                    foreach ($iterator as $file) {
+                        if (! $file->isFile()) continue;
+                        $rel = ltrim(str_replace('\\', '/', substr($file->getPathname(), strlen($packageDir))), '/');
+                        $stream = fopen($file->getPathname(), 'rb');
+                        if ($stream === false) continue;
+                        try {
+                            $disk->put($base . '/' . $rel, $stream, 'private');
+                        } finally {
+                            fclose($stream);
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('scorm_legacy_restore_failed', ['source' => $packageDir, 'error' => $e->getMessage()]);
+                    continue;
+                }
+
+                if ($this->findAssetOnDisk($disk, $base, $relative)) return true;
+            }
+        }
+        return false;
+    }
+
+    protected function findAssetInLocalDirectory(string $root, string $relative): ?string
+    {
+        $clean = $this->normalizeRelative((string) preg_replace('/[?#].*$/', '', rawurldecode($relative)));
+        if ($clean !== '' && is_file($root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $clean))) return $clean;
+
+        $needle = mb_strtolower(basename($clean));
+        $matches = [];
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)
+            );
+            foreach ($iterator as $file) {
+                if ($file->isFile() && mb_strtolower($file->getBasename()) === $needle) {
+                    $matches[] = $file->getPathname();
+                    if (count($matches) > 1) return null;
+                }
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
+        return $matches[0] ?? null;
     }
 
     /** Ищем в папке компании пакет, содержащий указанный относительный файл. */
