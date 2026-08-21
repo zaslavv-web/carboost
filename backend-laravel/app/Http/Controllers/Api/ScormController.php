@@ -465,13 +465,62 @@ class ScormController extends Controller
             return response()->json(['error' => 'not enrolled'], 403);
         }
 
+        $base = $this->healPackagePath($course, (string) $lesson->launch_url);
+
         return [
             'enrollment_id' => $enrollment?->id,
-            'package_path'  => (string) $course->scorm_package_path,
-            'launch_url'    => $this->assetUrl((string) $course->scorm_package_path, (string) $lesson->launch_url),
+            'package_path'  => $base,
+            'launch_url'    => $this->assetUrl($base, (string) $lesson->launch_url),
             'version'       => $course->scorm_version === '2004' ? '2004' : '1.2',
         ];
     }
+
+    /**
+     * Если каталог пакета курса потерян (перезалив/сбой распаковки), ищем
+     * рядом (в папке компании) другой распакованный пакет, где лежит нужный
+     * файл урока, и чиним ссылку курса.
+     */
+    protected function healPackagePath($course, string $launchUrl): string
+    {
+        $base = (string) ($course->scorm_package_path ?? '');
+        $disk = Storage::disk('scorm-packages');
+
+        if ($base !== '' && $launchUrl !== '' && $this->findAssetOnDisk($disk, $base, $launchUrl)) {
+            return $base;
+        }
+
+        $companyDir = (string) ($course->company_id ?? (str_contains($base, '/') ? explode('/', $base)[0] : ''));
+        $candidate = $this->findPackageContaining($companyDir, $launchUrl, $base);
+        if ($candidate) {
+            try {
+                DB::table('courses')->where('id', $course->id)->update(['scorm_package_path' => $candidate]);
+            } catch (\Throwable $e) {
+                // не критично: отдадим рабочий путь даже без записи в БД
+            }
+            \Log::warning('scorm_package_healed', ['course' => $course->id, 'from' => $base, 'to' => $candidate]);
+            return $candidate;
+        }
+
+        return $base;
+    }
+
+    /** Ищем в папке компании пакет, содержащий указанный относительный файл. */
+    protected function findPackageContaining(string $companyDir, string $relative, string $skip = ''): ?string
+    {
+        if ($companyDir === '' || $relative === '') return null;
+        $disk = Storage::disk('scorm-packages');
+        try {
+            $dirs = $disk->directories($companyDir);
+        } catch (\Throwable $e) {
+            return null;
+        }
+        foreach ($dirs as $dir) {
+            if ($dir === $skip) continue;
+            if ($this->findAssetOnDisk($disk, $dir, $relative)) return $dir;
+        }
+        return null;
+    }
+
 
 
     /**
