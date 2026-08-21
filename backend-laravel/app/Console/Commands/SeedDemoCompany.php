@@ -653,9 +653,23 @@ class SeedDemoCompany extends Command
             ['Product Owner',      'Product Manager',          9,  'От управления бэклогом к продуктовой стратегии.'],
             ['UX/UI Designer',     'Product Designer',         12, 'Развитие в end-to-end продуктовый дизайн.'],
         ];
+        // Уже существующие пары — не дублируем при повторном прогоне
+        $existingPairs = DB::table('career_track_templates')
+            ->where('company_id', $this->companyId)
+            ->get(['from_position_id', 'to_position_id'])
+            ->mapWithKeys(fn ($r) => [((string) $r->from_position_id . '>' . (string) $r->to_position_id) => true])
+            ->all();
+        $created = 0;
+
         foreach ($tracks as [$from, $to, $months, $strategy]) {
-            if (!isset($this->positionIds[$from], $this->positionIds[$to])) continue;
+            $fromId = $this->resolvePositionId($from);
+            $toId = $this->resolvePositionId($to);
+            $pairKey = $fromId . '>' . $toId;
+            if ($fromId === $toId || isset($existingPairs[$pairKey])) continue;
+            $existingPairs[$pairKey] = true;
+            $created++;
             $tid = (string) Str::uuid();
+
             $steps = $this->trackStepsFor($from, $to);
             DB::table('career_track_templates')->insert([
                 'id'                => $tid,
