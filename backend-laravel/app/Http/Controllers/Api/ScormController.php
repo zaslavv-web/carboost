@@ -604,7 +604,8 @@ class ScormController extends Controller
      */
     public function asset(Request $r)
     {
-        $uid = $this->uid();
+        $session = $this->sessionPayload($r);
+        $uid = $this->resolveUid($r);
         if (! $uid) return response()->json(['error' => 'auth required'], 401);
 
         $path = (string) $r->route('path', '');
@@ -617,23 +618,29 @@ class ScormController extends Controller
             return response()->json(['error' => 'invalid path'], 400);
         }
 
-        // Verify the path belongs to an enrolled course or authored course.
-        $companyId = $this->companyId();
-        $allowed = DB::table('courses')
-            ->where('scorm_package_path', $packagePath)
-            ->where(function ($q) use ($uid, $companyId) {
-                $q->whereExists(function ($sq) use ($uid) {
-                    $sq->selectRaw('1')->from('enrollments')
-                       ->whereColumn('enrollments.course_id', 'courses.id')
-                       ->where('enrollments.user_id', $uid);
-                });
-                if ($companyId) {
-                    $q->orWhere('author_id', $uid);
-                }
-            })
-            ->exists();
+        // Быстрый путь: cookie SCORM-сессии выдана именно на этот пакет.
+        $allowed = $session && ($session['package_path'] ?? null) === $packagePath;
+
+        if (! $allowed) {
+            // Verify the path belongs to an enrolled course or authored course.
+            $companyId = $this->companyId();
+            $allowed = DB::table('courses')
+                ->where('scorm_package_path', $packagePath)
+                ->where(function ($q) use ($uid, $companyId) {
+                    $q->whereExists(function ($sq) use ($uid) {
+                        $sq->selectRaw('1')->from('enrollments')
+                           ->whereColumn('enrollments.course_id', 'courses.id')
+                           ->where('enrollments.user_id', $uid);
+                    });
+                    if ($companyId) {
+                        $q->orWhere('author_id', $uid);
+                    }
+                })
+                ->exists();
+        }
 
         if (! $allowed) return response()->json(['error' => 'forbidden'], 403);
+
 
         $disk = Storage::disk('scorm-packages');
         $full = $disk->path($path);
