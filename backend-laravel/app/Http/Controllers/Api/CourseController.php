@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Support\RichTextSanitizer;
 
 /**
  * CRUD курсов корпоративного университета.
@@ -226,6 +227,7 @@ class CourseController extends Controller
             'duration_min' => 'nullable|integer|min:0',
             'order_index' => 'nullable|integer',
         ]);
+        if (array_key_exists('content', $data)) $data['content'] = RichTextSanitizer::clean($data['content']);
         $id = (string) Str::uuid();
         DB::table('lessons')->insert(array_merge([
             'id' => $id, 'module_id' => $moduleId,
@@ -250,6 +252,7 @@ class CourseController extends Controller
             'duration_min' => 'sometimes|integer|min:0',
             'order_index' => 'sometimes|integer',
         ]);
+        if (array_key_exists('content', $data)) $data['content'] = RichTextSanitizer::clean($data['content']);
         $data['updated_at'] = now();
         DB::table('lessons')->where('id', $id)->update($data);
         return response()->json(['ok' => true]);

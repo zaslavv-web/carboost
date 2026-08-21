@@ -46,6 +46,7 @@ return [
         'avatars'       => $diskFor('avatars',       true),
         'reward-images' => $diskFor('reward-images', true),
         'shop-products' => $diskFor('shop-products', true),
+        'content-media' => $diskFor('content-media', false),
 
         // Private buckets (served via signed URLs)
         'hr-documents'            => $diskFor('hr-documents',            false),
