@@ -210,6 +210,7 @@ function CreatePostDialog({ onSubmit }: { onSubmit: (v: Partial<Post>) => void }
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [pin, setPin] = useState(false);
+  const hasBody = body.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0 || /<(img|video)\b/i.test(body);
   return (
     <DialogContent>
       <DialogHeader><DialogTitle>Новая публикация</DialogTitle></DialogHeader>
@@ -231,7 +232,7 @@ function CreatePostDialog({ onSubmit }: { onSubmit: (v: Partial<Post>) => void }
         </label>
       </div>
       <DialogFooter>
-        <Button disabled={!body.trim()} onClick={() => onSubmit({ kind, title, body_md: body, is_pinned: pin })}>
+        <Button disabled={!hasBody} onClick={() => onSubmit({ kind, title, body_md: body, is_pinned: pin })}>
           Опубликовать
         </Button>
       </DialogFooter>

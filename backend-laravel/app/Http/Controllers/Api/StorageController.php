@@ -99,6 +99,12 @@ class StorageController extends Controller
         if (! $paths) {
             return response()->json(['error' => 'Список путей пуст'], 422);
         }
+        if ($bucket === 'content-media') {
+            if (! $this->canPublishContent($request)) return response()->json(['error' => 'forbidden'], 403);
+            $companyId = (string) ($request->user()?->companyId() ?? '');
+            $paths = array_values(array_filter($paths, fn ($path) => $companyId !== '' && str_starts_with(ltrim((string) $path, '/'), $companyId . '/')));
+            if (! $paths) return response()->json(['error' => 'forbidden'], 403);
+        }
         Storage::disk($cfg[0])->delete($paths);
         return response()->json(['data' => ['deleted' => count($paths)]]);
     }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Node, mergeAttributes } from "@tiptap/core";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -103,7 +103,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
     else editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
   };
 
-  const tool = (label: string, icon: React.ReactNode, action: () => void, active = false, disabled = false) => (
+  const tool = (label: string, icon: ReactNode, action: () => void, active = false, disabled = false) => (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button type="button" size="icon" variant={active ? "secondary" : "ghost"} className="h-8 w-8" onClick={action} disabled={disabled} aria-label={label}>

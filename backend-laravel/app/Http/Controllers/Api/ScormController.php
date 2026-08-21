@@ -429,7 +429,6 @@ class ScormController extends Controller
 
         return response()->json([
             'package_path' => $base,
-            'abs_path'     => $disk->path($base),
             'exists'       => is_dir($disk->path($base)),
             'writable'     => is_writable($disk->path($base)),
             'file_count'   => count($files),

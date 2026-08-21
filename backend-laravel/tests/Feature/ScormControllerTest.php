@@ -225,6 +225,11 @@ XML;
             ->get("/api/university/scorm/asset/{$pkg}/index.html")
             ->assertOk();
 
+        $this->withUnencryptedCookie('scorm_sess', $cookie->getValue())
+            ->get("/api/university/scorm/course/{$courseId}/asset/index.html")
+            ->assertOk()
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+
         // Чужой пакет с той же cookie — запрещён.
         $this->withUnencryptedCookie('scorm_sess', $cookie->getValue())
             ->get("/api/university/scorm/asset/other-company/pkg/index.html")
@@ -265,6 +270,41 @@ XML;
         $this->actingAs($employee, 'sanctum')
             ->postJson("/api/university/scorm/{$courseId}/launch-ticket/{$lessonId}")
             ->assertStatus(403);
+    }
+
+    public function test_launch_ticket_reports_missing_package_before_iframe_is_created(): void
+    {
+        $company = $this->makeCompany();
+        $employee = $this->makeUser('employee', $company->id);
+        $courseId = (string) Str::uuid();
+        $moduleId = (string) Str::uuid();
+        $lessonId = (string) Str::uuid();
+
+        DB::table('courses')->insert([
+            'id' => $courseId, 'company_id' => $company->id, 'title' => 'Missing SCORM',
+            'slug' => 'missing-scorm', 'source_type' => 'scorm', 'scorm_version' => '1.2',
+            'scorm_package_path' => $company->id . '/missing', 'status' => 'published',
+            'level' => 'beginner', 'duration_min' => 0, 'mandatory' => false,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('course_modules')->insert([
+            'id' => $moduleId, 'course_id' => $courseId, 'order_index' => 0,
+            'title' => 'M1', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('lessons')->insert([
+            'id' => $lessonId, 'module_id' => $moduleId, 'order_index' => 0,
+            'type' => 'scorm', 'title' => 'L1', 'launch_url' => 'index.html',
+            'pass_score' => 70, 'duration_min' => 0, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('enrollments')->insert([
+            'id' => (string) Str::uuid(), 'course_id' => $courseId, 'user_id' => $employee->id,
+            'status' => 'not_started', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($employee, 'sanctum')
+            ->postJson("/api/university/scorm/{$courseId}/launch-ticket/{$lessonId}")
+            ->assertStatus(410)
+            ->assertJsonPath('code', 'scorm_package_missing');
     }
 
     public function test_import_rejects_package_when_lesson_file_missing_on_disk(): void
