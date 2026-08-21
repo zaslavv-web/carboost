@@ -115,6 +115,7 @@ class ScormController extends Controller
             return response()->json(['error' => 'cannot open zip'], 400);
         }
 
+        $entries = [];
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
             if (str_contains($name, '..') || str_starts_with($name, '/')) {
@@ -122,9 +123,37 @@ class ScormController extends Controller
                 $disk->deleteDirectory($base);
                 return response()->json(['error' => 'invalid zip entry: ' . $name], 400);
             }
+            if (! str_ends_with($name, '/')) $entries[] = $name;
         }
-        $zip->extractTo($extractTo);
+        $extracted = $zip->extractTo($extractTo);
         $zip->close();
+
+        if ($extracted !== true) {
+            $disk->deleteDirectory($base);
+            \Log::warning('scorm_unpack', ['package' => $base, 'result' => 'extract_failed', 'entries' => count($entries)]);
+            return response()->json([
+                'error' => 'Не удалось распаковать архив на сервере. Проверьте права на запись в хранилище SCORM и свободное место на диске.',
+            ], 422);
+        }
+
+        // Сверяем содержимое архива с тем, что реально легло на диск.
+        $missing = [];
+        foreach ($entries as $name) {
+            if ($name === 'package.zip') continue;
+            if (! is_file($extractTo . '/' . $name)) $missing[] = $name;
+        }
+        \Log::info('scorm_unpack', [
+            'package' => $base,
+            'zip_entries' => count($entries),
+            'missing' => count($missing),
+        ]);
+        if ($missing) {
+            $disk->deleteDirectory($base);
+            return response()->json([
+                'error' => 'Пакет распакован не полностью: на диск не попали ' . count($missing) . ' файл(ов). Проверьте права на запись в хранилище SCORM и свободное место.',
+                'missing' => array_slice($missing, 0, 20),
+            ], 422);
+        }
 
         // Locate imsmanifest.xml
         $manifestRel = $this->locateManifest($disk, $base);
@@ -137,8 +166,10 @@ class ScormController extends Controller
             'upload_token' => $uuid,
             'package_path' => $base,
             'manifest_path' => $manifestRel,
+            'files' => count($entries),
         ]);
     }
+
 
     /**
      * STEP 2: Parse manifest and create a course with modules/lessons.
