@@ -169,4 +169,93 @@ XML;
 
         @unlink($zipPath);
     }
+
+    public function test_launch_ticket_flow_serves_html_and_asset_via_cookie(): void
+    {
+        $company = $this->makeCompany();
+        $employee = $this->makeUser('employee', $company->id);
+        $courseId = (string) Str::uuid();
+        $moduleId = (string) Str::uuid();
+        $lessonId = (string) Str::uuid();
+        $enrollmentId = (string) Str::uuid();
+        $pkg = $company->id . '/pkg';
+
+        DB::table('courses')->insert([
+            'id' => $courseId, 'company_id' => $company->id, 'title' => 'SCORM',
+            'slug' => 'scorm-ticket', 'source_type' => 'scorm', 'scorm_version' => '1.2',
+            'scorm_package_path' => $pkg, 'status' => 'published',
+            'level' => 'beginner', 'duration_min' => 0, 'mandatory' => false,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('course_modules')->insert([
+            'id' => $moduleId, 'course_id' => $courseId, 'order_index' => 0,
+            'title' => 'M1', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('lessons')->insert([
+            'id' => $lessonId, 'module_id' => $moduleId, 'order_index' => 0,
+            'type' => 'scorm', 'title' => 'L1', 'launch_url' => 'index.html',
+            'pass_score' => 70, 'duration_min' => 0, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('enrollments')->insert([
+            'id' => $enrollmentId, 'course_id' => $courseId, 'user_id' => $employee->id,
+            'status' => 'in_progress', 'progress_pct' => 0,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        Storage::disk('scorm-packages')->put($pkg . '/index.html', '<html>SCO</html>');
+
+        $ticket = $this->actingAs($employee, 'sanctum')
+            ->postJson("/api/university/scorm/{$courseId}/launch-ticket/{$lessonId}")
+            ->assertOk()
+            ->json('ticket');
+        $this->assertNotEmpty($ticket);
+
+        $launch = $this->get("/api/university/scorm/launch/{$ticket}");
+        $launch->assertOk();
+        $launch->assertSee('SCORM', false);
+        $cookie = $launch->headers->getCookies()[0] ?? null;
+        $this->assertNotNull($cookie);
+        $this->assertSame('scorm_sess', $cookie->getName());
+
+        // Повторное использование тикета запрещено.
+        $this->get("/api/university/scorm/launch/{$ticket}")->assertStatus(410);
+
+        // Ассет без cookie и без токена — 401.
+        $this->get("/api/university/scorm/asset/{$pkg}/index.html")->assertStatus(401);
+
+        // С cookie — доступен.
+        $this->withUnencryptedCookie('scorm_sess', $cookie->getValue())
+            ->get("/api/university/scorm/asset/{$pkg}/index.html")
+            ->assertOk();
+    }
+
+    public function test_launch_ticket_forbidden_for_non_enrolled_employee(): void
+    {
+        $company = $this->makeCompany();
+        $employee = $this->makeUser('employee', $company->id);
+        $courseId = (string) Str::uuid();
+        $moduleId = (string) Str::uuid();
+        $lessonId = (string) Str::uuid();
+
+        DB::table('courses')->insert([
+            'id' => $courseId, 'company_id' => $company->id, 'title' => 'SCORM',
+            'slug' => 'scorm-no-enroll', 'source_type' => 'scorm', 'scorm_version' => '1.2',
+            'scorm_package_path' => $company->id . '/pkg2', 'status' => 'published',
+            'level' => 'beginner', 'duration_min' => 0, 'mandatory' => false,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('course_modules')->insert([
+            'id' => $moduleId, 'course_id' => $courseId, 'order_index' => 0,
+            'title' => 'M1', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('lessons')->insert([
+            'id' => $lessonId, 'module_id' => $moduleId, 'order_index' => 0,
+            'type' => 'scorm', 'title' => 'L1', 'launch_url' => 'index.html',
+            'pass_score' => 70, 'duration_min' => 0, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($employee, 'sanctum')
+            ->postJson("/api/university/scorm/{$courseId}/launch-ticket/{$lessonId}")
+            ->assertStatus(403);
+    }
 }
