@@ -790,8 +790,9 @@ class SeedDemoCompany extends Command
     }
 
     /**
-     * Фолбэк: если шаблонов всё ещё мало, строим треки из фактических должностей
-     * компании — внутри одного отдела, парами «соседних» должностей.
+     * Гарантирует исходящий трек для каждой фактической должности компании.
+     * Сначала связывает должности внутри отдела, а для единственной должности
+     * отдела выбирает другую должность компании. Петли на саму себя запрещены.
      */
     private function ensureMinimumTracks(array $existingPairs, int $minimum = 10): void
     {
@@ -808,17 +809,20 @@ class SeedDemoCompany extends Command
         }
 
         foreach ($byDept as $dept => $list) {
-            if (count($list) < 2) continue;
-
             for ($i = 0; $i < count($list); $i++) {
                 $from = $list[$i];
                 $hasOutgoingTrack = collect(array_keys($existingPairs))
                     ->contains(fn ($pair) => str_starts_with($pair, (string) $from->id . '>'));
                 if ($hasOutgoingTrack && $total >= $minimum) continue;
 
-                // Для последней должности отдела замыкаем демонстрационный граф
-                // на первую: так у каждого сотрудника есть хотя бы один вариант.
-                $to = $list[($i + 1) % count($list)];
+                $toId = self::fallbackTargetId(
+                    (string) $from->id,
+                    array_map(fn ($position) => (string) $position->id, $list),
+                    $positions->pluck('id')->map(fn ($id) => (string) $id)->all(),
+                );
+                if ($toId === null) continue;
+                $to = $positions->first(fn ($position) => (string) $position->id === $toId);
+                if (! $to) continue;
                 $key = (string) $from->id . '>' . (string) $to->id;
                 if (isset($existingPairs[$key])) continue;
                 $existingPairs[$key] = true;
@@ -863,6 +867,23 @@ class SeedDemoCompany extends Command
         $this->line("      всего шаблонов треков: {$total}");
     }
 
+    /**
+     * @param array<int,string> $departmentPositionIds
+     * @param array<int,string> $companyPositionIds
+     */
+    public static function fallbackTargetId(
+        string $fromId,
+        array $departmentPositionIds,
+        array $companyPositionIds,
+    ): ?string {
+        foreach (array_merge($departmentPositionIds, $companyPositionIds) as $candidateId) {
+            $candidateId = (string) $candidateId;
+            if ($candidateId !== '' && $candidateId !== $fromId) return $candidateId;
+        }
+
+        return null;
+    }
+
 
     /**
      * Назначает карьерные треки части сотрудников: активные назначения,
@@ -887,6 +908,7 @@ class SeedDemoCompany extends Command
         $profiles = DB::table('profiles')
             ->where('company_id', $this->companyId)
             ->get(['user_id', 'position_id']);
+        $withoutPosition = $profiles->filter(fn ($profile) => empty($profile->position_id))->count();
 
         // Уже назначенные пары user+template не дублируем. Наличие одного трека
         // больше не блокирует дозаполнение остальных подходящих треков.
@@ -1016,6 +1038,7 @@ class SeedDemoCompany extends Command
             ->count();
         $this->line("      подходящих связок сотрудник–трек: {$matched}");
         $this->line("      новых назначений: {$assigned}");
+        $this->line("      сотрудников без должности: {$withoutPosition}");
         $this->line("      сотрудников без подходящих треков: {$withoutMatches}");
         $this->line("      всего назначений в компании: {$totalAssignments}");
 

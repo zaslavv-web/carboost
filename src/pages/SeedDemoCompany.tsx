@@ -24,6 +24,16 @@ interface DemoStatus {
   positions?: DemoPosition[];
 }
 
+interface CareerTrackResult {
+  ok: boolean;
+  message: string;
+  output: string;
+  career_templates: number;
+  career_assignments: number;
+  control_employee_email: string | null;
+  control_employee_assignments: number | null;
+}
+
 
 export default function SeedDemoCompany() {
   const qc = useQueryClient();
@@ -69,18 +79,30 @@ export default function SeedDemoCompany() {
   });
 
   const careerTracks = useMutation({
-    mutationFn: async () =>
-      (await laravel.post<{ ok: boolean; output: string; career_templates: number; career_assignments: number; control_employee_assignments: number }>("/superadmin/demo/career-tracks", { company: targetName })).data,
+    mutationFn: async () => {
+      const result = await laravel.post<CareerTrackResult>("/superadmin/demo/career-tracks", { company: targetName });
+      if (result.error) throw result.error;
+      if (!result.data) throw new Error("Сервер не вернул результат назначения треков");
+      return result.data;
+    },
     onSuccess: (r) => {
       setOutput(r.output || "");
       if (r.ok && r.career_assignments > 0) {
-        toast.success(`Всего назначений: ${r.career_assignments}; employee.76: ${r.control_employee_assignments}`);
+        const control = r.control_employee_email && r.control_employee_assignments !== null
+          ? `; ${r.control_employee_email}: ${r.control_employee_assignments}`
+          : "";
+        toast.success(`${r.message}${control}`);
       } else {
-        toast.error("Треки не назначены — проверьте диагностику ниже");
+        toast.error(r.message || "Треки не назначены — проверьте диагностику ниже");
       }
       qc.invalidateQueries({ queryKey: ["demo-status"] });
     },
-    onError: (e: any) => toast.error(e?.message || "Ошибка назначения треков"),
+    onError: (e: any) => {
+      const diagnostics = e?.diagnostics as { output?: string } | undefined;
+      if (diagnostics?.output) setOutput(diagnostics.output);
+      toast.error(e?.message || "Ошибка назначения треков");
+      qc.invalidateQueries({ queryKey: ["demo-status"] });
+    },
   });
 
 
