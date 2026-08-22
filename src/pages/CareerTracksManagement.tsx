@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
@@ -42,6 +43,7 @@ const emptyForm: TemplateForm = {
 
 const CareerTracksManagement = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
   const { t } = useTranslation("admin");
@@ -569,7 +571,14 @@ const CareerTracksManagement = () => {
             const p = profileMap[a.user_id];
             const tpl = templates.find(tpl => tpl.id === a.template_id);
             return (
-              <div key={a.id} className="bg-card rounded-xl p-5 shadow-card border border-border flex items-center gap-4">
+              <div
+                key={a.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/career-tracks/employee/${a.user_id}`)}
+                onKeyDown={e => { if (e.key === "Enter") navigate(`/career-tracks/employee/${a.user_id}`); }}
+                className="bg-card rounded-xl p-5 shadow-card border border-border flex items-center gap-4 cursor-pointer hover:border-primary/50 transition-colors"
+              >
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium">
                   {p?.full_name?.charAt(0) || "?"}
                 </div>

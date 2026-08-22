@@ -16,6 +16,7 @@ import Notifications from "@/pages/Notifications";
 import ManagerDashboard from "@/pages/ManagerDashboard";
 import HRDDashboard from "@/pages/HRDDashboard";
 import EmployeeMapPage from "@/pages/EmployeeMapPage";
+import EmployeeCareerTrack from "@/pages/EmployeeCareerTrack";
 import SuperadminDashboard from "@/pages/SuperadminDashboard";
 import SeedDemoCompany from "@/pages/SeedDemoCompany";
 import UsersManagement from "@/pages/UsersManagement";
@@ -191,6 +192,8 @@ const App = () => (
                 <Route path="/positions" element={<Positions />} />
                 <Route path="/career-tracks" element={<CareerTracksManagement />} />
                 <Route path="/career-tracks-mgmt" element={<CareerTracksManagement />} />
+                <Route path="/career-tracks/employee/:userId" element={<EmployeeCareerTrack />} />
+
                 <Route path="/career-reviews" element={<CareerReviews />} />
                 <Route path="/gamification" element={<RoleOnly roles={["hrd", "hr", "company_admin"]} fallback="/shop"><GamificationManagement /></RoleOnly>} />
                 <Route path="/tests" element={<HRDTests />} />

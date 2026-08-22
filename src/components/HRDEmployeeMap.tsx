@@ -182,85 +182,82 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
   const [activeTeamManagerId, setActiveTeamManagerId] = useState<string | null>(null);
 
 
-  // Employees in company
-  const { data: employees = [], isLoading: loadingEmps } = useQuery({
-    queryKey: ["hrd_map_employees", companyId],
-    queryFn: async () => {
-      if (!companyId) return [] as Employee[];
-      const { data, error } = await laravelDb
-        .from("profiles")
-        .select("user_id, full_name, position, department, avatar_url, overall_score, role_readiness")
-        .eq("company_id", companyId);
-      if (error) throw error;
-      return (data || []) as Employee[];
-    },
-    enabled: !!companyId,
-  });
-
-  // Manager → employee links
-  const { data: teamLinks = [] } = useQuery({
-    queryKey: ["hrd_map_team_links", companyId],
-    queryFn: async () => {
-      if (!companyId) return [] as TeamLink[];
-      const { data, error } = await laravelDb
-        .from("team_members")
-        .select("manager_id, employee_id")
-        .eq("company_id", companyId);
-      if (error) throw error;
-      return (data || []) as TeamLink[];
-    },
-    enabled: !!companyId,
-  });
-
-  // HR tasks (for HR-created connections)
-  const { data: hrTasks = [], isLoading: loadingTasks } = useQuery({
+  // Единый агрегированный запрос карты: раньше здесь было четыре широких
+  // выборки (включая hr_tasks с select *), из-за чего карта грузилась секундами.
+  // Ключ намеренно совпадает со старым, чтобы существующие invalidateQueries работали.
+  const {
+    data: bundle,
+    isLoading: loadingMap,
+  } = useQuery({
     queryKey: ["hrd_map_hr_tasks", companyId],
     queryFn: async () => {
-      if (!companyId) return [] as HrTask[];
-      const { data: tasks, error } = await laravelDb
-        .from("hr_tasks")
-        .select("*")
-        .eq("company_id", companyId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      const ids = (tasks || []).map((t) => t.id);
+      const empty = {
+        employees: [] as Employee[],
+        team_links: [] as TeamLink[],
+        hr_tasks: [] as HrTask[],
+        balances: [] as { user_id: string; balance: number }[],
+      };
+      if (!companyId) return empty;
+
+      const { data, error } = await laravel.get<typeof empty>("/hrd/employee-map");
+      if (!error && data) {
+        return {
+          employees: (data.employees || []) as Employee[],
+          team_links: (data.team_links || []) as TeamLink[],
+          hr_tasks: (data.hr_tasks || []) as HrTask[],
+          balances: data.balances || [],
+        };
+      }
+
+      // Фолбэк на generic-эндпоинты, пока новый бэкенд не выкачен.
+      const [empRes, linkRes, taskRes, balRes] = await Promise.all([
+        laravelDb
+          .from("profiles")
+          .select("user_id, full_name, position, department, avatar_url, overall_score, role_readiness")
+          .eq("company_id", companyId),
+        laravelDb.from("team_members").select("manager_id, employee_id").eq("company_id", companyId),
+        laravelDb
+          .from("hr_tasks")
+          .select("id, title, category, reward_coins, deadline, status, created_by, created_at, reviewed_at, audience_rules")
+          .eq("company_id", companyId)
+          .order("created_at", { ascending: false }),
+        laravelDb.from("currency_balances").select("user_id, balance").eq("company_id", companyId),
+      ]);
+
+      const tasks = (taskRes.data || []) as any[];
+      const ids = tasks.map((t) => t.id);
       let assignees: any[] = [];
       if (ids.length > 0) {
-        const { data: a, error: aErr } = await laravelDb
+        const { data: a } = await laravelDb
           .from("hr_task_assignees")
           .select("task_id, user_id, individual_status, reward_paid")
           .in("task_id", ids);
-        if (aErr) throw aErr;
         assignees = a || [];
       }
-      return (tasks || []).map((t) => ({
-        ...t,
-        assignees: assignees
-          .filter((a) => a.task_id === t.id)
-          .map(({ user_id, individual_status, reward_paid }) => ({
-            user_id,
-            individual_status,
-            reward_paid,
-          })),
-      })) as HrTask[];
+
+      return {
+        employees: (empRes.data || []) as Employee[],
+        team_links: (linkRes.data || []) as TeamLink[],
+        hr_tasks: tasks.map((t) => ({
+          ...t,
+          assignees: assignees
+            .filter((a) => a.task_id === t.id)
+            .map(({ user_id, individual_status, reward_paid }) => ({ user_id, individual_status, reward_paid })),
+        })) as HrTask[],
+        balances: balRes.data || [],
+      };
     },
     enabled: !!companyId,
+    staleTime: 60_000,
   });
 
-  // Currency balances per user
-  const { data: balances = [] } = useQuery({
-    queryKey: ["hrd_map_balances", companyId],
-    queryFn: async () => {
-      if (!companyId) return [] as { user_id: string; balance: number }[];
-      const { data, error } = await laravelDb
-        .from("currency_balances")
-        .select("user_id, balance")
-        .eq("company_id", companyId);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!companyId,
-  });
+  const employees = bundle?.employees ?? [];
+  const teamLinks = bundle?.team_links ?? [];
+  const hrTasks = bundle?.hr_tasks ?? [];
+  const balances = bundle?.balances ?? [];
+  const loadingEmps = loadingMap;
+  const loadingTasks = loadingMap;
+
 
   // Precompute department/manager indices for cascading map
   const empById = useMemo(() => {
@@ -985,6 +982,17 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
                     >
                       <Plus className="w-4 h-4 mr-1" /> {t("employeeMap.assignTask")}
                     </Button>
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      variant="outline"
+                      asChild
+                    >
+                      <a href={`/career-tracks/employee/${selected.user_id}`} target="_blank" rel="noreferrer">
+                        Карьерный трек сотрудника
+                      </a>
+                    </Button>
+
                   </TabsContent>
 
                   <TabsContent value="tasks" className="space-y-2 mt-3">
