@@ -687,6 +687,16 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::post  ('/hr-tasks/audience/sync',    [\App\Http\Controllers\Api\HrTaskAudienceController::class, 'sync']);
         Route::post  ('/hr-tasks',                  [\App\Http\Controllers\Api\HrTaskAudienceController::class, 'store']);
 
+        // Карта сотрудников: один агрегированный ответ вместо четырёх широких выборок
+        Route::get   ('/hrd/employee-map', [\App\Http\Controllers\Api\HrdMapController::class, 'index']);
+
+        // Карьерные треки: детализация по сотруднику и аналитика
+        Route::get   ('/career-tracks/employee/{userId}', [\App\Http\Controllers\Api\CareerTrackInsightController::class, 'employee']);
+        Route::get   ('/career-tracks/attempt/{id}',      [\App\Http\Controllers\Api\CareerTrackInsightController::class, 'attempt']);
+        Route::get   ('/analytics/career-tracks',         [\App\Http\Controllers\Api\CareerTrackInsightController::class, 'analytics']);
+
+
+
         // Привязка обучения к аудитории (пользователи / отделы / грейды / стаж / должности / импорт списка)
         Route::get   ('/university/audience/options',        [\App\Http\Controllers\Api\EnrollmentController::class, 'audienceOptions']);
         Route::get   ('/university/audience/search',         [\App\Http\Controllers\Api\EnrollmentController::class, 'audienceSearch']);
