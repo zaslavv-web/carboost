@@ -982,6 +982,17 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
                     >
                       <Plus className="w-4 h-4 mr-1" /> {t("employeeMap.assignTask")}
                     </Button>
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      variant="outline"
+                      asChild
+                    >
+                      <a href={`/career-tracks/employee/${selected.user_id}`} target="_blank" rel="noreferrer">
+                        Карьерный трек сотрудника
+                      </a>
+                    </Button>
+
                   </TabsContent>
 
                   <TabsContent value="tasks" className="space-y-2 mt-3">
