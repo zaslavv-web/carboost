@@ -16,6 +16,7 @@ import Notifications from "@/pages/Notifications";
 import ManagerDashboard from "@/pages/ManagerDashboard";
 import HRDDashboard from "@/pages/HRDDashboard";
 import EmployeeMapPage from "@/pages/EmployeeMapPage";
+import EmployeeCareerTrack from "@/pages/EmployeeCareerTrack";
 import SuperadminDashboard from "@/pages/SuperadminDashboard";
 import SeedDemoCompany from "@/pages/SeedDemoCompany";
 import UsersManagement from "@/pages/UsersManagement";
