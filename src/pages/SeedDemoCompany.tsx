@@ -79,10 +79,13 @@ export default function SeedDemoCompany() {
   });
 
   const careerTracks = useMutation({
-    mutationFn: async () =>
-      (await laravel.post<CareerTrackResult>("/superadmin/demo/career-tracks", { company: targetName })).data,
+    mutationFn: async () => {
+      const result = await laravel.post<CareerTrackResult>("/superadmin/demo/career-tracks", { company: targetName });
+      if (result.error) throw result.error;
+      if (!result.data) throw new Error("Сервер не вернул результат назначения треков");
+      return result.data;
+    },
     onSuccess: (r) => {
-      if (!r) return;
       setOutput(r.output || "");
       if (r.ok && r.career_assignments > 0) {
         const control = r.control_employee_email && r.control_employee_assignments !== null
