@@ -112,7 +112,7 @@ class DemoSeedController extends Controller
     {
         $this->requireSuperadmin($request);
         $name = $this->companyName($request);
-        Artisan::call('demo:seed', ['--only-career' => true, '--name' => $name]);
+        $exitCode = Artisan::call('demo:seed', ['--only-career' => true, '--name' => $name]);
         $output = Artisan::output();
         $company = DB::table('companies')->where('name', $name)->first();
         $assignments = $company
@@ -121,14 +121,58 @@ class DemoSeedController extends Controller
         $templates = $company
             ? DB::table('career_track_templates')->where('company_id', $company->id)->count()
             : 0;
+        $employeesWithoutPosition = $company
+            ? DB::table('profiles')->where('company_id', $company->id)->whereNull('position_id')->count()
+            : 0;
+        $employeesWithoutTrack = $company
+            ? DB::table('profiles as p')
+                ->where('p.company_id', $company->id)
+                ->whereNotNull('p.position_id')
+                ->whereNotExists(function ($query) use ($company) {
+                    $query->selectRaw('1')
+                        ->from('career_track_templates as ct')
+                        ->whereColumn('ct.from_position_id', 'p.position_id')
+                        ->where('ct.company_id', $company->id)
+                        ->where('ct.is_active', true);
+                })
+                ->count()
+            : 0;
+        $controlUser = $company
+            ? DB::table('users')
+                ->join('profiles', 'profiles.user_id', '=', 'users.id')
+                ->where('profiles.company_id', $company->id)
+                ->where('users.email', 'like', 'employee.76@%')
+                ->select('profiles.user_id', 'users.email')
+                ->first()
+            : null;
+        $controlAssignments = $controlUser
+            ? DB::table('employee_career_assignments')
+                ->where('company_id', $company->id)
+                ->where('user_id', $controlUser->user_id)
+                ->count()
+            : null;
+        $ok = $exitCode === 0 && $assignments > 0;
+        $message = $ok
+            ? "Карьерные треки назначены: {$assignments}"
+            : (! $company
+                ? "Компания «{$name}» не найдена. Сначала создайте тестовые данные."
+                : "Не удалось назначить карьерные треки: назначений 0, сотрудников без должности — {$employeesWithoutPosition}, без подходящего шаблона — {$employeesWithoutTrack}.");
 
         return response()->json([
-            'ok' => $assignments > 0,
+            'ok' => $ok,
+            'message' => $message,
             'output' => $output,
             'career_templates' => $templates,
             'career_assignments' => $assignments,
-            'control_employee_assignments' => $assignments,
-        ], $assignments > 0 ? 200 : 422);
+            'control_employee_email' => $controlUser?->email,
+            'control_employee_assignments' => $controlAssignments,
+            'diagnostics' => [
+                'output' => $output,
+                'exit_code' => $exitCode,
+                'employees_without_position' => $employeesWithoutPosition,
+                'employees_without_track' => $employeesWithoutTrack,
+            ],
+        ], $ok ? 200 : 422);
     }
 
     /** Название компании из запроса (или демо-компания по умолчанию). */
