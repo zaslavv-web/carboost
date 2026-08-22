@@ -43,6 +43,7 @@ const emptyForm: TemplateForm = {
 
 const CareerTracksManagement = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: profile } = useUserProfile();
   const queryClient = useQueryClient();
   const { t } = useTranslation("admin");
