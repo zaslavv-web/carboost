@@ -860,8 +860,7 @@ class OneCIntegrationController extends Controller
         $user = $request->user();
         $ok = false;
         try {
-            $ok = $user && ($user->hasRole('hrd') || $user->hasRole('hr')
-                || $user->hasRole('company_admin') || $user->hasRole('superadmin'));
+            $ok = $user && ($user->hasRole('company_admin') || $user->hasRole('superadmin'));
         } catch (\Throwable) {
             $ok = false;
         }

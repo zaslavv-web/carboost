@@ -172,7 +172,7 @@ const App = () => (
                 <Route path="/career-track" element={<CareerTrack />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/team" element={<ManagerDashboard />} />
-                <Route path="/employees" element={<HRDDashboard />} />
+                <Route path="/employees" element={<Navigate to="/users" replace />} />
                 <Route
                   path="/employee-map"
                   element={
@@ -224,8 +224,8 @@ const App = () => (
                 <Route path="/leaves" element={<Leaves />} />
                 <Route path="/hr-documents-personal" element={<HrDocumentsPersonal />} />
                 <Route path="/people-analytics" element={<PeopleAnalytics />} />
-                <Route path="/integrations" element={<Integrations />} />
-                <Route path="/integrations/1c" element={<IntegrationOneC />} />
+                <Route path="/integrations" element={<RoleOnly roles={["company_admin", "superadmin"]} fallback="/dashboard"><Integrations /></RoleOnly>} />
+                <Route path="/integrations/1c" element={<RoleOnly roles={["company_admin", "superadmin"]} fallback="/dashboard"><IntegrationOneC /></RoleOnly>} />
                 <Route path="/analytics/comfort" element={<ComfortCompany />} />
                 <Route path="/analytics/comfort/department/:id" element={<ComfortDepartment />} />
                 <Route path="/analytics/comfort/user/:id" element={<ComfortEmployee />} />
@@ -242,7 +242,7 @@ const App = () => (
                 <Route path="/talent-review" element={<TalentReview />} />
                 <Route path="/predictive-analytics" element={<PredictiveAnalytics />} />
                 <Route path="/kedo" element={<Kedo />} />
-                <Route path="/security" element={<Security />} />
+                <Route path="/security" element={<RoleOnly roles={["company_admin", "superadmin"]} fallback="/dashboard"><Security /></RoleOnly>} />
                 <Route path="/my-documents" element={<MyDocuments />} />
                 <Route path="/feed" element={<CorporateFeed />} />
                 <Route path="/communities" element={<Communities />} />
@@ -250,7 +250,7 @@ const App = () => (
                 <Route path="/surveys" element={<Navigate to="/pulse-surveys" replace />} />
                 <Route path="/knowledge" element={<Navigate to="/knowledge-base" replace />} />
                 <Route path="/company-branding" element={<CompanyBranding />} />
-                <Route path="/ai-settings" element={<AiSettings />} />
+                <Route path="/ai-settings" element={<RoleOnly roles={["company_admin", "superadmin"]} fallback="/dashboard"><AiSettings /></RoleOnly>} />
                 <Route path="/rag-documents" element={<RagDocuments />} />
                 <Route path="/university" element={<University />} />
                 <Route path="/university/analytics" element={<UniversityAnalytics />} />

@@ -11,6 +11,7 @@
  * Доступ — HRD/company_admin/superadmin (гейт на бэке).
  */
 import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { laravel } from "@/integrations/laravel/client";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line,
@@ -31,12 +32,19 @@ type AbsencePoint = { month: string; days: number; requests: number };
 const COLORS = ["#D5A52A", "#B8860B", "#8B6914", "#DAA520", "#6B4E11"];
 
 export default function PeopleAnalytics() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [headcount, setHeadcount] = useState<{ total: number; by_department: Bucket[]; by_position: Bucket[] } | null>(null);
   const [tenure, setTenure] = useState<Bucket[]>([]);
   const [hiring, setHiring] = useState<MonthPoint[]>([]);
   const [absence, setAbsence] = useState<AbsencePoint[]>([]);
   const [risk, setRisk] = useState<Bucket[]>([]);
+  const activeSlice = searchParams.get("slice");
+  const openEmployees = (params: Record<string, string>) => {
+    const query = new URLSearchParams(params);
+    navigate(`/users?${query.toString()}`);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -79,29 +87,32 @@ export default function PeopleAnalytics() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard metricKey="headcount_delta" icon={Users} label="Всего сотрудников" value={headcount?.total ?? 0} />
+        <KpiCard metricKey="headcount_delta" icon={Users} label="Всего сотрудников" value={headcount?.total ?? 0} onClick={() => navigate("/users")} />
         <KpiCard
           icon={Building2}
           label="Департаментов"
           value={headcount?.by_department.filter((d) => d.label !== "Без департамента").length ?? 0}
+          onClick={() => navigate("/employee-map")}
         />
         <KpiCard
           metricKey="hiring_funnel_conversion"
           icon={TrendingUp}
           label="Нанято за 12 мес"
           value={hiring.reduce((s, x) => s + x.value, 0)}
+          onClick={() => navigate("/people-analytics?slice=hiring")}
         />
         <KpiCard
           metricKey="risk_index"
           icon={AlertTriangle}
           label="В зоне высокого риска"
           value={risk.filter((b) => b.label === "Высокий" || b.label === "Критический").reduce((s, x) => s + x.value, 0)}
+          onClick={() => navigate("/risk-analytics?level=high")}
         />
 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className={activeSlice === "headcount" ? "ring-2 ring-primary" : undefined}>
           <CardHeader><CardTitle className="text-base">Численность по департаментам</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
@@ -110,7 +121,7 @@ export default function PeopleAnalytics() {
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={60} />
                 <YAxis allowDecimals={false} />
                 <Tooltip {...tooltipProps("bar")} />
-                <Bar dataKey="value" fill="#D5A52A" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(row: Bucket) => openEmployees({ department: row.label })} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -121,7 +132,7 @@ export default function PeopleAnalytics() {
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
-                <Pie data={tenure} dataKey="value" nameKey="label" outerRadius={100} label>
+                <Pie data={tenure} dataKey="value" nameKey="label" outerRadius={100} label cursor="pointer" onClick={(row: Bucket) => openEmployees({ tenure: row.label })}>
                   {tenure.map((_, i) => (<Cell key={i} fill={COLORS[i % COLORS.length]} />))}
                 </Pie>
                 <Legend />
@@ -131,7 +142,7 @@ export default function PeopleAnalytics() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={activeSlice === "hiring" ? "ring-2 ring-primary" : undefined}>
           <CardHeader><CardTitle className="text-base"><ChartExplainer metricKey="hiring_funnel_conversion" hint="Пики — активные волны найма; спад — заморозка вакансий." /></CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
@@ -140,7 +151,7 @@ export default function PeopleAnalytics() {
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} />
                 <Tooltip {...tooltipProps("bar")} />
-                <Line type="monotone" dataKey="value" stroke="#D5A52A" strokeWidth={2} dot />
+                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ cursor: "pointer", r: 4 }} activeDot={{ onClick: (_event, payload: any) => openEmployees({ hiredMonth: payload.payload.month }), cursor: "pointer", r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -155,7 +166,7 @@ export default function PeopleAnalytics() {
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} />
                 <Tooltip {...tooltipProps("bar")} />
-                <Bar dataKey="days" fill="#8B6914" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="days" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(row: AbsencePoint) => navigate(`/leaves?month=${encodeURIComponent(row.month)}&status=approved`)} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -170,7 +181,7 @@ export default function PeopleAnalytics() {
                 <XAxis type="number" allowDecimals={false} />
                 <YAxis type="category" dataKey="label" tick={{ fontSize: 11 }} width={160} />
                 <Tooltip {...tooltipProps("bar")} />
-                <Bar dataKey="value" fill="#D5A52A" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(row: Bucket) => openEmployees({ position: row.label })} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -182,10 +193,10 @@ export default function PeopleAnalytics() {
             <CardContent>
               <div className="grid grid-cols-4 gap-4">
                 {risk.map((b) => (
-                  <div key={b.label} className="p-4 rounded-lg border bg-card">
+                  <button key={b.label} type="button" onClick={() => navigate(`/risk-analytics?level=${b.label === "Низкий" ? "low" : b.label === "Средний" ? "medium" : "high"}`)} className="p-4 rounded-lg border bg-card text-left transition-colors hover:bg-accent">
                     <div className="text-xs text-muted-foreground">{b.label}</div>
                     <div className="text-2xl font-serif mt-1">{b.value}</div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </CardContent>
@@ -196,10 +207,10 @@ export default function PeopleAnalytics() {
   );
 }
 
-function KpiCard({ icon: Icon, label, value, metricKey }: { icon: any; label: string; value: number; metricKey?: MetricKey }) {
+function KpiCard({ icon: Icon, label, value, metricKey, onClick }: { icon: any; label: string; value: number; metricKey?: MetricKey; onClick?: () => void }) {
   return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
+    <Card className={onClick ? "cursor-pointer transition-colors hover:bg-accent" : undefined} onClick={onClick}>
+      <CardContent className="p-4 flex items-center gap-3" role={onClick ? "link" : undefined}>
         <div className="p-2 rounded-md bg-primary/10 text-primary">
           <Icon className="h-5 w-5" />
         </div>

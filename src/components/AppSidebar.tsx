@@ -64,7 +64,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const tracker: NavItem = { icon: Crosshair, label: t("nav.tracker", { defaultValue: "Трекер задач" }), path: "/tracker/dashboard" };
     const myProfile: NavItem = { icon: User, label: t("nav.myProfile", { defaultValue: "Мой профиль" }), path: "/me" };
     const university: NavItem = { icon: GraduationCap, label: t("nav.university", { defaultValue: "Университет" }), path: "/university" };
-    const knowledgeBase: NavItem = { icon: BookText, label: t("nav.knowledgeBase", { defaultValue: "База знаний" }), path: "/rag-documents" };
+    const knowledgeBase: NavItem = { icon: BookText, label: t("nav.knowledgeBase", { defaultValue: "База знаний" }), path: "/knowledge-base" };
     const branding: NavItem = { icon: Palette, label: t("nav.companyBranding", { defaultValue: "Фирменный стиль" }), path: "/company-branding" };
     const aiSettings: NavItem = { icon: Brain, label: t("nav.aiSettings", { defaultValue: "AI-провайдер" }), path: "/ai-settings" };
     const settings: NavItem = { icon: Settings, label: t("nav.settings"), path: "/settings" };
@@ -152,7 +152,6 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             label: t("nav.assessmentGroup"),
             children: [
               { icon: FileJson, label: t("nav.scenarios"), path: "/scenarios" },
-              { icon: ClipboardList, label: t("nav.tests"), path: "/tests" },
               { icon: ClipboardList, label: t("nav.careerReviews"), path: "/career-reviews" },
             ],
           },
@@ -162,7 +161,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             icon: Users,
             label: t("nav.employeesGroup"),
             children: [
-              { icon: Users, label: t("nav.employeesList"), path: "/employees" },
+               { icon: Users, label: t("nav.employeesList"), path: "/users" },
               { icon: Rocket, label: t("nav.onboarding"), path: "/onboarding" },
               { icon: Rocket, label: t("nav.adaptationPlans", { defaultValue: "Планы адаптации" }), path: "/adaptation-plans" },
               { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
@@ -174,6 +173,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             children: [
               { icon: Briefcase, label: t("nav.positions"), path: "/positions" },
               { icon: Route, label: t("nav.careerTracksMgmt"), path: "/career-tracks-mgmt" },
+               { icon: ClipboardList, label: t("nav.tests"), path: "/tests" },
             ],
           },
           {
@@ -207,7 +207,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         ]},
 
         { key: "knowledge", label: S("knowledge"), entries: [university, knowledgeBase] },
-        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, securityNav, settings] },
+        { key: "system", label: S("system"), entries: [branding, settings] },
       ];
     }
 

@@ -26,7 +26,7 @@ class SeedDemoCompany extends Command
         {--headcount=150 : Общее количество сотрудников}
         {--only-career : Только назначить карьерные треки уже созданным сотрудникам}
         {--only-performance : Только наполнить Performance/испытательные/дисциплинарные записи}
-        {--only-content : Только контент: картинки товаров, база знаний, задачи трекера}
+        {--only-content : Догоняющее наполнение всех пользовательских разделов демо-компании}
         {--name=ООО "Демо" : Название компании}
         {--email-domain= : Домен для логинов (по умолчанию demo.pikrosta.ru)}';
 
@@ -1693,9 +1693,7 @@ class SeedDemoCompany extends Command
         }
     }
 
-    /**
-     * Догоняющий прогон: наполняет контент — картинки товаров, база знаний, трекер задач.
-     */
+    /** Догоняющий прогон всех контентных разделов существующей демо-компании. */
     private function runOnlyContent(): int
     {
         $company = DB::table('companies')->where('name', $this->companyName)->first();
@@ -1706,16 +1704,19 @@ class SeedDemoCompany extends Command
         $this->companyId = (string) $company->id;
         $this->loadUsersFromDb();
 
-        $this->info('1/5  Картинки товаров магазина…');
+        $this->info('1/6  Магазин и картинки товаров…');
+        if (DB::table('shop_products')->where('company_id', $this->companyId)->doesntExist()) {
+            DB::transaction(fn () => $this->seedShop());
+        }
         $fixed = $this->backfillProductImages();
         $this->line("     обновлено товаров: {$fixed}");
 
-        $this->info('2/5  База знаний…');
+        $this->info('2/6  База знаний…');
         DB::transaction(fn () => $this->seedKnowledgeBase());
         $articles = DB::table('knowledge_articles')->where('company_id', $this->companyId)->count();
         $this->line("     статей в базе знаний: {$articles}");
 
-        $this->info('3/5  Лента компании и сообщества…');
+        $this->info('3/6  Лента компании и сообщества…');
         try {
             DB::transaction(fn () => $this->seedPortal());
             $posts = DB::table('portal_posts')->where('company_id', $this->companyId)->count();
@@ -1725,7 +1726,7 @@ class SeedDemoCompany extends Command
             $this->warn('Портал: ' . $e->getMessage());
         }
 
-        $this->info('4/5  Pulse-опросы…');
+        $this->info('4/6  Pulse-опросы…');
         try {
             DB::transaction(fn () => $this->seedPulseSurveys());
             $surveys = DB::table('pulse_surveys')->where('company_id', $this->companyId)->count();
@@ -1735,7 +1736,10 @@ class SeedDemoCompany extends Command
             $this->warn('Pulse: ' . $e->getMessage());
         }
 
-        $this->info('5/5  Задачи трекера…');
+        $this->info('5/6  Сценарии, адаптация, приглашения, документы, КЭДО и отсутствия…');
+        DB::transaction(fn () => $this->seedMissingContentModules());
+
+        $this->info('6/6  Задачи трекера…');
         try {
             $this->call('tracker:seed-tasks', [
                 '--company-id' => $this->companyId,
@@ -1752,6 +1756,106 @@ class SeedDemoCompany extends Command
 
         $this->info('✅ Контент обновлён.');
         return self::SUCCESS;
+    }
+
+    /** Заполняет разделы, которые исторически не входили в --only-content. */
+    private function seedMissingContentModules(): void
+    {
+        if (! $this->allUserIds) return;
+        $admin = $this->userIds['hrd'][0] ?? $this->userIds['company_admin'][0] ?? $this->allUserIds[0];
+        $employees = $this->userIds['employee'] ?? $this->allUserIds;
+        $profiles = DB::table('profiles')->where('company_id', $this->companyId)
+            ->whereIn('user_id', $employees)->limit(24)->get(['user_id', 'full_name', 'position_id', 'department']);
+
+        if (Schema::hasTable('assessment_scenarios') && DB::table('assessment_scenarios')->where('company_id', $this->companyId)->doesntExist()) {
+            foreach ([
+                ['Ассессмент руководителя команды', 'Ситуационные задачи на обратную связь, делегирование и принятие решений.'],
+                ['Оценка клиентского мышления', 'Практический сценарий работы со сложным запросом внутреннего клиента.'],
+                ['Центр оценки кадрового резерва', 'Комплексный кейс для участников программы развития.'],
+            ] as [$title, $description]) {
+                DB::table('assessment_scenarios')->insert([
+                    'id' => (string) Str::uuid(), 'company_id' => $this->companyId, 'title' => $title,
+                    'description' => $description, 'scenario_data' => json_encode([
+                        'brief' => $description,
+                        'steps' => [['title' => 'Анализ ситуации'], ['title' => 'Решение'], ['title' => 'Рефлексия']],
+                        'criteria' => ['структурность', 'аргументация', 'ориентация на результат'],
+                    ], JSON_UNESCAPED_UNICODE),
+                    'created_by' => $admin, 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+        }
+
+        if (Schema::hasTable('onboarding_plans') && DB::table('onboarding_plans')->where('company_id', $this->companyId)->doesntExist()) {
+            $planId = (string) Str::uuid();
+            DB::table('onboarding_plans')->insert([
+                'id' => $planId, 'company_id' => $this->companyId, 'created_by' => $admin,
+                'title' => 'Первые 90 дней', 'description' => 'Универсальный план адаптации нового сотрудника',
+                'target_role' => 'employee', 'duration_days' => 90, 'is_active' => true, 'auto_assign' => true,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $steps = [
+                ['Получить доступы и оборудование', 'access', 'first_day', 0],
+                ['Познакомиться с командой и наставником', 'meeting', 'first_day', 1],
+                ['Изучить welcome-book', 'document', 'first_week', 3],
+                ['Пройти обязательное обучение', 'training', 'first_month', 14],
+                ['Подвести итоги испытательного срока', 'meeting', 'probation', 85],
+            ];
+            $stepIds = [];
+            foreach ($steps as $index => [$title, $type, $stage, $offset]) {
+                $stepId = (string) Str::uuid();
+                $stepIds[] = $stepId;
+                DB::table('onboarding_plan_steps')->insert([
+                    'id' => $stepId, 'company_id' => $this->companyId, 'plan_id' => $planId, 'title' => $title,
+                    'step_type' => $type, 'responsible' => $type === 'meeting' ? 'manager' : 'employee',
+                    'stage' => $stage, 'order_index' => $index, 'due_offset_days' => $offset,
+                    'is_required' => true, 'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+            foreach ($profiles->take(8) as $index => $profile) {
+                $assignmentId = (string) Str::uuid();
+                $managerId = DB::table('team_members')->where('company_id', $this->companyId)->where('employee_id', $profile->user_id)->value('manager_id');
+                $progress = min(100, 20 + $index * 10);
+                DB::table('onboarding_assignments')->insert([
+                    'id' => $assignmentId, 'company_id' => $this->companyId, 'user_id' => $profile->user_id,
+                    'plan_id' => $planId, 'manager_id' => $managerId, 'hr_id' => $admin,
+                    'start_date' => now()->subDays(7 + $index * 4)->toDateString(),
+                    'expected_end_date' => now()->addDays(83 - $index * 4)->toDateString(),
+                    'status' => $progress === 100 ? 'completed' : 'in_progress', 'current_stage' => 'first_month',
+                    'progress_percent' => $progress, 'created_at' => now(), 'updated_at' => now(),
+                ]);
+                foreach ($stepIds as $stepIndex => $stepId) {
+                    $done = $stepIndex < (int) floor($progress / 20);
+                    DB::table('onboarding_step_progress')->insert([
+                        'id' => (string) Str::uuid(), 'company_id' => $this->companyId, 'assignment_id' => $assignmentId,
+                        'step_id' => $stepId, 'status' => $done ? 'done' : 'pending',
+                        'completed_at' => $done ? now()->subDays(max(1, 10 - $stepIndex)) : null,
+                        'completed_by' => $done ? $profile->user_id : null, 'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
+
+        if (Schema::hasTable('employee_invitations') && DB::table('employee_invitations')->where('company_id', $this->companyId)->doesntExist()) {
+            foreach (['Новый аналитик', 'Менеджер проекта', 'Специалист поддержки'] as $index => $name) {
+                $token = Str::random(48);
+                DB::table('employee_invitations')->insert([
+                    'id' => (string) Str::uuid(), 'company_id' => $this->companyId,
+                    'email' => 'invite.' . ($index + 1) . '@' . $this->emailDomain, 'full_name' => $name,
+                    'department' => ['Аналитика', 'Продукт', 'Поддержка'][$index], 'requested_role' => 'employee',
+                    'status' => $index === 2 ? 'expired' : 'pending', 'invited_by' => $admin,
+                    'token' => $token, 'token_hash' => hash('sha256', $token),
+                    'created_at' => now()->subDays($index * 3), 'updated_at' => now(),
+                ]);
+            }
+        }
+
+        $this->seedDemoLeaves($admin, $profiles);
+        $this->seedDemoPersonalDocuments($admin, $profiles);
+        $this->seedDemoKedo($admin, $profiles);
+
+        if (Schema::hasTable('performance_cycles') && DB::table('performance_cycles')->where('company_id', $this->companyId)->doesntExist()) {
+            $this->seedPerformance();
+        }
     }
 
     /** Лента компании: сообщества, участники, посты, реакции и комментарии. */

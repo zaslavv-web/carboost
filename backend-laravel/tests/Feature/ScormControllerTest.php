@@ -217,8 +217,8 @@ XML;
         $this->assertNotNull($cookie);
         $this->assertSame('scorm_sess', $cookie->getName());
 
-        // Повторное использование тикета запрещено.
-        $this->get("/api/university/scorm/launch/{$ticket}")->assertStatus(410);
+        // Повторный GET в течение TTL работает: prefetch/iframe reload не ломают урок.
+        $this->get("/api/university/scorm/launch/{$ticket}")->assertOk();
 
         // С cookie — доступен.
         $this->withUnencryptedCookie('scorm_sess', $cookie->getValue())
