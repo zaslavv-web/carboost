@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<manifest identifier="M4" xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2">
+  <metadata><schema>ADL SCORM</schema><schemaversion>1.2</schemaversion></metadata>
+  <organizations default="ORG-1">
+    <organization identifier="ORG-1"><title>Мультистраничный курс</title><item identifier="I-01-intro" identifierref="R-01-intro"><title>01-intro</title></item><item identifier="I-02-start" identifierref="R-02-start"><title>02-start</title></item><item identifier="I-quiz" identifierref="R-quiz"><title>quiz</title></item></organization>
+  </organizations>
+  <resources><resource identifier="R-01-intro" type="webcontent" href="pages/01-intro.html"><file href="pages/01-intro.html"/><dependency identifierref="R-common"/></resource><resource identifier="R-02-start" type="webcontent" href="pages/02-start.html"><file href="pages/02-start.html"/><dependency identifierref="R-common"/></resource><resource identifier="R-quiz" type="webcontent" href="pages/quiz.html"><file href="pages/quiz.html"/><dependency identifierref="R-common"/></resource><resource identifier="R-common" type="webcontent"><file href="assets/style.css"/><file href="assets/scorm.js"/></resource></resources>
+</manifest>
