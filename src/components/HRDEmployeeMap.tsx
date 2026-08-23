@@ -468,10 +468,28 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
       const colW = 280;
       const rowH = 130;
       const cols = Math.max(1, Math.ceil(Math.sqrt(members.length)));
+      // Identify neighbors of selected employee for highlighting
+      const neighbors = new Set<string>();
+      if (selectedEmployeeId) {
+        teamLinks.forEach((l) => {
+          if (l.manager_id === selectedEmployeeId) neighbors.add(l.employee_id);
+          if (l.employee_id === selectedEmployeeId) neighbors.add(l.manager_id);
+        });
+        hrTasks.forEach((t) => {
+          if (t.created_by === selectedEmployeeId) {
+            t.assignees.forEach((a) => neighbors.add(a.user_id));
+          }
+          if (t.assignees.some((a) => a.user_id === selectedEmployeeId)) {
+            neighbors.add(t.created_by);
+          }
+        });
+      }
+
       members.forEach((e, idx) => {
         const col = idx % cols;
         const row = Math.floor(idx / cols);
         const isSelected = selectedEmployeeId === e.user_id;
+        const isNeighbor = neighbors.has(e.user_id);
         const isManager = e.user_id === activeTeamManagerId;
         nodes.push({
           id: e.user_id,
