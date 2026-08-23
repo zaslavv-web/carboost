@@ -320,25 +320,30 @@ const AdaptationPlans = () => {
               {assignmentsQ.data?.map((a) => {
                 const plan = plansQ.data?.find((p) => p.id === a.plan_id);
                 return (
-                  <div key={a.id} className="p-3 rounded-lg border border-border flex items-center gap-4">
-                    <div className="flex-1">
+                  <button
+                    key={a.id}
+                    onClick={() => setOpenAssignment(a.id)}
+                    className="w-full text-left p-3 rounded-lg border border-border flex items-center gap-4 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{employeeLabel(a.user_id)}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground truncate">
                         {plan?.title ?? "—"} • старт {a.start_date}
                         {a.buddy_id ? ` • бадди: ${employeeLabel(a.buddy_id)}` : ""}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       {a.status === "completed" ? (
                         <Badge className="bg-success/10 text-success"><CheckCircle2 className="w-3 h-3 mr-1" />Завершено</Badge>
                       ) : (
                         <Badge variant="outline"><Clock className="w-3 h-3 mr-1" />{a.progress_percent}%</Badge>
                       )}
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
+
           </div>
         </TabsContent>
       </Tabs>
