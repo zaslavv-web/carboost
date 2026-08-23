@@ -25,6 +25,7 @@ interface TeamMember {
 
 const ManagerDashboard = () => {
   const { t } = useTranslation("manager");
+  const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showAddModal, setShowAddModal] = useState(false);
