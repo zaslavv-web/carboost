@@ -252,9 +252,63 @@ const HrDocumentsPersonal = () => {
           {renderList(expiringSoon, false, "Все документы действительны более 60 дней")}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={!!openDoc} onOpenChange={(o) => !o && setOpenDoc(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="pr-6">{openDoc?.title}</DialogTitle>
+          </DialogHeader>
+          {openDoc && (
+            <div className="space-y-3 text-sm max-h-[65vh] overflow-y-auto">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">
+                  {DOC_TYPES.find((t) => t.value === openDoc.document_type)?.label || openDoc.document_type || "Без типа"}
+                </Badge>
+                {openDoc.is_confidential && (
+                  <Badge variant="outline" className="border-destructive/40 text-destructive">
+                    <ShieldAlert className="w-3 h-3 mr-1" /> Конфиденциально
+                  </Badge>
+                )}
+                {openDoc.valid_until && new Date(openDoc.valid_until) < new Date() && (
+                  <Badge variant="destructive">Истёк</Badge>
+                )}
+              </div>
+              <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 text-sm">
+                <dt className="text-muted-foreground">Сотрудник</dt>
+                <dd>{empName(openDoc.owner_user_id)}</dd>
+                <dt className="text-muted-foreground">Действует с</dt>
+                <dd>{openDoc.valid_from ? format(new Date(openDoc.valid_from), "dd.MM.yyyy") : "—"}</dd>
+                <dt className="text-muted-foreground">Действует до</dt>
+                <dd>{openDoc.valid_until ? format(new Date(openDoc.valid_until), "dd.MM.yyyy") : "бессрочно"}</dd>
+                <dt className="text-muted-foreground">Загружен</dt>
+                <dd>{format(new Date(openDoc.created_at), "dd.MM.yyyy HH:mm")}</dd>
+                <dt className="text-muted-foreground">Файл</dt>
+                <dd className="truncate">{openDoc.file_name || "не приложен"}</dd>
+              </dl>
+              {openDoc.description && (
+                <div>
+                  <p className="text-muted-foreground text-xs mb-1">Описание</p>
+                  <p className="whitespace-pre-wrap">{openDoc.description}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            {openDoc?.file_url && (
+              <Button asChild variant="outline">
+                <a href={openDoc.file_url} target="_blank" rel="noopener noreferrer">
+                  <Download className="w-4 h-4 mr-1.5" /> Скачать
+                </a>
+              </Button>
+            )}
+            <Button onClick={() => setOpenDoc(null)}>Закрыть</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
+
 
 const UploadDialog = ({
   employees, onClose, onCreated,
