@@ -101,9 +101,11 @@ function ScormFrame({ courseId, lessonId, title }: { courseId: string; lessonId:
     <div className="space-y-2">
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">{state.loaded ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : <Loader2 className="h-3.5 w-3.5 animate-spin" />}{state.loaded ? "Материал открыт" : "Открываем материал…"}</span>
-        <Button asChild size="sm" variant="ghost" className="h-7">
-          <a href={state.url} target="_blank" rel="noreferrer"><ExternalLink className="mr-1 h-3.5 w-3.5" />В новом окне</a>
+        <Button size="sm" variant="ghost" className="h-7" onClick={openInNewWindow} disabled={openingExternal}>
+          {openingExternal ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="mr-1 h-3.5 w-3.5" />}
+          В новом окне
         </Button>
+
       </div>
       <div className="aspect-[16/10] w-full rounded overflow-hidden border bg-background">
       <iframe
