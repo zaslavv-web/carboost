@@ -18,4 +18,29 @@ class RichTextSanitizerTest extends TestCase
         $this->assertStringNotContainsString('onerror', $clean);
         $this->assertStringContainsString('https://example.test/a.png', $clean);
     }
+
+    public function test_keeps_nested_lists_and_cyrillic_text(): void
+    {
+        $clean = RichTextSanitizer::clean('<ul><li>Первый<ol><li>Вложенный</li></ol></li></ul>');
+
+        $this->assertStringContainsString('<ul>', $clean);
+        $this->assertStringContainsString('<ol>', $clean);
+        $this->assertStringContainsString('Вложенный', $clean);
+    }
+
+    public function test_style_whitelist(): void
+    {
+        $clean = RichTextSanitizer::clean('<p style="font-size: 14px">a</p><p style="position: fixed">b</p>');
+
+        $this->assertStringContainsString('font-size: 14px', $clean);
+        $this->assertStringNotContainsString('position', $clean);
+    }
+
+    public function test_links_get_safe_rel_and_target(): void
+    {
+        $clean = RichTextSanitizer::clean('<p><a href="https://example.test">тут</a></p>');
+
+        $this->assertStringContainsString('rel="noopener noreferrer"', $clean);
+        $this->assertStringContainsString('target="_blank"', $clean);
+    }
 }
