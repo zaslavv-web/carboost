@@ -44,6 +44,7 @@ export default function SkillsMatrix() {
   const qc = useQueryClient();
   const [category, setCategory] = useState<string>("all");
   const [addOpen, setAddOpen] = useState(false);
+  const [targetsOpen, setTargetsOpen] = useState(false);
 
   const { data: comps = [] } = useQuery({
     queryKey: ["skills-matrix", companyId],
@@ -97,16 +98,24 @@ export default function SkillsMatrix() {
     return m;
   }, [filtered]);
 
-  const avgGap = useMemo(() => {
+  const gapStats = useMemo(() => {
     const gaps: number[] = [];
+    let pairs = 0;
     for (const [, sk] of byUser) {
       for (const skill of skills) {
         const c = sk.get(skill);
+        if (!c) continue;
+        pairs += 1;
         const t = targets.get(skill);
-        if (t && c) gaps.push(Math.max(0, t - c.skill_value));
+        if (t) gaps.push(Math.max(0, t - c.skill_value));
       }
     }
-    return gaps.length ? Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length) : 0;
+    return {
+      avg: gaps.length ? Math.round((gaps.reduce((a, b) => a + b, 0) / gaps.length) * 10) / 10 : null,
+      measured: gaps.length,
+      pairs,
+      skillsWithTarget: skills.filter((s) => targets.get(s)).length,
+    };
   }, [byUser, skills, targets]);
 
   const addComp = useMutation({
@@ -130,6 +139,25 @@ export default function SkillsMatrix() {
     },
     onError: (e: any) => toast.error(e?.message ?? "Не удалось сохранить"),
   });
+
+  const saveTargets = useMutation({
+    mutationFn: async (updates: Record<string, number>) => {
+      for (const [skill, value] of Object.entries(updates)) {
+        const { error } = await laravelDb
+          .from("competencies" as any)
+          .update({ target_value: value } as any)
+          .eq("skill_name", skill);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["skills-matrix"] });
+      setTargetsOpen(false);
+      toast.success("Целевые уровни обновлены");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Не удалось сохранить цели"),
+  });
+
 
   const rows = Array.from(byUser.entries()).map(([uid, sk]) => {
     const p = profiles.find((x) => x.user_id === uid);
@@ -166,6 +194,17 @@ export default function SkillsMatrix() {
             </DialogTrigger>
             <AddCompetencyDialog profiles={profiles} onSave={(p) => addComp.mutate(p)} />
           </Dialog>
+          <Dialog open={targetsOpen} onOpenChange={setTargetsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline"><Target className="w-4 h-4 mr-2" />Цели</Button>
+            </DialogTrigger>
+            <TargetsDialog
+              skills={skills}
+              targets={targets}
+              saving={saveTargets.isPending}
+              onSave={(u) => saveTargets.mutate(u)}
+            />
+          </Dialog>
         </div>
       </div>
 
@@ -181,7 +220,13 @@ export default function SkillsMatrix() {
         <Card><CardContent className="p-4">
           <div className="text-xs text-muted-foreground">Средний gap до цели</div>
           <div className="text-2xl font-semibold flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-primary" />{avgGap}
+            <TrendingUp className="w-5 h-5 text-primary" />
+            {gapStats.avg === null ? "—" : gapStats.avg}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {gapStats.avg === null
+              ? "Целевые уровни не заданы — нажмите «Цели»"
+              : `по ${gapStats.measured} из ${gapStats.pairs} оценок · цели у ${gapStats.skillsWithTarget} из ${skills.length} навыков`}
           </div>
         </CardContent></Card>
       </div>
@@ -295,6 +340,57 @@ function AddCompetencyDialog({
             category: cat.trim() || undefined,
           })}
         >Сохранить</Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+function TargetsDialog({
+  skills, targets, saving, onSave,
+}: {
+  skills: string[];
+  targets: Map<string, number>;
+  saving: boolean;
+  onSave: (updates: Record<string, number>) => void;
+}) {
+  const [draft, setDraft] = useState<Record<string, string>>(() =>
+    Object.fromEntries(skills.map((s) => [s, targets.get(s) ? String(targets.get(s)) : ""])),
+  );
+
+  const changed = Object.entries(draft).filter(
+    ([skill, value]) => value !== "" && Number(value) !== (targets.get(skill) ?? null),
+  );
+
+  return (
+    <DialogContent className="max-w-md">
+      <DialogHeader><DialogTitle>Целевые уровни по навыкам</DialogTitle></DialogHeader>
+      <p className="text-xs text-muted-foreground">
+        Цель задаётся один раз на навык и применяется ко всем сотрудникам. Без цели gap не считается.
+      </p>
+      <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-1">
+        {skills.length === 0 && <p className="text-sm text-muted-foreground">Навыков пока нет.</p>}
+        {skills.map((s) => (
+          <div key={s} className="flex items-center gap-3">
+            <span className="flex-1 text-sm truncate">{s}</span>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              className="w-24"
+              placeholder="—"
+              value={draft[s] ?? ""}
+              onChange={(e) => setDraft((d) => ({ ...d, [s]: e.target.value }))}
+            />
+          </div>
+        ))}
+      </div>
+      <DialogFooter>
+        <Button
+          disabled={saving || changed.length === 0}
+          onClick={() => onSave(Object.fromEntries(changed.map(([k, v]) => [k, Number(v)])))}
+        >
+          Сохранить{changed.length > 0 ? ` (${changed.length})` : ""}
+        </Button>
       </DialogFooter>
     </DialogContent>
   );

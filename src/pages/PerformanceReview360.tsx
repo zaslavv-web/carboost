@@ -28,7 +28,7 @@ type Reviewer = {
   submitted_at?: string | null;
 };
 
-type Profile = { user_id: string; full_name?: string | null; position?: string | null };
+type Profile = { user_id: string; full_name?: string | null; position?: string | null; department?: string | null };
 
 const ROLE_LABEL = { self: "Self", manager: "Руководитель", peer: "Коллега", subordinate: "Подчинённый", hr: "HR" } as const;
 const STATUS_ICON = { invited: Clock, submitted: CheckCircle2, declined: XCircle } as const;
@@ -57,7 +57,7 @@ export default function PerformanceReview360() {
   const { data: profiles = [] } = useQuery({
     queryKey: ["360-profiles"],
     queryFn: async () => {
-      const { data, error } = await laravelDb.from("profiles").select("user_id, full_name, position");
+      const { data, error } = await laravelDb.from("profiles").select("user_id, full_name, position, department");
       if (error) throw error;
       return (data as any[] as Profile[]) ?? [];
     },
@@ -77,22 +77,25 @@ export default function PerformanceReview360() {
   });
 
   const invite = useMutation({
-    mutationFn: async (p: { reviewer_id: string; role: Reviewer["role"] }) => {
-      const { error } = await laravelDb.from("performance_review_reviewers" as any).insert({
-        company_id: companyId,
-        review_id: selectedReview,
-        reviewer_id: p.reviewer_id,
-        role: p.role,
-        status: "invited",
-        invited_by: profile?.user_id,
-        invited_at: new Date().toISOString(),
-      });
-      if (error) throw error;
+    mutationFn: async (p: { reviewer_ids: string[]; role: Reviewer["role"] }) => {
+      for (const reviewerId of p.reviewer_ids) {
+        const { error } = await laravelDb.from("performance_review_reviewers" as any).insert({
+          company_id: companyId,
+          review_id: selectedReview,
+          reviewer_id: reviewerId,
+          role: p.role,
+          status: "invited",
+          invited_by: profile?.user_id,
+          invited_at: new Date().toISOString(),
+        });
+        if (error) throw error;
+      }
+      return p.reviewer_ids.length;
     },
-    onSuccess: () => {
+    onSuccess: (count) => {
       qc.invalidateQueries({ queryKey: ["360-reviewers", selectedReview] });
       setInviteOpen(false);
-      toast.success("Ревьюер приглашён");
+      toast.success(count > 1 ? `Приглашено ревьюеров: ${count}` : "Ревьюер приглашён");
     },
     onError: (e: any) => toast.error(e?.message ?? "Не удалось пригласить"),
   });
@@ -155,6 +158,7 @@ export default function PerformanceReview360() {
                 </DialogTrigger>
                 <InviteDialog
                   profiles={profiles.filter((p) => p.user_id !== reviewee?.user_id)}
+                  existingIds={reviewers.map((r) => r.reviewer_id)}
                   onSave={(p) => invite.mutate(p)}
                 />
               </Dialog>
@@ -202,44 +206,95 @@ export default function PerformanceReview360() {
 
 function InviteDialog({
   profiles,
+  existingIds = [],
   onSave,
 }: {
   profiles: Profile[];
-  onSave: (p: { reviewer_id: string; role: "self" | "manager" | "peer" | "subordinate" | "hr" }) => void;
+  existingIds?: string[];
+  onSave: (p: { reviewer_ids: string[]; role: "self" | "manager" | "peer" | "subordinate" | "hr" }) => void;
 }) {
-  const [uid, setUid] = useState("");
   const [role, setRole] = useState<"peer" | "manager" | "subordinate" | "hr" | "self">("peer");
+  const [department, setDepartment] = useState<string>("all");
+  const [selected, setSelected] = useState<string[]>([]);
+
+  const departments = useMemo(
+    () => Array.from(new Set(profiles.map((p) => p.department).filter(Boolean))) as string[],
+    [profiles],
+  );
+  const visible = useMemo(
+    () =>
+      profiles
+        .filter((p) => !existingIds.includes(p.user_id))
+        .filter((p) => department === "all" || p.department === department),
+    [profiles, department, existingIds],
+  );
+
+  const toggle = (uid: string) =>
+    setSelected((s) => (s.includes(uid) ? s.filter((x) => x !== uid) : [...s, uid]));
+
   return (
-    <DialogContent>
-      <DialogHeader><DialogTitle>Пригласить ревьюера</DialogTitle></DialogHeader>
+    <DialogContent className="max-w-lg">
+      <DialogHeader><DialogTitle>Пригласить ревьюеров</DialogTitle></DialogHeader>
       <div className="grid gap-3">
-        <div>
-          <Label>Ревьюер</Label>
-          <Select value={uid} onValueChange={setUid}>
-            <SelectTrigger><SelectValue placeholder="Выбрать" /></SelectTrigger>
-            <SelectContent>
-              {profiles.map((p) => (
-                <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || p.user_id.slice(0, 8)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Роль</Label>
+            <Select value={role} onValueChange={(v) => setRole(v as any)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="peer">Коллега</SelectItem>
+                <SelectItem value="manager">Руководитель</SelectItem>
+                <SelectItem value="subordinate">Подчинённый</SelectItem>
+                <SelectItem value="hr">HR</SelectItem>
+                <SelectItem value="self">Self</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Отдел</Label>
+            <Select value={department} onValueChange={(v) => { setDepartment(v); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все отделы</SelectItem>
+                {departments.map((d) => (
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div>
-          <Label>Роль</Label>
-          <Select value={role} onValueChange={(v) => setRole(v as any)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="peer">Коллега</SelectItem>
-              <SelectItem value="manager">Руководитель</SelectItem>
-              <SelectItem value="subordinate">Подчинённый</SelectItem>
-              <SelectItem value="hr">HR</SelectItem>
-              <SelectItem value="self">Self</SelectItem>
-            </SelectContent>
-          </Select>
+
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>Выбрано: {selected.length}</span>
+          <div className="flex gap-2">
+            <button className="underline" onClick={() => setSelected(visible.map((p) => p.user_id))}>
+              Выбрать всех{department !== "all" ? " в отделе" : ""}
+            </button>
+            <button className="underline" onClick={() => setSelected([])}>Сбросить</button>
+          </div>
+        </div>
+
+        <div className="max-h-64 space-y-1 overflow-y-auto rounded border border-border p-2">
+          {visible.length === 0 && (
+            <p className="text-sm text-muted-foreground">Нет доступных сотрудников</p>
+          )}
+          {visible.map((p) => (
+            <label key={p.user_id} className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={selected.includes(p.user_id)}
+                onChange={() => toggle(p.user_id)}
+              />
+              <span className="flex-1 truncate">{p.full_name || p.user_id.slice(0, 8)}</span>
+              {p.department && <span className="text-xs text-muted-foreground">{p.department}</span>}
+            </label>
+          ))}
         </div>
       </div>
       <DialogFooter>
-        <Button disabled={!uid} onClick={() => onSave({ reviewer_id: uid, role })}>Пригласить</Button>
+        <Button disabled={selected.length === 0} onClick={() => onSave({ reviewer_ids: selected, role })}>
+          Пригласить{selected.length > 0 ? ` (${selected.length})` : ""}
+        </Button>
       </DialogFooter>
     </DialogContent>
   );
