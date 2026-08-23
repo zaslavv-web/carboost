@@ -511,9 +511,15 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
             ),
           },
           style: {
-            background: isSelected ? "hsl(var(--primary) / 0.15)" : "hsl(var(--card))",
+            background: isSelected
+              ? "hsl(var(--primary) / 0.15)"
+              : isNeighbor
+                ? "hsl(var(--info) / 0.12)"
+                : "hsl(var(--card))",
             border: isSelected
               ? "2px solid hsl(var(--primary))"
+              : isNeighbor
+              ? "2px solid hsl(var(--info))"
               : isManager
               ? "1px solid hsl(var(--primary))"
               : "1px solid hsl(var(--border))",
@@ -521,6 +527,7 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
             padding: 10,
             color: "hsl(var(--foreground))",
             width: 220,
+            opacity: selectedEmployeeId && !isSelected && !isNeighbor ? 0.42 : 1,
           },
         });
       });
@@ -529,12 +536,13 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
       const idSet = new Set(members.map((m) => m.user_id));
       teamLinks.forEach((l, i) => {
         if (!idSet.has(l.manager_id) || !idSet.has(l.employee_id)) return;
+        const connected = !selectedEmployeeId || l.manager_id === selectedEmployeeId || l.employee_id === selectedEmployeeId;
         edges.push({
           id: `mgr-${i}`,
           source: l.manager_id,
           target: l.employee_id,
           type: "smoothstep",
-          style: { stroke: "hsl(var(--info))", strokeWidth: 2 },
+          style: { stroke: "hsl(var(--info))", strokeWidth: connected ? 3 : 1, opacity: connected ? 1 : 0.18 },
           markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--info))" },
         });
       });
@@ -552,13 +560,14 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
               : tsk.status === "rejected" || tsk.status === "cancelled"
               ? "hsl(var(--destructive))"
               : "hsl(var(--primary))";
+          const connected = !selectedEmployeeId || tsk.created_by === selectedEmployeeId || a.user_id === selectedEmployeeId;
           edges.push({
             id: `task-${tsk.id}-${a.user_id}`,
             source: tsk.created_by,
             target: a.user_id,
             type: "default",
             animated: tsk.status === "in_review",
-            style: { stroke: color, strokeWidth: 1.5, strokeDasharray: "5 4" },
+            style: { stroke: color, strokeWidth: connected ? 2.5 : 1, strokeDasharray: "5 4", opacity: connected ? 1 : 0.12 },
             markerEnd: { type: MarkerType.Arrow, color },
             label: `🎯 ${tsk.title.slice(0, 18)}${tsk.reward_coins ? ` · ${tsk.reward_coins}🪙` : ""}`,
             labelStyle: { fill: "hsl(var(--foreground))", fontSize: 10, fontWeight: 500 },
