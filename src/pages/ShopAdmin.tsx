@@ -195,6 +195,36 @@ export default function ShopAdmin() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // ===== Analytics (считается из уже загруженных заказов) =====
+  const analytics = useMemo(() => {
+    const paid = orders.filter((o: any) => o.status !== "cancelled");
+    const productMap = new Map<string, { title: string; qty: number; amount: number }>();
+    const monthMap = new Map<string, { month: string; orders: number; amount: number }>();
+    for (const o of paid) {
+      for (const it of o.items ?? []) {
+        const cur = productMap.get(it.product_title) ?? { title: it.product_title, qty: 0, amount: 0 };
+        cur.qty += it.quantity; cur.amount += it.subtotal;
+        productMap.set(it.product_title, cur);
+      }
+      const d = new Date(o.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const m = monthMap.get(key) ?? { month: key, orders: 0, amount: 0 };
+      m.orders += 1; m.amount += o.total_amount;
+      monthMap.set(key, m);
+    }
+    const topProducts = [...productMap.values()].sort((a, b) => b.qty - a.qty).slice(0, 10);
+    return {
+      totalOrders: orders.length,
+      fulfilled: orders.filter((o: any) => o.status === "fulfilled").length,
+      pending: orders.filter((o: any) => o.status === "pending_fulfillment").length,
+      spent: paid.reduce((s: number, o: any) => s + o.total_amount, 0),
+      topProducts,
+      maxQty: topProducts[0]?.qty ?? 0,
+      byMonth: [...monthMap.values()].sort((a, b) => b.month.localeCompare(a.month)).slice(0, 12),
+    };
+  }, [orders]);
+
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       <h1 className="text-3xl font-bold">🛍️ {t("shopAdmin.title")}</h1>
