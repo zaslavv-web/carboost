@@ -1720,6 +1720,7 @@ class SeedDemoCompany extends Command
             $this->call('tracker:seed-tasks', [
                 '--company-id' => $this->companyId,
                 '--count'      => 400,
+                '--per-user'   => 6,
                 '--projects'   => 6,
                 '--sprints'    => 4,
                 '--marker'     => 'demo-content',
