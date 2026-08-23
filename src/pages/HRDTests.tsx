@@ -9,6 +9,11 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravelStorage } from "@/integrations/laravel/storage";
 import { aiInvoke } from "@/integrations/laravel/client";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
+
 
 interface ParsedQuestion {
   id: string;
