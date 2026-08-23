@@ -1852,7 +1852,230 @@ class SeedDemoCompany extends Command
         if (Schema::hasTable('performance_cycles') && DB::table('performance_cycles')->where('company_id', $this->companyId)->doesntExist()) {
             $this->seedPerformance();
         }
+
+        $this->seedPersonalHrDocuments($profiles, $admin);
+        $this->seedKedo($profiles, $admin);
+        $this->seedLeaves($profiles, $admin);
     }
+
+    /** Персональные HR-документы сотрудников, включая истекающие в ближайшие 30 дней. */
+    private function seedPersonalHrDocuments($profiles, string $admin): void
+    {
+        if (! Schema::hasTable('hr_documents') || ! Schema::hasColumn('hr_documents', 'owner_user_id')) return;
+        if (DB::table('hr_documents')->where('company_id', $this->companyId)->whereNotNull('owner_user_id')->exists()) return;
+
+        $catalog = [
+            ['personal', 'Трудовой договор', 'Бессрочный трудовой договор сотрудника.', 3650],
+            ['personal', 'Согласие на обработку персональных данных', 'Подписанное согласие 152-ФЗ.', 730],
+            ['medical', 'Медицинская книжка', 'Периодический медосмотр.', 20],
+            ['certificate', 'Сертификат по охране труда', 'Обучение по программе ОТ.', 12],
+            ['permit', 'Пропуск в офис', 'Электронный пропуск СКУД.', 45],
+        ];
+
+        foreach ($profiles as $i => $profile) {
+            foreach ($catalog as $k => [$type, $title, $description, $daysValid]) {
+                if (($i + $k) % 2 === 1 && $daysValid > 100) continue;
+                $validUntil = now()->addDays($daysValid + ($i % 5));
+                DB::table('hr_documents')->insert([
+                    'id'                => (string) Str::uuid(),
+                    'company_id'        => $this->companyId,
+                    'owner_user_id'     => $profile->user_id,
+                    'created_by'        => $admin,
+                    'document_type'     => $type,
+                    'title'             => $title . ' — ' . $profile->full_name,
+                    'description'       => $description,
+                    'file_url'          => null,
+                    'file_name'         => Str::slug($title) . '.pdf',
+                    'processing_status' => 'processed',
+                    'extracted_data'    => json_encode(['owner' => $profile->full_name], JSON_UNESCAPED_UNICODE),
+                    'valid_from'        => now()->subMonths(6)->toDateString(),
+                    'valid_until'       => $validUntil->toDateString(),
+                    'is_confidential'   => $type === 'medical',
+                    'created_at'        => now(),
+                    'updated_at'        => now(),
+                ]);
+            }
+        }
+    }
+
+    /** КЭДО: шаблоны, маршрут и документы на подписи в разных статусах. */
+    private function seedKedo($profiles, string $admin): void
+    {
+        if (! Schema::hasTable('kedo_documents')) return;
+        if (DB::table('kedo_documents')->where('company_id', $this->companyId)->exists()) return;
+
+        $routeId = (string) Str::uuid();
+        DB::table('kedo_routes')->insert([
+            'id' => $routeId, 'company_id' => $this->companyId, 'title' => 'Согласование HR → подпись сотрудника',
+            'description' => 'Стандартный маршрут кадровых документов.', 'is_active' => true,
+            'created_by' => $admin, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        foreach ([
+            [1, 'Согласование HR', 'user', $admin, 'approve', 2],
+            [2, 'Подпись сотрудника', 'subject', null, 'sign', 3],
+        ] as [$order, $title, $actorType, $actorRef, $action, $due]) {
+            DB::table('kedo_route_steps')->insert([
+                'id' => (string) Str::uuid(), 'company_id' => $this->companyId, 'route_id' => $routeId,
+                'step_order' => $order, 'title' => $title, 'actor_type' => $actorType, 'actor_ref' => $actorRef,
+                'action' => $action, 'due_days' => $due, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $templates = [
+            ['vacation_order', 'Приказ на отпуск', 'order'],
+            ['transfer_order', 'Приказ о переводе', 'order'],
+            ['ndl_agreement', 'Соглашение о неразглашении', 'agreement'],
+            ['ot_instruction', 'Инструктаж по охране труда', 'other'],
+        ];
+        $templateIds = [];
+        foreach ($templates as [$code, $title, $category]) {
+            $tid = (string) Str::uuid();
+            $templateIds[$code] = $tid;
+            DB::table('kedo_templates')->insert([
+                'id' => $tid, 'company_id' => $this->companyId, 'code' => $code, 'title' => $title,
+                'category' => $category, 'body_html' => '<p>' . $title . ' для {{full_name}} от {{date}}.</p>',
+                'placeholders' => json_encode(['full_name', 'date'], JSON_UNESCAPED_UNICODE),
+                'requires_signature' => true, 'signature_kind' => 'pep', 'route_id' => $routeId,
+                'retention_years' => 75, 'is_system' => false, 'is_active' => true,
+                'created_by' => $admin, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $statuses = ['signed', 'in_review', 'draft', 'signed', 'in_review'];
+        $codes = array_keys($templateIds);
+        $number = 1;
+        foreach ($profiles->take(12) as $i => $profile) {
+            $code = $codes[$i % count($codes)];
+            $status = $statuses[$i % count($statuses)];
+            $docId = (string) Str::uuid();
+            $created = now()->subDays(30 - $i);
+            DB::table('kedo_documents')->insert([
+                'id' => $docId, 'company_id' => $this->companyId, 'template_id' => $templateIds[$code],
+                'route_id' => $routeId, 'user_id' => $profile->user_id,
+                'number' => 'КЭДО-' . str_pad((string) $number++, 4, '0', STR_PAD_LEFT),
+                'title' => $templates[$i % count($templates)][1] . ' — ' . $profile->full_name,
+                'category' => 'order',
+                'body_html' => '<p>Документ для ' . e($profile->full_name) . ' от ' . $created->format('d.m.Y') . '.</p>',
+                'status' => $status, 'current_step' => $status === 'signed' ? 2 : 1, 'signature_kind' => 'pep',
+                'retention_until' => now()->addYears(75)->toDateString(),
+                'sent_at' => $status === 'draft' ? null : $created,
+                'completed_at' => $status === 'signed' ? $created->copy()->addDays(2) : null,
+                'created_by' => $admin, 'created_at' => $created, 'updated_at' => now(),
+            ]);
+
+            DB::table('kedo_document_participants')->insert([
+                [
+                    'id' => (string) Str::uuid(), 'company_id' => $this->companyId, 'document_id' => $docId,
+                    'user_id' => $admin, 'step_order' => 1, 'action' => 'approve',
+                    'status' => $status === 'draft' ? 'pending' : 'done',
+                    'due_date' => $created->copy()->addDays(2)->toDateString(),
+                    'acted_at' => $status === 'draft' ? null : $created->copy()->addDay(),
+                    'created_at' => now(), 'updated_at' => now(),
+                ],
+                [
+                    'id' => (string) Str::uuid(), 'company_id' => $this->companyId, 'document_id' => $docId,
+                    'user_id' => $profile->user_id, 'step_order' => 2, 'action' => 'sign',
+                    'status' => $status === 'signed' ? 'done' : 'pending',
+                    'due_date' => $created->copy()->addDays(5)->toDateString(),
+                    'acted_at' => $status === 'signed' ? $created->copy()->addDays(2) : null,
+                    'created_at' => now(), 'updated_at' => now(),
+                ],
+            ]);
+
+            if ($status === 'signed' && Schema::hasTable('kedo_signatures')) {
+                DB::table('kedo_signatures')->insert([
+                    'id' => (string) Str::uuid(), 'company_id' => $this->companyId, 'document_id' => $docId,
+                    'user_id' => $profile->user_id, 'kind' => 'pep', 'provider' => 'manual',
+                    'doc_hash' => hash('sha256', $docId), 'signed_at' => $created->copy()->addDays(2),
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+
+            if (Schema::hasTable('kedo_events')) {
+                $prev = null;
+                $events = $status === 'draft' ? ['created'] : ($status === 'signed' ? ['created', 'sent', 'approved', 'signed'] : ['created', 'sent']);
+                foreach ($events as $ei => $event) {
+                    $hash = hash('sha256', $docId . $event . (string) $prev);
+                    DB::table('kedo_events')->insert([
+                        'id' => (string) Str::uuid(), 'company_id' => $this->companyId, 'document_id' => $docId,
+                        'actor_id' => $event === 'signed' ? $profile->user_id : $admin, 'event' => $event,
+                        'payload' => json_encode(['demo' => true], JSON_UNESCAPED_UNICODE),
+                        'prev_hash' => $prev, 'hash' => $hash,
+                        'created_at' => $created->copy()->addHours($ei * 6),
+                    ]);
+                    $prev = $hash;
+                }
+            }
+        }
+    }
+
+    /** Отсутствия: типы, балансы и заявки на разных стадиях согласования. */
+    private function seedLeaves($profiles, string $admin): void
+    {
+        if (! Schema::hasTable('leave_requests') || ! Schema::hasTable('leave_types')) return;
+
+        $types = [
+            ['annual', 'Ежегодный отпуск', true, 28, false],
+            ['sick', 'Больничный', true, 0, true],
+            ['unpaid', 'Отпуск за свой счёт', false, 0, false],
+            ['study', 'Учебный отпуск', true, 14, false],
+        ];
+        $typeIds = [];
+        foreach ($types as [$code, $title, $paid, $accrual, $cert]) {
+            $existing = DB::table('leave_types')->where('company_id', $this->companyId)->where('code', $code)->first();
+            $id = $existing->id ?? (string) Str::uuid();
+            DB::table('leave_types')->updateOrInsert(
+                ['company_id' => $this->companyId, 'code' => $code],
+                [
+                    'id' => $id, 'title' => $title, 'paid' => $paid, 'accrual_days_per_year' => $accrual,
+                    'requires_medical_cert' => $cert, 'is_active' => true,
+                    'created_at' => now(), 'updated_at' => now(),
+                ]
+            );
+            $typeIds[$code] = (string) $id;
+        }
+
+        if (DB::table('leave_requests')->where('company_id', $this->companyId)->exists()) return;
+
+        $codes = array_keys($typeIds);
+        $statuses = ['approved', 'pending_manager', 'pending_hr', 'approved', 'rejected', 'cancelled'];
+        foreach ($profiles->take(20) as $i => $profile) {
+            $code = $codes[$i % count($codes)];
+            $status = $statuses[$i % count($statuses)];
+            $start = now()->addDays(($i % 6) * 7 - 21);
+            $days = 3 + ($i % 5);
+            $managerId = DB::table('team_members')->where('company_id', $this->companyId)
+                ->where('employee_id', $profile->user_id)->value('manager_id');
+            $decided = ! in_array($status, ['pending_manager'], true);
+
+            if (Schema::hasTable('leave_balances')) {
+                DB::table('leave_balances')->updateOrInsert(
+                    ['user_id' => $profile->user_id, 'leave_type_id' => $typeIds['annual']],
+                    [
+                        'id' => (string) Str::uuid(), 'company_id' => $this->companyId,
+                        'created_at' => now(), 'updated_at' => now(),
+                    ]
+                );
+            }
+
+            DB::table('leave_requests')->insert([
+                'id' => (string) Str::uuid(), 'company_id' => $this->companyId, 'user_id' => $profile->user_id,
+                'leave_type_id' => $typeIds[$code], 'start_date' => $start->toDateString(),
+                'end_date' => $start->copy()->addDays($days - 1)->toDateString(), 'days_count' => $days,
+                'reason' => $code === 'sick' ? 'Больничный лист' : 'Плановый отдых',
+                'status' => $status, 'manager_id' => $managerId,
+                'manager_decision_at' => $decided && $managerId ? now()->subDays(2) : null,
+                'manager_comment' => $decided && $managerId ? 'Согласовано' : null,
+                'hr_id' => in_array($status, ['approved', 'rejected'], true) ? $admin : null,
+                'hr_decision_at' => in_array($status, ['approved', 'rejected'], true) ? now()->subDay() : null,
+                'hr_comment' => $status === 'rejected' ? 'Пересечение с пиковой нагрузкой' : null,
+                'paid_days' => $code === 'unpaid' ? 0 : $days,
+                'unpaid_days' => $code === 'unpaid' ? $days : 0,
+                'created_at' => now()->subDays(10 - ($i % 8)), 'updated_at' => now(),
+            ]);
+        }
+    }
+
 
     /** Лента компании: сообщества, участники, посты, реакции и комментарии. */
     private function seedPortal(): void
