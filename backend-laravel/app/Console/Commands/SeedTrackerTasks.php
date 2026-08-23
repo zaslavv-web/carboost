@@ -411,10 +411,18 @@ class SeedTrackerTasks extends Command
         $batchSize = 200;
         $created = 0;
 
+        // Равномерное распределение: круговой обход перемешанного пула,
+        // чтобы у КАЖДОГО сотрудника были задачи (раньше был random и часть людей
+        // оставалась с пустым трекером).
+        $rotation = $assignees;
+        shuffle($rotation);
+        $rotSize = count($rotation);
+
         for ($i = 1; $i <= $count; $i++) {
             $projectId = $projectIds[array_rand($projectIds)];
             $author    = $authors[array_rand($authors)];
-            $assignee  = $assignees[array_rand($assignees)];
+            $assignee  = $rotation[($i - 1) % $rotSize];
+            if ($i % $rotSize === 0) shuffle($rotation);
             $topic     = $topics[array_rand($topics)];
             $title     = sprintf($titles[array_rand($titles)], $topic);
             $stKey     = $statusPick[array_rand($statusPick)];
