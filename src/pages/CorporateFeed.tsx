@@ -170,18 +170,36 @@ export default function CorporateFeed() {
                   </Button>
                 )}
               </div>
-              {p.title && <CardTitle className="text-lg mt-2">{p.title}</CardTitle>}
+              {p.title && (
+                <CardTitle
+                  className="text-lg mt-2 cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => setDetail(p)}
+                >
+                  {p.title}
+                </CardTitle>
+              )}
             </CardHeader>
             <CardContent className="space-y-3">
               {p.body_md && (
-                <RichContent value={p.body_md} />
+                <div className="cursor-pointer" onClick={() => setDetail(p)}>
+                  <RichContent value={p.body_md} className="line-clamp-6" />
+                </div>
               )}
               <div className="flex items-center gap-3 pt-2 border-t">
-                <Button size="sm" variant="ghost" onClick={() => react.mutate(p.id)}>
-                  <Heart className="w-4 h-4 mr-1" />{p.reactions_count || 0}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={reactionByPost.has(p.id) ? "text-primary" : undefined}
+                  onClick={() => react.mutate(p.id)}
+                >
+                  <Heart className={`w-4 h-4 mr-1 ${reactionByPost.has(p.id) ? "fill-current" : ""}`} />
+                  {p.reactions_count || 0}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setExpanded(expanded === p.id ? null : p.id)}>
                   <MessageCircle className="w-4 h-4 mr-1" />{p.comments_count || 0}
+                </Button>
+                <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setDetail(p)}>
+                  Открыть
                 </Button>
               </div>
               {expanded === p.id && <Comments postId={p.id} companyId={companyId} userId={userId} />}
@@ -189,6 +207,23 @@ export default function CorporateFeed() {
           </Card>
         ))}
       </div>
+
+      <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{detail?.title || KIND_LABEL[detail?.kind ?? "post"]}</DialogTitle>
+          </DialogHeader>
+          {detail && (
+            <div className="space-y-4">
+              <div className="text-xs text-muted-foreground">
+                {KIND_LABEL[detail.kind]} · {new Date(detail.created_at).toLocaleString("ru-RU")}
+              </div>
+              {detail.body_md && <RichContent value={detail.body_md} />}
+              <Comments postId={detail.id} companyId={companyId} userId={userId} />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
