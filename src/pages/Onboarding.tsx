@@ -5,6 +5,7 @@ import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Building2, Briefcase, Users, Settings as SettingsIcon, CheckCircle2, ArrowRight, Coins, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
