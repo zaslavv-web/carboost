@@ -50,7 +50,9 @@ const UsersManagement = () => {
     () => searchParams.get("companyId") || "all"
   );
   const [roleFilter, setRoleFilter] = useState<string>("all");
-  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>(() => searchParams.get("department") || "all");
+  const [positionFilter, setPositionFilter] = useState<string>(() => searchParams.get("position") || "all");
+  const [tenureFilter, setTenureFilter] = useState<string>(() => searchParams.get("tenure") || "all");
 
   // Sync company filter from URL (?companyId=...) — enables quick-filter deep-linking from Companies list.
   useEffect(() => {
@@ -58,6 +60,9 @@ const UsersManagement = () => {
     if (cid && cid !== companyFilter) {
       setCompanyFilter(cid);
     }
+    setDepartmentFilter(searchParams.get("department") || "all");
+    setPositionFilter(searchParams.get("position") || "all");
+    setTenureFilter(searchParams.get("tenure") || "all");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -196,6 +201,9 @@ const UsersManagement = () => {
   const departments = Array.from(
     new Set(users.map((u: any) => (u.department || "").trim()).filter(Boolean)),
   ).sort() as string[];
+  const positions = Array.from(
+    new Set(users.map((u: any) => (u.position || "").trim()).filter(Boolean)),
+  ).sort() as string[];
 
   const filtered = users.filter((u: any) => {
     const q = search.toLowerCase();
@@ -219,7 +227,16 @@ const UsersManagement = () => {
       departmentFilter === "all" ||
       (departmentFilter === "none" && !(u.department || "").trim()) ||
       (u.department || "").trim() === departmentFilter;
-    return matchesSearch && matchesStatus && matchesCompany && matchesRole && matchesDepartment;
+    const matchesPosition = positionFilter === "all" || (u.position || "").trim() === positionFilter;
+    const hireDate = u.hire_date ? new Date(u.hire_date) : null;
+    const months = hireDate ? (Date.now() - hireDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44) : null;
+    const matchesTenure = tenureFilter === "all" || (months !== null && (
+      (tenureFilter === "< 1 года" && months < 12) ||
+      (tenureFilter === "1–3 года" && months >= 12 && months < 36) ||
+      (tenureFilter === "3–5 лет" && months >= 36 && months < 60) ||
+      (tenureFilter === "> 5 лет" && months >= 60)
+    ));
+    return matchesSearch && matchesStatus && matchesCompany && matchesRole && matchesDepartment && matchesPosition && matchesTenure;
   });
 
   const pendingCount = users.filter((u: any) => !u.is_verified).length;

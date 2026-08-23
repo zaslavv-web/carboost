@@ -327,7 +327,7 @@ class ScormController extends Controller
     }
 
     /**
-     * Публичный запуск по одноразовому тикету: ставит короткоживущую cookie
+     * Публичный запуск по короткоживущему тикету: ставит cookie
      * SCORM-сессии и отдаёт HTML-лаунчер.
      */
     public function launchByTicket(Request $r, string $ticket)
@@ -337,7 +337,9 @@ class ScormController extends Controller
         if (! is_array($payload)) {
             return new Response('Ссылка устарела, откройте урок заново.', 410, ['Content-Type' => 'text/plain; charset=utf-8']);
         }
-        Cache::forget($key);
+        // Не удаляем тикет при первом GET: браузер, антивирус или прокси могут
+        // предварительно открыть URL до iframe. TTL и случайный 48-символьный
+        // токен сохраняют ограниченное окно доступа без хрупкой single-use гонки.
 
         $course = DB::table('courses')->where('id', $payload['course_id'])->first();
         $lesson = DB::table('lessons')->where('id', $payload['lesson_id'])->first();

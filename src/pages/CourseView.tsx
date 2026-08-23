@@ -86,6 +86,14 @@ function ScormFrame({ courseId, lessonId, title }: { courseId: string; lessonId:
     };
   }, [courseId, lessonId, attempt]);
 
+  useEffect(() => {
+    const refreshAfterBackground = () => {
+      if (document.visibilityState === "visible") setAttempt((current) => current + 1);
+    };
+    document.addEventListener("visibilitychange", refreshAfterBackground);
+    return () => document.removeEventListener("visibilitychange", refreshAfterBackground);
+  }, []);
+
   if (state.loading) {
     return <div className="aspect-[16/10] w-full rounded border bg-muted/30 animate-pulse" />;
   }
@@ -289,7 +297,7 @@ export default function CourseView() {
                   </div>
                 )}
                 {activeLesson.type === "scorm" && (
-                  <ScormFrame courseId={courseId!} lessonId={activeLesson.id} title={activeLesson.title} />
+                  <ScormFrame key={activeLesson.id} courseId={courseId ?? ""} lessonId={activeLesson.id} title={activeLesson.title} />
                 )}
 
                 {activeLesson.content && activeLesson.type !== "scorm" && (
