@@ -77,7 +77,9 @@ export default function MyOrders() {
                 )}
               </CardContent>
             </Card>
+            </Link>
           ))}
+
         </div>
       )}
     </div>
