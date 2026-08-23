@@ -394,24 +394,96 @@ const TypesManager = ({ types, onChange }: { types: LeaveType[]; onChange: () =>
       ) : (
         <div className="space-y-2">
           {types.map((tp) => (
-            <div key={tp.id} className="bg-card border border-border rounded-lg px-4 py-3 flex items-center justify-between">
-              <div>
-                <p className="font-medium">{tp.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {tp.code} · {tp.paid ? "paid" : "unpaid"} · {tp.accrual_days_per_year} {t("fields.days").toLowerCase()}/год
-                  {tp.requires_medical_cert && " · справка"}
-                </p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => remove(tp.id)}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
+            <TypeRow key={tp.id} type={tp} onChange={onChange} onRemove={() => remove(tp.id)} />
           ))}
         </div>
       )}
+
     </div>
   );
 };
+
+/** Строка справочника с режимом редактирования: название, дни/год, оплата, справка, активность. */
+const TypeRow = ({
+  type: tp, onChange, onRemove,
+}: { type: LeaveType; onChange: () => void; onRemove: () => void }) => {
+  const { t } = useTranslation("leaves");
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(tp.title ?? "");
+  const [accrual, setAccrual] = useState(String(tp.accrual_days_per_year ?? 0));
+  const [paid, setPaid] = useState(!!tp.paid);
+  const [cert, setCert] = useState(!!tp.requires_medical_cert);
+  const [active, setActive] = useState(tp.is_active !== false);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    if (!title.trim()) { toast.error("Название не может быть пустым"); return; }
+    setBusy(true);
+    const { error } = await leavesApi.updateType(tp.id, {
+      title: title.trim(),
+      accrual_days_per_year: Number(accrual) || 0,
+      paid,
+      requires_medical_cert: cert,
+      is_active: active,
+    });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Сохранено");
+    setEditing(false);
+    onChange();
+  };
+
+  if (editing) {
+    return (
+      <div className="bg-card border border-border rounded-lg p-4 grid gap-3 sm:grid-cols-6 items-end">
+        <div className="sm:col-span-2">
+          <Label>Название</Label>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        <div>
+          <Label>Дней/год</Label>
+          <Input type="number" value={accrual} onChange={(e) => setAccrual(e.target.value)} />
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)} />
+          Оплачиваемый
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={cert} onChange={(e) => setCert(e.target.checked)} />
+          Нужна справка
+        </label>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={save} disabled={busy}>{t("actions.save")}</Button>
+          <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Отмена</Button>
+        </div>
+        <label className="flex items-center gap-2 text-sm sm:col-span-6">
+          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+          Активен (доступен для заявок)
+        </label>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="font-medium truncate">{tp.title}{tp.is_active === false && " · выключен"}</p>
+        <p className="text-xs text-muted-foreground">
+          {tp.code} · {tp.paid ? "paid" : "unpaid"} · {tp.accrual_days_per_year} {t("fields.days").toLowerCase()}/год
+          {tp.requires_medical_cert && " · справка"}
+        </p>
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>Изменить</Button>
+        <Button variant="ghost" size="sm" onClick={onRemove}>
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+
 
 // ----- Team leave calendar -----
 
