@@ -158,6 +158,7 @@ export default function PerformanceReview360() {
                 </DialogTrigger>
                 <InviteDialog
                   profiles={profiles.filter((p) => p.user_id !== reviewee?.user_id)}
+                  existingIds={reviewers.map((r) => r.reviewer_id)}
                   onSave={(p) => invite.mutate(p)}
                 />
               </Dialog>
