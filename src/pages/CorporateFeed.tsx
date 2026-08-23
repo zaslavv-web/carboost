@@ -46,6 +46,7 @@ export default function CorporateFeed() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Post | null>(null);
 
   const { data: posts = [] } = useQuery({
     queryKey: ["portal-posts", companyId],
