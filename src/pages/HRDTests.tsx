@@ -379,8 +379,77 @@ const HRDTests = () => {
   );
 };
 
-function AudienceGroup({ title, options, selected, onToggle }: { title: string; options: { value: string; label: string }[]; selected: string[]; onToggle: (value: string) => void }) {
-  return <fieldset><legend className="mb-1 font-medium text-foreground">{title}</legend><div className="max-h-28 space-y-1 overflow-y-auto">{options.map((option) => <label key={option.value} className="flex items-center gap-2"><input type="checkbox" checked={selected.includes(option.value)} onChange={() => onToggle(option.value)} />{option.label}</label>)}</div></fieldset>;
+function AudienceDialog({
+  test, departments, positions, employees, onToggle,
+}: {
+  test: any;
+  departments: string[];
+  positions: any[];
+  employees: any[];
+  onToggle: (group: string, value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rules = test.audience_rules || {};
+  const total =
+    (rules.departments?.length || 0) + (rules.position_ids?.length || 0) + (rules.user_ids?.length || 0);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          title="Настроить аудиторию"
+          className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          Аудитория
+          {total > 0 && (
+            <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+              {total}
+            </span>
+          )}
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Аудитория теста</DialogTitle>
+          <DialogDescription className="truncate">{test.title}</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1 text-sm">
+          <AudienceGroup
+            title="Отделы"
+            options={departments.map((value) => ({ value, label: value }))}
+            selected={rules.departments || []}
+            onToggle={(value) => onToggle("departments", value)}
+          />
+          <AudienceGroup
+            title="Должности"
+            options={positions.map((position: any) => ({ value: position.id, label: position.title }))}
+            selected={rules.position_ids || []}
+            onToggle={(value) => onToggle("position_ids", value)}
+          />
+          <AudienceGroup
+            title="Сотрудники"
+            options={employees.map((employee: any) => ({ value: employee.user_id, label: employee.full_name }))}
+            selected={rules.user_ids || []}
+            onToggle={(value) => onToggle("user_ids", value)}
+          />
+          {total === 0 && (
+            <p className="text-xs text-muted-foreground">
+              Ничего не выбрано — тест будет доступен всем сотрудникам компании.
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button onClick={() => setOpen(false)}>Готово</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
+
+function AudienceGroup({ title, options, selected, onToggle }: { title: string; options: { value: string; label: string }[]; selected: string[]; onToggle: (value: string) => void }) {
+  return <fieldset><legend className="mb-1 font-medium text-foreground">{title}</legend><div className="max-h-40 space-y-1 overflow-y-auto rounded border border-border p-2">{options.length === 0 ? <p className="text-xs text-muted-foreground">Нет доступных вариантов</p> : options.map((option) => <label key={option.value} className="flex cursor-pointer items-center gap-2"><input type="checkbox" checked={selected.includes(option.value)} onChange={() => onToggle(option.value)} />{option.label}</label>)}</div></fieldset>;
+}
+
 
 export default HRDTests;
