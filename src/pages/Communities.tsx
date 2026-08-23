@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
-import { Users, Plus, Lock, Globe, EyeOff, UserPlus, UserMinus } from "lucide-react";
+import { Users, Plus, Lock, Globe, EyeOff, UserPlus, UserMinus, ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { laravelStorage } from "@/integrations/laravel/storage";
 
 type Community = {
   id: string;
@@ -20,6 +21,7 @@ type Community = {
   privacy: "open" | "closed" | "secret";
   members_count: number;
   owner_id?: string | null;
+  cover_url?: string | null;
 };
 
 type Membership = { id: string; community_id: string; user_id: string; role: string };
@@ -35,6 +37,27 @@ export default function Communities() {
   const canCreate = ["hr", "hrd", "company_admin", "manager", "superadmin"].includes(role);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+
+  const uploadCover = async (communityId: string, file?: File) => {
+    if (!file || !companyId) return;
+    setUploadingId(communityId);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `communities/${communityId}.${ext}`;
+    const { data, error } = await laravelStorage.from("content-media").upload(path, file, { upsert: true });
+    if (error || !data?.url) {
+      toast.error(error?.message || "Не удалось загрузить изображение");
+      setUploadingId(null);
+      return;
+    }
+    const { error: updateError } = await laravelDb.from("portal_communities" as any).update({ cover_url: data.url }).eq("id", communityId);
+    setUploadingId(null);
+    if (updateError) toast.error(updateError.message);
+    else {
+      toast.success("Изображение сообщества обновлено");
+      qc.invalidateQueries({ queryKey: ["portal-communities"] });
+    }
+  };
 
   const { data: communities = [] } = useQuery({
     queryKey: ["portal-communities", companyId],
@@ -126,6 +149,11 @@ export default function Communities() {
           const membershipId = memberOf.get(c.id);
           return (
             <Card key={c.id}>
+              {c.cover_url ? (
+                <img src={c.cover_url} alt={`Обложка сообщества ${c.title}`} className="h-32 w-full object-cover rounded-t-lg" loading="lazy" />
+              ) : (
+                <div className="h-32 bg-muted flex items-center justify-center rounded-t-lg"><Users className="h-10 w-10 text-muted-foreground" /></div>
+              )}
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-base flex-1 truncate">{c.title}</CardTitle>
@@ -146,6 +174,13 @@ export default function Communities() {
                     </Button>
                   )}
                 </div>
+                {(c.owner_id === userId || canCreate) && (
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-primary hover:underline">
+                    {uploadingId === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                    Заменить изображение
+                    <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="sr-only" disabled={uploadingId === c.id} onChange={(event) => void uploadCover(c.id, event.target.files?.[0])} />
+                  </label>
+                )}
               </CardContent>
             </Card>
           );
