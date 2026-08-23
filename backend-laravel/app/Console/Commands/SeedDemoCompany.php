@@ -2182,14 +2182,14 @@ class SeedDemoCompany extends Command
             if ($existing) {
                 DB::table('portal_communities')->where('id', $cid)->update([
                     'title' => $title, 'description' => $desc, 'privacy' => 'open',
-                    'cover_url' => $this->productImage($title), 'avatar_url' => $this->productImage('Сообщество ' . $title),
+                    'cover_url' => '/demo/community-cover.jpg', 'avatar_url' => '/demo/community-team.jpg',
                     'owner_id' => $owner, 'members_count' => count($members), 'updated_at' => now(),
                 ]);
             } else {
                 DB::table('portal_communities')->insert([
                     'id' => $cid, 'company_id' => $this->companyId,
                     'title' => $title, 'slug' => $slug, 'description' => $desc,
-                    'cover_url' => $this->productImage($title), 'avatar_url' => $this->productImage('Сообщество ' . $title),
+                    'cover_url' => '/demo/community-cover.jpg', 'avatar_url' => '/demo/community-team.jpg',
                     'privacy' => 'open', 'owner_id' => $owner, 'members_count' => count($members),
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
