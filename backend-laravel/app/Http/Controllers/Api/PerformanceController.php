@@ -413,7 +413,7 @@ class PerformanceController extends Controller
     // ===== helpers =====
     private function isHr($user): bool
     {
-        return $user && ($user->hasRole('hrd') || $user->hasRole('company_admin') || $user->hasRole('superadmin'));
+        return $user && ($user->hasRole('hr') || $user->hasRole('hrd') || $user->hasRole('company_admin') || $user->hasRole('superadmin'));
     }
     private function isManagerOf($user, string $employeeId): bool
     {
