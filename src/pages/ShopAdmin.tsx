@@ -295,8 +295,11 @@ export default function ShopAdmin() {
                 <div className="flex justify-between flex-wrap gap-2">
                   <div>
                     <p className="font-semibold">{o.user_name}</p>
-                    <p className="text-xs text-muted-foreground">#{o.id.substring(0, 8)} · {new Date(o.created_at).toLocaleString("ru-RU")}</p>
+                    <Link to={`/orders/${o.id}`} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
+                      #{o.id.substring(0, 8)} · {new Date(o.created_at).toLocaleString("ru-RU")}
+                    </Link>
                   </div>
+
                   <Badge variant={o.status === "pending_fulfillment" ? "secondary" : o.status === "fulfilled" ? "default" : "destructive"}>
                     {o.status === "pending_fulfillment" ? t("shopAdmin.statusPendingFulfillment") : o.status === "fulfilled" ? t("shopAdmin.statusFulfilled") : t("shopAdmin.statusCancelled")}
                   </Badge>
