@@ -40,6 +40,8 @@ import EarnCoins from "@/pages/EarnCoins";
 import ShopProductDetail from "@/pages/ShopProductDetail";
 import Cart from "@/pages/Cart";
 import MyOrders from "@/pages/MyOrders";
+import OrderDetail from "@/pages/OrderDetail";
+
 import ShopAdmin from "@/pages/ShopAdmin";
 import Onboarding from "@/pages/Onboarding";
 import AdaptationPlans from "@/pages/AdaptationPlans";
