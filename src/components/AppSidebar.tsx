@@ -168,7 +168,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             icon: Users,
             label: t("nav.employeesGroup"),
             children: [
-               { icon: Users, label: t("nav.employeesList"), path: "/users" },
+               
               { icon: Rocket, label: t("nav.adaptationPlans", { defaultValue: "Планы адаптации" }), path: "/adaptation-plans" },
               { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
             ],
