@@ -10,7 +10,7 @@ class LeaveBalanceController extends CrudController
     protected string $modelClass = LeaveBalance::class;
     protected array $with = ['leaveType'];
     protected array $rules = [
-        'user_id'        => 'required|uuid',
+        'user_id'        => 'required|string|max:64',
         'leave_type_id'  => 'required|uuid',
         'accrued_days'   => 'sometimes|numeric|min:0',
         'used_days'      => 'sometimes|numeric|min:0',
