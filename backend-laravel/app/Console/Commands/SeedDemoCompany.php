@@ -26,6 +26,7 @@ class SeedDemoCompany extends Command
         {--headcount=150 : Общее количество сотрудников}
         {--only-career : Только назначить карьерные треки уже созданным сотрудникам}
         {--only-performance : Только наполнить Performance/испытательные/дисциплинарные записи}
+        {--only-content : Только контент: картинки товаров, база знаний, задачи трекера}
         {--name=ООО "Демо" : Название компании}
         {--email-domain= : Домен для логинов (по умолчанию demo.pikrosta.ru)}';
 
@@ -54,6 +55,10 @@ class SeedDemoCompany extends Command
 
         if ($this->option('only-performance')) {
             return $this->runOnlyPerformance();
+        }
+
+        if ($this->option('only-content')) {
+            return $this->runOnlyContent();
         }
 
         if ($this->option('reset')) {
@@ -106,6 +111,9 @@ class SeedDemoCompany extends Command
 
             $this->info('12.1  Performance: циклы, оценки, фидбек, испытательные, PIP, 1:1…');
             $this->seedPerformance();
+
+            $this->info('12.2  База знаний: категории и статьи…');
+            $this->seedKnowledgeBase();
         });
 
         $this->validateSeedResult($headcount);
@@ -1708,6 +1716,7 @@ class SeedDemoCompany extends Command
                 'title'       => $title,
                 'description' => $desc,
                 'price'       => $price,
+                'image_url'   => $this->productImage($title),
                 'stock'       => $stock,
                 'period_kind' => 'none',
                 'is_active'   => true,
