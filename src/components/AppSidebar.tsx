@@ -91,7 +91,11 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 
     if (role === "superadmin") {
       return [
-        { key: "myWork", label: S("myWork"), entries: [myProfile, tracker] },
+        { key: "myWork", label: S("myWork"), entries: [
+          { icon: Rocket, label: "Чек-лист HRD", path: "/onboarding" },
+          myProfile,
+          tracker,
+        ] },
         { key: "communication", label: S("communication"), entries: [
           { icon: LifeBuoy, label: t("nav.support"), path: "/support" },
           { icon: Mail, label: t("nav.emailService"), path: "/email-settings" },
@@ -152,7 +156,6 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             label: t("nav.assessmentGroup"),
             children: [
               { icon: FileJson, label: t("nav.scenarios"), path: "/scenarios" },
-              { icon: ClipboardList, label: t("nav.careerReviews"), path: "/career-reviews" },
             ],
           },
         ]},
@@ -162,7 +165,6 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             label: t("nav.employeesGroup"),
             children: [
                { icon: Users, label: t("nav.employeesList"), path: "/users" },
-              { icon: Rocket, label: t("nav.onboarding"), path: "/onboarding" },
               { icon: Rocket, label: t("nav.adaptationPlans", { defaultValue: "Планы адаптации" }), path: "/adaptation-plans" },
               { icon: Mail, label: t("nav.invitations"), path: "/invitations" },
             ],
@@ -173,6 +175,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             children: [
               { icon: Briefcase, label: t("nav.positions"), path: "/positions" },
               { icon: Route, label: t("nav.careerTracksMgmt"), path: "/career-tracks-mgmt" },
+              { icon: ClipboardList, label: t("nav.careerReviews"), path: "/career-reviews" },
                { icon: ClipboardList, label: t("nav.tests"), path: "/tests" },
             ],
           },
