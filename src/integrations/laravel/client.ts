@@ -162,7 +162,7 @@ async function rawRequest<T>(
   if (!isFormData) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const timeoutMs = path === "/auth/me" ? 8000 : 30000;
+  const timeoutMs = path.startsWith("/superadmin/demo/") ? 10 * 60_000 : path === "/auth/me" ? 8000 : 30000;
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
 

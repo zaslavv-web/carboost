@@ -251,7 +251,7 @@ const App = () => (
                 <Route path="/knowledge" element={<Navigate to="/knowledge-base" replace />} />
                 <Route path="/company-branding" element={<CompanyBranding />} />
                 <Route path="/ai-settings" element={<RoleOnly roles={["company_admin", "superadmin"]} fallback="/dashboard"><AiSettings /></RoleOnly>} />
-                <Route path="/rag-documents" element={<RagDocuments />} />
+                <Route path="/rag-documents" element={<RoleOnly roles={["company_admin", "superadmin"]} fallback="/dashboard"><RagDocuments /></RoleOnly>} />
                 <Route path="/university" element={<University />} />
                 <Route path="/university/analytics" element={<UniversityAnalytics />} />
                 <Route path="/university/cert/:serial" element={<CertificateView />} />
