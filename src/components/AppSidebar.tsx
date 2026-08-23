@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   LayoutDashboard, MessageCircle, User, Target, Settings, LogOut,
-  ChevronLeft, ChevronRight, ChevronDown, X, Briefcase, Users, Shield,
+  ChevronLeft, ChevronRight, ChevronDown, X, Briefcase, Users, Shield, ShieldCheck,
   LifeBuoy, FileJson, FileSignature, BarChart3, UserCog, Route, Trophy, ClipboardList,
   ShoppingBag, Store, Rocket, Mail, Heart, Activity, ClipboardCheck,
   Banknote, CalendarDays, Star, AlertOctagon, TimerReset, Palette, Brain,
