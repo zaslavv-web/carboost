@@ -145,7 +145,41 @@ const must = async <T,>(p: Promise<{ data: T | null; error: any }>): Promise<T> 
   return data as T;
 };
 
+export interface CycleParticipant {
+  id: string;
+  user_id: string;
+  full_name?: string | null;
+  position?: string | null;
+  department?: string | null;
+  avatar_url?: string | null;
+  manager_id?: string | null;
+  manager_name?: string | null;
+  status: "draft" | "self_done" | "manager_done" | "finalized";
+  self_score?: number | null;
+  manager_score?: number | null;
+  peer_score?: number | null;
+  final_score?: number | null;
+  summary?: string | null;
+  finalized_at?: string | null;
+  feedback: Array<PerformanceReviewFeedback & { reviewer_name?: string | null; reviewer_position?: string | null }>;
+  reviewers: Array<{ id: string; reviewer_id: string; role: string; status: string; submitted_at?: string | null; reviewer_name?: string | null }>;
+}
+
+export interface CycleDetail {
+  cycle: PerformanceCycle;
+  summary: {
+    total: number;
+    statuses: Record<string, number>;
+    avg_final_score?: number | null;
+    completion: number;
+    feedback_count: number;
+  };
+  departments: string[];
+  participants: CycleParticipant[];
+}
+
 export const performanceApi = {
+  cycleDetail: (id: string) => must(laravel.get<CycleDetail>(`/performance-cycles/${id}/detail`)),
   listCycles: async () => unwrap(await must(laravel.get<Paginated<PerformanceCycle>>("/performance-cycles"))),
   createCycle: (p: Partial<PerformanceCycle>) => laravel.post<PerformanceCycle>("/performance-cycles", p),
   updateCycle: (id: string, p: Partial<PerformanceCycle>) => laravel.patch<PerformanceCycle>(`/performance-cycles/${id}`, p),

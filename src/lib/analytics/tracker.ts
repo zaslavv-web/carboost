@@ -332,7 +332,11 @@ class Tracker {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body,
-      keepalive: true,
+      // keepalive нужен только при выгрузке страницы: на обычном флаше он
+      // держит idle-соединение и провоцирует ERR_HTTP2_PING_FAILED в консоли.
+      keepalive: viaBeacon,
+      cache: "no-store",
+
     })
       .then((res) => {
         // 503 (db_busy) / 5xx — замолкаем на минуту, чтобы не усиливать нагрузку.

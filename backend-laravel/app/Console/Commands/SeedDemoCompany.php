@@ -25,6 +25,7 @@ class SeedDemoCompany extends Command
         {--reset : Полностью удалить прежнюю демо-компанию перед созданием}
         {--headcount=150 : Общее количество сотрудников}
         {--only-career : Только назначить карьерные треки уже созданным сотрудникам}
+        {--only-performance : Только наполнить Performance/испытательные/дисциплинарные записи}
         {--name=ООО "Демо" : Название компании}
         {--email-domain= : Домен для логинов (по умолчанию demo.pikrosta.ru)}';
 
@@ -49,6 +50,10 @@ class SeedDemoCompany extends Command
 
         if ($this->option('only-career')) {
             return $this->runOnlyCareer();
+        }
+
+        if ($this->option('only-performance')) {
+            return $this->runOnlyPerformance();
         }
 
         if ($this->option('reset')) {
@@ -98,6 +103,9 @@ class SeedDemoCompany extends Command
 
             $this->info('12/12 Уведомления и чаты…');
             $this->seedNotificationsAndChats();
+
+            $this->info('12.1  Performance: циклы, оценки, фидбек, испытательные, PIP, 1:1…');
+            $this->seedPerformance();
         });
 
         $this->validateSeedResult($headcount);
@@ -165,6 +173,374 @@ class SeedDemoCompany extends Command
         $this->info("✅ Карьерные треки обновлены. Шаблонов: {$templates}, назначений: {$assignments}.");
         return self::SUCCESS;
 
+    }
+
+    /**
+     * Догоняющий прогон: наполняет Performance-блок для уже созданной демо-компании.
+     */
+    private function runOnlyPerformance(): int
+    {
+        $company = DB::table('companies')->where('name', $this->companyName)->first();
+        if (! $company) {
+            $this->error("Демо-компания «{$this->companyName}» не найдена. Сначала запустите полный сидинг.");
+            return self::FAILURE;
+        }
+        $this->companyId = (string) $company->id;
+        $this->loadUsersFromDb();
+
+        if (! $this->allUserIds) {
+            $this->error('В демо-компании нет сотрудников.');
+            return self::FAILURE;
+        }
+
+        DB::transaction(fn () => $this->seedPerformance());
+
+        $cycles  = DB::table('performance_cycles')->where('company_id', $this->companyId)->count();
+        $reviews = DB::table('performance_reviews')->where('company_id', $this->companyId)->count();
+        $probs   = DB::table('probation_periods')->where('company_id', $this->companyId)->count();
+        $disc    = DB::table('disciplinary_records')->where('company_id', $this->companyId)->count();
+        $this->info("✅ Performance наполнен. Циклов: {$cycles}, оценок: {$reviews}, испытательных: {$probs}, дисциплинарных: {$disc}.");
+        return self::SUCCESS;
+    }
+
+    /** Подтягивает сотрудников уже существующей компании в $userIds/$allUserIds. */
+    private function loadUsersFromDb(): void
+    {
+        $rows = DB::table('profiles')
+            ->leftJoin('user_roles', 'user_roles.user_id', '=', 'profiles.user_id')
+            ->where('profiles.company_id', $this->companyId)
+            ->get(['profiles.user_id', 'user_roles.role']);
+
+        $this->userIds = [];
+        $this->allUserIds = [];
+        foreach ($rows as $r) {
+            $uid = (string) $r->user_id;
+            $role = (string) ($r->role ?: 'employee');
+            $this->userIds[$role][] = $uid;
+            $this->allUserIds[$uid] = $uid;
+        }
+        $this->allUserIds = array_values($this->allUserIds);
+        foreach ($this->userIds as $role => $list) {
+            $this->userIds[$role] = array_values(array_unique($list));
+        }
+    }
+
+    // ---------- 12.1 performance ----------
+    private function seedPerformance(): void
+    {
+        $employees = array_values(array_unique(array_merge(
+            $this->userIds['employee'] ?? [],
+            $this->userIds['manager'] ?? [],
+        )));
+        if (! $employees) $employees = $this->allUserIds;
+        if (! $employees) return;
+
+        $hrPool = array_values(array_unique(array_merge(
+            $this->userIds['hrd'] ?? [],
+            $this->userIds['hr'] ?? [],
+            $this->userIds['company_admin'] ?? [],
+        )));
+        $hr = $hrPool[0] ?? $employees[0];
+
+        $managerOf = DB::table('team_members')
+            ->where('company_id', $this->companyId)
+            ->pluck('manager_id', 'employee_id')
+            ->map(fn ($v) => (string) $v)
+            ->all();
+
+        $competencies = ['Коммуникация', 'Исполнительность', 'Экспертиза', 'Командность', 'Инициативность'];
+        $strengths = [
+            'Стабильно закрывает задачи в срок и держит качество.',
+            'Сильно вырос в экспертизе, помогает коллегам разбираться.',
+            'Хорошо ведёт коммуникацию со смежными командами.',
+            'Берёт на себя ответственность за сложные участки.',
+        ];
+        $improvements = [
+            'Стоит активнее делиться промежуточным статусом по задачам.',
+            'Нужно подтянуть навыки публичных выступлений и презентаций.',
+            'Есть зона роста в декомпозиции крупных задач.',
+            'Рекомендуется больше делегировать и меньше уходить в микроменеджмент.',
+        ];
+        $comments = [
+            'Оценка обсуждена на встрече 1:1, договорились о плане развития.',
+            'Итог соответствует ожиданиям на текущем грейде.',
+            'Рекомендация: рассмотреть на следующий грейд в следующем цикле.',
+        ];
+
+        // Три цикла: два закрытых с полными данными, один открытый в работе
+        $cycles = [
+            ['title' => 'Performance Review H1 2025', 'start' => '2025-01-01', 'end' => '2025-06-30', 'deadline' => '2025-07-15', 'status' => 'closed',  'fill' => 'full'],
+            ['title' => 'Performance Review H2 2025', 'start' => '2025-07-01', 'end' => '2025-12-31', 'deadline' => '2026-01-20', 'status' => 'closed',  'fill' => 'full'],
+            ['title' => 'Performance Review H1 2026', 'start' => '2026-01-01', 'end' => '2026-06-30', 'deadline' => '2026-07-15', 'status' => 'open',    'fill' => 'partial'],
+        ];
+
+        foreach ($cycles as $c) {
+            $existing = DB::table('performance_cycles')
+                ->where('company_id', $this->companyId)->where('title', $c['title'])->first();
+            $cycleId = $existing ? (string) $existing->id : (string) Str::uuid();
+
+            if (! $existing) {
+                DB::table('performance_cycles')->insert([
+                    'id'           => $cycleId,
+                    'company_id'   => $this->companyId,
+                    'title'        => $c['title'],
+                    'period_start' => $c['start'],
+                    'period_end'   => $c['end'],
+                    'deadline'     => $c['deadline'],
+                    'status'       => $c['status'],
+                    'weights'      => json_encode(['self' => 0.2, 'manager' => 0.6, 'peer' => 0.2]),
+                    'created_by'   => $hr,
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ]);
+            }
+
+            foreach ($employees as $uid) {
+                if (DB::table('performance_reviews')->where('cycle_id', $cycleId)->where('user_id', $uid)->exists()) {
+                    continue;
+                }
+
+                $managerId = $managerOf[$uid] ?? ($this->userIds['manager'][0] ?? null);
+                $selfScore = round(random_int(300, 500) / 100, 2);
+                $mgrScore  = round(max(2.0, min(5.0, $selfScore + random_int(-70, 40) / 100)), 2);
+                $peerScore = round(max(2.0, min(5.0, $mgrScore + random_int(-30, 30) / 100)), 2);
+                $final     = round($selfScore * 0.2 + $mgrScore * 0.6 + $peerScore * 0.2, 2);
+
+                if ($c['fill'] === 'full') {
+                    $status = 'finalized';
+                } else {
+                    $status = $this->randomValue(['draft', 'self_done', 'self_done', 'manager_done'], 'review status');
+                }
+
+                $reviewId = (string) Str::uuid();
+                DB::table('performance_reviews')->insert([
+                    'id'            => $reviewId,
+                    'cycle_id'      => $cycleId,
+                    'user_id'       => $uid,
+                    'company_id'    => $this->companyId,
+                    'manager_id'    => $managerId,
+                    'status'        => $status,
+                    'self_score'    => in_array($status, ['self_done', 'manager_done', 'finalized'], true) ? $selfScore : null,
+                    'manager_score' => in_array($status, ['manager_done', 'finalized'], true) ? $mgrScore : null,
+                    'peer_score'    => $status === 'finalized' ? $peerScore : null,
+                    'final_score'   => $status === 'finalized' ? $final : null,
+                    'summary'       => $status === 'finalized' ? $this->randomValue($comments, 'summary') : null,
+                    'finalized_at'  => $status === 'finalized' ? $c['deadline'] . ' 12:00:00' : null,
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+
+                $roles = $status === 'finalized'
+                    ? ['self', 'manager', 'peer']
+                    : ($status === 'manager_done' ? ['self', 'manager'] : ($status === 'self_done' ? ['self'] : []));
+
+                foreach ($roles as $role) {
+                    $reviewerId = match ($role) {
+                        'self'    => $uid,
+                        'manager' => $managerId ?? $hr,
+                        default   => $this->randomValue($employees, 'peer reviewer'),
+                    };
+                    if ($role === 'peer' && $reviewerId === $uid) continue;
+
+                    $scores = [];
+                    foreach ($competencies as $comp) {
+                        $scores[$comp] = random_int(3, 5);
+                    }
+
+                    DB::table('performance_review_feedback')->insertOrIgnore([
+                        'id'                => (string) Str::uuid(),
+                        'review_id'         => $reviewId,
+                        'reviewer_id'       => $reviewerId,
+                        'role'              => $role,
+                        'competency_scores' => json_encode($scores, JSON_UNESCAPED_UNICODE),
+                        'overall_score'     => $role === 'self' ? $selfScore : ($role === 'manager' ? $mgrScore : $peerScore),
+                        'strengths'         => $this->randomValue($strengths, 'strengths'),
+                        'improvements'      => $this->randomValue($improvements, 'improvements'),
+                        'comments'          => $this->randomValue($comments, 'comments'),
+                        'submitted_at'      => now(),
+                        'created_at'        => now(),
+                        'updated_at'        => now(),
+                    ]);
+
+                    if (Schema::hasTable('performance_review_reviewers')) {
+                        DB::table('performance_review_reviewers')->insertOrIgnore([
+                            'id'           => (string) Str::uuid(),
+                            'company_id'   => $this->companyId,
+                            'review_id'    => $reviewId,
+                            'reviewer_id'  => $reviewerId,
+                            'role'         => $role,
+                            'status'       => 'submitted',
+                            'invited_by'   => $hr,
+                            'invited_at'   => now(),
+                            'submitted_at' => now(),
+                            'created_at'   => now(),
+                            'updated_at'   => now(),
+                        ]);
+                    }
+                }
+            }
+        }
+
+        $this->seedProbations($employees, $managerOf, $hr);
+        $this->seedDisciplinary($employees, $hr);
+        $this->seedOneOnOnes($employees, $managerOf);
+    }
+
+    private function seedProbations(array $employees, array $managerOf, string $hr): void
+    {
+        $criteriaSet = [
+            ['Пройти вводное обучение', 'Онбординг-курс и welcome-встречи'],
+            ['Закрыть первые рабочие задачи', 'Минимум 5 задач с положительной обратной связью'],
+            ['Познакомиться со смежными командами', 'Провести 3 знакомственные встречи'],
+            ['Освоить внутренние инструменты', 'Трекер, база знаний, регламенты'],
+        ];
+        $pool = array_slice($employees, 0, 20);
+
+        foreach ($pool as $i => $uid) {
+            if (DB::table('probation_periods')->where('company_id', $this->companyId)->where('user_id', $uid)->exists()) {
+                continue;
+            }
+            $status = match (true) {
+                $i < 9  => 'active',
+                $i < 14 => 'passed',
+                $i < 17 => 'extended',
+                default => 'failed',
+            };
+            $start = now()->subDays(random_int(20, 120));
+            $end   = (clone $start)->addDays(90);
+
+            $probationId = (string) Str::uuid();
+            DB::table('probation_periods')->insert([
+                'id'             => $probationId,
+                'user_id'        => $uid,
+                'company_id'     => $this->companyId,
+                'manager_id'     => $managerOf[$uid] ?? null,
+                'hr_id'          => $hr,
+                'start_date'     => $start->toDateString(),
+                'end_date'       => $end->toDateString(),
+                'extended_to'    => $status === 'extended' ? (clone $end)->addDays(30)->toDateString() : null,
+                'status'         => $status,
+                'decision_at'    => $status === 'active' ? null : now(),
+                'decision_by'    => $status === 'active' ? null : $hr,
+                'decision_notes' => match ($status) {
+                    'passed'   => 'Испытательный срок пройден, сотрудник переведён в штат.',
+                    'extended' => 'Продлеваем на 30 дней: часть критериев ещё в работе.',
+                    'failed'   => 'Критерии не выполнены, принято решение о расставании.',
+                    default    => null,
+                },
+                'goals'      => 'Выйти на плановую производительность, освоить процессы команды и закрыть онбординг-чек-лист.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            foreach ($criteriaSet as $k => [$title, $desc]) {
+                $met = $status === 'passed' ? true : ($status === 'failed' ? $k < 1 : $k < random_int(1, 3));
+                DB::table('probation_criteria')->insert([
+                    'id'          => (string) Str::uuid(),
+                    'probation_id'=> $probationId,
+                    'title'       => $title,
+                    'description' => $desc,
+                    'weight'      => 1,
+                    'is_met'      => $met,
+                    'met_at'      => $met ? now() : null,
+                    'marked_by'   => $met ? ($managerOf[$uid] ?? $hr) : null,
+                    'comment'     => $met ? 'Подтверждено руководителем.' : null,
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
+            }
+        }
+    }
+
+    private function seedDisciplinary(array $employees, string $hr): void
+    {
+        $cases = [
+            ['warning', 'low',    'Опоздания на регулярные встречи команды.'],
+            ['warning', 'medium', 'Нарушение сроков по критичной задаче без предупреждения.'],
+            ['pip',     'high',   'Стабильное недовыполнение плановых показателей два квартала подряд.'],
+            ['pip',     'medium', 'Качество работы ниже ожиданий грейда.'],
+            ['observation', 'low','Наблюдение после обратной связи от смежной команды.'],
+        ];
+        $pool = array_slice(array_reverse($employees), 0, 8);
+
+        foreach ($pool as $i => $uid) {
+            if (DB::table('disciplinary_records')->where('company_id', $this->companyId)->where('user_id', $uid)->exists()) {
+                continue;
+            }
+            [$type, $severity, $reason] = $cases[$i % count($cases)];
+            $status = $i % 3 === 0 ? 'closed' : 'active';
+
+            $recordId = (string) Str::uuid();
+            DB::table('disciplinary_records')->insert([
+                'id'             => $recordId,
+                'user_id'        => $uid,
+                'company_id'     => $this->companyId,
+                'type'           => $type,
+                'severity'       => $severity,
+                'issued_by'      => $hr,
+                'issued_at'      => now()->subDays(random_int(5, 90)),
+                'valid_until'    => now()->addDays(60)->toDateString(),
+                'reason'         => $reason,
+                'status'         => $status,
+                'closed_at'      => $status === 'closed' ? now() : null,
+                'closed_by'      => $status === 'closed' ? $hr : null,
+                'closure_reason' => $status === 'closed' ? 'Показатели восстановлены, вопрос снят.' : null,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ]);
+
+            if ($type === 'pip') {
+                foreach ([
+                    ['Выйти на 90% плана', 'Ежемесячный контроль показателей'],
+                    ['Закрыть просроченные задачи', 'Без новых просрочек в течение месяца'],
+                    ['Еженедельные 1:1 с руководителем', 'Фиксация прогресса в заметках'],
+                ] as $k => [$title, $desc]) {
+                    DB::table('disciplinary_criteria')->insert([
+                        'id'          => (string) Str::uuid(),
+                        'record_id'   => $recordId,
+                        'title'       => $title,
+                        'description' => $desc,
+                        'is_met'      => $k === 0,
+                        'met_at'      => $k === 0 ? now() : null,
+                        'marked_by'   => $k === 0 ? $hr : null,
+                        'comment'     => null,
+                        'created_at'  => now(),
+                        'updated_at'  => now(),
+                    ]);
+                }
+            }
+        }
+    }
+
+    private function seedOneOnOnes(array $employees, array $managerOf): void
+    {
+        $agendas = [
+            'Итоги квартала и цели на следующий период',
+            'Обратная связь по последним задачам',
+            'План развития и карьерный трек',
+            'Загрузка, приоритеты и блокеры',
+        ];
+        foreach (array_slice($employees, 0, 40) as $i => $uid) {
+            $managerId = $managerOf[$uid] ?? null;
+            if (! $managerId) continue;
+            if (DB::table('one_on_one_meetings')->where('company_id', $this->companyId)->where('employee_id', $uid)->exists()) {
+                continue;
+            }
+            $past = $i % 2 === 0;
+            DB::table('one_on_one_meetings')->insert([
+                'id'           => (string) Str::uuid(),
+                'manager_id'   => $managerId,
+                'employee_id'  => $uid,
+                'company_id'   => $this->companyId,
+                'scheduled_at' => $past ? now()->subDays(random_int(3, 40)) : now()->addDays(random_int(1, 21)),
+                'duration_min' => 30,
+                'status'       => $past ? 'done' : 'scheduled',
+                'agenda'       => $this->randomValue($agendas, 'agenda'),
+                'notes'        => $past ? 'Обсудили прогресс, договорились о фокусе на следующий месяц.' : null,
+                'created_at'   => now(),
+                'updated_at'   => now(),
+            ]);
+        }
     }
 
     private function randomValue(array $items, string $context = 'array')

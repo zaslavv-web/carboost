@@ -278,7 +278,127 @@ class PerformanceController extends Controller
         }
     }
 
+    /**
+     * Детализация цикла: сводка по статусам + участники с баллами + фидбек.
+     * Raw SQL без Eloquent-гидрации — на 150+ ревью это заметно быстрее.
+     */
+    public function cycleDetail(string $id, Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$this->isHr($user)) abort(403);
+
+        try {
+            $cycle = DB::table('performance_cycles')->where('id', $id)->first();
+            if (!$cycle) {
+                return response()->json(['ok' => false, 'step' => 'find_cycle', 'message' => 'Цикл оценки не найден.'], 404);
+            }
+
+            $companyId = $this->currentCompanyId($user);
+            if ($companyId && ($cycle->company_id ?? null) && (string) $cycle->company_id !== (string) $companyId
+                && !($user && $user->hasRole('superadmin'))) {
+                abort(404);
+            }
+
+            $cycle = $this->decodeJsonFields($cycle, ['weights']);
+
+            $rows = DB::table('performance_reviews as r')
+                ->leftJoin('profiles as p', 'p.user_id', '=', 'r.user_id')
+                ->leftJoin('profiles as m', 'm.user_id', '=', 'r.manager_id')
+                ->where('r.cycle_id', $id)
+                ->orderByDesc('r.final_score')
+                ->limit(1000)
+                ->get([
+                    'r.id', 'r.user_id', 'r.manager_id', 'r.status',
+                    'r.self_score', 'r.manager_score', 'r.peer_score', 'r.final_score',
+                    'r.summary', 'r.finalized_at',
+                    'p.full_name', 'p.position', 'p.department', 'p.avatar_url',
+                    'm.full_name as manager_name',
+                ]);
+
+            $reviewIds = $rows->pluck('id')->map(fn ($v) => (string) $v)->all();
+
+            $feedbackByReview = [];
+            if ($reviewIds) {
+                foreach (array_chunk($reviewIds, 400) as $chunk) {
+                    $fb = DB::table('performance_review_feedback as f')
+                        ->leftJoin('profiles as fp', 'fp.user_id', '=', 'f.reviewer_id')
+                        ->whereIn('f.review_id', $chunk)
+                        ->get([
+                            'f.id', 'f.review_id', 'f.reviewer_id', 'f.role', 'f.overall_score',
+                            'f.competency_scores', 'f.strengths', 'f.improvements', 'f.comments', 'f.submitted_at',
+                            'fp.full_name as reviewer_name', 'fp.position as reviewer_position',
+                        ]);
+                    foreach ($fb as $row) {
+                        $row = $this->decodeJsonFields($row, ['competency_scores']);
+                        $feedbackByReview[(string) $row->review_id][] = $row;
+                    }
+                }
+            }
+
+            $reviewers = [];
+            if ($reviewIds && Schema::hasTable('performance_review_reviewers')) {
+                foreach (array_chunk($reviewIds, 400) as $chunk) {
+                    $rv = DB::table('performance_review_reviewers as rr')
+                        ->leftJoin('profiles as rp', 'rp.user_id', '=', 'rr.reviewer_id')
+                        ->whereIn('rr.review_id', $chunk)
+                        ->get(['rr.id', 'rr.review_id', 'rr.reviewer_id', 'rr.role', 'rr.status', 'rr.submitted_at', 'rp.full_name as reviewer_name']);
+                    foreach ($rv as $row) {
+                        $reviewers[(string) $row->review_id][] = $row;
+                    }
+                }
+            }
+
+            $statusCounts = ['draft' => 0, 'self_done' => 0, 'manager_done' => 0, 'finalized' => 0];
+            $finalScores = [];
+            $participants = $rows->map(function ($row) use (&$statusCounts, &$finalScores, $feedbackByReview, $reviewers) {
+                $status = (string) ($row->status ?? 'draft');
+                $statusCounts[$status] = ($statusCounts[$status] ?? 0) + 1;
+                if ($row->final_score !== null) $finalScores[] = (float) $row->final_score;
+
+                return [
+                    'id' => (string) $row->id,
+                    'user_id' => (string) $row->user_id,
+                    'full_name' => $row->full_name,
+                    'position' => $row->position,
+                    'department' => $row->department,
+                    'avatar_url' => $row->avatar_url,
+                    'manager_id' => $row->manager_id,
+                    'manager_name' => $row->manager_name,
+                    'status' => $status,
+                    'self_score' => $row->self_score !== null ? (float) $row->self_score : null,
+                    'manager_score' => $row->manager_score !== null ? (float) $row->manager_score : null,
+                    'peer_score' => $row->peer_score !== null ? (float) $row->peer_score : null,
+                    'final_score' => $row->final_score !== null ? (float) $row->final_score : null,
+                    'summary' => $row->summary,
+                    'finalized_at' => $row->finalized_at,
+                    'feedback' => $feedbackByReview[(string) $row->id] ?? [],
+                    'reviewers' => $reviewers[(string) $row->id] ?? [],
+                ];
+            })->values();
+
+            $departments = $participants->pluck('department')->filter()->unique()->values();
+
+            return response()->json([
+                'cycle' => $cycle,
+                'summary' => [
+                    'total' => $participants->count(),
+                    'statuses' => $statusCounts,
+                    'avg_final_score' => $finalScores ? round(array_sum($finalScores) / count($finalScores), 2) : null,
+                    'completion' => $participants->count()
+                        ? round(($statusCounts['finalized'] ?? 0) / $participants->count() * 100)
+                        : 0,
+                    'feedback_count' => array_sum(array_map('count', $feedbackByReview)),
+                ],
+                'departments' => $departments,
+                'participants' => $participants,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->diagnosticError('cycle_detail', $e, ['cycle_id' => $id]);
+        }
+    }
+
     // ===== Reviews =====
+
     public function indexReviews(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -413,7 +533,7 @@ class PerformanceController extends Controller
     // ===== helpers =====
     private function isHr($user): bool
     {
-        return $user && ($user->hasRole('hrd') || $user->hasRole('company_admin') || $user->hasRole('superadmin'));
+        return $user && ($user->hasRole('hr') || $user->hasRole('hrd') || $user->hasRole('company_admin') || $user->hasRole('superadmin'));
     }
     private function isManagerOf($user, string $employeeId): bool
     {
