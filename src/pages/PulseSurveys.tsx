@@ -55,13 +55,19 @@ export default function PulseSurveys() {
   const userId = profile?.user_id ?? null;
   const isHR = ["hr", "hrd", "company_admin", "superadmin"].includes(role);
   const qc = useQueryClient();
-  const [selected, setSelected] = useState<string | null>(null);
+  const navigate = useNavigate();
+  // Опрос открывается как отдельный адрес /pulse-surveys/:surveyId — так в него
+  // можно «провалиться», поделиться ссылкой и вернуться назад браузером.
+  const { surveyId } = useParams<{ surveyId?: string }>();
+  const selected = surveyId ?? null;
+  const setSelected = (id: string | null) =>
+    navigate(id ? `/pulse-surveys/${id}` : "/pulse-surveys");
   const [createOpen, setCreateOpen] = useState(false);
   const [qOpen, setQOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
-  const navigate = useNavigate();
   const { data: audience } = useAudience(selected);
+
 
   const { data: surveys = [] } = useQuery({
     queryKey: ["pulse-surveys", companyId],
