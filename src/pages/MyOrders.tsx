@@ -49,9 +49,10 @@ export default function MyOrders() {
       ) : (
         <div className="space-y-3">
           {orders.map((o: any) => (
-            <Card key={o.id} className="transition-shadow hover:shadow-md">
+            <Link key={o.id} to={`/orders/${o.id}`} className="block">
+            <Card className="transition-shadow hover:shadow-md">
               <CardContent className="p-4 space-y-3">
-                <Link to={`/orders/${o.id}`} className="absolute inset-0" aria-label={`${t("myOrders.order")} ${o.id}`} />
+
 
                 <div className="flex justify-between flex-wrap gap-2">
                   <div>
