@@ -67,6 +67,11 @@ class SeedTrackerTasks extends Command
             ->pluck('user_roles.user_id')->map('strval')->unique()->values()->all();
         if (empty($authors)) $authors = [$this->ownerUserId];
 
+        $perUser = max(0, (int) $this->option('per-user'));
+        if ($perUser > 0) {
+            $count = max($count, $perUser * count($assignees));
+        }
+
         $this->line("Пул: assignees=" . count($assignees) . ", authors=" . count($authors));
         $this->line("План: workflow + {$projectsN} проектов + {$sprintsN} спринтов + {$count} задач");
 
