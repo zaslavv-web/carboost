@@ -46,6 +46,7 @@ export default function CorporateFeed() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Post | null>(null);
 
   const { data: posts = [] } = useQuery({
     queryKey: ["portal-posts", companyId],
@@ -88,8 +89,33 @@ export default function CorporateFeed() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["portal-posts"] }),
   });
 
+  // Мои реакции — чтобы «лайк» работал как переключатель, а не падал с 422
+  // на уникальном индексе (post_id, user_id) при повторном клике.
+  const { data: myReactions = [] } = useQuery({
+    queryKey: ["portal-my-reactions", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await laravelDb
+        .from("portal_post_reactions" as any)
+        .select("*")
+        .eq("user_id", userId!)
+        .limit(500);
+      if (error) throw error;
+      return (data as any[]) ?? [];
+    },
+  });
+  const reactionByPost = new Map<string, string>(
+    myReactions.map((r: any) => [String(r.post_id), String(r.id)]),
+  );
+
   const react = useMutation({
     mutationFn: async (postId: string) => {
+      const existing = reactionByPost.get(postId);
+      if (existing) {
+        const { error } = await laravelDb.from("portal_post_reactions" as any).delete().eq("id", existing);
+        if (error) throw error;
+        return;
+      }
       const { error } = await laravelDb.from("portal_post_reactions" as any).insert({
         company_id: companyId,
         post_id: postId,
@@ -98,8 +124,11 @@ export default function CorporateFeed() {
       });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["portal-posts"] }),
-    onError: () => toast.error("Уже отреагировали"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["portal-posts"] });
+      qc.invalidateQueries({ queryKey: ["portal-my-reactions"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Не удалось поставить реакцию"),
   });
 
   return (
@@ -142,18 +171,36 @@ export default function CorporateFeed() {
                   </Button>
                 )}
               </div>
-              {p.title && <CardTitle className="text-lg mt-2">{p.title}</CardTitle>}
+              {p.title && (
+                <CardTitle
+                  className="text-lg mt-2 cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => setDetail(p)}
+                >
+                  {p.title}
+                </CardTitle>
+              )}
             </CardHeader>
             <CardContent className="space-y-3">
               {p.body_md && (
-                <RichContent value={p.body_md} />
+                <div className="cursor-pointer" onClick={() => setDetail(p)}>
+                  <RichContent value={p.body_md} className="line-clamp-6" />
+                </div>
               )}
               <div className="flex items-center gap-3 pt-2 border-t">
-                <Button size="sm" variant="ghost" onClick={() => react.mutate(p.id)}>
-                  <Heart className="w-4 h-4 mr-1" />{p.reactions_count || 0}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={reactionByPost.has(p.id) ? "text-primary" : undefined}
+                  onClick={() => react.mutate(p.id)}
+                >
+                  <Heart className={`w-4 h-4 mr-1 ${reactionByPost.has(p.id) ? "fill-current" : ""}`} />
+                  {p.reactions_count || 0}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setExpanded(expanded === p.id ? null : p.id)}>
                   <MessageCircle className="w-4 h-4 mr-1" />{p.comments_count || 0}
+                </Button>
+                <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setDetail(p)}>
+                  Открыть
                 </Button>
               </div>
               {expanded === p.id && <Comments postId={p.id} companyId={companyId} userId={userId} />}
@@ -161,6 +208,23 @@ export default function CorporateFeed() {
           </Card>
         ))}
       </div>
+
+      <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{detail?.title || KIND_LABEL[detail?.kind ?? "post"]}</DialogTitle>
+          </DialogHeader>
+          {detail && (
+            <div className="space-y-4">
+              <div className="text-xs text-muted-foreground">
+                {KIND_LABEL[detail.kind]} · {new Date(detail.created_at).toLocaleString("ru-RU")}
+              </div>
+              {detail.body_md && <RichContent value={detail.body_md} />}
+              <Comments postId={detail.id} companyId={companyId} userId={userId} />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
