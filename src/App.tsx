@@ -64,6 +64,7 @@ import UserProfileFull from "@/pages/UserProfileFull";
 import Chats from "@/pages/Chats";
 import Leaves from "@/pages/Leaves";
 import Performance from "@/pages/Performance";
+import PerformanceCycleDetail from "@/pages/PerformanceCycleDetail";
 import TalentReview from "@/pages/TalentReview";
 import PredictiveAnalytics from "@/pages/PredictiveAnalytics";
 import Kedo from "@/pages/Kedo";
@@ -229,6 +230,7 @@ const App = () => (
 
 
                 <Route path="/performance" element={<Performance />} />
+                <Route path="/performance/cycles/:id" element={<PerformanceCycleDetail />} />
                 <Route path="/probation" element={<Probation />} />
                 <Route path="/disciplinary" element={<Disciplinary />} />
                 <Route path="/skills-matrix" element={<SkillsMatrix />} />
