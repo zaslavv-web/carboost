@@ -323,7 +323,58 @@ export default function ShopAdmin() {
           ))}
           {orders.length === 0 && <p className="text-muted-foreground">{t("shopAdmin.noOrders")}</p>}
         </TabsContent>
+
+        {/* ===== ANALYTICS TAB ===== */}
+        <TabsContent value="analytics" className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: "Заказов всего", value: String(analytics.totalOrders) },
+              { label: "Выдано", value: String(analytics.fulfilled) },
+              { label: "Ожидают выдачи", value: String(analytics.pending) },
+              { label: `Потрачено ${icon}`, value: formatCoins(analytics.spent) },
+            ].map((s) => (
+              <Card key={s.label}>
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className="text-2xl font-bold">{s.value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Топ товаров</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {analytics.topProducts.length === 0 && <p className="text-sm text-muted-foreground">Пока нет заказов</p>}
+              {analytics.topProducts.map((p) => (
+                <div key={p.title} className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span>{p.title}</span>
+                    <span className="text-muted-foreground">{p.qty} шт · {formatCoins(p.amount)} {icon}</span>
+                  </div>
+                  <div className="h-2 rounded bg-muted overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: `${analytics.maxQty ? (p.qty / analytics.maxQty) * 100 : 0}%` }} />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Динамика по месяцам</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {analytics.byMonth.length === 0 && <p className="text-sm text-muted-foreground">Нет данных</p>}
+              {analytics.byMonth.map((m) => (
+                <div key={m.month} className="flex justify-between text-sm border-b last:border-0 pb-1">
+                  <span>{m.month}</span>
+                  <span className="text-muted-foreground">{m.orders} заказов · {formatCoins(m.amount)} {icon}</span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
 
       {/* ===== PRODUCT EDIT DIALOG ===== */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
