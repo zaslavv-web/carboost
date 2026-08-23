@@ -82,6 +82,8 @@ const AdaptationPlans = () => {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [newPlanOpen, setNewPlanOpen] = useState(false);
   const [newAssignOpen, setNewAssignOpen] = useState(false);
+  const [openAssignment, setOpenAssignment] = useState<string | null>(null);
+
 
   const plansQ = useQuery({
     queryKey: ["onboarding_plans", companyId],
