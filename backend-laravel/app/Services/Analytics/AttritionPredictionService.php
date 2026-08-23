@@ -123,27 +123,44 @@ class AttritionPredictionService
             $updated++;
         }
 
-        foreach (array_chunk($rows, 100) as $chunk) {
-            foreach ($chunk as $row) {
-                $existing = DB::table('attrition_predictions')
-                    ->where('user_id', $row['user_id'])
+        // Пакетная запись: на 150+ сотрудниках построчный SELECT+UPDATE давал
+        // сотни запросов в одном HTTP-вызове (долгий ответ и таймауты).
+        // Здесь — удаление прежних строк когорты и массовая вставка чанками.
+        DB::transaction(function () use ($rows, $userIds, $horizonDays, $companyId) {
+            foreach (array_chunk($userIds, 500) as $idsChunk) {
+                DB::table('attrition_predictions')
+                    ->whereIn('user_id', $idsChunk)
                     ->where('horizon_days', $horizonDays)
-                    ->first(['id']);
-                if ($existing) {
-                    $payload = $row;
-                    unset($payload['id'], $payload['created_at']);
-                    DB::table('attrition_predictions')->where('id', $existing->id)->update($payload);
-                } else {
-                    DB::table('attrition_predictions')->insert($row);
-                }
+                    ->delete();
             }
+            // Подчищаем «осиротевшие» строки компании с чужим горизонтом расчёта,
+            // если сотрудник больше не в профилях компании.
+            DB::table('attrition_predictions')
+                ->where('company_id', $companyId)
+                ->where('horizon_days', $horizonDays)
+                ->whereNotIn('user_id', array_slice($userIds, 0, 1000))
+                ->when(count($userIds) <= 1000, fn ($q) => $q->delete());
+
+            foreach (array_chunk($rows, 200) as $chunk) {
+                DB::table('attrition_predictions')->insert($chunk);
+            }
+        });
+
+        $probabilities = array_map(fn ($r) => (float) $r['probability'], $rows);
+        $bands = ['high' => 0, 'medium' => 0, 'low' => 0];
+        foreach ($rows as $r) {
+            $bands[$r['band']] = ($bands[$r['band']] ?? 0) + 1;
         }
 
         return [
             'updated' => $updated,
             'base_rate' => round($baseRate, 4),
+            'avg_probability' => $probabilities ? round(array_sum($probabilities) / count($probabilities), 4) : 0.0,
+            'expected_leavers' => round(array_sum($probabilities), 1),
+            'bands' => $bands,
             'model_version' => self::MODEL_VERSION,
         ];
+
     }
 
     /** Батчевые агрегаты по всем сотрудникам компании (без N+1). */
