@@ -348,7 +348,12 @@ const UsersManagement = () => {
 
           <select
             value={departmentFilter}
-            onChange={(e) => setDepartmentFilter(e.target.value)}
+            onChange={(e) => {
+              setDepartmentFilter(e.target.value);
+              const next = new URLSearchParams(searchParams);
+              if (e.target.value === "all") next.delete("department"); else next.set("department", e.target.value);
+              setSearchParams(next, { replace: true });
+            }}
             className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
           >
             <option value="all">{t("users.allDepts")}</option>
@@ -357,6 +362,31 @@ const UsersManagement = () => {
               <option key={d} value={d}>{d}</option>
             ))}
           </select>
+
+          <select
+            value={positionFilter}
+            onChange={(e) => {
+              setPositionFilter(e.target.value);
+              const next = new URLSearchParams(searchParams);
+              if (e.target.value === "all") next.delete("position"); else next.set("position", e.target.value);
+              setSearchParams(next, { replace: true });
+            }}
+            className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
+          >
+            <option value="all">Все должности</option>
+            {positions.map((position) => <option key={position} value={position}>{position}</option>)}
+          </select>
+
+          {tenureFilter !== "all" && (
+            <button type="button" onClick={() => {
+              setTenureFilter("all");
+              const next = new URLSearchParams(searchParams);
+              next.delete("tenure");
+              setSearchParams(next, { replace: true });
+            }} className="px-3 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium">
+              Стаж: {tenureFilter} ×
+            </button>
+          )}
 
           {isSuperadmin && companies.length > 0 && (
             <select
@@ -372,7 +402,7 @@ const UsersManagement = () => {
             </select>
           )}
 
-          {(roleFilter !== "all" || departmentFilter !== "all" || companyFilter !== "all" || statusFilter !== "all" || search) && (
+          {(roleFilter !== "all" || departmentFilter !== "all" || positionFilter !== "all" || tenureFilter !== "all" || companyFilter !== "all" || statusFilter !== "all" || search) && (
             <button
               onClick={() => {
                 setSearch("");
@@ -383,6 +413,8 @@ const UsersManagement = () => {
                 setSearchParams(next, { replace: true });
                 setRoleFilter("all");
                 setDepartmentFilter("all");
+                setPositionFilter("all");
+                setTenureFilter("all");
               }}
               className="px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
             >
