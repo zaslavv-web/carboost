@@ -452,10 +452,10 @@ const HRDDashboard = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => (window.location.href = "/risk-analytics")} variant="outline" className="bg-background/40 backdrop-blur-sm">
+            <Button onClick={() => navigate("/risk-analytics")} variant="outline" className="bg-background/40 backdrop-blur-sm">
               {t("hrdDashboard.hero.risksBtn")}
             </Button>
-            <Button onClick={() => (window.location.href = "/recognition")} className="gradient-primary text-primary-foreground shadow-glow">
+            <Button onClick={() => navigate("/recognition")} className="gradient-primary text-primary-foreground shadow-glow">
               {t("hrdDashboard.hero.recognitionBtn")}
             </Button>
           </div>
@@ -735,7 +735,7 @@ const HRDDashboard = () => {
             <div className="flex items-center gap-3 flex-wrap">
               <Button
                 size="sm"
-                onClick={() => (window.location.href = "/invitations")}
+                onClick={() => navigate("/invitations")}
                 className="gradient-primary text-primary-foreground"
               >
                 <Mail className="w-4 h-4 mr-1.5" /> Добавить нового сотрудника

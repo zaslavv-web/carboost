@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { tooltipProps } from "@/lib/chartTooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -182,7 +183,7 @@ const ManagerDashboard = () => {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => (window.location.href = "/invitations")}
+            onClick={() => navigate("/invitations")}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
           >
             <UserPlus className="w-4 h-4" /> Добавить нового сотрудника

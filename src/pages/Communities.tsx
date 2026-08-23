@@ -114,6 +114,7 @@ export default function Communities() {
       qc.invalidateQueries({ queryKey: ["portal-communities"] });
       toast.success("Вы вступили в сообщество");
     },
+    onError: (e: any) => toast.error(e?.message ?? "Не удалось вступить в сообщество"),
   });
 
   const leave = useMutation({
@@ -121,7 +122,12 @@ export default function Communities() {
       const { error } = await laravelDb.from("portal_community_members" as any).delete().eq("id", membershipId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["portal-my-memberships"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["portal-my-memberships"] });
+      qc.invalidateQueries({ queryKey: ["portal-communities"] });
+      toast.success("Вы вышли из сообщества");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Не удалось выйти из сообщества"),
   });
 
   return (
