@@ -38,6 +38,27 @@ function toEmbed(url: string): string {
 function ScormFrame({ courseId, lessonId, title }: { courseId: string; lessonId: string; title: string }) {
   const [state, setState] = useState<{ url?: string; error?: string; loading: boolean; loaded?: boolean }>({ loading: true });
   const [attempt, setAttempt] = useState(0);
+  const [openingExternal, setOpeningExternal] = useState(false);
+
+  // Тикет запуска одноразовый: для нового окна всегда берём свежий,
+  // иначе повторное открытие того же URL отдаёт «Ссылка устарела».
+  const openInNewWindow = async () => {
+    setOpeningExternal(true);
+    const tab = window.open("", "_blank", "noopener,noreferrer");
+    const { data, error } = await laravel.post<{ launch_url: string }>(
+      `/university/scorm/${courseId}/launch-ticket/${lessonId}`,
+    );
+    setOpeningExternal(false);
+    if (error || !data?.launch_url) {
+      tab?.close();
+      toast.error(error?.message || "Не удалось открыть материал в новом окне");
+      return;
+    }
+    if (tab) tab.location.href = data.launch_url;
+    else window.open(data.launch_url, "_blank", "noopener,noreferrer");
+  };
+
+
 
   useEffect(() => {
     let cancelled = false;
