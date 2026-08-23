@@ -102,6 +102,19 @@ class RpcController extends Controller
             return $this->resendInvitation($request, $payload);
         }
 
+        // Магазин: реализовано на PHP, т.к. боевая БД — MySQL и Postgres-функций там нет.
+        if ($name === 'create_shop_order') {
+            return $this->createShopOrder($request, $payload);
+        }
+        if ($name === 'fulfill_shop_order') {
+            return $this->fulfillShopOrder($request, $payload);
+        }
+        if ($name === 'award_currency') {
+            return $this->awardCurrency($request, $payload);
+        }
+
+
+
 
         $args = [];
         $placeholders = [];
@@ -137,6 +150,274 @@ class RpcController extends Controller
             return response()->json(['error' => $msg], 422);
         }
     }
+
+    // ================= Магазин (портируемая PHP-реализация) =================
+
+    private function actorDomainId($actor): ?string
+    {
+        if (! $actor) return null;
+        $id = method_exists($actor, 'domainUserId') ? $actor->domainUserId() : $actor->getAuthIdentifier();
+        return $id ? (string) $id : null;
+    }
+
+    private function actorCompanyId($actor): ?string
+    {
+        if (! $actor) return null;
+        $cid = method_exists($actor, 'companyId') ? $actor->companyId() : null;
+        if ($cid) return (string) $cid;
+        $uid = $this->actorDomainId($actor);
+        $cid = $uid ? DB::table('profiles')->where('user_id', $uid)->value('company_id') : null;
+        return $cid ? (string) $cid : null;
+    }
+
+    private function balanceOf(string $userId, string $companyId): int
+    {
+        return (int) (DB::table('currency_balances')
+            ->where('user_id', $userId)->where('company_id', $companyId)
+            ->value('balance') ?? 0);
+    }
+
+    private function addBalance(string $userId, string $companyId, int $delta): void
+    {
+        $row = DB::table('currency_balances')
+            ->where('user_id', $userId)->where('company_id', $companyId)->first();
+        if ($row) {
+            DB::table('currency_balances')->where('id', $row->id)->update([
+                'balance'    => max(0, (int) $row->balance + $delta),
+                'updated_at' => now(),
+            ]);
+        } else {
+            DB::table('currency_balances')->insert([
+                'id'         => (string) Str::uuid(),
+                'user_id'    => $userId,
+                'company_id' => $companyId,
+                'balance'    => max(0, $delta),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    private function logTransaction(string $userId, string $companyId, int $amount, string $kind, string $description, ?string $referenceId = null): void
+    {
+        $row = [
+            'id'          => (string) Str::uuid(),
+            'user_id'     => $userId,
+            'company_id'  => $companyId,
+            'amount'      => $amount,
+            'kind'        => $kind,
+            'description' => $description,
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ];
+        if ($referenceId && Schema::hasColumn('currency_transactions', 'reference_id')) {
+            $row['reference_id'] = $referenceId;
+        }
+        DB::table('currency_transactions')->insert($row);
+    }
+
+    private function createShopOrder(Request $request, array $payload)
+    {
+        $actor = $request->user();
+        $uid = $this->actorDomainId($actor);
+        if (! $uid) return response()->json(['error' => 'Не авторизован'], 401);
+        $companyId = $this->actorCompanyId($actor);
+        if (! $companyId) return response()->json(['error' => 'У вашего профиля не указана компания'], 422);
+
+        $items = $payload['_items'] ?? $payload['items'] ?? [];
+        if (is_string($items)) $items = json_decode($items, true) ?: [];
+        if (! is_array($items) || ! $items) {
+            return response()->json(['error' => 'Корзина пуста'], 422);
+        }
+
+        try {
+            $orderId = DB::transaction(function () use ($items, $uid, $companyId) {
+                $total = 0;
+                $rows = [];
+                foreach ($items as $item) {
+                    $pid = (string) ($item['product_id'] ?? '');
+                    $qty = max(1, (int) ($item['quantity'] ?? 1));
+                    $product = DB::table('shop_products')->where('id', $pid)->first();
+                    if (! $product || ! $product->is_active || (string) $product->company_id !== $companyId) {
+                        throw new \RuntimeException('Товар недоступен');
+                    }
+                    if ($product->stock !== null && (int) $product->stock < $qty) {
+                        throw new \RuntimeException("Недостаточно товара «{$product->title}» на складе");
+                    }
+                    if ($product->max_per_user !== null) {
+                        $bought = (int) DB::table('shop_order_items')
+                            ->join('shop_orders', 'shop_orders.id', '=', 'shop_order_items.order_id')
+                            ->where('shop_orders.user_id', $uid)
+                            ->where('shop_orders.status', '!=', 'cancelled')
+                            ->where('shop_order_items.product_id', $pid)
+                            ->sum('shop_order_items.quantity');
+                        if ($bought + $qty > (int) $product->max_per_user) {
+                            throw new \RuntimeException("Превышен лимит покупок товара «{$product->title}»");
+                        }
+                    }
+                    $subtotal = (int) $product->price * $qty;
+                    $total += $subtotal;
+                    $rows[] = [
+                        'product' => $product,
+                        'quantity' => $qty,
+                        'subtotal' => $subtotal,
+                    ];
+                }
+
+                $balance = $this->balanceOf($uid, $companyId);
+                if ($balance < $total) {
+                    throw new \RuntimeException('Недостаточно средств на балансе');
+                }
+
+                $orderId = (string) Str::uuid();
+                DB::table('shop_orders')->insert([
+                    'id'           => $orderId,
+                    'user_id'      => $uid,
+                    'company_id'   => $companyId,
+                    'total_amount' => $total,
+                    'status'       => 'pending_fulfillment',
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ]);
+                foreach ($rows as $r) {
+                    DB::table('shop_order_items')->insert([
+                        'id'            => (string) Str::uuid(),
+                        'order_id'      => $orderId,
+                        'product_id'    => (string) $r['product']->id,
+                        'quantity'      => $r['quantity'],
+                        'unit_price'    => (int) $r['product']->price,
+                        'subtotal'      => $r['subtotal'],
+                        'product_title' => (string) $r['product']->title,
+                        'created_at'    => now(),
+                        'updated_at'    => now(),
+                    ]);
+                    if ($r['product']->stock !== null) {
+                        DB::table('shop_products')->where('id', $r['product']->id)
+                            ->update(['stock' => max(0, (int) $r['product']->stock - $r['quantity']), 'updated_at' => now()]);
+                    }
+                }
+
+                $this->addBalance($uid, $companyId, -$total);
+                $this->logTransaction($uid, $companyId, -$total, 'purchase', 'Покупка в магазине', $orderId);
+                DB::table('shop_cart_items')->where('user_id', $uid)->delete();
+
+                return $orderId;
+            });
+        } catch (Throwable $e) {
+            return response()->json(['error' => self::localize($e->getMessage())], 422);
+        }
+
+        return response()->json(['data' => ['order_id' => $orderId]]);
+    }
+
+    private function fulfillShopOrder(Request $request, array $payload)
+    {
+        $actor = $request->user();
+        $uid = $this->actorDomainId($actor);
+        if (! $uid) return response()->json(['error' => 'Не авторизован'], 401);
+        if (! $actor->hasRole(['hrd', 'hr', 'company_admin', 'superadmin'])) {
+            return response()->json(['error' => 'Недостаточно прав'], 403);
+        }
+
+        $orderId = (string) ($payload['_order_id'] ?? $payload['order_id'] ?? '');
+        $approveRaw = $payload['_approve'] ?? $payload['approve'] ?? true;
+        $approve = filter_var($approveRaw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
+        $reason = $payload['_reason'] ?? $payload['reason'] ?? null;
+
+        if ($orderId === '') {
+            return response()->json(['error' => 'Не указан заказ'], 422);
+        }
+
+        try {
+            DB::transaction(function () use ($orderId, $approve, $reason, $uid, $actor) {
+                $order = DB::table('shop_orders')->where('id', $orderId)->first();
+                if (! $order) throw new \RuntimeException('Заказ не найден');
+
+                $companyId = $this->actorCompanyId($actor);
+                $isSuper = $actor->hasRole('superadmin');
+                if (! $isSuper && (string) $order->company_id !== (string) $companyId) {
+                    throw new \RuntimeException('Заказ другой компании');
+                }
+                if ($order->status !== 'pending_fulfillment') {
+                    throw new \RuntimeException('Заказ уже обработан');
+                }
+
+                if ($approve) {
+                    DB::table('shop_orders')->where('id', $orderId)->update([
+                        'status'       => 'fulfilled',
+                        'fulfilled_by' => $uid,
+                        'fulfilled_at' => now(),
+                        'updated_at'   => now(),
+                    ]);
+                    return;
+                }
+
+                DB::table('shop_orders')->where('id', $orderId)->update([
+                    'status'        => 'cancelled',
+                    'cancel_reason' => $reason ? (string) $reason : 'Отменено администратором',
+                    'fulfilled_by'  => $uid,
+                    'fulfilled_at'  => now(),
+                    'updated_at'    => now(),
+                ]);
+
+                // Возврат средств и остатков
+                $this->addBalance((string) $order->user_id, (string) $order->company_id, (int) $order->total_amount);
+                $this->logTransaction(
+                    (string) $order->user_id,
+                    (string) $order->company_id,
+                    (int) $order->total_amount,
+                    'refund',
+                    'Возврат за отменённый заказ',
+                    $orderId
+                );
+                $items = DB::table('shop_order_items')->where('order_id', $orderId)->get();
+                foreach ($items as $it) {
+                    $product = DB::table('shop_products')->where('id', $it->product_id)->first();
+                    if ($product && $product->stock !== null) {
+                        DB::table('shop_products')->where('id', $product->id)
+                            ->update(['stock' => (int) $product->stock + (int) $it->quantity, 'updated_at' => now()]);
+                    }
+                }
+            });
+        } catch (Throwable $e) {
+            return response()->json(['error' => self::localize($e->getMessage())], 422);
+        }
+
+        return response()->json(['data' => ['ok' => true]]);
+    }
+
+    private function awardCurrency(Request $request, array $payload)
+    {
+        $actor = $request->user();
+        if (! $actor) return response()->json(['error' => 'Не авторизован'], 401);
+        if (! $actor->hasRole(['hrd', 'hr', 'company_admin', 'superadmin', 'manager'])) {
+            return response()->json(['error' => 'Недостаточно прав'], 403);
+        }
+
+        $targetId = (string) ($payload['_user_id'] ?? $payload['user_id'] ?? '');
+        $companyId = (string) ($payload['_company_id'] ?? $payload['company_id'] ?? $this->actorCompanyId($actor) ?? '');
+        $amount = (int) ($payload['_amount'] ?? $payload['amount'] ?? 0);
+        $kind = (string) ($payload['_kind'] ?? $payload['kind'] ?? 'earn_event');
+        $description = (string) ($payload['_description'] ?? $payload['description'] ?? 'Начисление');
+        $reference = $payload['_reference_id'] ?? $payload['reference_id'] ?? null;
+
+        if ($targetId === '' || $companyId === '' || $amount === 0) {
+            return response()->json(['error' => 'Некорректные параметры начисления'], 422);
+        }
+
+        try {
+            DB::transaction(function () use ($targetId, $companyId, $amount, $kind, $description, $reference) {
+                $this->addBalance($targetId, $companyId, $amount);
+                $this->logTransaction($targetId, $companyId, $amount, $kind, $description, $reference ? (string) $reference : null);
+            });
+        } catch (Throwable $e) {
+            return response()->json(['error' => self::localize($e->getMessage())], 422);
+        }
+
+        $balance = $this->balanceOf($targetId, $companyId);
+        return response()->json(['data' => ['balance' => $balance]]);
+    }
+
 
     private function callLocalUserAdminFunction(Request $request, string $name, array $payload)
     {

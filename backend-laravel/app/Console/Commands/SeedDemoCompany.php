@@ -26,6 +26,7 @@ class SeedDemoCompany extends Command
         {--headcount=150 : Общее количество сотрудников}
         {--only-career : Только назначить карьерные треки уже созданным сотрудникам}
         {--only-performance : Только наполнить Performance/испытательные/дисциплинарные записи}
+        {--only-content : Только контент: картинки товаров, база знаний, задачи трекера}
         {--name=ООО "Демо" : Название компании}
         {--email-domain= : Домен для логинов (по умолчанию demo.pikrosta.ru)}';
 
@@ -54,6 +55,10 @@ class SeedDemoCompany extends Command
 
         if ($this->option('only-performance')) {
             return $this->runOnlyPerformance();
+        }
+
+        if ($this->option('only-content')) {
+            return $this->runOnlyContent();
         }
 
         if ($this->option('reset')) {
@@ -106,6 +111,9 @@ class SeedDemoCompany extends Command
 
             $this->info('12.1  Performance: циклы, оценки, фидбек, испытательные, PIP, 1:1…');
             $this->seedPerformance();
+
+            $this->info('12.2  База знаний: категории и статьи…');
+            $this->seedKnowledgeBase();
         });
 
         $this->validateSeedResult($headcount);
@@ -1685,6 +1693,169 @@ class SeedDemoCompany extends Command
         }
     }
 
+    /**
+     * Догоняющий прогон: наполняет контент — картинки товаров, база знаний, трекер задач.
+     */
+    private function runOnlyContent(): int
+    {
+        $company = DB::table('companies')->where('name', $this->companyName)->first();
+        if (! $company) {
+            $this->error("Демо-компания «{$this->companyName}» не найдена. Сначала запустите полный сидинг.");
+            return self::FAILURE;
+        }
+        $this->companyId = (string) $company->id;
+        $this->loadUsersFromDb();
+
+        $this->info('1/3  Картинки товаров магазина…');
+        $fixed = $this->backfillProductImages();
+        $this->line("     обновлено товаров: {$fixed}");
+
+        $this->info('2/3  База знаний…');
+        DB::transaction(fn () => $this->seedKnowledgeBase());
+        $articles = DB::table('knowledge_articles')->where('company_id', $this->companyId)->count();
+        $this->line("     статей в базе знаний: {$articles}");
+
+        $this->info('3/3  Задачи трекера…');
+        try {
+            $this->call('tracker:seed-tasks', [
+                '--company-id' => $this->companyId,
+                '--count'      => 400,
+                '--projects'   => 6,
+                '--sprints'    => 4,
+                '--marker'     => 'demo-content',
+                '--reset'      => true,
+            ]);
+        } catch (\Throwable $e) {
+            $this->warn('Трекер: ' . $e->getMessage());
+        }
+
+        $this->info('✅ Контент обновлён.');
+        return self::SUCCESS;
+    }
+
+    /** Проставляет картинки товарам, у которых их нет. */
+    private function backfillProductImages(): int
+    {
+        $rows = DB::table('shop_products')
+            ->where('company_id', $this->companyId)
+            ->where(function ($q) {
+                $q->whereNull('image_url')->orWhere('image_url', '');
+            })
+            ->get(['id', 'title']);
+
+        foreach ($rows as $row) {
+            DB::table('shop_products')->where('id', $row->id)->update([
+                'image_url'  => $this->productImage((string) $row->title),
+                'updated_at' => now(),
+            ]);
+        }
+        return count($rows);
+    }
+
+    /**
+     * Картинка товара: самодостаточный SVG data-URI (не зависит от внешних CDN).
+     */
+    private function productImage(string $title): string
+    {
+        $emojiMap = [
+            'худи' => '🧥', 'отпуск' => '🏖', 'курс' => '🎓', 'колонка' => '🔊',
+            'обед' => '🍽', 'мерч' => '🎁', 'подписк' => '🍿', 'массаж' => '💆',
+            'книг' => '📚', 'кофе' => '☕', 'сертификат' => '🎟',
+        ];
+        $lower = mb_strtolower($title);
+        $emoji = '🛍';
+        foreach ($emojiMap as $needle => $glyph) {
+            if (mb_strpos($lower, $needle) !== false) { $emoji = $glyph; break; }
+        }
+        $hue = crc32($title) % 360;
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">'
+            . '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+            . '<stop offset="0%" stop-color="hsl(' . $hue . ',65%,55%)"/>'
+            . '<stop offset="100%" stop-color="hsl(' . (($hue + 40) % 360) . ',70%,35%)"/>'
+            . '</linearGradient></defs>'
+            . '<rect width="600" height="600" fill="url(#g)"/>'
+            . '<text x="300" y="330" font-size="220" text-anchor="middle">' . $emoji . '</text>'
+            . '</svg>';
+
+        return 'data:image/svg+xml;base64,' . base64_encode($svg);
+    }
+
+    // ---------- база знаний ----------
+    private function seedKnowledgeBase(): void
+    {
+        if (! Schema::hasTable('knowledge_articles')) {
+            return;
+        }
+
+        $author = $this->userIds['hrd'][0] ?? $this->userIds['company_admin'][0] ?? ($this->allUserIds[0] ?? null);
+
+        $categories = [
+            'Онбординг'          => 'onboarding',
+            'HR-процессы'        => 'hr',
+            'Компенсации и льготы' => 'benefits',
+            'Обучение и развитие' => 'learning',
+            'ИТ и доступы'       => 'it',
+            'Регламенты'         => 'policies',
+        ];
+        $categoryIds = [];
+        $order = 0;
+        foreach ($categories as $title => $slug) {
+            $existing = DB::table('knowledge_categories')
+                ->where('company_id', $this->companyId)->where('slug', $slug)->value('id');
+            if ($existing) { $categoryIds[$slug] = (string) $existing; $order++; continue; }
+            $id = (string) Str::uuid();
+            DB::table('knowledge_categories')->insert([
+                'id'          => $id,
+                'company_id'  => $this->companyId,
+                'title'       => $title,
+                'slug'        => $slug,
+                'order_index' => $order++,
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+            $categoryIds[$slug] = $id;
+        }
+
+        $articles = [
+            ['onboarding', 'Welcome-book новичка', 'Всё, что нужно знать в первую неделю.', "## Первый день\n\n- Получите доступы у ИТ-поддержки\n- Познакомьтесь с руководителем и командой\n- Заполните профиль в «Пик роста»\n\n## Первая неделя\n\n1. Пройдите курс «Инструменты платформы»\n2. Согласуйте цели на испытательный срок\n3. Запишитесь на welcome-встречу с HR\n\n## Полезные контакты\n\n| Вопрос | Куда идти |\n|---|---|\n| Доступы | ИТ-поддержка |\n| Документы | HR-отдел |\n| Задачи | Ваш руководитель |", ['онбординг','новичкам']],
+            ['onboarding', 'Чек-лист адаптации на 90 дней', 'Что нужно успеть за испытательный срок.', "### 30 дней\nПонять продукт, процессы и роли в команде.\n\n### 60 дней\nВзять самостоятельную задачу и довести её до результата.\n\n### 90 дней\nПройти оценку испытательного срока и согласовать цели на квартал.", ['адаптация','испытательный срок']],
+            ['hr', 'Как оформить отпуск', 'Пошаговая инструкция и сроки согласования.', "1. Откройте раздел «Отпуска и отсутствия».\n2. Создайте заявку, укажите даты и тип отсутствия.\n3. Дождитесь согласования руководителя (до 3 рабочих дней).\n4. Заявка автоматически уходит в кадровый учёт.\n\n> Заявку нужно подавать минимум за 14 календарных дней.", ['отпуск','заявки']],
+            ['hr', 'Больничный и удалённая работа', 'Что делать при болезни и как оформить удалёнку.', "**Больничный.** Сообщите руководителю в день открытия листа, номер ЭЛН передайте в HR.\n\n**Удалённая работа.** До 5 дней в месяц согласуется с руководителем в чате, свыше — заявкой в разделе отсутствий.", ['больничный','удалёнка']],
+            ['benefits', 'Программа льгот и ДМС', 'Что входит в соцпакет.', "- ДМС со стоматологией после испытательного срока\n- Компенсация спорта до 5 000 ₽ в месяц\n- Корпоративное обучение и конференции\n- Игровая валюта и магазин мерча", ['дмс','льготы']],
+            ['benefits', 'Как работает игровая валюта', 'Начисления, лимиты и покупки в магазине.', "Валюта начисляется за выполнение HR-задач, обучение и признания коллег.\n\nПотратить её можно в разделе «Магазин». Заказ подтверждает администратор, при отмене средства возвращаются на баланс автоматически.", ['геймификация','магазин']],
+            ['learning', 'Каталог обучения: с чего начать', 'Как выбрать курс и записаться.', "1. Откройте «Университет».\n2. Выберите курс из каталога или назначенный вам.\n3. Проходите уроки, тесты и SCORM-материалы.\n4. Прогресс автоматически попадает в цифровой паспорт.", ['обучение','курсы']],
+            ['learning', 'Индивидуальный план развития (ИПР)', 'Как составить и вести ИПР.', "ИПР строится на разрыве между текущим и целевым профилем должности.\n\n**Структура:** цель → активности (курс, наставничество, проект) → сроки → результат.\n\nПересматривайте план на встречах 1:1 не реже раза в квартал.", ['ипр','развитие']],
+            ['it', 'Доступы и учётные записи', 'Как запросить и восстановить доступ.', "Запрос доступа — задачей в трекере на проект «ИТ-поддержка».\n\nСброс пароля — по кнопке «Забыли пароль» на экране входа. Двухфакторная аутентификация настраивается в профиле.", ['доступы','пароль']],
+            ['it', 'Безопасность данных', 'Базовые правила работы с корпоративной информацией.', "- Не пересылайте персональные данные во внешние мессенджеры\n- Включите 2FA\n- Блокируйте компьютер, отходя от рабочего места\n- О подозрительных письмах сообщайте в ИТ-поддержку", ['безопасность','2fa']],
+            ['policies', 'Регламент постановки задач', 'Как ставить задачи в трекере.', "Задача содержит: цель, критерий готовности, срок и исполнителя.\n\nПриоритеты: P0 — блокирует бизнес, P1 — на этот спринт, P2 — плановая, P3 — бэклог.", ['трекер','регламент']],
+            ['policies', 'Performance Review: как проходит цикл', 'Этапы оценки и сроки.', "1. Самооценка\n2. Оценка руководителя\n3. Круговая обратная связь 360\n4. Калибровка и финальная встреча\n\nИтоговый балл влияет на пересмотр вознаграждения и карьерный трек.", ['оценка','performance']],
+        ];
+
+        foreach ($articles as [$cat, $title, $excerpt, $body, $tags]) {
+            $slug = Str::slug(Str::ascii($title)) ?: Str::random(8);
+            $exists = DB::table('knowledge_articles')
+                ->where('company_id', $this->companyId)->where('slug', $slug)->exists();
+            if ($exists) continue;
+
+            DB::table('knowledge_articles')->insert([
+                'id'           => (string) Str::uuid(),
+                'company_id'   => $this->companyId,
+                'category_id'  => $categoryIds[$cat] ?? null,
+                'author_id'    => $author,
+                'title'        => $title,
+                'slug'         => $slug,
+                'excerpt'      => $excerpt,
+                'content_md'   => $body,
+                'tags'         => json_encode($tags, JSON_UNESCAPED_UNICODE),
+                'status'       => 'published',
+                'views_count'  => random_int(12, 480),
+                'published_at' => now()->subDays(random_int(1, 120)),
+                'created_at'   => now(),
+                'updated_at'   => now(),
+            ]);
+        }
+    }
+
     // ---------- 7. shop ----------
     private function seedShop(): void
     {
@@ -1708,6 +1879,7 @@ class SeedDemoCompany extends Command
                 'title'       => $title,
                 'description' => $desc,
                 'price'       => $price,
+                'image_url'   => $this->productImage($title),
                 'stock'       => $stock,
                 'period_kind' => 'none',
                 'is_active'   => true,

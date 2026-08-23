@@ -49,8 +49,11 @@ export default function MyOrders() {
       ) : (
         <div className="space-y-3">
           {orders.map((o: any) => (
-            <Card key={o.id}>
+            <Link key={o.id} to={`/orders/${o.id}`} className="block">
+            <Card className="transition-shadow hover:shadow-md">
               <CardContent className="p-4 space-y-3">
+
+
                 <div className="flex justify-between flex-wrap gap-2">
                   <div>
                     <p className="font-semibold">{t("myOrders.order")} #{o.id.substring(0, 8)}</p>
@@ -74,7 +77,9 @@ export default function MyOrders() {
                 )}
               </CardContent>
             </Card>
+            </Link>
           ))}
+
         </div>
       )}
     </div>
