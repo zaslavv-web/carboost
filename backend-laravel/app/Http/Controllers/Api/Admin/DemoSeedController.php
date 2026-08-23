@@ -107,6 +107,21 @@ class DemoSeedController extends Controller
         return response()->json(['ok' => true, 'output' => Artisan::output()]);
     }
 
+    /** Идемпотентно догоняет контент во всех рабочих модулях существующей компании. */
+    public function content(Request $request): JsonResponse
+    {
+        $this->requireSuperadmin($request);
+        $exitCode = Artisan::call('demo:seed', [
+            '--only-content' => true,
+            '--name' => $this->companyName($request),
+        ]);
+
+        return response()->json([
+            'ok' => $exitCode === 0,
+            'output' => Artisan::output(),
+        ], $exitCode === 0 ? 200 : 422);
+    }
+
     /** Догоняющее назначение карьерных треков без полного пересидинга. */
     public function careerTracks(Request $request): JsonResponse
     {

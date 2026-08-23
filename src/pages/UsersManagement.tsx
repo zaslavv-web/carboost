@@ -53,6 +53,7 @@ const UsersManagement = () => {
   const [departmentFilter, setDepartmentFilter] = useState<string>(() => searchParams.get("department") || "all");
   const [positionFilter, setPositionFilter] = useState<string>(() => searchParams.get("position") || "all");
   const [tenureFilter, setTenureFilter] = useState<string>(() => searchParams.get("tenure") || "all");
+  const [hiredMonthFilter, setHiredMonthFilter] = useState<string>(() => searchParams.get("hiredMonth") || "all");
 
   // Sync company filter from URL (?companyId=...) — enables quick-filter deep-linking from Companies list.
   useEffect(() => {
@@ -63,6 +64,8 @@ const UsersManagement = () => {
     setDepartmentFilter(searchParams.get("department") || "all");
     setPositionFilter(searchParams.get("position") || "all");
     setTenureFilter(searchParams.get("tenure") || "all");
+    setRoleFilter(searchParams.get("role") || "all");
+    setHiredMonthFilter(searchParams.get("hiredMonth") || "all");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -236,7 +239,9 @@ const UsersManagement = () => {
       (tenureFilter === "3–5 лет" && months >= 36 && months < 60) ||
       (tenureFilter === "> 5 лет" && months >= 60)
     ));
-    return matchesSearch && matchesStatus && matchesCompany && matchesRole && matchesDepartment && matchesPosition && matchesTenure;
+    const hiredMonth = hireDate ? hireDate.toLocaleString("ru-RU", { month: "short" }).replace(".", "") : "";
+    const matchesHiredMonth = hiredMonthFilter === "all" || hiredMonth.toLowerCase() === hiredMonthFilter.replace(".", "").toLowerCase();
+    return matchesSearch && matchesStatus && matchesCompany && matchesRole && matchesDepartment && matchesPosition && matchesTenure && matchesHiredMonth;
   });
 
   const pendingCount = users.filter((u: any) => !u.is_verified).length;
@@ -337,7 +342,12 @@ const UsersManagement = () => {
         <div className="flex flex-wrap gap-2">
           <select
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              const next = new URLSearchParams(searchParams);
+              if (e.target.value === "all") next.delete("role"); else next.set("role", e.target.value);
+              setSearchParams(next, { replace: true });
+            }}
             className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
           >
             <option value="all">{t("users.allRoles")}</option>
@@ -385,6 +395,16 @@ const UsersManagement = () => {
               setSearchParams(next, { replace: true });
             }} className="px-3 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium">
               Стаж: {tenureFilter} ×
+            </button>
+          )}
+          {hiredMonthFilter !== "all" && (
+            <button type="button" onClick={() => {
+              setHiredMonthFilter("all");
+              const next = new URLSearchParams(searchParams);
+              next.delete("hiredMonth");
+              setSearchParams(next, { replace: true });
+            }} className="px-3 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium">
+              Приняты: {hiredMonthFilter} ×
             </button>
           )}
 

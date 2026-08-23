@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 use Tests\WithDomainUsers;
 
-/** SecurityController: кастомные RBAC-роли, аудит, доступ только для admin/HRD. */
+/** SecurityController: кастомные RBAC-роли, аудит, доступ только для company admin. */
 class SecurityControllerTest extends TestCase
 {
     use RefreshDatabase, WithDomainUsers;
@@ -39,7 +39,7 @@ class SecurityControllerTest extends TestCase
         $this->actingAs($employee, 'sanctum')->getJson('/api/security/roles')->assertStatus(403);
     }
 
-    public function test_hrd_and_admin_can_list_roles(): void
+    public function test_hrd_is_forbidden_and_admin_can_list_roles(): void
     {
         $company = $this->makeCompany();
         $hrd = $this->makeUser('hrd', $company->id);
@@ -48,8 +48,7 @@ class SecurityControllerTest extends TestCase
 
         $this->actingAs($hrd, 'sanctum')
             ->getJson('/api/security/roles')
-            ->assertOk()
-            ->assertJsonCount(1, 'data');
+            ->assertForbidden();
 
         $this->actingAs($admin, 'sanctum')
             ->getJson('/api/security/roles')
@@ -57,12 +56,12 @@ class SecurityControllerTest extends TestCase
             ->assertJsonCount(1, 'data');
     }
 
-    public function test_hrd_can_create_role(): void
+    public function test_admin_can_create_role(): void
     {
         $company = $this->makeCompany();
-        $hrd = $this->makeUser('hrd', $company->id);
+        $admin = $this->makeUser('company_admin', $company->id);
 
-        $response = $this->actingAs($hrd, 'sanctum')->postJson('/api/security/roles', [
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/security/roles', [
             'title' => 'Кастомная роль',
             'permissions' => ['employees.read'],
         ])->assertOk();
@@ -77,23 +76,23 @@ class SecurityControllerTest extends TestCase
     public function test_assign_and_unassign_role_members(): void
     {
         $company = $this->makeCompany();
-        $hrd = $this->makeUser('hrd', $company->id);
+        $admin = $this->makeUser('company_admin', $company->id);
         $member = $this->makeUser('employee', $company->id);
         $roleId = $this->makeRole($company->id);
 
-        $this->actingAs($hrd, 'sanctum')
+        $this->actingAs($admin, 'sanctum')
             ->postJson("/api/security/roles/{$roleId}/members", ['user_ids' => [$member->id]])
             ->assertOk()
             ->assertJsonPath('added', 1);
 
         $this->assertDatabaseHas('custom_role_user', ['custom_role_id' => $roleId, 'user_id' => $member->id]);
 
-        $this->actingAs($hrd, 'sanctum')
+        $this->actingAs($admin, 'sanctum')
             ->getJson("/api/security/roles/{$roleId}/members")
             ->assertOk()
             ->assertJsonCount(1, 'data');
 
-        $this->actingAs($hrd, 'sanctum')
+        $this->actingAs($admin, 'sanctum')
             ->deleteJson("/api/security/roles/{$roleId}/members/{$member->id}")
             ->assertOk();
 
@@ -104,14 +103,14 @@ class SecurityControllerTest extends TestCase
     {
         $company = $this->makeCompany();
         $other = $this->makeCompany();
-        $hrd = $this->makeUser('hrd', $company->id);
+        $admin = $this->makeUser('company_admin', $company->id);
         $roleId = $this->makeRole($other->id);
 
-        $this->actingAs($hrd, 'sanctum')
+        $this->actingAs($admin, 'sanctum')
             ->patchJson("/api/security/roles/{$roleId}", ['title' => 'Hack'])
             ->assertStatus(403);
 
-        $this->actingAs($hrd, 'sanctum')
+        $this->actingAs($admin, 'sanctum')
             ->deleteJson("/api/security/roles/{$roleId}")
             ->assertStatus(403);
     }
@@ -119,10 +118,10 @@ class SecurityControllerTest extends TestCase
     public function test_stats_returns_company_scoped_counters(): void
     {
         $company = $this->makeCompany();
-        $hrd = $this->makeUser('hrd', $company->id);
+        $admin = $this->makeUser('company_admin', $company->id);
         $this->makeRole($company->id);
 
-        $this->actingAs($hrd, 'sanctum')
+        $this->actingAs($admin, 'sanctum')
             ->getJson('/api/security/stats')
             ->assertOk()
             ->assertJsonPath('roles', 1)
@@ -134,16 +133,16 @@ class SecurityControllerTest extends TestCase
         // SAML-подпись/сертификаты и реальный SCIM-обмен не проверяются юнит-тестами:
         // здесь фигурируют только CRUD-эндпоинты через sso_providers/scim_tokens (таблицы есть в миграциях).
         $company = $this->makeCompany();
-        $hrd = $this->makeUser('hrd', $company->id);
+        $admin = $this->makeUser('company_admin', $company->id);
 
-        $response = $this->actingAs($hrd, 'sanctum')->postJson('/api/security/providers', [
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/security/providers', [
             'kind' => 'oidc',
             'title' => 'Corp SSO',
         ])->assertOk();
 
         $this->assertDatabaseHas('sso_providers', ['id' => $response->json('id'), 'company_id' => $company->id]);
 
-        $token = $this->actingAs($hrd, 'sanctum')->postJson('/api/security/scim-tokens', [
+        $token = $this->actingAs($admin, 'sanctum')->postJson('/api/security/scim-tokens', [
             'name' => 'HRIS sync',
         ])->assertOk();
 

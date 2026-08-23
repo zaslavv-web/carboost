@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Upload, Loader2, FileText, Trash2, Power, PowerOff, Eye } from "lucide-react";
+import { Upload, Loader2, FileText, Trash2, Power, PowerOff, Eye, Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
@@ -32,6 +32,8 @@ const HRDTests = () => {
   const [parsing, setParsing] = useState(false);
   const [previewQuestions, setPreviewQuestions] = useState<ParsedQuestion[]>([]);
   const [previewTestId, setPreviewTestId] = useState<string | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualQuestions, setManualQuestions] = useState<ParsedQuestion[]>([]);
 
   const { data: tests = [] } = useQuery({
     queryKey: ["hrd_tests", profile?.company_id],
@@ -141,12 +143,78 @@ const HRDTests = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const saveAudience = useMutation({
+    mutationFn: async ({ id, position_id }: { id: string; position_id: string | null }) => {
+      const { error } = await laravelDb.from("closed_question_tests").update({ position_id }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Аудитория теста обновлена");
+      queryClient.invalidateQueries({ queryKey: ["hrd_tests"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const createManualTest = async () => {
+    if (!user || !profile?.company_id || !title.trim() || manualQuestions.length === 0) return;
+    const { error } = await laravelDb.from("closed_question_tests").insert({
+      company_id: profile.company_id,
+      position_id: positionId || null,
+      title: title.trim(),
+      description: description.trim() || null,
+      questions: manualQuestions as any,
+      created_by: user.id,
+      is_active: true,
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Тест создан");
+    setManualQuestions([]);
+    setManualOpen(false);
+    setTitle("");
+    setDescription("");
+    setPositionId("");
+    queryClient.invalidateQueries({ queryKey: ["hrd_tests"] });
+  };
+
+  const addManualQuestion = () => setManualQuestions((current) => [...current, {
+    id: crypto.randomUUID(), text: "", competency: "Общие компетенции",
+    options: [{ id: "a", text: "" }, { id: "b", text: "" }], correct_option_id: "a", weight: 1,
+  }]);
+
   return (
     <div className="max-w-5xl mx-auto animate-fade-in space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">{t("hrdTests.title")}</h1>
         <p className="text-sm text-muted-foreground mt-1">{t("hrdTests.subtitle")}</p>
       </div>
+
+      <div className="flex justify-end">
+        <button onClick={() => { setManualOpen((value) => !value); if (!manualOpen && manualQuestions.length === 0) addManualQuestion(); }} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+          <Plus className="h-4 w-4" />Создать тест вручную
+        </button>
+      </div>
+
+      {manualOpen && (
+        <div className="bg-card rounded-xl border border-border p-5 space-y-4">
+          <h2 className="font-semibold">Вопросы теста</h2>
+          {manualQuestions.map((question, questionIndex) => (
+            <div key={question.id} className="border border-border rounded-lg p-4 space-y-3">
+              <input value={question.text} onChange={(e) => setManualQuestions((all) => all.map((q, i) => i === questionIndex ? { ...q, text: e.target.value } : q))} placeholder="Текст вопроса" className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" />
+              <input value={question.competency} onChange={(e) => setManualQuestions((all) => all.map((q, i) => i === questionIndex ? { ...q, competency: e.target.value } : q))} placeholder="Компетенция" className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" />
+              {question.options.map((option, optionIndex) => (
+                <label key={option.id} className="flex items-center gap-2">
+                  <input type="radio" checked={question.correct_option_id === option.id} onChange={() => setManualQuestions((all) => all.map((q, i) => i === questionIndex ? { ...q, correct_option_id: option.id } : q))} />
+                  <input value={option.text} onChange={(e) => setManualQuestions((all) => all.map((q, i) => i === questionIndex ? { ...q, options: q.options.map((o, oi) => oi === optionIndex ? { ...o, text: e.target.value } : o) } : q))} placeholder={`Вариант ${optionIndex + 1}`} className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm" />
+                </label>
+              ))}
+            </div>
+          ))}
+          <div className="flex justify-between gap-3">
+            <button onClick={addManualQuestion} className="px-3 py-2 rounded-lg bg-secondary text-sm">Добавить вопрос</button>
+            <button onClick={() => void createManualTest()} disabled={!title.trim() || manualQuestions.some((q) => !q.text.trim() || q.options.some((o) => !o.text.trim()))} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">Сохранить тест</button>
+          </div>
+        </div>
+      )}
 
       {/* Upload form */}
       <div className="bg-card rounded-xl border border-border p-5 shadow-card">
@@ -262,6 +330,13 @@ const HRDTests = () => {
                 >
                   <Eye className="w-4 h-4 text-muted-foreground" />
                 </button>
+                <label className="flex items-center gap-1 text-xs text-muted-foreground" title="Изменить аудиторию">
+                  <Pencil className="h-3.5 w-3.5" />
+                  <select value={item.position_id || "all"} onChange={(event) => saveAudience.mutate({ id: item.id, position_id: event.target.value === "all" ? null : event.target.value })} className="max-w-36 rounded border border-input bg-background px-2 py-1">
+                    <option value="all">Все должности</option>
+                    {positions.map((position) => <option key={position.id} value={position.id}>{position.title}</option>)}
+                  </select>
+                </label>
                 <button
                   onClick={() => toggleActive.mutate({ id: item.id, value: !item.is_active })}
                   title={item.is_active ? t("hrdTests.disableBtn") : t("hrdTests.enableBtn")}

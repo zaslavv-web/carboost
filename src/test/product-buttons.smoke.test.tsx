@@ -212,7 +212,7 @@ describe("смоук-тесты критичных кнопок продукта
     fireEvent.click(await screen.findByRole("button", { name: /^Управление/i }));
     fireEvent.click(await screen.findByRole("button", { name: /^Сотрудники/i }));
     fireEvent.click(await screen.findByRole("button", { name: /^Список/i }));
-    expect(mocks.navigate).toHaveBeenCalledWith("/employees");
+    expect(mocks.navigate).toHaveBeenCalledWith("/users");
 
     fireEvent.click(await screen.findByRole("button", { name: /^Аналитика/i }));
     fireEvent.click(await screen.findByRole("button", { name: /Риски/i }));

@@ -9,6 +9,7 @@
  *  - types (HR): управление справочником
  */
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -42,10 +43,13 @@ const Leaves = () => {
   const role = usePrimaryRole();
   const { data: profile } = useUserProfile();
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
   const isHr = role === "hr" || role === "hrd" || role === "company_admin" || role === "superadmin";
   const isManagerOrHr = isHr || role === "manager";
 
-  const [tab, setTab] = useState<"mine" | "inbox" | "balances" | "calendar" | "types">("mine");
+  const [tab, setTab] = useState<"mine" | "inbox" | "balances" | "calendar" | "types">(
+    searchParams.has("month") || searchParams.has("status") ? "calendar" : "mine",
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: types = [] } = useQuery({
@@ -231,6 +235,8 @@ const Leaves = () => {
               requests={teamAll}
               types={types}
               loading={loadingTeam}
+              initialMonth={searchParams.get("month")}
+              statusFilter={searchParams.get("status")}
             />
           </TabsContent>
         )}
@@ -415,9 +421,13 @@ const MONTH_NAMES = [
 ];
 
 const TeamLeaveCalendar = ({
-  requests, types, loading,
-}: { requests: LeaveRequest[]; types: LeaveType[]; loading: boolean }) => {
-  const [monthOffset, setMonthOffset] = useState(0);
+  requests, types, loading, initialMonth, statusFilter,
+}: { requests: LeaveRequest[]; types: LeaveType[]; loading: boolean; initialMonth?: string | null; statusFilter?: string | null }) => {
+  const initialMonthIndex = initialMonth
+    ? MONTH_NAMES.findIndex((name) => name.toLowerCase().startsWith(initialMonth.toLowerCase().replace(".", "")))
+    : -1;
+  const now = new Date();
+  const [monthOffset, setMonthOffset] = useState(initialMonthIndex >= 0 ? initialMonthIndex - now.getMonth() : 0);
   const base = new Date();
   base.setDate(1);
   base.setMonth(base.getMonth() + monthOffset);
@@ -428,7 +438,7 @@ const TeamLeaveCalendar = ({
   const monthEnd = new Date(year, month, daysInMonth);
 
   const approvedInMonth = requests.filter((r) => {
-    if (r.status !== "approved" && r.status !== "pending_hr") return false;
+    if (statusFilter ? r.status !== statusFilter : r.status !== "approved" && r.status !== "pending_hr") return false;
     const s = new Date(r.start_date);
     const e = new Date(r.end_date);
     return e >= monthStart && s <= monthEnd;

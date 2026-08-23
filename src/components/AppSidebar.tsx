@@ -555,8 +555,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             <AlertDialogCancel>Нет</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
               setLogoutOpen(false);
-              void signOut();
-              window.location.replace("/login");
+              void signOut().finally(() => navigate("/login", { replace: true }));
             }}>Да, выйти</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
