@@ -97,16 +97,24 @@ export default function SkillsMatrix() {
     return m;
   }, [filtered]);
 
-  const avgGap = useMemo(() => {
+  const gapStats = useMemo(() => {
     const gaps: number[] = [];
+    let pairs = 0;
     for (const [, sk] of byUser) {
       for (const skill of skills) {
         const c = sk.get(skill);
+        if (!c) continue;
+        pairs += 1;
         const t = targets.get(skill);
-        if (t && c) gaps.push(Math.max(0, t - c.skill_value));
+        if (t) gaps.push(Math.max(0, t - c.skill_value));
       }
     }
-    return gaps.length ? Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length) : 0;
+    return {
+      avg: gaps.length ? Math.round((gaps.reduce((a, b) => a + b, 0) / gaps.length) * 10) / 10 : null,
+      measured: gaps.length,
+      pairs,
+      skillsWithTarget: skills.filter((s) => targets.get(s)).length,
+    };
   }, [byUser, skills, targets]);
 
   const addComp = useMutation({
@@ -130,6 +138,25 @@ export default function SkillsMatrix() {
     },
     onError: (e: any) => toast.error(e?.message ?? "Не удалось сохранить"),
   });
+
+  const saveTargets = useMutation({
+    mutationFn: async (updates: Record<string, number>) => {
+      for (const [skill, value] of Object.entries(updates)) {
+        const { error } = await laravelDb
+          .from("competencies" as any)
+          .update({ target_value: value } as any)
+          .eq("skill_name", skill);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["skills-matrix"] });
+      setTargetsOpen(false);
+      toast.success("Целевые уровни обновлены");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Не удалось сохранить цели"),
+  });
+
 
   const rows = Array.from(byUser.entries()).map(([uid, sk]) => {
     const p = profiles.find((x) => x.user_id === uid);
