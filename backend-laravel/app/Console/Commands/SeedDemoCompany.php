@@ -2053,6 +2053,8 @@ class SeedDemoCompany extends Command
                     ['user_id' => $profile->user_id, 'leave_type_id' => $typeIds['annual']],
                     [
                         'id' => (string) Str::uuid(), 'company_id' => $this->companyId,
+                        'accrued_days' => 28, 'used_days' => 4 + ($i % 10), 'carryover_days' => $i % 3,
+                        'as_of' => now()->toDateString(),
                         'created_at' => now(), 'updated_at' => now(),
                     ]
                 );
