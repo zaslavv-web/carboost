@@ -1706,16 +1706,36 @@ class SeedDemoCompany extends Command
         $this->companyId = (string) $company->id;
         $this->loadUsersFromDb();
 
-        $this->info('1/3  Картинки товаров магазина…');
+        $this->info('1/5  Картинки товаров магазина…');
         $fixed = $this->backfillProductImages();
         $this->line("     обновлено товаров: {$fixed}");
 
-        $this->info('2/3  База знаний…');
+        $this->info('2/5  База знаний…');
         DB::transaction(fn () => $this->seedKnowledgeBase());
         $articles = DB::table('knowledge_articles')->where('company_id', $this->companyId)->count();
         $this->line("     статей в базе знаний: {$articles}");
 
-        $this->info('3/3  Задачи трекера…');
+        $this->info('3/5  Лента компании и сообщества…');
+        try {
+            DB::transaction(fn () => $this->seedPortal());
+            $posts = DB::table('portal_posts')->where('company_id', $this->companyId)->count();
+            $comms = DB::table('portal_communities')->where('company_id', $this->companyId)->count();
+            $this->line("     постов: {$posts}, сообществ: {$comms}");
+        } catch (\Throwable $e) {
+            $this->warn('Портал: ' . $e->getMessage());
+        }
+
+        $this->info('4/5  Pulse-опросы…');
+        try {
+            DB::transaction(fn () => $this->seedPulseSurveys());
+            $surveys = DB::table('pulse_surveys')->where('company_id', $this->companyId)->count();
+            $answers = DB::table('pulse_survey_responses')->where('company_id', $this->companyId)->count();
+            $this->line("     опросов: {$surveys}, ответов: {$answers}");
+        } catch (\Throwable $e) {
+            $this->warn('Pulse: ' . $e->getMessage());
+        }
+
+        $this->info('5/5  Задачи трекера…');
         try {
             $this->call('tracker:seed-tasks', [
                 '--company-id' => $this->companyId,
@@ -1733,6 +1753,289 @@ class SeedDemoCompany extends Command
         $this->info('✅ Контент обновлён.');
         return self::SUCCESS;
     }
+
+    /** Лента компании: сообщества, участники, посты, реакции и комментарии. */
+    private function seedPortal(): void
+    {
+        if (! Schema::hasTable('portal_posts') || ! Schema::hasTable('portal_communities')) return;
+
+        $people = $this->allUserIds;
+        if (! $people) return;
+        $leads = array_values(array_unique(array_merge(
+            $this->userIds['hrd'] ?? [],
+            $this->userIds['company_admin'] ?? [],
+            $this->userIds['manager'] ?? [],
+        )));
+        if (! $leads) $leads = $people;
+
+        // Чистим ранее засеянный демо-контент (маркер в описании/теле).
+        $oldPosts = DB::table('portal_posts')->where('company_id', $this->companyId)
+            ->where('body_md', 'like', '%[demo-content]%')->pluck('id')->map('strval')->all();
+        if ($oldPosts) {
+            if (Schema::hasTable('portal_post_reactions')) DB::table('portal_post_reactions')->whereIn('post_id', $oldPosts)->delete();
+            if (Schema::hasTable('portal_post_comments')) DB::table('portal_post_comments')->whereIn('post_id', $oldPosts)->delete();
+            DB::table('portal_posts')->whereIn('id', $oldPosts)->delete();
+        }
+
+        $communityDefs = [
+            ['Бегуны «Пик роста»', 'running', 'Совместные пробежки, забеги и планы тренировок. Присоединяйтесь к утренним стартам.'],
+            ['Книжный клуб', 'book-club', 'Обсуждаем нон-фикшн и бизнес-литературу раз в две недели.'],
+            ['IT-кухня', 'it-kitchen', 'Технические доклады, разбор инцидентов и обмен практиками разработки.'],
+            ['Родительский комитет', 'parents', 'Детские мероприятия, лагеря, полезные лайфхаки для родителей.'],
+            ['Настолки по четвергам', 'board-games', 'Играем после работы в переговорке «Эверест».'],
+            ['Волонтёрство и ESG', 'volunteers', 'Экологические и благотворительные инициативы компании.'],
+        ];
+        $communityIds = [];
+        foreach ($communityDefs as [$title, $slug, $desc]) {
+            $existing = DB::table('portal_communities')
+                ->where('company_id', $this->companyId)->where('slug', $slug)->first();
+            $cid = $existing ? (string) $existing->id : (string) Str::uuid();
+            $members = [];
+            $pool = $people;
+            shuffle($pool);
+            $members = array_slice($pool, 0, max(5, min(count($pool), mt_rand(12, 40))));
+            $owner = $members[0] ?? $leads[0];
+
+            if ($existing) {
+                DB::table('portal_communities')->where('id', $cid)->update([
+                    'title' => $title, 'description' => $desc, 'privacy' => 'open',
+                    'owner_id' => $owner, 'members_count' => count($members), 'updated_at' => now(),
+                ]);
+            } else {
+                DB::table('portal_communities')->insert([
+                    'id' => $cid, 'company_id' => $this->companyId,
+                    'title' => $title, 'slug' => $slug, 'description' => $desc,
+                    'privacy' => 'open', 'owner_id' => $owner, 'members_count' => count($members),
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+
+            if (Schema::hasTable('portal_community_members')) {
+                DB::table('portal_community_members')->where('community_id', $cid)->delete();
+                $rows = [];
+                foreach ($members as $idx => $uid) {
+                    $rows[] = [
+                        'id' => (string) Str::uuid(), 'company_id' => $this->companyId,
+                        'community_id' => $cid, 'user_id' => $uid,
+                        'role' => $idx === 0 ? 'owner' : ($idx < 3 ? 'moderator' : 'member'),
+                        'created_at' => now(), 'updated_at' => now(),
+                    ];
+                }
+                foreach (array_chunk($rows, 200) as $chunk) DB::table('portal_community_members')->insert($chunk);
+            }
+            $communityIds[$slug] = $cid;
+        }
+
+        $postDefs = [
+            ['announcement', 'Итоги квартала: выручка +18%', "Команда, спасибо за квартал! Выручка выросла на 18%, NPS клиентов — 62. Отдельное спасибо продажам и поддержке за рекордное время реакции.", null, true],
+            ['announcement', 'Запускаем новый цикл Performance Review', "С понедельника открывается цикл оценки. Заполните самооценку до конца месяца, руководители дадут обратную связь в течение двух недель.", null, true],
+            ['post', 'Обновили базу знаний', "В базе знаний появились разделы по онбордингу, ИБ и внутренним регламентам. Если чего-то не хватает — напишите в комментариях.", null, false],
+            ['event', 'Летний корпоратив 15 августа', "Собираемся на загородной площадке: спорт, барбекю, живая музыка. Регистрация закрывается 5 августа.", null, false],
+            ['post', 'Добро пожаловать новым коллегам', "На этой неделе к нам присоединились 7 человек в отделы разработки, продаж и HR. Заходите знакомиться в чат!", null, false],
+            ['post', 'Утренняя пробежка в парке', "В субботу бежим 5 и 10 км. Старт в 9:00 у главного входа, после — кофе за счёт компании.", 'running', false],
+            ['post', 'Книга месяца: «Цель» Голдратта', "Обсуждение в четверг в 18:30. Готовим вопросы по теории ограничений и применению у нас в процессах.", 'book-club', false],
+            ['post', 'Разбор инцидента с очередями', "Кратко: выросла нагрузка, воркеры не масштабировались. Что сделали, какие метрики добавили — внутри поста.", 'it-kitchen', false],
+            ['event', 'Детский день в офисе', "Приводите детей 12 числа: мастер-классы, робототехника и мороженое.", 'parents', false],
+            ['post', 'Турнир по «Каркассону»', "Собираем 8 участников на четверг. Победителю — 500 монет в корпоративный магазин.", 'board-games', false],
+            ['post', 'Сбор вещей для приюта', "Несём тёплые вещи и корм до конца недели, коробка стоит на ресепшене.", 'volunteers', false],
+            ['announcement', 'Новые правила гибридного графика', "С сентября: 3 дня в офисе, 2 дня удалённо. Подробности — в регламенте в базе знаний.", null, false],
+            ['post', 'Кто-нибудь ездит из Химок?', "Ищу попутчиков к 9:30, могу подвозить от метро.", null, false],
+            ['post', 'Внутренние курсы: набор менторов', "Нужны наставники по аналитике и продажам. Час менторства = 100 монет и +1 к карме.", null, false],
+            ['event', 'День здоровья', "Медосмотр и вакцинация в офисе на 3 этаже, запись по ссылке в комментариях.", null, false],
+        ];
+
+        $comments = [
+            'Отличная новость, спасибо!', 'Записался, буду.', 'А можно ссылку на регламент?',
+            'Поддерживаю на 100%.', 'Класс, давно ждали.', 'Кто ещё идёт? Ищу компанию.',
+            'Спасибо команде за работу.', 'Уточните, пожалуйста, время.', 'Как раз то, что нужно.',
+        ];
+        $emojis = ['👍', '❤️', '🎉', '🔥', '🙏'];
+
+        $rows = $reactionRows = $commentRows = [];
+        foreach ($postDefs as $i => [$kind, $title, $body, $slug, $pinned]) {
+            $pid = (string) Str::uuid();
+            $author = $kind === 'announcement' ? $leads[array_rand($leads)] : $people[array_rand($people)];
+            $published = now()->subDays(mt_rand(0, 45))->subHours(mt_rand(0, 20));
+
+            $likers = $people;
+            shuffle($likers);
+            $likers = array_slice($likers, 0, mt_rand(4, min(25, count($likers))));
+            foreach ($likers as $uid) {
+                $reactionRows[] = [
+                    'id' => (string) Str::uuid(), 'company_id' => $this->companyId,
+                    'post_id' => $pid, 'user_id' => $uid, 'emoji' => $emojis[array_rand($emojis)],
+                    'created_at' => $published, 'updated_at' => $published,
+                ];
+            }
+
+            $cCount = mt_rand(1, 5);
+            for ($c = 0; $c < $cCount; $c++) {
+                $commentRows[] = [
+                    'id' => (string) Str::uuid(), 'company_id' => $this->companyId,
+                    'post_id' => $pid, 'author_id' => $people[array_rand($people)],
+                    'parent_id' => null, 'body' => $comments[array_rand($comments)],
+                    'created_at' => $published->copy()->addHours($c + 1),
+                    'updated_at' => $published->copy()->addHours($c + 1),
+                ];
+            }
+
+            $rows[] = [
+                'id' => $pid,
+                'company_id' => $this->companyId,
+                'author_id' => $author,
+                'community_id' => $slug ? ($communityIds[$slug] ?? null) : null,
+                'kind' => $kind,
+                'title' => $title,
+                'body_md' => $body . "\n\n[demo-content]",
+                'attachments' => null,
+                'is_pinned' => $pinned,
+                'published_at' => $published,
+                'views_count' => mt_rand(40, 900),
+                'reactions_count' => count($likers),
+                'comments_count' => $cCount,
+                'created_at' => $published,
+                'updated_at' => $published,
+            ];
+        }
+
+        DB::table('portal_posts')->insert($rows);
+        if (Schema::hasTable('portal_post_reactions')) {
+            // уникальность (post_id,user_id,emoji) — дубликатов нет по построению
+            foreach (array_chunk($reactionRows, 300) as $chunk) DB::table('portal_post_reactions')->insert($chunk);
+        }
+        if (Schema::hasTable('portal_post_comments')) {
+            foreach (array_chunk($commentRows, 300) as $chunk) DB::table('portal_post_comments')->insert($chunk);
+        }
+    }
+
+    /** Pulse-опросы: 4 опроса (закрытые/активные) с вопросами и ответами. */
+    private function seedPulseSurveys(): void
+    {
+        if (! Schema::hasTable('pulse_surveys')) return;
+        $people = $this->allUserIds;
+        if (! $people) return;
+        $author = ($this->userIds['hrd'][0] ?? null) ?: ($this->userIds['company_admin'][0] ?? $people[0]);
+
+        $old = DB::table('pulse_surveys')->where('company_id', $this->companyId)
+            ->where('description', 'like', '%[demo-content]%')->pluck('id')->map('strval')->all();
+        if ($old) {
+            DB::table('pulse_survey_responses')->whereIn('survey_id', $old)->delete();
+            DB::table('pulse_survey_questions')->whereIn('survey_id', $old)->delete();
+            DB::table('pulse_surveys')->whereIn('id', $old)->delete();
+        }
+
+        $defs = [
+            [
+                'title' => 'Пульс вовлечённости — текущий месяц',
+                'status' => 'running',
+                'days_ago' => 5,
+                'questions' => [
+                    ['scale', 'Насколько вы удовлетворены работой за последние две недели?'],
+                    ['nps', 'Насколько вероятно, что порекомендуете компанию как место работы?'],
+                    ['scale', 'Хватает ли вам обратной связи от руководителя?'],
+                    ['text', 'Что стоит улучшить в первую очередь?'],
+                ],
+            ],
+            [
+                'title' => 'Гибридный график: как вам новые правила?',
+                'status' => 'running',
+                'days_ago' => 12,
+                'questions' => [
+                    ['single', 'Сколько дней в офисе для вас комфортно?', ['1', '2', '3', '4-5']],
+                    ['scale', 'Удобно ли бронировать рабочие места?'],
+                    ['text', 'Комментарий по гибридному формату'],
+                ],
+            ],
+            [
+                'title' => 'Онбординг новичков — квартальный срез',
+                'status' => 'closed',
+                'days_ago' => 60,
+                'questions' => [
+                    ['scale', 'Хватило ли информации в первую неделю?'],
+                    ['scale', 'Понятны ли зоны ответственности?'],
+                    ['multi', 'Что помогло сильнее всего?', ['Наставник', 'База знаний', 'Курсы', 'Команда']],
+                ],
+            ],
+            [
+                'title' => 'Выгорание и нагрузка',
+                'status' => 'closed',
+                'days_ago' => 90,
+                'questions' => [
+                    ['scale', 'Как вы оцениваете свою нагрузку?'],
+                    ['scale', 'Успеваете ли восстанавливаться между спринтами?'],
+                    ['nps', 'Насколько вероятно, что вы порекомендуете свой отдел коллеге?'],
+                ],
+            ],
+        ];
+
+        $texts = [
+            'Больше прозрачности в планах на квартал.',
+            'Хочется чаще получать обратную связь.',
+            'Всё устраивает, спасибо команде.',
+            'Не хватает времени на обучение.',
+            'Стоит упростить согласования.',
+            'Нужны более чёткие приоритеты по задачам.',
+        ];
+
+        foreach ($defs as $d) {
+            $sid = (string) Str::uuid();
+            $starts = now()->subDays($d['days_ago']);
+            $ends = $d['status'] === 'closed' ? $starts->copy()->addDays(14) : now()->addDays(7);
+            DB::table('pulse_surveys')->insert([
+                'id' => $sid, 'company_id' => $this->companyId, 'created_by' => $author,
+                'title' => $d['title'],
+                'description' => 'Регулярный срез настроения команды. [demo-content]',
+                'audience' => 'company', 'audience_ref' => null,
+                'is_anonymous' => true, 'status' => $d['status'],
+                'starts_at' => $starts, 'ends_at' => $ends,
+                'created_at' => $starts, 'updated_at' => now(),
+            ]);
+
+            $qRows = $rRows = [];
+            $respondents = $people;
+            shuffle($respondents);
+            $respondents = array_slice($respondents, 0, max(10, (int) round(count($people) * 0.6)));
+
+            foreach ($d['questions'] as $qi => $q) {
+                $qid = (string) Str::uuid();
+                $kind = $q[0];
+                $qRows[] = [
+                    'id' => $qid, 'company_id' => $this->companyId, 'survey_id' => $sid,
+                    'order_index' => $qi, 'kind' => $kind, 'title' => $q[1],
+                    'options' => isset($q[2]) ? json_encode($q[2], JSON_UNESCAPED_UNICODE) : null,
+                    'is_required' => $kind !== 'text',
+                    'created_at' => $starts, 'updated_at' => $starts,
+                ];
+
+                foreach ($respondents as $uid) {
+                    if ($kind === 'text' && mt_rand(1, 100) > 35) continue;
+                    $row = [
+                        'id' => (string) Str::uuid(), 'company_id' => $this->companyId,
+                        'survey_id' => $sid, 'question_id' => $qid,
+                        'user_id' => null, // анонимный опрос
+                        'value_number' => null, 'value_text' => null, 'value_json' => null,
+                        'created_at' => $starts->copy()->addDays(mt_rand(0, 6)),
+                        'updated_at' => now(),
+                    ];
+                    if ($kind === 'scale') $row['value_number'] = mt_rand(3, 5);
+                    elseif ($kind === 'nps') $row['value_number'] = mt_rand(6, 10);
+                    elseif ($kind === 'single') $row['value_text'] = $q[2][array_rand($q[2])];
+                    elseif ($kind === 'multi') {
+                        $opts = $q[2];
+                        shuffle($opts);
+                        $row['value_json'] = json_encode(array_slice($opts, 0, mt_rand(1, 2)), JSON_UNESCAPED_UNICODE);
+                    } else {
+                        $row['value_text'] = $texts[array_rand($texts)];
+                    }
+                    $rRows[] = $row;
+                }
+            }
+
+            DB::table('pulse_survey_questions')->insert($qRows);
+            foreach (array_chunk($rRows, 300) as $chunk) DB::table('pulse_survey_responses')->insert($chunk);
+        }
+    }
+
 
     /** Проставляет картинки товарам, у которых их нет. */
     private function backfillProductImages(): int
