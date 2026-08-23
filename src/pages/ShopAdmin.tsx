@@ -204,6 +204,8 @@ export default function ShopAdmin() {
           <TabsTrigger value="currency"><Coins className="w-4 h-4 mr-1" /> {t("shopAdmin.tabCurrency")}</TabsTrigger>
           <TabsTrigger value="products"><Package className="w-4 h-4 mr-1" /> {t("shopAdmin.tabProducts")}</TabsTrigger>
           <TabsTrigger value="orders"><ShoppingBag className="w-4 h-4 mr-1" /> {t("shopAdmin.tabOrders")} {orders.filter((o: any) => o.status === "pending_fulfillment").length > 0 && <Badge className="ml-1">{orders.filter((o: any) => o.status === "pending_fulfillment").length}</Badge>}</TabsTrigger>
+          <TabsTrigger value="analytics"><BarChart3 className="w-4 h-4 mr-1" /> Аналитика</TabsTrigger>
+
         </TabsList>
 
         {/* ===== CURRENCY TAB ===== */}
