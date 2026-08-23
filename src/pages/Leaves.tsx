@@ -394,21 +394,11 @@ const TypesManager = ({ types, onChange }: { types: LeaveType[]; onChange: () =>
       ) : (
         <div className="space-y-2">
           {types.map((tp) => (
-            <div key={tp.id} className="bg-card border border-border rounded-lg px-4 py-3 flex items-center justify-between">
-              <div>
-                <p className="font-medium">{tp.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {tp.code} · {tp.paid ? "paid" : "unpaid"} · {tp.accrual_days_per_year} {t("fields.days").toLowerCase()}/год
-                  {tp.requires_medical_cert && " · справка"}
-                </p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => remove(tp.id)}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
+            <TypeRow key={tp.id} type={tp} onChange={onChange} onRemove={() => remove(tp.id)} />
           ))}
         </div>
       )}
+
     </div>
   );
 };
