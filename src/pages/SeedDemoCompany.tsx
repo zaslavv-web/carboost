@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Database, RotateCcw, Copy, Building2, Route } from "lucide-react";
+import { Loader2, Database, RotateCcw, Copy, Building2, Route, RefreshCw } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -105,6 +105,21 @@ export default function SeedDemoCompany() {
     },
   });
 
+  const content = useMutation({
+    mutationFn: async () => {
+      const result = await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/content", { company: targetName });
+      if (result.error) throw result.error;
+      if (!result.data?.ok) throw new Error("Контентный прогон завершился с ошибкой");
+      return result.data;
+    },
+    onSuccess: (r) => {
+      setOutput(r.output || "");
+      toast.success("Все контентные разделы заполнены и проверены");
+      qc.invalidateQueries({ queryKey: ["demo-status"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Ошибка контентного прогона"),
+  });
+
 
   const copyAllLogins = () => {
     if (!status?.users) return;
@@ -115,7 +130,7 @@ export default function SeedDemoCompany() {
     toast.success(`Скопировано ${status.users.length} логинов`);
   };
 
-  const busy = !targetName || seed.isPending || reset.isPending || careerTracks.isPending;
+  const busy = !targetName || seed.isPending || reset.isPending || careerTracks.isPending || content.isPending;
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -173,6 +188,10 @@ export default function SeedDemoCompany() {
             <Button variant="outline" onClick={() => careerTracks.mutate()} disabled={busy}>
               {careerTracks.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Route className="h-4 w-4 mr-2" />}
               Назначить карьерные треки
+            </Button>
+            <Button variant="outline" onClick={() => content.mutate()} disabled={busy}>
+              {content.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+              Дозаполнить весь контент
             </Button>
           </div>
           {output && (

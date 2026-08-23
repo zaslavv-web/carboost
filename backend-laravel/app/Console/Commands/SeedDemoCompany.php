@@ -114,9 +114,17 @@ class SeedDemoCompany extends Command
 
             $this->info('12.2  База знаний: категории и статьи…');
             $this->seedKnowledgeBase();
+
+            $this->info('12.3  Лента компании, сообщества и Pulse…');
+            $this->seedPortal();
+            $this->seedPulseSurveys();
         });
 
+        $this->info('12.4  Проекты и задачи трекера…');
+        $this->seedTrackerContent();
+
         $this->validateSeedResult($headcount);
+        $this->validateContentResult();
         $this->warnAboutMissingCompanies();
 
         $this->info("✅ Готово. company_id = {$this->companyId}");
@@ -1722,45 +1730,64 @@ class SeedDemoCompany extends Command
         $this->line("     статей в базе знаний: {$articles}");
 
         $this->info('3/6  Лента компании и сообщества…');
-        try {
-            DB::transaction(fn () => $this->seedPortal());
-            $posts = DB::table('portal_posts')->where('company_id', $this->companyId)->count();
-            $comms = DB::table('portal_communities')->where('company_id', $this->companyId)->count();
-            $this->line("     постов: {$posts}, сообществ: {$comms}");
-        } catch (\Throwable $e) {
-            $this->warn('Портал: ' . $e->getMessage());
-        }
+        DB::transaction(fn () => $this->seedPortal());
+        $posts = DB::table('portal_posts')->where('company_id', $this->companyId)->count();
+        $comms = DB::table('portal_communities')->where('company_id', $this->companyId)->count();
+        $this->line("     постов: {$posts}, сообществ: {$comms}");
 
         $this->info('4/6  Pulse-опросы…');
-        try {
-            DB::transaction(fn () => $this->seedPulseSurveys());
-            $surveys = DB::table('pulse_surveys')->where('company_id', $this->companyId)->count();
-            $answers = DB::table('pulse_survey_responses')->where('company_id', $this->companyId)->count();
-            $this->line("     опросов: {$surveys}, ответов: {$answers}");
-        } catch (\Throwable $e) {
-            $this->warn('Pulse: ' . $e->getMessage());
-        }
+        DB::transaction(fn () => $this->seedPulseSurveys());
+        $surveys = DB::table('pulse_surveys')->where('company_id', $this->companyId)->count();
+        $answers = DB::table('pulse_survey_responses')->where('company_id', $this->companyId)->count();
+        $this->line("     опросов: {$surveys}, ответов: {$answers}");
 
         $this->info('5/6  Сценарии, адаптация, приглашения, документы, КЭДО и отсутствия…');
         DB::transaction(fn () => $this->seedMissingContentModules());
 
         $this->info('6/6  Задачи трекера…');
-        try {
-            $this->call('tracker:seed-tasks', [
-                '--company-id' => $this->companyId,
-                '--count'      => 400,
-                '--per-user'   => 6,
-                '--projects'   => 6,
-                '--sprints'    => 4,
-                '--marker'     => 'demo-content',
-                '--reset'      => true,
-            ]);
-        } catch (\Throwable $e) {
-            $this->warn('Трекер: ' . $e->getMessage());
-        }
+        $this->seedTrackerContent();
+        $this->validateContentResult();
 
         $this->info('✅ Контент обновлён.');
         return self::SUCCESS;
+    }
+
+    private function seedTrackerContent(): void
+    {
+        $exitCode = $this->call('tracker:seed-tasks', [
+            '--company-id' => $this->companyId,
+            '--count'      => 400,
+            '--per-user'   => 6,
+            '--projects'   => 6,
+            '--sprints'    => 4,
+            '--marker'     => 'demo-content',
+            '--reset'      => true,
+        ]);
+        if ($exitCode !== self::SUCCESS) {
+            throw new \RuntimeException("Demo seed: tracker:seed-tasks завершился с кодом {$exitCode}.");
+        }
+    }
+
+    private function validateContentResult(): void
+    {
+        $required = [
+            'portal_posts' => 'лента компании',
+            'portal_communities' => 'сообщества',
+            'pulse_surveys' => 'Pulse-опросы',
+            'tracker_projects' => 'проекты трекера',
+            'tracker_tasks' => 'задачи трекера',
+            'shop_products' => 'товары магазина',
+            'knowledge_articles' => 'база знаний',
+        ];
+        $empty = [];
+        foreach ($required as $table => $label) {
+            if (! Schema::hasTable($table) || DB::table($table)->where('company_id', $this->companyId)->count() === 0) {
+                $empty[] = $label;
+            }
+        }
+        if ($empty !== []) {
+            throw new \RuntimeException('Demo seed: обязательные разделы остались пустыми: ' . implode(', ', $empty) . '.');
+        }
     }
 
     /** Заполняет разделы, которые исторически не входили в --only-content. */
