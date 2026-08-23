@@ -222,15 +222,16 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
-                      {isProcessed(doc.processing_status) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setExpandedDoc(expandedDoc === doc.id ? null : doc.id)}
+                    title={t("hrPolicies.summary")}
+                  >
+                    {expandedDoc === doc.id ? <ChevronUp className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                  {isProcessed(doc.processing_status) && (
                     <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setExpandedDoc(expandedDoc === doc.id ? null : doc.id)}
-                      >
-                        {expandedDoc === doc.id ? <ChevronUp className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </Button>
                       {!doc.scenario_id && (
                         <Button
                           variant="outline"
@@ -246,6 +247,7 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
                       )}
                     </>
                   )}
+
                   <Button
                     variant="ghost"
                     size="icon"
