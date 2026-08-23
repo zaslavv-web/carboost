@@ -289,18 +289,23 @@ const CycleManager = ({ cycles, onChange }: { cycles: PerformanceCycle[]; onChan
         <p className="text-center text-muted-foreground py-6">{t("empty.cycles")}</p>
       ) : cycles.map((c) => (
         <div key={c.id} className="bg-card border border-border rounded-lg p-4 flex items-center justify-between gap-3 flex-wrap">
-          <div>
+          <a
+            href={`/performance/cycles/${c.id}`}
+            onClick={(e) => { e.preventDefault(); window.history.pushState({}, "", `/performance/cycles/${c.id}`); window.dispatchEvent(new PopStateEvent("popstate")); }}
+            className="min-w-0 flex-1 cursor-pointer rounded-md transition-colors hover:opacity-80"
+          >
             <p className="font-semibold flex items-center gap-2">
               {c.title}
               <Badge variant={STATUS_VARIANT[c.status]}>{t(`status.${c.status}`)}</Badge>
             </p>
             <p className="text-xs text-muted-foreground">{c.period_start} — {c.period_end} · deadline: {c.deadline || "—"}</p>
-          </div>
+          </a>
           <div className="flex gap-2">
             {c.status === "draft" && <Button size="sm" onClick={() => openCycle(c.id)}>{t("actions.open")}</Button>}
             {c.status === "open" && <Button size="sm" variant="outline" onClick={() => closeCycle(c.id)}>{t("actions.close")}</Button>}
           </div>
         </div>
+
       ))}
     </div>
   );
