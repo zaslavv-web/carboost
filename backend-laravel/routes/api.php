@@ -783,7 +783,15 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
 
 
 
+        // ---- Ролевая модель прав ----
+        Route::get ('/access-control/matrix',        [\App\Http\Controllers\Api\AccessControlController::class, 'matrix']);
+        Route::post('/access-control/matrix',        [\App\Http\Controllers\Api\AccessControlController::class, 'save']);
+        Route::post('/access-control/reset',         [\App\Http\Controllers\Api\AccessControlController::class, 'reset']);
+        Route::get ('/access-control/me',            [\App\Http\Controllers\Api\AccessControlController::class, 'me']);
+        Route::get ('/access-control/role-changes',  [\App\Http\Controllers\Api\AccessControlController::class, 'roleChanges']);
+
         // ---- Generic CRUD bridge (Phase 10, replaces legacy.from(...)) ----
+
         Route::get   ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'index']);
         Route::post  ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'store']);
         Route::patch ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'update']);
