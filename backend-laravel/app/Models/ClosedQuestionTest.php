@@ -12,8 +12,10 @@ class ClosedQuestionTest extends Model
 
     protected $table = 'closed_question_tests';
     protected $fillable = [
-        'company_id', 'position_id', 'created_by', 'title', 'description',
-        'questions', 'is_active', 'source_file_url', 'source_file_name',
+        'company_id', 'position_id', 'audience_rules', 'created_by', 'title', 'description',
+        'questions', 'is_active', 'assigned_at', 'source_file_url', 'source_file_name',
     ];
-    protected $casts = ['questions' => 'array', 'is_active' => 'boolean'];
+    protected $casts = [
+        'questions' => 'array', 'audience_rules' => 'array', 'is_active' => 'boolean', 'assigned_at' => 'datetime',
+    ];
 }

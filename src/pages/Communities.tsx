@@ -22,6 +22,7 @@ type Community = {
   members_count: number;
   owner_id?: string | null;
   cover_url?: string | null;
+  avatar_url?: string | null;
 };
 
 type Membership = { id: string; community_id: string; user_id: string; role: string };
@@ -39,22 +40,23 @@ export default function Communities() {
   const [open, setOpen] = useState(false);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
-  const uploadCover = async (communityId: string, file?: File) => {
+  const uploadImage = async (communityId: string, kind: "cover" | "avatar", file?: File) => {
     if (!file || !companyId) return;
     setUploadingId(communityId);
     const ext = file.name.split(".").pop() || "jpg";
-    const path = `communities/${communityId}.${ext}`;
+    const path = `communities/${communityId}-${kind}.${ext}`;
     const { data, error } = await laravelStorage.from("content-media").upload(path, file, { upsert: true });
     if (error || !data?.url) {
       toast.error(error?.message || "Не удалось загрузить изображение");
       setUploadingId(null);
       return;
     }
-    const { error: updateError } = await laravelDb.from("portal_communities" as any).update({ cover_url: data.url }).eq("id", communityId);
+    const field = kind === "cover" ? "cover_url" : "avatar_url";
+    const { error: updateError } = await laravelDb.from("portal_communities" as any).update({ [field]: data.url }).eq("id", communityId);
     setUploadingId(null);
     if (updateError) toast.error(updateError.message);
     else {
-      toast.success("Изображение сообщества обновлено");
+      toast.success(kind === "cover" ? "Обложка обновлена" : "Юзерпик обновлён");
       qc.invalidateQueries({ queryKey: ["portal-communities"] });
     }
   };
@@ -156,6 +158,7 @@ export default function Communities() {
               )}
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
+                  {c.avatar_url ? <img src={c.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" /> : <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10"><Users className="h-4 w-4 text-primary" /></span>}
                   <CardTitle className="text-base flex-1 truncate">{c.title}</CardTitle>
                   <Badge variant="outline"><Icon className="w-3 h-3 mr-1" />{PRIVACY_LABEL[c.privacy]}</Badge>
                 </div>
@@ -175,11 +178,13 @@ export default function Communities() {
                   )}
                 </div>
                 {(c.owner_id === userId || canCreate) && (
-                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-primary hover:underline">
-                    {uploadingId === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
-                    Заменить изображение
-                    <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="sr-only" disabled={uploadingId === c.id} onChange={(event) => void uploadCover(c.id, event.target.files?.[0])} />
-                  </label>
+                  <div className="flex flex-wrap gap-3">
+                    {(["avatar", "cover"] as const).map((kind) => <label key={kind} className="inline-flex cursor-pointer items-center gap-2 text-xs text-primary hover:underline">
+                      {uploadingId === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                      {kind === "avatar" ? "Юзерпик" : "Обложка"}
+                      <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="sr-only" disabled={uploadingId === c.id} onChange={(event) => void uploadImage(c.id, kind, event.target.files?.[0])} />
+                    </label>)}
+                  </div>
                 )}
               </CardContent>
             </Card>

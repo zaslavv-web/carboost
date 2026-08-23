@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Upload, Loader2, FileText, Trash2, Power, PowerOff, Eye, Plus, Pencil } from "lucide-react";
+import { Upload, Loader2, FileText, Trash2, Power, PowerOff, Eye, Plus, Pencil, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
@@ -41,7 +41,7 @@ const HRDTests = () => {
       if (!profile?.company_id) return [];
       const { data, error } = await laravelDb
         .from("closed_question_tests")
-        .select("id, title, description, is_active, position_id, source_file_name, questions, created_at")
+        .select("id, title, description, is_active, position_id, audience_rules, assigned_at, source_file_name, questions, created_at")
         .eq("company_id", profile.company_id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -64,6 +64,17 @@ const HRDTests = () => {
     },
     enabled: !!profile?.company_id,
   });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ["profiles_for_tests", profile?.company_id],
+    queryFn: async () => {
+      const { data, error } = await laravelDb.from("profiles").select("user_id, full_name, department, position_id").eq("company_id", profile?.company_id || "").order("full_name");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!profile?.company_id,
+  });
+  const departments = Array.from(new Set(employees.map((employee: any) => employee.department).filter(Boolean))) as string[];
 
   const positionTitle = useMemo(
     () => (id: string | null) => positions.find((p) => p.id === id)?.title || t("hrdTests.allPositions"),
@@ -144,8 +155,8 @@ const HRDTests = () => {
   });
 
   const saveAudience = useMutation({
-    mutationFn: async ({ id, position_id }: { id: string; position_id: string | null }) => {
-      const { error } = await laravelDb.from("closed_question_tests").update({ position_id }).eq("id", id);
+    mutationFn: async ({ id, audience_rules }: { id: string; audience_rules: Record<string, string[]> }) => {
+      const { error } = await laravelDb.from("closed_question_tests").update({ audience_rules, assigned_at: new Date().toISOString() } as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -154,6 +165,12 @@ const HRDTests = () => {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const toggleAudienceValue = (item: any, group: "user_ids" | "departments" | "position_ids", value: string) => {
+    const current = item.audience_rules || {};
+    const values: string[] = current[group] || [];
+    saveAudience.mutate({ id: item.id, audience_rules: { ...current, [group]: values.includes(value) ? values.filter((entry) => entry !== value) : [...values, value] } });
+  };
 
   const createManualTest = async () => {
     if (!user || !profile?.company_id || !title.trim() || manualQuestions.length === 0) return;
@@ -330,13 +347,15 @@ const HRDTests = () => {
                 >
                   <Eye className="w-4 h-4 text-muted-foreground" />
                 </button>
-                <label className="flex items-center gap-1 text-xs text-muted-foreground" title="Изменить аудиторию">
-                  <Pencil className="h-3.5 w-3.5" />
-                  <select value={item.position_id || "all"} onChange={(event) => saveAudience.mutate({ id: item.id, position_id: event.target.value === "all" ? null : event.target.value })} className="max-w-36 rounded border border-input bg-background px-2 py-1">
-                    <option value="all">Все должности</option>
-                    {positions.map((position) => <option key={position.id} value={position.id}>{position.title}</option>)}
-                  </select>
-                </label>
+                <details className="relative text-xs">
+                  <summary className="flex cursor-pointer items-center gap-1 text-muted-foreground"><Pencil className="h-3.5 w-3.5" />Аудитория</summary>
+                  <div className="absolute right-0 z-20 mt-2 w-72 space-y-3 rounded border border-border bg-popover p-3 shadow-lg">
+                    <AudienceGroup title="Отделы" options={departments.map((value) => ({ value, label: value }))} selected={item.audience_rules?.departments || []} onToggle={(value) => toggleAudienceValue(item, "departments", value)} />
+                    <AudienceGroup title="Должности" options={positions.map((position) => ({ value: position.id, label: position.title }))} selected={item.audience_rules?.position_ids || []} onToggle={(value) => toggleAudienceValue(item, "position_ids", value)} />
+                    <AudienceGroup title="Сотрудники" options={employees.map((employee: any) => ({ value: employee.user_id, label: employee.full_name }))} selected={item.audience_rules?.user_ids || []} onToggle={(value) => toggleAudienceValue(item, "user_ids", value)} />
+                  </div>
+                </details>
+                <button onClick={() => saveAudience.mutate({ id: item.id, audience_rules: item.audience_rules || {} })} title="Назначить заново" className="p-2 rounded-lg hover:bg-secondary"><RefreshCw className="h-4 w-4 text-muted-foreground" /></button>
                 <button
                   onClick={() => toggleActive.mutate({ id: item.id, value: !item.is_active })}
                   title={item.is_active ? t("hrdTests.disableBtn") : t("hrdTests.enableBtn")}
@@ -359,5 +378,9 @@ const HRDTests = () => {
     </div>
   );
 };
+
+function AudienceGroup({ title, options, selected, onToggle }: { title: string; options: { value: string; label: string }[]; selected: string[]; onToggle: (value: string) => void }) {
+  return <fieldset><legend className="mb-1 font-medium text-foreground">{title}</legend><div className="max-h-28 space-y-1 overflow-y-auto">{options.map((option) => <label key={option.value} className="flex items-center gap-2"><input type="checkbox" checked={selected.includes(option.value)} onChange={() => onToggle(option.value)} />{option.label}</label>)}</div></fieldset>;
+}
 
 export default HRDTests;
