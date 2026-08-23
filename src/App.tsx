@@ -204,6 +204,8 @@ const App = () => (
                 <Route path="/shop/:id" element={<ShopProductDetail />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/my-orders" element={<MyOrders />} />
+                <Route path="/orders/:orderId" element={<OrderDetail />} />
+
                 <Route path="/motivation/earn" element={<EarnCoins />} />
 
                 <Route path="/shop-admin" element={<ShopAdmin />} />
