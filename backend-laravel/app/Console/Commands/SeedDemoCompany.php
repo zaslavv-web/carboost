@@ -667,6 +667,11 @@ class SeedDemoCompany extends Command
                 'competencies','assessments','currency_transactions','currency_balances',
                 'company_currency_settings','team_members','position_career_paths','positions','departments',
                 'company_onboarding_settings','employee_invitations','support_tickets',
+                'kedo_events','kedo_signatures','kedo_document_participants','kedo_documents',
+                'kedo_route_steps','kedo_routes','kedo_templates',
+                'leave_request_files','leave_requests','leave_balances','leave_types',
+                'onboarding_step_progress','onboarding_assignments','onboarding_plan_steps','onboarding_plans',
+                'assessment_scenarios',
             ] as $t) {
                 if (Schema::hasTable($t) && Schema::hasColumn($t, 'company_id')) {
                     DB::table($t)->where('company_id', $cid)->delete();
