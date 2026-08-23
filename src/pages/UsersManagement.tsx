@@ -234,6 +234,8 @@ const UsersManagement = () => {
     const hireDate = u.hire_date ? new Date(u.hire_date) : null;
     const months = hireDate ? (Date.now() - hireDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44) : null;
     const matchesTenure = tenureFilter === "all" || (months !== null && (
+      (tenureFilter === "< 3 мес" && months < 3) ||
+      (tenureFilter === "3–12 мес" && months >= 3 && months < 12) ||
       (tenureFilter === "< 1 года" && months < 12) ||
       (tenureFilter === "1–3 года" && months >= 12 && months < 36) ||
       (tenureFilter === "3–5 лет" && months >= 36 && months < 60) ||

@@ -92,27 +92,22 @@ class PeopleAnalyticsController extends Controller
         $companyId = $this->scope($request);
         $start = Carbon::now()->startOfMonth()->subMonths(11);
 
-        try {
-            $rows = DB::table('profiles')
-                ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
-                ->whereNotNull('hire_date')
-                ->where('hire_date', '>=', $start->toDateString())
-                ->selectRaw("to_char(hire_date::date, 'YYYY-MM') as month, COUNT(*) as value")
-                ->groupByRaw("to_char(hire_date::date, 'YYYY-MM')")
-                ->orderByRaw("to_char(hire_date::date, 'YYYY-MM')")
-                ->get()
-                ->keyBy('month');
-        } catch (\Throwable $e) {
-            report($e);
-            $rows = collect();
-        }
+        // Group in PHP: the production database is MySQL while older code used
+        // PostgreSQL-only to_char/date casts and silently returned an empty chart.
+        $rows = DB::table('profiles')
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->whereNotNull('hire_date')
+            ->where('hire_date', '>=', $start->toDateString())
+            ->pluck('hire_date')
+            ->map(fn ($date) => Carbon::parse($date)->format('Y-m'))
+            ->countBy();
 
         $series = [];
         for ($i = 0; $i < 12; $i++) {
             $key = $start->copy()->addMonths($i)->format('Y-m');
             $series[] = [
                 'month' => $key,
-                'value' => (int) ($rows[$key]->value ?? 0),
+                'value' => (int) ($rows[$key] ?? 0),
             ];
         }
         return response()->json(['series' => $series]);
@@ -127,20 +122,18 @@ class PeopleAnalyticsController extends Controller
             return response()->json(['series' => []]);
         }
 
-        try {
-            $rows = DB::table('leave_requests')
-                ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
-                ->where('status', 'approved')
-                ->where('start_date', '>=', $start->toDateString())
-                ->selectRaw("to_char(start_date::date, 'YYYY-MM') as month, COALESCE(SUM(business_days), 0) as days, COUNT(*) as requests")
-                ->groupByRaw("to_char(start_date::date, 'YYYY-MM')")
-                ->orderByRaw("to_char(start_date::date, 'YYYY-MM')")
-                ->get()
-                ->keyBy('month');
-        } catch (\Throwable $e) {
-            report($e);
-            $rows = collect();
-        }
+        // `leave_requests` stores days_count (not business_days). Aggregate in
+        // PHP to remain portable between MySQL and PostgreSQL deployments.
+        $rows = DB::table('leave_requests')
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->where('status', 'approved')
+            ->where('start_date', '>=', $start->toDateString())
+            ->get(['start_date', 'days_count'])
+            ->groupBy(fn ($row) => Carbon::parse($row->start_date)->format('Y-m'))
+            ->map(fn ($group) => (object) [
+                'days' => $group->sum(fn ($row) => (float) $row->days_count),
+                'requests' => $group->count(),
+            ]);
 
         $series = [];
         for ($i = 0; $i < 6; $i++) {

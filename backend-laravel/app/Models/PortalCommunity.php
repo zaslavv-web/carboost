@@ -12,7 +12,7 @@ class PortalCommunity extends Model
 
     protected $table = 'portal_communities';
     protected $fillable = [
-        'company_id','title','slug','description','cover_url','privacy','owner_id','members_count',
+        'company_id','title','slug','description','cover_url','avatar_url','privacy','owner_id','members_count',
     ];
     protected $casts = ['members_count' => 'integer'];
 }

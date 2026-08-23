@@ -26,12 +26,20 @@ const Assessment = () => {
       if (!profile?.company_id) return [];
       let q = laravelDb
         .from("closed_question_tests")
-        .select("id, title, description, position_id, questions")
+        .select("id, title, description, position_id, audience_rules, questions")
         .eq("company_id", profile.company_id)
         .eq("is_active", true);
       const { data, error } = await q;
       if (error) throw error;
-      const list = (data || []).filter((t: any) => Array.isArray(t.questions) && t.questions.length > 0);
+      const list = (data || []).filter((test: any) => {
+        if (!Array.isArray(test.questions) || test.questions.length === 0) return false;
+        const rules = test.audience_rules || {};
+        const hasRules = rules.user_ids?.length || rules.departments?.length || rules.position_ids?.length;
+        if (!hasRules) return !test.position_id || test.position_id === profile.position_id;
+        return (!!profile.user_id && rules.user_ids?.includes(profile.user_id))
+          || (!!profile.department && rules.departments?.includes(profile.department))
+          || (!!profile.position_id && rules.position_ids?.includes(profile.position_id));
+      });
       list.sort((a: any, b: any) => {
         const am = a.position_id === profile.position_id ? 0 : a.position_id === null ? 1 : 2;
         const bm = b.position_id === profile.position_id ? 0 : b.position_id === null ? 1 : 2;

@@ -42,6 +42,7 @@ class SeedDemoCompany extends Command
     private string $password = 'DemoPass!2026';
     private array $emailBook = [];     // [login => email]
     private string $emailDomain = 'demo.pikrosta.ru';
+    private array $contentErrors = [];
 
     public function handle(AuthUserService $auth): int
     {
@@ -203,6 +204,10 @@ class SeedDemoCompany extends Command
         }
         $this->companyId = (string) $company->id;
         $this->loadUsersFromDb();
+        $this->positionIds = DB::table('positions')->where('company_id', $this->companyId)
+            ->pluck('id', 'title')->map(fn ($value) => (string) $value)->all();
+        $this->departmentIds = DB::table('departments')->where('company_id', $this->companyId)
+            ->pluck('id', 'name')->map(fn ($value) => (string) $value)->all();
 
         if (! $this->allUserIds) {
             $this->error('В демо-компании нет сотрудников.');
@@ -1718,38 +1723,72 @@ class SeedDemoCompany extends Command
         $this->loadUsersFromDb();
 
         $this->info('1/6  Магазин и картинки товаров…');
-        if (DB::table('shop_products')->where('company_id', $this->companyId)->doesntExist()) {
-            DB::transaction(fn () => $this->seedShop());
-        }
-        $fixed = $this->backfillProductImages();
+        $this->runContentStep('магазин', function () {
+            if (DB::table('shop_products')->where('company_id', $this->companyId)->doesntExist()) {
+                DB::transaction(fn () => $this->seedShop());
+            }
+        });
+        $fixed = $this->runContentStep('изображения товаров', fn () => $this->backfillProductImages()) ?? 0;
         $this->line("     обновлено товаров: {$fixed}");
 
         $this->info('2/6  База знаний…');
-        DB::transaction(fn () => $this->seedKnowledgeBase());
+        $this->runContentStep('база знаний', fn () => DB::transaction(fn () => $this->seedKnowledgeBase()));
         $articles = DB::table('knowledge_articles')->where('company_id', $this->companyId)->count();
         $this->line("     статей в базе знаний: {$articles}");
 
         $this->info('3/6  Лента компании и сообщества…');
-        DB::transaction(fn () => $this->seedPortal());
+        $this->runContentStep('лента и сообщества', fn () => DB::transaction(fn () => $this->seedPortal()));
         $posts = DB::table('portal_posts')->where('company_id', $this->companyId)->count();
         $comms = DB::table('portal_communities')->where('company_id', $this->companyId)->count();
         $this->line("     постов: {$posts}, сообществ: {$comms}");
 
         $this->info('4/6  Pulse-опросы…');
-        DB::transaction(fn () => $this->seedPulseSurveys());
+        $this->runContentStep('Pulse-опросы', fn () => DB::transaction(fn () => $this->seedPulseSurveys()));
         $surveys = DB::table('pulse_surveys')->where('company_id', $this->companyId)->count();
         $answers = DB::table('pulse_survey_responses')->where('company_id', $this->companyId)->count();
         $this->line("     опросов: {$surveys}, ответов: {$answers}");
 
         $this->info('5/6  Сценарии, адаптация, приглашения, документы, КЭДО и отсутствия…');
-        DB::transaction(fn () => $this->seedMissingContentModules());
+        $this->runContentStep('рабочие HR-модули', fn () => DB::transaction(fn () => $this->seedMissingContentModules()));
+
+        $this->info('5.1/6  Тесты, оценки, карьерные треки и Performance…');
+        $this->runContentStep('тесты и оценки', function () {
+            if (DB::table('closed_question_tests')->where('company_id', $this->companyId)->doesntExist()) {
+                DB::transaction(fn () => $this->seedTestsAndAssessments());
+            }
+        });
+        $this->runContentStep('карьерные треки', fn () => DB::transaction(function () {
+            $this->createCareerTracks();
+            $this->assignCareerTracks();
+        }));
+        $this->runContentStep('Performance', function () {
+            if (Schema::hasTable('performance_cycles') && DB::table('performance_cycles')->where('company_id', $this->companyId)->doesntExist()) {
+                DB::transaction(fn () => $this->seedPerformance());
+            }
+        });
 
         $this->info('6/6  Задачи трекера…');
-        $this->seedTrackerContent();
+        $this->runContentStep('трекер задач', fn () => $this->seedTrackerContent());
         $this->validateContentResult();
 
         $this->info('✅ Контент обновлён.');
         return self::SUCCESS;
+    }
+
+    private function runContentStep(string $label, callable $step): mixed
+    {
+        try {
+            return $step();
+        } catch (\Throwable $exception) {
+            $this->contentErrors[] = $label . ': ' . $exception->getMessage();
+            Log::error('demo_content_seed_step_failed', [
+                'company_id' => $this->companyId,
+                'step' => $label,
+                'exception' => $exception,
+            ]);
+            $this->error("Ошибка шага «{$label}»: {$exception->getMessage()}");
+            return null;
+        }
     }
 
     private function seedTrackerContent(): void
@@ -1778,6 +1817,16 @@ class SeedDemoCompany extends Command
             'tracker_tasks' => 'задачи трекера',
             'shop_products' => 'товары магазина',
             'knowledge_articles' => 'база знаний',
+            'assessment_scenarios' => 'сценарии оценки',
+            'closed_question_tests' => 'тесты',
+            'onboarding_plans' => 'планы адаптации',
+            'employee_invitations' => 'приглашения',
+            'performance_cycles' => 'Performance',
+            'hr_documents' => 'HR-документы',
+            'kedo_documents' => 'КЭДО',
+            'leave_requests' => 'отсутствия',
+            'career_track_templates' => 'карьерные треки',
+            'employee_career_assignments' => 'назначения карьерных треков',
         ];
         $empty = [];
         foreach ($required as $table => $label) {
@@ -1785,8 +1834,11 @@ class SeedDemoCompany extends Command
                 $empty[] = $label;
             }
         }
-        if ($empty !== []) {
-            throw new \RuntimeException('Demo seed: обязательные разделы остались пустыми: ' . implode(', ', $empty) . '.');
+        if ($empty !== [] || $this->contentErrors !== []) {
+            $parts = [];
+            if ($empty !== []) $parts[] = 'обязательные разделы остались пустыми: ' . implode(', ', $empty);
+            if ($this->contentErrors !== []) $parts[] = 'ошибки шагов: ' . implode(' | ', $this->contentErrors);
+            throw new \RuntimeException('Demo seed: ' . implode('; ', $parts) . '.');
         }
     }
 
@@ -2156,12 +2208,14 @@ class SeedDemoCompany extends Command
             if ($existing) {
                 DB::table('portal_communities')->where('id', $cid)->update([
                     'title' => $title, 'description' => $desc, 'privacy' => 'open',
+                    'cover_url' => '/demo/community-cover.jpg', 'avatar_url' => '/demo/community-team.jpg',
                     'owner_id' => $owner, 'members_count' => count($members), 'updated_at' => now(),
                 ]);
             } else {
                 DB::table('portal_communities')->insert([
                     'id' => $cid, 'company_id' => $this->companyId,
                     'title' => $title, 'slug' => $slug, 'description' => $desc,
+                    'cover_url' => '/demo/community-cover.jpg', 'avatar_url' => '/demo/community-team.jpg',
                     'privacy' => 'open', 'owner_id' => $owner, 'members_count' => count($members),
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
