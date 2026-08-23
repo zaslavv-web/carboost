@@ -426,6 +426,12 @@ class SeedTrackerTasks extends Command
             $topic     = $topics[array_rand($topics)];
             $title     = sprintf($titles[array_rand($titles)], $topic);
             $stKey     = $statusPick[array_rand($statusPick)];
+            // Первые два круга — только открытые статусы: гарантируем,
+            // что у каждого сотрудника есть активные задачи в трекере.
+            if ($i <= $rotSize * 2) {
+                $openKeys = ['backlog', 'in_progress', 'review'];
+                $stKey = $openKeys[array_rand($openKeys)];
+            }
             $urgency   = $urgencies[array_rand($urgencies)];
             $type      = $types[array_rand($types)];
 
