@@ -819,7 +819,9 @@ class RpcController extends Controller
         }
 
         $userId = (string) $profile->user_id;
-        DB::transaction(function () use ($profile, $userId, $role) {
+        $oldRole = DB::table('user_roles')->where('user_id', $userId)->value('role');
+        $actorId = $actor?->domainUserId() ?? $actor?->id;
+        DB::transaction(function () use ($profile, $userId, $role, $oldRole, $actorId) {
             DB::table('user_roles')->where('user_id', $userId)->delete();
             $row = ['user_id' => $userId, 'role' => $role];
             if (Schema::hasColumn('user_roles', 'id') && !$this->idColumnIsInteger('user_roles')) {
@@ -829,7 +831,21 @@ class RpcController extends Controller
             if (Schema::hasColumn('user_roles', 'updated_at')) $row['updated_at'] = now();
             DB::table('user_roles')->insert($row);
             DB::table('profiles')->where('id', $profile->id)->update(['requested_role' => $role, 'updated_at' => now()]);
+
+            // История назначений ролей — используется разделом «Права доступа».
+            if (Schema::hasTable('role_change_log')) {
+                DB::table('role_change_log')->insert([
+                    'id'         => (string) Str::uuid(),
+                    'company_id' => $profile->company_id ?? null,
+                    'user_id'    => $userId,
+                    'old_role'   => $oldRole,
+                    'new_role'   => $role,
+                    'changed_by' => $actorId ? (string) $actorId : null,
+                    'created_at' => now(),
+                ]);
+            }
         });
+
 
         return response()->json(['data' => true]);
     }

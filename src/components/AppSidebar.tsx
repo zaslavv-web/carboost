@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   LayoutDashboard, MessageCircle, User, Target, Settings, LogOut,
-  ChevronLeft, ChevronRight, ChevronDown, X, Briefcase, Users, Shield,
+  ChevronLeft, ChevronRight, ChevronDown, X, Briefcase, Users, Shield, ShieldCheck,
   LifeBuoy, FileJson, FileSignature, BarChart3, UserCog, Route, Trophy, ClipboardList,
   ShoppingBag, Store, Rocket, Mail, Heart, Activity, ClipboardCheck,
   Banknote, CalendarDays, Star, AlertOctagon, TimerReset, Palette, Brain,
@@ -78,6 +78,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const performance: NavItem = { icon: Star, label: t("performance:title", { defaultValue: "Performance" }), path: "/performance" };
     const kedo: NavItem = { icon: FileSignature, label: "КЭДО", path: "/kedo" };
     const securityNav: NavItem = { icon: Shield, label: "Безопасность", path: "/security" };
+    const accessControlNav: NavItem = { icon: ShieldCheck, label: "Права доступа", path: "/access-control" };
+
     const myDocs: NavItem = { icon: FileSignature, label: "Мои документы", path: "/my-documents" };
     // Личная мотивация — доступна всем ролям, не только сотруднику.
     const myMotivation: NavItem[] = [
@@ -110,7 +112,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Banknote, label: t("nav.pricingInquiries"), path: "/pricing-inquiries" },
         ]},
         { key: "knowledge", label: S("knowledge"), entries: [university, knowledgeBase] },
-        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, securityNav, settings] },
+        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, securityNav, accessControlNav, settings] },
       ];
     }
 
@@ -138,7 +140,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: BookOpen, label: t("nav.knowledgeBase", { defaultValue: "База знаний" }), path: "/knowledge-base" },
           { icon: Target, label: t("nav.idp", { defaultValue: "Планы развития (ИПР)" }), path: "/idp" },
         ] },
-        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, securityNav, settings] },
+        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, securityNav, accessControlNav, settings] },
       ];
     }
 
