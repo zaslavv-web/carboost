@@ -133,13 +133,15 @@ class AttritionPredictionService
                     ->where('horizon_days', $horizonDays)
                     ->delete();
             }
-            // Подчищаем «осиротевшие» строки компании с чужим горизонтом расчёта,
-            // если сотрудник больше не в профилях компании.
-            DB::table('attrition_predictions')
-                ->where('company_id', $companyId)
-                ->where('horizon_days', $horizonDays)
-                ->whereNotIn('user_id', array_slice($userIds, 0, 1000))
-                ->when(count($userIds) <= 1000, fn ($q) => $q->delete());
+            // Подчищаем «осиротевшие» строки компании: сотрудник больше не в профилях.
+            if (count($userIds) <= 5000) {
+                DB::table('attrition_predictions')
+                    ->where('company_id', $companyId)
+                    ->where('horizon_days', $horizonDays)
+                    ->whereNotIn('user_id', $userIds)
+                    ->delete();
+            }
+
 
             foreach (array_chunk($rows, 200) as $chunk) {
                 DB::table('attrition_predictions')->insert($chunk);
