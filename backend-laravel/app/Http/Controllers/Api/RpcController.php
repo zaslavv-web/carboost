@@ -102,6 +102,19 @@ class RpcController extends Controller
             return $this->resendInvitation($request, $payload);
         }
 
+        // Магазин: реализовано на PHP, т.к. боевая БД — MySQL и Postgres-функций там нет.
+        if ($name === 'create_shop_order') {
+            return $this->createShopOrder($request, $payload);
+        }
+        if ($name === 'fulfill_shop_order') {
+            return $this->fulfillShopOrder($request, $payload);
+        }
+        if ($name === 'award_currency') {
+            return $this->awardCurrency($request, $payload);
+        }
+
+
+
 
         $args = [];
         $placeholders = [];
