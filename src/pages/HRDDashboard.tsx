@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { tooltipProps } from "@/lib/chartTooltip";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravel } from "@/integrations/laravel/client";
@@ -8,7 +8,6 @@ import { laravelRpc } from "@/integrations/laravel/rpc";
 import { fetchHrdDirectory, fetchHrdPositions } from "@/lib/hrdDirectory";
 import { useAuth } from "@/contexts/AuthContext";
 import { Users, TrendingUp, Shield, BarChart3, Search, ChevronDown, Loader2, GitCompareArrows, X, Briefcase, Mail, Plus, Trash2, Check, Route } from "lucide-react";
-import MetricCard from "@/components/MetricCard";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -245,6 +244,7 @@ const HRDDashboard = () => {
   const { t } = useTranslation("manager");
   const roleBadge = useRoleBadge();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [showRoleMenu, setShowRoleMenu] = useState<string | null>(null);
@@ -399,9 +399,9 @@ const HRDDashboard = () => {
   };
 
   const roleDistribution = [
-    { name: t("hrdDashboard.roleDistItems.employees"), value: roleCounts.employee, color: "hsl(var(--primary))" },
-    { name: t("hrdDashboard.roleDistItems.managers"), value: roleCounts.manager, color: "hsl(var(--info))" },
-    { name: t("hrdDashboard.roleDistItems.hrd"), value: roleCounts.hrd, color: "hsl(var(--warning))" },
+    { name: t("hrdDashboard.roleDistItems.employees"), role: "employee", value: roleCounts.employee, color: "hsl(var(--primary))" },
+    { name: t("hrdDashboard.roleDistItems.managers"), role: "manager", value: roleCounts.manager, color: "hsl(var(--info))" },
+    { name: t("hrdDashboard.roleDistItems.hrd"), role: "hrd", value: roleCounts.hrd, color: "hsl(var(--warning))" },
   ];
 
   const deptMap = new Map<string, { count: number; totalScore: number }>();
@@ -464,33 +464,33 @@ const HRDDashboard = () => {
 
       {/* Metrics — glass KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <div className="glass rounded-xl p-4 hover-lift">
+        <button type="button" onClick={() => navigate("/users")} className="glass rounded-xl p-4 hover-lift text-left">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <Users className="w-4 h-4 text-primary" /> {t("hrdDashboard.metrics.employees")}
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{employees.length}</div>
           <div className="text-xs text-muted-foreground mt-1">{t("hrdDashboard.metrics.managersCount", { count: roleCounts.manager })}</div>
-        </div>
-        <div className="glass rounded-xl p-4 hover-lift">
+        </button>
+        <button type="button" onClick={() => navigate("/people-analytics")} className="glass rounded-xl p-4 hover-lift text-left">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <TrendingUp className="w-4 h-4 text-info" />
             <MetricLabel metricKey="avg_competency_score" labelOverride={t("hrdDashboard.metrics.avgScore")} />
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{avgScore}</div>
           <div className="text-[11px] text-muted-foreground mt-1">0–5 по компании</div>
-        </div>
-        <div className="glass rounded-xl p-4 hover-lift">
+        </button>
+        <button type="button" onClick={() => navigate("/users?role=manager")} className="glass rounded-xl p-4 hover-lift text-left">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <Shield className="w-4 h-4 text-warning" /> {t("hrdDashboard.metrics.managersLabel")}
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{roleCounts.manager}</div>
-        </div>
-        <div className="glass rounded-xl p-4 hover-lift">
+        </button>
+        <button type="button" onClick={() => navigate("/employee-map")} className="glass rounded-xl p-4 hover-lift text-left">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <BarChart3 className="w-4 h-4 text-success" /> {t("hrdDashboard.metrics.departments")}
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{deptMap.size}</div>
-        </div>
+        </button>
       </div>
 
 
@@ -502,7 +502,7 @@ const HRDDashboard = () => {
             <>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
-                  <Pie data={roleDistribution.filter((r) => r.value > 0)} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={4}>
+                  <Pie data={roleDistribution.filter((r) => r.value > 0)} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={4} cursor="pointer" onClick={(row) => navigate(`/users?role=${encodeURIComponent(row.role)}`)}>
                     {roleDistribution.filter((r) => r.value > 0).map((entry, i) => (
                       <Cell key={i} fill={entry.color} />
                     ))}
@@ -541,8 +541,8 @@ const HRDDashboard = () => {
                 <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                 <Tooltip {...tooltipProps("bar")} />
                 <Legend />
-                <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name={t("hrdDashboard.charts.avgScoreBar")} />
-                <Bar dataKey="employees" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} name={t("hrdDashboard.charts.employeesBar")} />
+                <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name={t("hrdDashboard.charts.avgScoreBar")} cursor="pointer" onClick={(row) => navigate(`/users?department=${encodeURIComponent(row.name)}`)} />
+                <Bar dataKey="employees" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} name={t("hrdDashboard.charts.employeesBar")} cursor="pointer" onClick={(row) => navigate(`/users?department=${encodeURIComponent(row.name)}`)} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
