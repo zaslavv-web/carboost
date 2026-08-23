@@ -78,6 +78,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const performance: NavItem = { icon: Star, label: t("performance:title", { defaultValue: "Performance" }), path: "/performance" };
     const kedo: NavItem = { icon: FileSignature, label: "КЭДО", path: "/kedo" };
     const securityNav: NavItem = { icon: Shield, label: "Безопасность", path: "/security" };
+    const accessControlNav: NavItem = { icon: ShieldCheck, label: "Права доступа", path: "/access-control" };
+
     const myDocs: NavItem = { icon: FileSignature, label: "Мои документы", path: "/my-documents" };
     // Личная мотивация — доступна всем ролям, не только сотруднику.
     const myMotivation: NavItem[] = [
