@@ -336,7 +336,7 @@ class KedoController extends Controller
             'template_id' => 'required|uuid',
             'scope_type'  => 'required|in:user,department,position,company',
             'user_ids'    => 'array',
-            'user_ids.*'  => 'uuid',
+            'user_ids.*'  => 'string|max:64',
             'scope_ref'   => 'nullable|string|max:200',
             'route_id'    => 'nullable|uuid',
             'send'        => 'sometimes|boolean',
