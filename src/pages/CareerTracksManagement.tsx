@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
@@ -52,6 +52,20 @@ const CareerTracksManagement = () => {
   const [form, setForm] = useState<TemplateForm>(emptyForm);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [tab, setTab] = useState<"templates" | "assignments">("templates");
+  const [searchParams] = useSearchParams();
+
+  // Drill-down из дашбордов: /career-tracks?template=<id>&tab=assignments
+  useEffect(() => {
+    const tpl = searchParams.get("template");
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "assignments" || tabParam === "templates") setTab(tabParam);
+    if (tpl) {
+      setExpandedId(tpl);
+      setTimeout(() => {
+        document.getElementById(`track-${tpl}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+    }
+  }, [searchParams]);
 
   const companyId = profile?.company_id;
 
@@ -431,7 +445,7 @@ const CareerTracksManagement = () => {
             const toPos = tpl.to_position_id ? posMap[tpl.to_position_id] : null;
             const steps = (tpl.steps as unknown as Step[]) || [];
             return (
-              <div key={tpl.id} className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
+              <div key={tpl.id} id={`track-${tpl.id}`} className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
                 <div className="p-5 flex items-center gap-4 cursor-pointer hover:bg-secondary/30 transition-colors"
                   onClick={() => setExpandedId(isExpanded ? null : tpl.id)}>
                   <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">

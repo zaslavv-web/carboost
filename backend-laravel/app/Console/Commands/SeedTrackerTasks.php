@@ -23,6 +23,7 @@ class SeedTrackerTasks extends Command
         {--owner-email= : Email действующего company_admin/hrd компании}
         {--company-id= : Альтернатива: явный UUID компании}
         {--count=1000 : Количество задач}
+        {--per-user=0 : Минимум задач на каждого сотрудника (увеличит --count при необходимости)}
         {--projects=6 : Количество проектов}
         {--sprints=4 : Количество активных спринтов}
         {--marker=tracker150 : Метка для идемпотентности}
@@ -65,6 +66,11 @@ class SeedTrackerTasks extends Command
             ->whereIn('user_roles.role', ['manager', 'hrd', 'company_admin'])
             ->pluck('user_roles.user_id')->map('strval')->unique()->values()->all();
         if (empty($authors)) $authors = [$this->ownerUserId];
+
+        $perUser = max(0, (int) $this->option('per-user'));
+        if ($perUser > 0) {
+            $count = max($count, $perUser * count($assignees));
+        }
 
         $this->line("Пул: assignees=" . count($assignees) . ", authors=" . count($authors));
         $this->line("План: workflow + {$projectsN} проектов + {$sprintsN} спринтов + {$count} задач");
@@ -411,13 +417,27 @@ class SeedTrackerTasks extends Command
         $batchSize = 200;
         $created = 0;
 
+        // Равномерное распределение: круговой обход перемешанного пула,
+        // чтобы у КАЖДОГО сотрудника были задачи (раньше был random и часть людей
+        // оставалась с пустым трекером).
+        $rotation = $assignees;
+        shuffle($rotation);
+        $rotSize = count($rotation);
+
         for ($i = 1; $i <= $count; $i++) {
             $projectId = $projectIds[array_rand($projectIds)];
             $author    = $authors[array_rand($authors)];
-            $assignee  = $assignees[array_rand($assignees)];
+            $assignee  = $rotation[($i - 1) % $rotSize];
+            if ($i % $rotSize === 0) shuffle($rotation);
             $topic     = $topics[array_rand($topics)];
             $title     = sprintf($titles[array_rand($titles)], $topic);
             $stKey     = $statusPick[array_rand($statusPick)];
+            // Первые два круга — только открытые статусы: гарантируем,
+            // что у каждого сотрудника есть активные задачи в трекере.
+            if ($i <= $rotSize * 2) {
+                $openKeys = ['backlog', 'in_progress', 'review'];
+                $stKey = $openKeys[array_rand($openKeys)];
+            }
             $urgency   = $urgencies[array_rand($urgencies)];
             $type      = $types[array_rand($types)];
 

@@ -123,41 +123,40 @@ const HRDCareerTracksAnalytics = () => {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs">
-            <Route className="w-4 h-4" /> Активных треков
-          </div>
-          <p className="text-2xl font-bold text-foreground mt-1">{tracks.length}</p>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs">
-            <Users className="w-4 h-4" /> Участников
-          </div>
-          <p className="text-2xl font-bold text-foreground mt-1">{totalAssigned}</p>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs">
-            <TrendingUp className="w-4 h-4" /> Средний прогресс
-          </div>
-          <p className="text-2xl font-bold text-foreground mt-1">{avgProgress}%</p>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs">
-            <Gauge className="w-4 h-4" /> Завершили переход
-          </div>
-          <p className="text-2xl font-bold text-foreground mt-1">
-            {totalCompleted}
-            <span className="text-sm text-muted-foreground font-normal">
-              {" "}
-              ({Math.round((totalCompleted / Math.max(1, totalAssigned)) * 100)}%)
-            </span>
-          </p>
-        </div>
+        {[
+          { icon: Route, label: "Активных треков", value: String(tracks.length), to: "/career-tracks?tab=templates" },
+          { icon: Users, label: "Участников", value: String(totalAssigned), to: "/career-tracks?tab=assignments" },
+          { icon: TrendingUp, label: "Средний прогресс", value: `${avgProgress}%`, to: "/career-tracks?tab=assignments" },
+          {
+            icon: Gauge,
+            label: "Завершили переход",
+            value: `${totalCompleted} (${Math.round((totalCompleted / Math.max(1, totalAssigned)) * 100)}%)`,
+            to: "/career-tracks?tab=assignments",
+          },
+        ].map((kpi) => (
+          <button
+            key={kpi.label}
+            onClick={() => navigate(kpi.to)}
+            className="bg-card border border-border rounded-xl p-4 text-left transition-colors hover:border-primary/50"
+          >
+            <div className="flex items-center gap-2 text-muted-foreground text-xs">
+              <kpi.icon className="w-4 h-4" /> {kpi.label}
+            </div>
+            <p className="text-2xl font-bold text-foreground mt-1">{kpi.value}</p>
+          </button>
+        ))}
       </div>
 
       {/* Воронка переходов по каждому треку */}
       {tracks.map((t) => (
-        <div key={t.id} className="bg-card border border-border rounded-xl p-5">
+        <div
+          key={t.id}
+          role="button"
+          tabIndex={0}
+          onClick={() => navigate(`/career-tracks?template=${t.id}&tab=templates`)}
+          onKeyDown={(e) => e.key === "Enter" && navigate(`/career-tracks?template=${t.id}&tab=templates`)}
+          className="bg-card border border-border rounded-xl p-5 cursor-pointer transition-colors hover:border-primary/50"
+        >
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
             <h4 className="font-semibold text-foreground">Воронка перехода: {t.title}</h4>
             <span className="text-xs text-muted-foreground">
@@ -209,7 +208,11 @@ const HRDCareerTracksAnalytics = () => {
               </thead>
               <tbody>
                 {hardSteps.map((h) => (
-                  <tr key={`${h.template_id}-${h.step_order}`} className="border-b border-border/50">
+                  <tr
+                    key={`${h.template_id}-${h.step_order}`}
+                    onClick={() => navigate(`/career-tracks?template=${h.template_id}&tab=templates`)}
+                    className="border-b border-border/50 cursor-pointer hover:bg-secondary/40"
+                  >
                     <td className="py-2 pr-4">
                       <span className="font-medium text-foreground">{h.step_title}</span>
                       <span className="block text-xs text-muted-foreground">{h.track_title}</span>
@@ -254,7 +257,11 @@ const HRDCareerTracksAnalytics = () => {
             </thead>
             <tbody>
               {departments.map((d) => (
-                <tr key={d.department} className="border-b border-border/50">
+                <tr
+                  key={d.department}
+                  onClick={() => navigate(`/employee-map?department=${encodeURIComponent(d.department)}`)}
+                  className="border-b border-border/50 cursor-pointer hover:bg-secondary/40"
+                >
                   <td className="py-2 pr-4 font-medium text-foreground">{d.department}</td>
                   <td className="py-2 pr-4 text-center text-foreground">{d.employees}</td>
                   <td className="py-2 pr-4 text-center text-foreground">{d.avg_progress}%</td>

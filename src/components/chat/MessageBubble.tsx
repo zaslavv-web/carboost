@@ -74,7 +74,11 @@ const MessageBubble = ({
               <Smile className="w-3 h-3 text-muted-foreground" />
             </button>
             {pickerOpen && (
-              <div className="absolute bottom-6 right-0 bg-popover border border-border rounded-lg shadow-lg p-1 flex gap-0.5 z-10">
+              <div
+                className={`absolute bottom-6 bg-popover border border-border rounded-lg shadow-lg p-1 flex gap-0.5 z-50 max-w-[calc(100vw-2rem)] ${
+                  isOwn ? "right-0" : "left-0"
+                }`}
+              >
                 {QUICK_EMOJI.map((e) => (
                   <button
                     key={e}
