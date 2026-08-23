@@ -144,7 +144,11 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
 
     if (role === "hrd" || role === "hr") {
       return [
-        { key: "myWork", label: S("myWork"), entries: [myProfile, tracker] },
+        { key: "myWork", label: S("myWork"), entries: [
+          { icon: Rocket, label: "Чек-лист HRD", path: "/onboarding" },
+          myProfile,
+          tracker,
+        ] },
         { key: "communication", label: S("communication"), entries: [chats, feed, communities, { icon: Heart, label: t("nav.recognitionFeed"), path: "/recognition" }] },
         { key: "analytics", label: S("analytics"), entries: [
           dashboard,
@@ -210,7 +214,6 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         ]},
 
         { key: "knowledge", label: S("knowledge"), entries: [university, knowledgeBase] },
-        { key: "system", label: S("system"), entries: [branding, settings] },
       ];
     }
 
