@@ -20,6 +20,7 @@ class AiSettingsController extends Controller
     {
         $user = Auth::user();
         if (! $user) return response()->json(['error' => 'Unauthorized'], 401);
+        if (! $this->canManage($user)) return response()->json(['error' => 'Forbidden'], 403);
 
         $companyId = $this->companyId($request, $user);
         $row = DB::table('ai_settings')->where('company_id', $companyId)->first();
@@ -34,6 +35,7 @@ class AiSettingsController extends Controller
     {
         $user = Auth::user();
         if (! $user) return response()->json(['error' => 'Unauthorized'], 401);
+        if (! $this->canManage($user)) return response()->json(['error' => 'Forbidden'], 403);
 
         $data = $request->validate([
             'provider' => 'required|string|in:gemini,yandexgpt,gigachat,openai_compatible,internal_rag,disabled',
@@ -83,6 +85,7 @@ class AiSettingsController extends Controller
     {
         $user = Auth::user();
         if (! $user) return response()->json(['error' => 'Unauthorized'], 401);
+        if (! $this->canManage($user)) return response()->json(['error' => 'Forbidden'], 403);
 
         try {
             $companyId = $this->companyId($request, $user);
@@ -124,6 +127,16 @@ class AiSettingsController extends Controller
     {
         try { return $user && method_exists($user, 'hasRole') && $user->hasRole('superadmin'); }
         catch (\Throwable) { return false; }
+    }
+
+    protected function canManage($user): bool
+    {
+        try {
+            return $user && method_exists($user, 'hasRole')
+                && ($user->hasRole('company_admin') || $user->hasRole('superadmin'));
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     protected function presenter(?object $row): array

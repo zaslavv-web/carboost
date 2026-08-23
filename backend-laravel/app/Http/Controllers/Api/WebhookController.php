@@ -94,7 +94,7 @@ class WebhookController extends Controller
     private function authorizeAdmin(Request $request): void
     {
         $user = $request->user();
-        $allowed = $user && ($user->hasRole('hrd') || $user->hasRole('company_admin') || $user->hasRole('superadmin'));
+        $allowed = $user && ($user->hasRole('company_admin') || $user->hasRole('superadmin'));
         abort_unless($allowed, 403, 'Only HR admins can manage webhooks');
     }
 }
