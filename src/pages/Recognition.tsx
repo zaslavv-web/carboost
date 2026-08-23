@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -262,7 +263,7 @@ const Recognition = () => {
           const Icon = cat.icon;
           const isMine = rec.from_user_id === profile?.user_id;
           return (
-            <Card key={rec.id} className="glass p-5 hover-lift animate-scale-in">
+            <Card key={rec.id} className="glass p-5 animate-scale-in">
               <div className="flex items-start gap-4">
                 <div className="w-11 h-11 rounded-full gradient-primary flex items-center justify-center text-primary-foreground text-sm font-semibold shrink-0">
                   {initials(rec.from?.full_name)}
@@ -277,9 +278,11 @@ const Recognition = () => {
                       {t(`recognition.categories.${cat.value}`)}
                     </Badge>
                     {rec.coin_reward > 0 && (
-                      <Badge className="bg-warning/20 text-warning border-warning/40 gap-1">
-                        <Coins className="w-3 h-3" />+{rec.coin_reward}
-                      </Badge>
+                      <Link to="/motivation/earn" title={t("recognition.openWallet", { defaultValue: "Открыть кошелёк" })}>
+                        <Badge className="bg-warning/20 text-warning border-warning/40 gap-1 transition-colors hover:bg-warning hover:text-warning-foreground">
+                          <Coins className="w-3 h-3" />+{rec.coin_reward}
+                        </Badge>
+                      </Link>
                     )}
                   </div>
                   <p className="mt-2 text-foreground leading-relaxed whitespace-pre-wrap">{rec.message}</p>
