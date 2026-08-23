@@ -137,19 +137,6 @@ const TrackerToolbar = () => {
         ))}
       </nav>
       <div className="flex-1" />
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={() => navigate("/tracker/projects")}
-            className="h-8 inline-flex items-center gap-1.5 rounded-md px-2.5 text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Новый проект</span>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={6}>Новый проект</TooltipContent>
-      </Tooltip>
     </div>
   );
 };
