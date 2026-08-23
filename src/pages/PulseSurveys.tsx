@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { ImportQuestionsDialog } from "@/components/pulse/ImportQuestionsDialog";
 import { AssignAudienceDialog } from "@/components/pulse/AssignAudienceDialog";
 import { useAudience } from "@/hooks/usePulseTargeting";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 type Survey = {
   id: string;
