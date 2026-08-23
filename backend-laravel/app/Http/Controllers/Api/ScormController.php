@@ -313,7 +313,7 @@ class ScormController extends Controller
 
         // Stateless encrypted ticket: unlike file cache it works when POST and
         // iframe GET hit different PHP workers/instances.
-        $ticket = Crypt::encryptString((string) json_encode([
+        $encryptedTicket = Crypt::encryptString((string) json_encode([
             'user_id'       => $uid,
             'course_id'     => $courseId,
             'lesson_id'     => $lessonId,
@@ -322,6 +322,7 @@ class ScormController extends Controller
             'exp'           => time() + 120,
             'nonce'         => Str::random(16),
         ]));
+        $ticket = rtrim(strtr(base64_encode($encryptedTicket), '+/', '-_'), '=');
 
         return response()->json([
             'ticket'     => $ticket,
@@ -336,7 +337,11 @@ class ScormController extends Controller
     public function launchByTicket(Request $r, string $ticket)
     {
         try {
-            $payload = json_decode(Crypt::decryptString($ticket), true, 512, JSON_THROW_ON_ERROR);
+            $encodedTicket = strtr($ticket, '-_', '+/');
+            $encodedTicket .= str_repeat('=', (4 - strlen($encodedTicket) % 4) % 4);
+            $encryptedTicket = base64_decode($encodedTicket, true);
+            if (! is_string($encryptedTicket)) throw new \RuntimeException('Invalid launch ticket');
+            $payload = json_decode(Crypt::decryptString($encryptedTicket), true, 512, JSON_THROW_ON_ERROR);
         } catch (\Throwable $exception) {
             $payload = null;
         }
