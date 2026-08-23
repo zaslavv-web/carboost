@@ -23,6 +23,7 @@ class SeedTrackerTasks extends Command
         {--owner-email= : Email действующего company_admin/hrd компании}
         {--company-id= : Альтернатива: явный UUID компании}
         {--count=1000 : Количество задач}
+        {--per-user=0 : Минимум задач на каждого сотрудника (увеличит --count при необходимости)}
         {--projects=6 : Количество проектов}
         {--sprints=4 : Количество активных спринтов}
         {--marker=tracker150 : Метка для идемпотентности}
