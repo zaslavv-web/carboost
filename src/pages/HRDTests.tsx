@@ -347,14 +347,14 @@ const HRDTests = () => {
                 >
                   <Eye className="w-4 h-4 text-muted-foreground" />
                 </button>
-                <details className="relative text-xs">
-                  <summary className="flex cursor-pointer items-center gap-1 text-muted-foreground"><Pencil className="h-3.5 w-3.5" />Аудитория</summary>
-                  <div className="absolute right-0 z-20 mt-2 w-72 space-y-3 rounded border border-border bg-popover p-3 shadow-lg">
-                    <AudienceGroup title="Отделы" options={departments.map((value) => ({ value, label: value }))} selected={item.audience_rules?.departments || []} onToggle={(value) => toggleAudienceValue(item, "departments", value)} />
-                    <AudienceGroup title="Должности" options={positions.map((position) => ({ value: position.id, label: position.title }))} selected={item.audience_rules?.position_ids || []} onToggle={(value) => toggleAudienceValue(item, "position_ids", value)} />
-                    <AudienceGroup title="Сотрудники" options={employees.map((employee: any) => ({ value: employee.user_id, label: employee.full_name }))} selected={item.audience_rules?.user_ids || []} onToggle={(value) => toggleAudienceValue(item, "user_ids", value)} />
-                  </div>
-                </details>
+                <AudienceDialog
+                  test={item}
+                  departments={departments}
+                  positions={positions}
+                  employees={employees}
+                  onToggle={(group, value) => toggleAudienceValue(item, group, value)}
+                />
+
                 <button onClick={() => saveAudience.mutate({ id: item.id, audience_rules: item.audience_rules || {} })} title="Назначить заново" className="p-2 rounded-lg hover:bg-secondary"><RefreshCw className="h-4 w-4 text-muted-foreground" /></button>
                 <button
                   onClick={() => toggleActive.mutate({ id: item.id, value: !item.is_active })}
