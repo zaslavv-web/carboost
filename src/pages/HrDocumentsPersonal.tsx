@@ -63,6 +63,8 @@ const HrDocumentsPersonal = () => {
   const isHr = role === "hr" || role === "hrd" || role === "company_admin" || role === "superadmin";
   const [tab, setTab] = useState<"mine" | "all" | "expiring">(isHr ? "all" : "mine");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [openDoc, setOpenDoc] = useState<Doc | null>(null);
+
 
   const { data: mine = [], isLoading: loadingMine } = useQuery({
     queryKey: ["hr-docs", "mine", profile?.user_id],
