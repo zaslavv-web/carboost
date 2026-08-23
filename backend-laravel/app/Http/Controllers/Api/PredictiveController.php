@@ -45,8 +45,12 @@ class PredictiveController extends Controller
         $companyId = $this->companyId();
         if (! $companyId) return response()->json(['error' => 'company_required'], 422);
 
+        $horizon = (int) $r->query('horizon_days', 180);
+        if (! in_array($horizon, [90, 180, 365], true)) $horizon = 180;
+
         $rows = DB::table('attrition_predictions')
             ->where('company_id', $companyId)
+            ->where('horizon_days', $horizon)
             ->get(['probability', 'band', 'computed_at', 'base_rate']);
 
         $headcount = (int) DB::table('profiles')->where('company_id', $companyId)->count();
@@ -97,6 +101,7 @@ class PredictiveController extends Controller
         $q = DB::table('attrition_predictions as ap')
             ->leftJoin('profiles as p', 'p.user_id', '=', 'ap.user_id')
             ->where('ap.company_id', $companyId)
+            ->where('ap.horizon_days', (int) ($r->query('horizon_days') ?: 180))
             ->select([
                 'ap.user_id', 'ap.probability', 'ap.band', 'ap.drivers', 'ap.computed_at',
                 'p.full_name', 'p.position', 'p.department', 'p.avatar_url',
