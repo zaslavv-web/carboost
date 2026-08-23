@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -311,14 +311,18 @@ class ScormController extends Controller
         $ctx = $this->resolveLaunchContext($uid, $courseId, $lessonId);
         if ($ctx instanceof \Illuminate\Http\JsonResponse) return $ctx;
 
-        $ticket = Str::random(48);
-        Cache::put('scorm_ticket:' . $ticket, [
+        // Stateless encrypted ticket: unlike file cache it works when POST and
+        // iframe GET hit different PHP workers/instances.
+        $encryptedTicket = Crypt::encryptString((string) json_encode([
             'user_id'       => $uid,
             'course_id'     => $courseId,
             'lesson_id'     => $lessonId,
             'enrollment_id' => $ctx['enrollment_id'],
             'package_path'  => $ctx['package_path'],
-        ], now()->addSeconds(60));
+            'exp'           => time() + 120,
+            'nonce'         => Str::random(16),
+        ]));
+        $ticket = rtrim(strtr(base64_encode($encryptedTicket), '+/', '-_'), '=');
 
         return response()->json([
             'ticket'     => $ticket,
@@ -332,14 +336,20 @@ class ScormController extends Controller
      */
     public function launchByTicket(Request $r, string $ticket)
     {
-        $key = 'scorm_ticket:' . $ticket;
-        $payload = Cache::get($key);
-        if (! is_array($payload)) {
+        try {
+            $encodedTicket = strtr($ticket, '-_', '+/');
+            $encodedTicket .= str_repeat('=', (4 - strlen($encodedTicket) % 4) % 4);
+            $encryptedTicket = base64_decode($encodedTicket, true);
+            if (! is_string($encryptedTicket)) throw new \RuntimeException('Invalid launch ticket');
+            $payload = json_decode(Crypt::decryptString($encryptedTicket), true, 512, JSON_THROW_ON_ERROR);
+        } catch (\Throwable $exception) {
+            $payload = null;
+        }
+        if (! is_array($payload) || (int) ($payload['exp'] ?? 0) < time()) {
             return new Response('Ссылка устарела, откройте урок заново.', 410, ['Content-Type' => 'text/plain; charset=utf-8']);
         }
-        // Не удаляем тикет при первом GET: браузер, антивирус или прокси могут
-        // предварительно открыть URL до iframe. TTL и случайный 48-символьный
-        // токен сохраняют ограниченное окно доступа без хрупкой single-use гонки.
+        // Тикет допускает повторный GET в течение двух минут: браузер, антивирус
+        // или прокси могут предварительно открыть URL до iframe.
 
         $course = DB::table('courses')->where('id', $payload['course_id'])->first();
         $lesson = DB::table('lessons')->where('id', $payload['lesson_id'])->first();

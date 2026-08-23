@@ -47,6 +47,7 @@ class AuthServiceProvider extends ServiceProvider
         Models\EmailDomainPositionMapping::class => CompanyScopedPolicy::class,
         Models\CompanyCurrencySettings::class  => CompanyScopedPolicy::class,
         Models\CompanyOnboardingSettings::class => CompanyScopedPolicy::class,
+        Models\HrdChecklistItem::class          => CompanyScopedPolicy::class,
         Models\EmployeeInvitation::class       => CompanyScopedPolicy::class,
         Models\EmployeeReward::class           => CompanyScopedPolicy::class,
         Models\EmployeeRiskScore::class        => CompanyScopedPolicy::class,

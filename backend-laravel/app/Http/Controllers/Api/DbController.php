@@ -96,6 +96,7 @@ class DbController extends Controller
         'currency_transactions'    => \App\Models\CurrencyTransaction::class,
         'company_currency_settings' => \App\Models\CompanyCurrencySettings::class,
         'company_onboarding_settings' => \App\Models\CompanyOnboardingSettings::class,
+        'hrd_checklist_items'      => \App\Models\HrdChecklistItem::class,
         'demo_requests'            => \App\Models\DemoRequest::class,
         'employee_invitations'     => \App\Models\EmployeeInvitation::class,
         'employee_questionnaires'  => \App\Models\EmployeeQuestionnaire::class,
