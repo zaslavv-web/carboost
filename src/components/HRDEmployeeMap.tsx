@@ -181,6 +181,16 @@ const HRDEmployeeMap = ({ standalone = false }: { standalone?: boolean } = {}) =
   const [activeDept, setActiveDept] = useState<string | null>(null);
   const [activeTeamManagerId, setActiveTeamManagerId] = useState<string | null>(null);
 
+  // Drill-down из других дашбордов: /employee-map?department=<name>
+  useEffect(() => {
+    const dept = new URLSearchParams(window.location.search).get("department");
+    if (dept) {
+      setActiveDept(dept);
+      setMapLevel("department");
+    }
+  }, []);
+
+
 
   // Единый агрегированный запрос карты: раньше здесь было четыре широких
   // выборки (включая hr_tasks с select *), из-за чего карта грузилась секундами.
