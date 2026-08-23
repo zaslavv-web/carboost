@@ -157,7 +157,14 @@ const HRDCareerTracksAnalytics = () => {
 
       {/* Воронка переходов по каждому треку */}
       {tracks.map((t) => (
-        <div key={t.id} className="bg-card border border-border rounded-xl p-5">
+        <div
+          key={t.id}
+          role="button"
+          tabIndex={0}
+          onClick={() => navigate(`/career-tracks?template=${t.id}&tab=templates`)}
+          onKeyDown={(e) => e.key === "Enter" && navigate(`/career-tracks?template=${t.id}&tab=templates`)}
+          className="bg-card border border-border rounded-xl p-5 cursor-pointer transition-colors hover:border-primary/50"
+        >
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
             <h4 className="font-semibold text-foreground">Воронка перехода: {t.title}</h4>
             <span className="text-xs text-muted-foreground">
@@ -209,7 +216,11 @@ const HRDCareerTracksAnalytics = () => {
               </thead>
               <tbody>
                 {hardSteps.map((h) => (
-                  <tr key={`${h.template_id}-${h.step_order}`} className="border-b border-border/50">
+                  <tr
+                    key={`${h.template_id}-${h.step_order}`}
+                    onClick={() => navigate(`/career-tracks?template=${h.template_id}&tab=templates`)}
+                    className="border-b border-border/50 cursor-pointer hover:bg-secondary/40"
+                  >
                     <td className="py-2 pr-4">
                       <span className="font-medium text-foreground">{h.step_title}</span>
                       <span className="block text-xs text-muted-foreground">{h.track_title}</span>
