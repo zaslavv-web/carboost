@@ -1,7 +1,7 @@
 import { laravelDb } from "@/integrations/laravel/db";
 import { tooltipProps } from "@/lib/chartTooltip";
-import { useMemo, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Card } from "@/components/ui/card";
@@ -56,18 +56,31 @@ const RiskAnalytics = () => {
   const { data: profile } = useUserProfile();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selected, setSelected] = useState<string | null>(null);
   const [selectionMode, setSelectionMode] = useState<"auto" | "manual">("auto");
-  const [levelFilter, setLevelFilter] = useState<"all" | "low" | "medium" | "high">("all");
-  const [deptFilter, setDeptFilter] = useState<string | null>(null);
+  const initialLevel = searchParams.get("level");
+  const [levelFilter, setLevelFilter] = useState<"all" | "low" | "medium" | "high">(
+    initialLevel === "low" || initialLevel === "medium" || initialLevel === "high" ? initialLevel : "all",
+  );
+  const [deptFilter, setDeptFilter] = useState<string | null>(searchParams.get("department"));
   const tableRef = useRef<HTMLDivElement>(null);
   const applyFilter = (dept: string | null, level: "all" | "low" | "medium" | "high") => {
     setDeptFilter(dept);
     setLevelFilter(level);
     setSelectionMode("auto");
     setSelected(null);
+    const next = new URLSearchParams(searchParams);
+    if (dept) next.set("department", dept); else next.delete("department");
+    if (level !== "all") next.set("level", level); else next.delete("level");
+    setSearchParams(next, { replace: true });
     setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   };
+  useEffect(() => {
+    const level = searchParams.get("level");
+    setLevelFilter(level === "low" || level === "medium" || level === "high" ? level : "all");
+    setDeptFilter(searchParams.get("department"));
+  }, [searchParams]);
   const pickEmployee = (userId: string) => {
     setSelectionMode("manual");
     setSelected(userId);
