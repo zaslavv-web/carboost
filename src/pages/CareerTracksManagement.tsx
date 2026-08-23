@@ -445,7 +445,7 @@ const CareerTracksManagement = () => {
             const toPos = tpl.to_position_id ? posMap[tpl.to_position_id] : null;
             const steps = (tpl.steps as unknown as Step[]) || [];
             return (
-              <div key={tpl.id} className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
+              <div key={tpl.id} id={`track-${tpl.id}`} className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
                 <div className="p-5 flex items-center gap-4 cursor-pointer hover:bg-secondary/30 transition-colors"
                   onClick={() => setExpandedId(isExpanded ? null : tpl.id)}>
                   <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
