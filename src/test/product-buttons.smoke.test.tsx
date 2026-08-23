@@ -211,8 +211,9 @@ describe("смоук-тесты критичных кнопок продукта
     // Секция → группа → дочерний пункт.
     fireEvent.click(await screen.findByRole("button", { name: /^Управление/i }));
     fireEvent.click(await screen.findByRole("button", { name: /^Сотрудники/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /^Список/i }));
-    expect(mocks.navigate).toHaveBeenCalledWith("/users");
+    fireEvent.click(await screen.findByRole("button", { name: /^Планы адаптации/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/adaptation-plans");
+
 
     fireEvent.click(await screen.findByRole("button", { name: /^Аналитика/i }));
     fireEvent.click(await screen.findByRole("button", { name: /Риски/i }));
