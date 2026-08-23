@@ -130,7 +130,14 @@ const HrDocumentsPersonal = () => {
     const expired = d.valid_until && new Date(d.valid_until) < new Date();
     const typeLabel = DOC_TYPES.find((t) => t.value === d.document_type)?.label || d.document_type || "—";
     return (
-      <div key={d.id} className="bg-card border border-border rounded-lg p-4 space-y-2">
+      <div
+        key={d.id}
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpenDoc(d)}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpenDoc(d)}
+        className="bg-card border border-border rounded-lg p-4 space-y-2 cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors"
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -147,7 +154,7 @@ const HrDocumentsPersonal = () => {
             {isHr && d.owner_user_id && (
               <p className="text-xs text-muted-foreground mt-1">👤 {empName(d.owner_user_id)}</p>
             )}
-            {d.description && <p className="text-sm mt-1.5">{d.description}</p>}
+            {d.description && <p className="text-sm mt-1.5 line-clamp-2">{d.description}</p>}
             <p className="text-xs text-muted-foreground mt-2 flex items-center gap-3 flex-wrap">
               {d.valid_from && <span>С: {format(new Date(d.valid_from), "dd.MM.yyyy")}</span>}
               {d.valid_until && (
@@ -158,7 +165,7 @@ const HrDocumentsPersonal = () => {
               <span>Загружен: {format(new Date(d.created_at), "dd.MM.yyyy")}</span>
             </p>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
             {d.file_url && (
               <Button size="sm" variant="ghost" asChild>
                 <a href={d.file_url} target="_blank" rel="noopener noreferrer">
@@ -180,6 +187,7 @@ const HrDocumentsPersonal = () => {
       </div>
     );
   };
+
 
   const renderList = (items: Doc[], loading: boolean, emptyMsg: string) => {
     if (loading) return <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto my-12" />;
