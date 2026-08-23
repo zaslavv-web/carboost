@@ -349,9 +349,126 @@ const AdaptationPlans = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      <AssignmentDetailDialog
+        assignmentId={openAssignment}
+        onOpenChange={(v) => setOpenAssignment(v ? openAssignment : null)}
+        assignment={assignmentsQ.data?.find((a) => a.id === openAssignment) ?? null}
+        planTitle={plansQ.data?.find((p) => p.id === assignmentsQ.data?.find((a) => a.id === openAssignment)?.plan_id)?.title ?? ""}
+        employeeName={openAssignment ? employeeLabel(assignmentsQ.data?.find((a) => a.id === openAssignment)?.user_id ?? "") : ""}
+        companyId={companyId ?? null}
+      />
     </div>
   );
 };
+
+/** Drill-in по назначению адаптации: шаги плана + прогресс сотрудника. */
+const AssignmentDetailDialog = ({
+  assignmentId, onOpenChange, assignment, planTitle, employeeName, companyId,
+}: {
+  assignmentId: string | null;
+  onOpenChange: (open: boolean) => void;
+  assignment: Assignment | null;
+  planTitle: string;
+  employeeName: string;
+  companyId: string | null;
+}) => {
+  const qc = useQueryClient();
+
+  const stepsQ = useQuery({
+    queryKey: ["onboarding_plan_steps", assignment?.plan_id],
+    enabled: !!assignment?.plan_id,
+    queryFn: async () => {
+      const { data, error } = await laravelDb
+        .from("onboarding_plan_steps" as any)
+        .select("*")
+        .eq("plan_id", assignment!.plan_id)
+        .order("order_index");
+      if (error) throw error;
+      return (data as any[] as Step[]) ?? [];
+    },
+  });
+
+  const progressQ = useQuery({
+    queryKey: ["onboarding_step_progress", assignmentId],
+    enabled: !!assignmentId,
+    queryFn: async () => {
+      const { data, error } = await laravelDb
+        .from("onboarding_step_progress" as any)
+        .select("*")
+        .eq("assignment_id", assignmentId!);
+      if (error) throw error;
+      return (data as any[]) ?? [];
+    },
+  });
+
+  const toggle = useMutation({
+    mutationFn: async ({ stepId, done }: { stepId: string; done: boolean }) => {
+      const existing = progressQ.data?.find((p: any) => String(p.step_id) === String(stepId));
+      const status = done ? "done" : "pending";
+      const completed_at = done ? new Date().toISOString() : null;
+      if (existing) {
+        const { error } = await laravelDb
+          .from("onboarding_step_progress" as any)
+          .update({ status, completed_at })
+          .eq("id", existing.id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await laravelDb.from("onboarding_step_progress" as any).insert({
+        company_id: companyId, assignment_id: assignmentId, step_id: stepId, status, completed_at,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["onboarding_step_progress", assignmentId] });
+      qc.invalidateQueries({ queryKey: ["onboarding_assignments"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Не удалось обновить шаг"),
+  });
+
+  const steps = stepsQ.data ?? [];
+  const doneCount = steps.filter((s) =>
+    progressQ.data?.some((p: any) => String(p.step_id) === String(s.id) && p.status === "done"),
+  ).length;
+
+  return (
+    <Dialog open={!!assignmentId} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{employeeName || "Адаптация"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {planTitle || "План не найден"} • старт {assignment?.start_date ?? "—"} • выполнено {doneCount} из {steps.length}
+          </p>
+          {steps.length === 0 && <p className="text-sm text-muted-foreground">В плане ещё нет шагов</p>}
+          {steps.map((s) => {
+            const done = progressQ.data?.some((p: any) => String(p.step_id) === String(s.id) && p.status === "done") ?? false;
+            return (
+              <label key={s.id} className="flex items-start gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted/40">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={done}
+                  onChange={(e) => toggle.mutate({ stepId: s.id, done: e.target.checked })}
+                />
+                <div className="min-w-0">
+                  <p className={`text-sm font-medium ${done ? "line-through text-muted-foreground" : ""}`}>{s.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {STAGES.find((x) => x.value === s.stage)?.label} • {STEP_TYPES.find((x) => x.value === s.step_type)?.label} • +{s.due_offset_days} дн.
+                  </p>
+                  {s.description && <p className="text-xs text-muted-foreground mt-1">{s.description}</p>}
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 
 const NewPlanForm = ({ onSubmit, loading }: { onSubmit: (v: any) => void; loading: boolean }) => {
   const [v, setV] = useState({ title: "", description: "", duration_days: 90, target_role: "employee" });
