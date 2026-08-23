@@ -1849,10 +1849,6 @@ class SeedDemoCompany extends Command
             }
         }
 
-        $this->seedDemoLeaves($admin, $profiles);
-        $this->seedDemoPersonalDocuments($admin, $profiles);
-        $this->seedDemoKedo($admin, $profiles);
-
         if (Schema::hasTable('performance_cycles') && DB::table('performance_cycles')->where('company_id', $this->companyId)->doesntExist()) {
             $this->seedPerformance();
         }
