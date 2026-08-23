@@ -112,7 +112,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: Banknote, label: t("nav.pricingInquiries"), path: "/pricing-inquiries" },
         ]},
         { key: "knowledge", label: S("knowledge"), entries: [university, knowledgeBase] },
-        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, securityNav, settings] },
+        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, securityNav, accessControlNav, settings] },
       ];
     }
 
@@ -140,7 +140,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
           { icon: BookOpen, label: t("nav.knowledgeBase", { defaultValue: "База знаний" }), path: "/knowledge-base" },
           { icon: Target, label: t("nav.idp", { defaultValue: "Планы развития (ИПР)" }), path: "/idp" },
         ] },
-        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, securityNav, settings] },
+        { key: "system", label: S("system"), entries: [branding, aiSettings, integrations, oneC, securityNav, accessControlNav, settings] },
       ];
     }
 

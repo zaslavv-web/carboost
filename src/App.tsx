@@ -71,6 +71,7 @@ import TalentReview from "@/pages/TalentReview";
 import PredictiveAnalytics from "@/pages/PredictiveAnalytics";
 import Kedo from "@/pages/Kedo";
 import Security from "@/pages/Security";
+import AccessControl from "@/pages/AccessControl";
 import SsoCallback from "@/pages/SsoCallback";
 import MyDocuments from "@/pages/employee/MyDocuments";
 import Probation from "@/pages/Probation";
@@ -242,6 +243,7 @@ const App = () => (
                 <Route path="/talent-review" element={<TalentReview />} />
                 <Route path="/predictive-analytics" element={<PredictiveAnalytics />} />
                 <Route path="/kedo" element={<Kedo />} />
+                <Route path="/access-control" element={<RoleOnly roles={["company_admin", "superadmin"]} fallback="/dashboard"><AccessControl /></RoleOnly>} />
                 <Route path="/security" element={<RoleOnly roles={["company_admin", "superadmin"]} fallback="/dashboard"><Security /></RoleOnly>} />
                 <Route path="/my-documents" element={<MyDocuments />} />
                 <Route path="/feed" element={<CorporateFeed />} />
