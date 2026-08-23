@@ -91,20 +91,28 @@ class DemoSeedController extends Controller
         $params = ['--headcount' => $headcount, '--name' => $this->companyName($request)];
         if ($reset) $params['--reset'] = true;
 
-        Artisan::call('demo:seed', $params);
+        $exitCode = Artisan::call('demo:seed', $params);
         $output = Artisan::output();
-        return response()->json(['ok' => true, 'output' => $output]);
+        return response()->json([
+            'ok' => $exitCode === 0,
+            'output' => $output,
+            'exit_code' => $exitCode,
+        ], $exitCode === 0 ? 200 : 422);
     }
 
     public function reset(Request $request): JsonResponse
     {
         $this->requireSuperadmin($request);
-        Artisan::call('demo:seed', [
+        $exitCode = Artisan::call('demo:seed', [
             '--reset' => true,
             '--headcount' => (int) $request->input('headcount', 150),
             '--name' => $this->companyName($request),
         ]);
-        return response()->json(['ok' => true, 'output' => Artisan::output()]);
+        return response()->json([
+            'ok' => $exitCode === 0,
+            'output' => Artisan::output(),
+            'exit_code' => $exitCode,
+        ], $exitCode === 0 ? 200 : 422);
     }
 
     /** Идемпотентно догоняет контент во всех рабочих модулях существующей компании. */

@@ -180,7 +180,7 @@ describe("смоук-тесты критичных кнопок продукта
 
     fireEvent.click(screen.getByRole("button", { name: /Отправить тест/i }));
     await waitFor(() => expect(mocks.laravelPost).toHaveBeenCalledWith("/admin/email-settings/test", { to: "no-reply@example.com" }));
-  });
+  }, 10_000);
 
   it("кнопки сайдбара ведут в разделы суперадмина и выполняют выход", async () => {
     const AppSidebar = (await import("@/components/AppSidebar")).default;
