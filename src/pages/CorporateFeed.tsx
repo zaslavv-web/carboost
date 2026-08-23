@@ -88,8 +88,33 @@ export default function CorporateFeed() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["portal-posts"] }),
   });
 
+  // Мои реакции — чтобы «лайк» работал как переключатель, а не падал с 422
+  // на уникальном индексе (post_id, user_id) при повторном клике.
+  const { data: myReactions = [] } = useQuery({
+    queryKey: ["portal-my-reactions", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await laravelDb
+        .from("portal_post_reactions" as any)
+        .select("*")
+        .eq("user_id", userId!)
+        .limit(500);
+      if (error) throw error;
+      return (data as any[]) ?? [];
+    },
+  });
+  const reactionByPost = new Map<string, string>(
+    myReactions.map((r: any) => [String(r.post_id), String(r.id)]),
+  );
+
   const react = useMutation({
     mutationFn: async (postId: string) => {
+      const existing = reactionByPost.get(postId);
+      if (existing) {
+        const { error } = await laravelDb.from("portal_post_reactions" as any).delete().eq("id", existing);
+        if (error) throw error;
+        return;
+      }
       const { error } = await laravelDb.from("portal_post_reactions" as any).insert({
         company_id: companyId,
         post_id: postId,
@@ -98,8 +123,11 @@ export default function CorporateFeed() {
       });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["portal-posts"] }),
-    onError: () => toast.error("Уже отреагировали"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["portal-posts"] });
+      qc.invalidateQueries({ queryKey: ["portal-my-reactions"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Не удалось поставить реакцию"),
   });
 
   return (
