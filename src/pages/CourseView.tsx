@@ -36,9 +36,10 @@ function toEmbed(url: string): string {
  * запрашиваем одноразовый тикет запуска и подставляем выданный URL.
  */
 function ScormFrame({ courseId, lessonId, title }: { courseId: string; lessonId: string; title: string }) {
-  const [state, setState] = useState<{ url?: string; error?: string; loading: boolean; loaded?: boolean }>({ loading: true });
+  const [state, setState] = useState<{ url?: string; error?: string; loading: boolean; loaded?: boolean }>({ loading: false });
   const [attempt, setAttempt] = useState(0);
   const [openingExternal, setOpeningExternal] = useState(false);
+  const [requested, setRequested] = useState(false);
 
   // Тикет запуска одноразовый: для нового окна всегда берём свежий,
   // иначе повторное открытие того же URL отдаёт «Ссылка устарела».
@@ -61,6 +62,7 @@ function ScormFrame({ courseId, lessonId, title }: { courseId: string; lessonId:
 
 
   useEffect(() => {
+    if (!requested) return;
     let cancelled = false;
     setState({ loading: true });
     laravel
@@ -84,15 +86,15 @@ function ScormFrame({ courseId, lessonId, title }: { courseId: string; lessonId:
     return () => {
       cancelled = true;
     };
-  }, [courseId, lessonId, attempt]);
+  }, [courseId, lessonId, attempt, requested]);
 
-  useEffect(() => {
-    const refreshAfterBackground = () => {
-      if (document.visibilityState === "visible") setAttempt((current) => current + 1);
-    };
-    document.addEventListener("visibilitychange", refreshAfterBackground);
-    return () => document.removeEventListener("visibilitychange", refreshAfterBackground);
-  }, []);
+  if (!requested) {
+    return (
+      <div className="aspect-[16/10] w-full rounded border bg-muted/30 flex items-center justify-center">
+        <Button onClick={() => setRequested(true)}><PlayCircle className="mr-2 h-4 w-4" />Открыть урок</Button>
+      </div>
+    );
+  }
 
   if (state.loading) {
     return <div className="aspect-[16/10] w-full rounded border bg-muted/30 animate-pulse" />;

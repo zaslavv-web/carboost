@@ -153,8 +153,8 @@ const HRDCareerTracksAnalytics = () => {
           key={t.id}
           role="button"
           tabIndex={0}
-          onClick={() => navigate(`/career-tracks?template=${t.id}&tab=templates`)}
-          onKeyDown={(e) => e.key === "Enter" && navigate(`/career-tracks?template=${t.id}&tab=templates`)}
+          onClick={() => navigate(`/career-tracks?template=${t.id}&tab=assignments`)}
+          onKeyDown={(e) => e.key === "Enter" && navigate(`/career-tracks?template=${t.id}&tab=assignments`)}
           className="bg-card border border-border rounded-xl p-5 cursor-pointer transition-colors hover:border-primary/50"
         >
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
@@ -176,7 +176,7 @@ const HRDCareerTracksAnalytics = () => {
               />
               <YAxis allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
               <Tooltip {...tooltipProps("bar")} />
-              <Bar dataKey="reached" name="Дошли" radius={[6, 6, 0, 0]}>
+              <Bar dataKey="reached" name="Дошли" radius={[6, 6, 0, 0]} cursor="pointer" onClick={(row: FunnelPoint) => navigate(`/career-tracks?template=${t.id}&step=${row.step}&tab=assignments`)}>
                 {t.funnel.map((f, i) => (
                   <Cell key={i} fill={i === t.funnel.length - 1 ? "hsl(var(--success))" : "hsl(var(--primary))"} />
                 ))}
@@ -210,7 +210,7 @@ const HRDCareerTracksAnalytics = () => {
                 {hardSteps.map((h) => (
                   <tr
                     key={`${h.template_id}-${h.step_order}`}
-                    onClick={() => navigate(`/career-tracks?template=${h.template_id}&tab=templates`)}
+                    onClick={() => navigate(`/career-tracks?template=${h.template_id}&step=${h.step_order}&tab=assignments`)}
                     className="border-b border-border/50 cursor-pointer hover:bg-secondary/40"
                   >
                     <td className="py-2 pr-4">

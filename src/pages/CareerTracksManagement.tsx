@@ -53,6 +53,8 @@ const CareerTracksManagement = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [tab, setTab] = useState<"templates" | "assignments">("templates");
   const [searchParams] = useSearchParams();
+  const selectedTemplate = searchParams.get("template");
+  const selectedStep = searchParams.get("step");
 
   // Drill-down из дашбордов: /career-tracks?template=<id>&tab=assignments
   useEffect(() => {
@@ -581,7 +583,11 @@ const CareerTracksManagement = () => {
               <p className="text-sm text-muted-foreground">{t("careerTracks.emptyAssignmentsHint")}</p>
             </div>
           )}
-          {assignments.map(a => {
+          {assignments.filter((assignment) => {
+            if (selectedTemplate && assignment.template_id !== selectedTemplate) return false;
+            if (selectedStep !== null && Number(assignment.current_step) !== Number(selectedStep)) return false;
+            return true;
+          }).map(a => {
             const p = profileMap[a.user_id];
             const tpl = templates.find(tpl => tpl.id === a.template_id);
             return (

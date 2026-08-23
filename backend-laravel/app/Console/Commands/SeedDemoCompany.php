@@ -1744,6 +1744,18 @@ class SeedDemoCompany extends Command
         $this->info('5/6  Сценарии, адаптация, приглашения, документы, КЭДО и отсутствия…');
         DB::transaction(fn () => $this->seedMissingContentModules());
 
+        $this->info('5.1/6  Тесты, оценки, карьерные треки и Performance…');
+        if (DB::table('closed_question_tests')->where('company_id', $this->companyId)->doesntExist()) {
+            DB::transaction(fn () => $this->seedTestsAndAssessments());
+        }
+        DB::transaction(function () {
+            $this->createCareerTracks();
+            $this->assignCareerTracks();
+        });
+        if (Schema::hasTable('performance_cycles') && DB::table('performance_cycles')->where('company_id', $this->companyId)->doesntExist()) {
+            DB::transaction(fn () => $this->seedPerformance());
+        }
+
         $this->info('6/6  Задачи трекера…');
         $this->seedTrackerContent();
         $this->validateContentResult();
@@ -1778,6 +1790,16 @@ class SeedDemoCompany extends Command
             'tracker_tasks' => 'задачи трекера',
             'shop_products' => 'товары магазина',
             'knowledge_articles' => 'база знаний',
+            'assessment_scenarios' => 'сценарии оценки',
+            'closed_question_tests' => 'тесты',
+            'onboarding_plans' => 'планы адаптации',
+            'employee_invitations' => 'приглашения',
+            'performance_cycles' => 'Performance',
+            'hr_documents' => 'HR-документы',
+            'kedo_documents' => 'КЭДО',
+            'leave_requests' => 'отсутствия',
+            'career_track_templates' => 'карьерные треки',
+            'employee_career_assignments' => 'назначения карьерных треков',
         ];
         $empty = [];
         foreach ($required as $table => $label) {
@@ -2156,12 +2178,14 @@ class SeedDemoCompany extends Command
             if ($existing) {
                 DB::table('portal_communities')->where('id', $cid)->update([
                     'title' => $title, 'description' => $desc, 'privacy' => 'open',
+                    'cover_url' => $this->productImage($title),
                     'owner_id' => $owner, 'members_count' => count($members), 'updated_at' => now(),
                 ]);
             } else {
                 DB::table('portal_communities')->insert([
                     'id' => $cid, 'company_id' => $this->companyId,
                     'title' => $title, 'slug' => $slug, 'description' => $desc,
+                    'cover_url' => $this->productImage($title),
                     'privacy' => 'open', 'owner_id' => $owner, 'members_count' => count($members),
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
