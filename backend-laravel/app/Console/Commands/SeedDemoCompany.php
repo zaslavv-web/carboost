@@ -2122,12 +2122,15 @@ class SeedDemoCompany extends Command
         if (DB::table('leave_requests')->where('company_id', $this->companyId)->exists()) return;
 
         $codes = array_keys($typeIds);
-        $statuses = ['approved', 'pending_manager', 'pending_hr', 'approved', 'rejected', 'cancelled'];
-        foreach ($profiles->take(20) as $i => $profile) {
+        // Большинство заявок — approved и распределены по последним 6 месяцам,
+        // иначе график «Доля отсутствий» (окно 6 месяцев) выглядит пустым.
+        $statuses = ['approved', 'approved', 'pending_manager', 'approved', 'rejected', 'approved', 'pending_hr', 'approved', 'cancelled', 'approved'];
+        foreach ($profiles->take(24) as $i => $profile) {
             $code = $codes[$i % count($codes)];
             $status = $statuses[$i % count($statuses)];
-            $start = now()->addDays(($i % 6) * 7 - 21);
+            $start = now()->startOfMonth()->subMonths(5 - ($i % 6))->addDays(2 + ($i % 17));
             $days = 3 + ($i % 5);
+
             $managerId = DB::table('team_members')->where('company_id', $this->companyId)
                 ->where('employee_id', $profile->user_id)->value('manager_id');
             $decided = ! in_array($status, ['pending_manager'], true);

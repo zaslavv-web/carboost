@@ -76,8 +76,13 @@ function ScormFrame({ courseId, lessonId, title }: { courseId: string; lessonId:
               : error.status === 404
                 ? "Материал не найден"
                 : error.status === 410
-                  ? "Ссылка устарела, откройте урок заново"
+                  // 410 приходит в двух случаях: истёкший тикет и отсутствие
+                  // файлов пакета — во втором бэкенд присылает понятный текст.
+                  ? error.message && error.message !== "Gone"
+                    ? error.message
+                    : "Ссылка устарела, откройте урок заново"
                   : error.message || "Не удалось открыть материал";
+
           setState({ loading: false, error: msg });
           return;
         }
