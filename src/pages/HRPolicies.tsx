@@ -259,52 +259,10 @@ const DocumentBlock = ({ docType }: { docType: DocType }) => {
                 </div>
               </div>
 
-              {expandedDoc === doc.id && doc.extracted_data && (
-                <div className="border-t border-border p-4 bg-secondary/30 space-y-3">
-                  {doc.extracted_data.summary && (
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-1">{t("hrPolicies.summary")}</p>
-                      <p className="text-sm text-foreground">{doc.extracted_data.summary}</p>
-                    </div>
-                  )}
-                  {doc.extracted_data.key_points?.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-1">{t("hrPolicies.keyPoints")}</p>
-                      <ul className="list-disc list-inside text-sm text-foreground space-y-1">
-                        {doc.extracted_data.key_points.map((p: string, i: number) => (
-                          <li key={i}>{p}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {doc.extracted_data.sections?.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-1">{t("hrPolicies.keyPoints")}</p>
-                      <ul className="list-disc list-inside text-sm text-foreground space-y-1">
-                        {doc.extracted_data.sections.map((section: any, i: number) => (
-                          <li key={i}>{section.title ? `${section.title}: ` : ""}{section.content}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {doc.extracted_data.scenario && (
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-1">{t("hrPolicies.scenarioSection")}</p>
-                      <p className="text-sm font-medium text-foreground">{doc.extracted_data.scenario.title}</p>
-                      <p className="text-sm text-muted-foreground">{doc.extracted_data.scenario.description}</p>
-                      {doc.extracted_data.scenario.questions?.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          {doc.extracted_data.scenario.questions.map((q: any, i: number) => (
-                            <p key={i} className="text-xs text-muted-foreground">
-                              {i + 1}. {q.question} ({t("hrPolicies.maxScore", { score: q.max_score })})
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+              {expandedDoc === doc.id && (
+                <DocumentPreview doc={doc} t={t} />
               )}
+
             </div>
           ))}
         </div>
