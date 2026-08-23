@@ -391,7 +391,7 @@ function AudienceDialog({
   departments: string[];
   positions: any[];
   employees: any[];
-  onToggle: (group: string, value: string) => void;
+  onToggle: (group: "departments" | "position_ids" | "user_ids", value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const rules = test.audience_rules || {};
