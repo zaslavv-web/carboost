@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Building2, Briefcase, Users, Settings as SettingsIcon, CheckCircle2, ArrowRight, Coins } from "lucide-react";
+import { Building2, Briefcase, Users, Settings as SettingsIcon, CheckCircle2, ArrowRight, Coins, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ const Onboarding = () => {
   const queryClient = useQueryClient();
   const { t } = useTranslation("admin");
   const companyId = profile?.company_id;
+  const [newTask, setNewTask] = useState("");
 
   const { data: counts } = useQuery({
     queryKey: ["onboarding_counts", companyId],
@@ -128,6 +129,45 @@ const Onboarding = () => {
   const completed = steps.filter((s) => s.done).length;
   const progress = Math.round((completed / steps.length) * 100);
 
+  const { data: customItems = [] } = useQuery({
+    queryKey: ["hrd-checklist", companyId],
+    queryFn: async () => {
+      const { data, error } = await laravelDb.from("hrd_checklist_items" as any).select("*").eq("company_id", companyId).order("sort_order");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!companyId && progress === 100,
+  });
+
+  const addCustomItem = useMutation({
+    mutationFn: async () => {
+      const title = newTask.trim();
+      if (!title || !companyId || !profile?.user_id) return;
+      const { error } = await laravelDb.from("hrd_checklist_items" as any).insert({ company_id: companyId, created_by: profile.user_id, title, is_done: false, sort_order: customItems.length });
+      if (error) throw error;
+    },
+    onSuccess: () => { setNewTask(""); queryClient.invalidateQueries({ queryKey: ["hrd-checklist", companyId] }); },
+    onError: (error: any) => toast.error(error.message),
+  });
+
+  const updateCustomItem = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Record<string, unknown> }) => {
+      const { error } = await laravelDb.from("hrd_checklist_items" as any).update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hrd-checklist", companyId] }),
+    onError: (error: any) => toast.error(error.message),
+  });
+
+  const removeCustomItem = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await laravelDb.from("hrd_checklist_items" as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hrd-checklist", companyId] }),
+    onError: (error: any) => toast.error(error.message),
+  });
+
   return (
     <div className="space-y-6 animate-fade-in max-w-5xl">
       <div className="flex items-center gap-3">
@@ -182,6 +222,20 @@ const Onboarding = () => {
           </div>
         ))}
       </div>
+
+      {progress === 100 && (
+        <div className="bg-card rounded-xl border border-border p-5 space-y-4">
+          <div><h2 className="font-semibold text-foreground">Мой рабочий чек-лист</h2><p className="text-sm text-muted-foreground">Добавляйте операционные задачи HRD и отмечайте выполненные.</p></div>
+          <div className="space-y-2">
+            {customItems.map((item: any) => <div key={item.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
+              <input type="checkbox" checked={item.is_done} onChange={(event) => updateCustomItem.mutate({ id: item.id, patch: { is_done: event.target.checked } })} className="h-5 w-5 accent-primary" />
+              <Input value={item.title} onChange={(event) => queryClient.setQueryData(["hrd-checklist", companyId], (rows: any[] = []) => rows.map((row) => row.id === item.id ? { ...row, title: event.target.value } : row))} onBlur={(event) => updateCustomItem.mutate({ id: item.id, patch: { title: event.target.value.trim() } })} className={item.is_done ? "line-through text-muted-foreground" : ""} />
+              <Button variant="ghost" size="icon" aria-label="Удалить задачу" onClick={() => removeCustomItem.mutate(item.id)}><Trash2 className="h-4 w-4" /></Button>
+            </div>)}
+          </div>
+          <div className="flex gap-2"><Input value={newTask} onChange={(event) => setNewTask(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addCustomItem.mutate(); }} placeholder="Новая задача" /><Button onClick={() => addCustomItem.mutate()} disabled={!newTask.trim()}><Plus className="mr-2 h-4 w-4" />Добавить</Button></div>
+        </div>
+      )}
 
       <div className="bg-card rounded-xl border border-border p-5 space-y-4">
         <div>
