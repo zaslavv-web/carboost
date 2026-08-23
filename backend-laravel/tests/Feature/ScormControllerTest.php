@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -234,6 +235,24 @@ XML;
         $this->withUnencryptedCookie('scorm_sess', $cookie->getValue())
             ->get("/api/university/scorm/asset/other-company/pkg/index.html")
             ->assertStatus(403);
+    }
+
+    public function test_expired_launch_ticket_is_rejected(): void
+    {
+        $encrypted = Crypt::encryptString((string) json_encode([
+            'user_id' => (string) Str::uuid(),
+            'course_id' => (string) Str::uuid(),
+            'lesson_id' => (string) Str::uuid(),
+            'enrollment_id' => (string) Str::uuid(),
+            'package_path' => 'expired/package',
+            'exp' => time() - 1,
+            'nonce' => Str::random(16),
+        ]));
+        $ticket = rtrim(strtr(base64_encode($encrypted), '+/', '-_'), '=');
+
+        $this->get("/api/university/scorm/launch/{$ticket}")
+            ->assertStatus(410)
+            ->assertSee('Ссылка устарела');
     }
 
     public function test_asset_without_any_credentials_is_unauthorized(): void
