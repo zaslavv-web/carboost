@@ -21,6 +21,12 @@ on:
         default: 'false'
         type: choice
         options: ['false', 'true']
+      run_seed:
+        description: 'Run php artisan demo:seed --only-content after deploy'
+        required: true
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
 
 concurrency:
   group: deploy-backend
@@ -115,8 +121,10 @@ jobs:
         run: |
           RUN_MIGRATIONS="${{ github.event.inputs.run_migrations }}"
           if [ -z "$RUN_MIGRATIONS" ]; then RUN_MIGRATIONS="true"; fi
+          RUN_SEED="${{ github.event.inputs.run_seed }}"
+          if [ -z "$RUN_SEED" ]; then RUN_SEED="false"; fi
 
-          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' RUN_MIGRATIONS='$RUN_MIGRATIONS' GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' RUN_MIGRATIONS='$RUN_MIGRATIONS' RUN_SEED='$RUN_SEED' GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
           set -euo pipefail
           cd "$BACKEND_ROOT"
 
@@ -186,6 +194,15 @@ jobs:
           # validate_timestamps подхватить новые классы после rsync.
           touch public/index.php
           $ARTISAN route:list --path=performance-cycles || true
+
+          if [ "$RUN_SEED" = "true" ]; then
+            echo "→ Running demo:seed --only-content"
+            $ARTISAN demo:seed --only-content || {
+              echo "::warning::demo:seed --only-content failed (non-fatal)"
+            }
+          else
+            echo "ℹ️  demo:seed skipped"
+          fi
 
           REMOTE
 

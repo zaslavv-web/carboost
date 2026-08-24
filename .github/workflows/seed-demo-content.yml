@@ -1,0 +1,104 @@
+name: Seed Demo Content
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed_mode:
+        description: 'Режим сидирования'
+        required: true
+        default: 'only-content'
+        type: choice
+        options:
+          - 'only-content'
+          - 'full'
+
+env:
+  FALLBACK_HOST: ssh.gro7659365.nichost.ru
+  FALLBACK_USER: gro7659365
+  FALLBACK_ROOT: /home/gro7659365/growth-peak.pro/docs
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve deploy config
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          TARGET_DIR: ${{ secrets.TARGET_DIR }}
+        run: |
+          HOST="${SERVER_IP:-$FALLBACK_HOST}"
+          USER_NAME="${SERVER_USER:-$FALLBACK_USER}"
+          ROOT="${TARGET_DIR:-$FALLBACK_ROOT}"
+          echo "DEPLOY_HOST=$HOST" >> "$GITHUB_ENV"
+          echo "DEPLOY_USER=$USER_NAME" >> "$GITHUB_ENV"
+          echo "BACKEND_ROOT=$ROOT/backend" >> "$GITHUB_ENV"
+
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          KEY="${SSH_PRIVATE_KEY:-$DEPLOY_SSH_KEY}"
+          if [ -z "$KEY" ]; then
+            echo "::error::Neither SSH_PRIVATE_KEY nor DEPLOY_SSH_KEY is set"
+            exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+          ssh-keyscan -t rsa,ecdsa,ed25519 -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          cat > ~/.ssh/config <<EOF
+          Host $DEPLOY_HOST
+            HostName $DEPLOY_HOST
+            User $DEPLOY_USER
+            HostKeyAlgorithms +ssh-rsa
+            PubkeyAcceptedAlgorithms +ssh-rsa
+            PubkeyAcceptedKeyTypes +ssh-rsa
+            CASignatureAlgorithms +ssh-rsa
+            RequiredRSASize 1024
+            UpdateHostKeys no
+            StrictHostKeyChecking accept-new
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Run seeder
+        run: |
+          SEED_MODE="${{ github.event.inputs.seed_mode }}"
+          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' SEED_MODE='$SEED_MODE' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$BACKEND_ROOT"
+
+          DB_CONTROLLER="app/Http/Controllers/Api/DbController.php"
+          test -f "$DB_CONTROLLER" || {
+            echo "::error::Backend not found at $BACKEND_ROOT"
+            exit 1
+          }
+
+          ARTISAN="php -d memory_limit=1024M artisan"
+          $ARTISAN optimize:clear || true
+
+          echo "→ Running demo:seed --$SEED_MODE"
+          $ARTISAN demo:seed --$SEED_MODE
+
+          echo "✅ Seeding complete"
+          REMOTE
+
+      - name: Verify shop has products
+        run: |
+          BODY="$(curl -fsS -H 'Accept: application/json' https://growth-peak.pro/api/health)"
+          echo "$BODY" | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          tc = d.get('checks',{}).get('table_counts',{})
+          shop = tc.get('shop_products', 0)
+          print(f'shop_products: {shop}')
+          if shop == 0:
+              print('::warning::shop_products still empty after seeding')
+          else:
+              print(f'✅ shop_products populated: {shop} items')
+          "
