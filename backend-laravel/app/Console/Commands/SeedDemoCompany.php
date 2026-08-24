@@ -119,6 +119,9 @@ class SeedDemoCompany extends Command
             $this->info('12.3  Лента компании, сообщества и Pulse…');
             $this->seedPortal();
             $this->seedPulseSurveys();
+
+            $this->info('12.3.1 Talent Review, адаптация, приглашения, документы, КЭДО и отсутствия…');
+            $this->seedMissingContentModules();
         });
 
         $this->info('12.4  Проекты и задачи трекера…');
