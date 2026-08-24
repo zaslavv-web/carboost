@@ -160,13 +160,18 @@ jobs:
         run: |
           SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
           SHA="${GITHUB_SHA::7}"
-          OUT="$($SSH "$DEPLOY_USER@$DEPLOY_HOST" "ls -l '$WEB_ROOT/version.json' 2>&1; echo '---'; cat '$WEB_ROOT/version.json' 2>&1" || true)"
+          OUT="$($SSH "$DEPLOY_USER@$DEPLOY_HOST" "
+            echo '== web root:'; ls -l '$WEB_ROOT/version.json' '$WEB_ROOT/index.html' 2>&1;
+            echo '== version.json:'; cat '$WEB_ROOT/version.json' 2>&1;
+            echo '== frontend/ (может перекрывать корень по .htaccess):';
+            ls -ld '$WEB_ROOT/frontend' 2>&1; cat '$WEB_ROOT/frontend/version.json' 2>&1
+          " || true)"
           echo "$OUT"
           if echo "$OUT" | grep -q "$SHA"; then
-            echo "✅ version.json с версией $SHA лежит в веб-руте"
+            echo "✅ version.json с версией $SHA найден на сервере"
             echo "SERVER_VERSION_OK=true" >> "$GITHUB_ENV"
           else
-            echo "::error::version.json в $WEB_ROOT отсутствует или содержит другую версию (ожидалась $SHA)"
+            echo "::error::version.json на сервере отсутствует или содержит другую версию (ожидалась $SHA)"
             echo "SERVER_VERSION_OK=false" >> "$GITHUB_ENV"
             exit 1
           fi
