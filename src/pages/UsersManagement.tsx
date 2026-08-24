@@ -54,6 +54,7 @@ const UsersManagement = () => {
   const [positionFilter, setPositionFilter] = useState<string>(() => searchParams.get("position") || "all");
   const [tenureFilter, setTenureFilter] = useState<string>(() => searchParams.get("tenure") || "all");
   const [hiredMonthFilter, setHiredMonthFilter] = useState<string>(() => searchParams.get("hiredMonth") || "all");
+  const [riskFilter, setRiskFilter] = useState<string>(() => searchParams.get("risk") || "all");
 
   // Sync company filter from URL (?companyId=...) — enables quick-filter deep-linking from Companies list.
   useEffect(() => {
@@ -66,8 +67,10 @@ const UsersManagement = () => {
     setTenureFilter(searchParams.get("tenure") || "all");
     setRoleFilter(searchParams.get("role") || "all");
     setHiredMonthFilter(searchParams.get("hiredMonth") || "all");
+    setRiskFilter(searchParams.get("risk") || "all");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
 
   const updateCompanyFilter = (value: string) => {
     setCompanyFilter(value);
@@ -104,6 +107,23 @@ const UsersManagement = () => {
       });
     },
   });
+
+  // Drill-down из Risk Analytics: /users?risk=high — подтягиваем уровни риска только когда фильтр активен.
+  const { data: riskLevels = {} } = useQuery<Record<string, string>>({
+    queryKey: ["admin_users_risk_levels"],
+    enabled: riskFilter !== "all",
+    queryFn: async () => {
+      const { data, error } = await laravelDb
+        .from("employee_risk_scores")
+        .select("user_id, risk_level");
+      if (error) return {};
+      const map: Record<string, string> = {};
+      for (const row of (data || []) as any[]) map[row.user_id] = row.risk_level;
+      return map;
+    },
+  });
+
+
 
   const verifyMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -243,7 +263,9 @@ const UsersManagement = () => {
     ));
     const hiredMonth = hireDate ? hireDate.toLocaleString("ru-RU", { month: "short" }).replace(".", "") : "";
     const matchesHiredMonth = hiredMonthFilter === "all" || hiredMonth.toLowerCase() === hiredMonthFilter.replace(".", "").toLowerCase();
-    return matchesSearch && matchesStatus && matchesCompany && matchesRole && matchesDepartment && matchesPosition && matchesTenure && matchesHiredMonth;
+    const matchesRisk = riskFilter === "all" || riskLevels[u.user_id] === riskFilter;
+    return matchesSearch && matchesStatus && matchesCompany && matchesRole && matchesDepartment && matchesPosition && matchesTenure && matchesHiredMonth && matchesRisk;
+
   });
 
   const pendingCount = users.filter((u: any) => !u.is_verified).length;
@@ -409,6 +431,18 @@ const UsersManagement = () => {
               Приняты: {hiredMonthFilter} ×
             </button>
           )}
+          {riskFilter !== "all" && (
+            <button type="button" onClick={() => {
+              setRiskFilter("all");
+              const next = new URLSearchParams(searchParams);
+              next.delete("risk");
+              setSearchParams(next, { replace: true });
+            }} className="px-3 py-2 rounded-lg bg-destructive/10 text-destructive text-xs font-medium">
+              Риск: {riskFilter === "high" ? "высокий" : riskFilter === "medium" ? "средний" : "низкий"} ×
+            </button>
+          )}
+
+
 
           {isSuperadmin && companies.length > 0 && (
             <select

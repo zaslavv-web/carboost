@@ -1834,13 +1834,31 @@ class SeedDemoCompany extends Command
                 $empty[] = $label;
             }
         }
-        if ($empty !== [] || $this->contentErrors !== []) {
+        if (Schema::hasTable('tracker_sprints') && DB::table('tracker_sprints')->where('company_id', $this->companyId)->count() === 0) {
+            $empty[] = 'спринты трекера';
+        }
+
+        // Каждый сотрудник должен видеть непустой бэклог.
+        $withoutTasks = 0;
+        if (Schema::hasTable('tracker_tasks')) {
+            $assigneeColumn = Schema::hasColumn('tracker_tasks', 'assignee_id') ? 'assignee_id' : null;
+            if ($assigneeColumn) {
+                $withTasks = DB::table('tracker_tasks')->where('company_id', $this->companyId)
+                    ->whereNotNull($assigneeColumn)->distinct()->pluck($assigneeColumn)->map('strval')->all();
+                $all = DB::table('profiles')->where('company_id', $this->companyId)->pluck('user_id')->map('strval')->all();
+                $withoutTasks = count(array_diff($all, $withTasks));
+            }
+        }
+
+        if ($empty !== [] || $withoutTasks > 0 || $this->contentErrors !== []) {
             $parts = [];
             if ($empty !== []) $parts[] = 'обязательные разделы остались пустыми: ' . implode(', ', $empty);
+            if ($withoutTasks > 0) $parts[] = "сотрудников с пустым бэклогом: {$withoutTasks}";
             if ($this->contentErrors !== []) $parts[] = 'ошибки шагов: ' . implode(' | ', $this->contentErrors);
             throw new \RuntimeException('Demo seed: ' . implode('; ', $parts) . '.');
         }
     }
+
 
     /** Заполняет разделы, которые исторически не входили в --only-content. */
     private function seedMissingContentModules(): void
