@@ -26,8 +26,19 @@ const FirstLoginModePicker = ({ onPick }: Props) => {
     onPick(mode);
   };
 
+  // Закрытие по Esc/оверлею — это тоже выбор: иначе диалог всплывал бы
+  // на каждой странице, потому что в localStorage ничего не записано.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && readHrdUiMode() === null) {
+      choose("classic");
+      return;
+    }
+    setOpen(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Как вам удобнее работать?</DialogTitle>
