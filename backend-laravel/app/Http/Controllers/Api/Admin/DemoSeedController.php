@@ -23,19 +23,37 @@ class DemoSeedController extends Controller
     public function companies(Request $request): JsonResponse
     {
         $this->requireSuperadmin($request);
-        $companies = DB::table('companies')
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(function ($c) {
-                $c->users = DB::table('profiles')->where('company_id', $c->id)->count();
-                return $c;
-            });
+
+        try {
+            // Один запрос вместо N+1: агрегируем количество сотрудников левым джоином.
+            $companies = DB::table('companies as c')
+                ->leftJoin('profiles as p', 'p.company_id', '=', 'c.id')
+                ->groupBy('c.id', 'c.name')
+                ->orderBy('c.name')
+                ->selectRaw('c.id as id, c.name as name, COUNT(p.id) as users')
+                ->get()
+                ->map(fn ($c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'users' => (int) $c->users,
+                ])
+                ->values();
+        } catch (\Throwable $e) {
+            report($e);
+            // Фолбэк без счётчиков — список компаний важнее точных цифр.
+            $companies = DB::table('companies')
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'users' => 0])
+                ->values();
+        }
 
         return response()->json([
             'default' => self::NAME,
             'companies' => $companies,
         ]);
     }
+
 
     public function status(Request $request): JsonResponse
     {
