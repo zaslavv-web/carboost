@@ -54,6 +54,7 @@ const UsersManagement = () => {
   const [positionFilter, setPositionFilter] = useState<string>(() => searchParams.get("position") || "all");
   const [tenureFilter, setTenureFilter] = useState<string>(() => searchParams.get("tenure") || "all");
   const [hiredMonthFilter, setHiredMonthFilter] = useState<string>(() => searchParams.get("hiredMonth") || "all");
+  const [riskFilter, setRiskFilter] = useState<string>(() => searchParams.get("risk") || "all");
 
   // Sync company filter from URL (?companyId=...) — enables quick-filter deep-linking from Companies list.
   useEffect(() => {
@@ -66,8 +67,10 @@ const UsersManagement = () => {
     setTenureFilter(searchParams.get("tenure") || "all");
     setRoleFilter(searchParams.get("role") || "all");
     setHiredMonthFilter(searchParams.get("hiredMonth") || "all");
+    setRiskFilter(searchParams.get("risk") || "all");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
 
   const updateCompanyFilter = (value: string) => {
     setCompanyFilter(value);
