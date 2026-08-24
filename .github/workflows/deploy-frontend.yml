@@ -171,30 +171,20 @@ jobs:
             exit 1
           fi
 
-      - name: Apply cache headers to server .htaccess (идемпотентно)
+      - name: Apply .htaccess (управляемый блок + правила приложения)
         run: |
           SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
           $SSH "$DEPLOY_USER@$DEPLOY_HOST" "WEB_ROOT='$WEB_ROOT' bash -s" <<'REMOTE'
           set -e
           cd "$WEB_ROOT"
-          touch .htaccess
-          test -f .htaccess.cache || { echo "ℹ️  .htaccess.cache не найден — пропускаю"; exit 0; }
+          test -f .htaccess.cache || { echo "::warning::.htaccess.cache не доехал — .htaccess не обновляю"; exit 0; }
 
-          # Вырезаем ранее добавленный управляемый блок (он мог быть старой версии,
-          # без pass-through для существующих файлов) и подставляем свежий.
-          awk '
-            /# Managed by deploy-frontend workflow/ { skip=1; closes=0; next }
-            skip==1 {
-              if ($0 ~ /<\/IfModule>/) { closes++; if (closes>=2) { skip=0 } }
-              next
-            }
-            { print }
-          ' .htaccess > .htaccess.rest
-
-          cat .htaccess.cache .htaccess.rest > .htaccess.new && mv .htaccess.new .htaccess
-          rm -f .htaccess.rest .htaccess.cache
-          echo '✅ Управляемый блок .htaccess обновлён'
-          head -20 .htaccess
+          # .htaccess.cache уже содержит полный набор правил (управляемый блок +
+          # public/.htaccess), поэтому просто подменяем файл, сохранив бэкап.
+          if [ -f .htaccess ]; then cp .htaccess .htaccess.bak; fi
+          mv .htaccess.cache .htaccess
+          echo '✅ .htaccess обновлён (бэкап: .htaccess.bak)'
+          head -30 .htaccess
           REMOTE
 
       - name: Post-deploy check
