@@ -1815,8 +1815,17 @@ class SeedDemoCompany extends Command
                 DB::transaction(fn () => $this->seedShop());
             }
         });
+        $products = DB::table('shop_products')->where('company_id', $this->companyId)->count();
         $fixed = $this->runContentStep('изображения товаров', fn () => $this->backfillProductImages()) ?? 0;
-        $this->line("     обновлено товаров: {$fixed}");
+        $noImage = DB::table('shop_products')
+            ->where('company_id', $this->companyId)
+            ->where(function ($q) { $q->whereNull('image_url')->orWhere('image_url', ''); })
+            ->count();
+        $this->line("     товаров: {$products}, обновлено картинок: {$fixed}, без картинки осталось: {$noImage}");
+        if ($noImage > 0) {
+            $this->error("     ! у {$noImage} товаров нет изображения — шаг картинок не отработал");
+        }
+
 
         $this->info('2/6  База знаний…');
         $this->runContentStep('база знаний', fn () => DB::transaction(fn () => $this->seedKnowledgeBase()));
