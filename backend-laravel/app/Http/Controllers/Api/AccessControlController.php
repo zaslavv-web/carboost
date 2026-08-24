@@ -107,21 +107,35 @@ class AccessControlController extends Controller
         ];
     }
 
+    /** Кэш на время запроса: матрица считается один раз на пользователя. */
+    private static array $permCache = [];
+
     public static function effectivePermissions($user, ?string $companyId = null): array
     {
+        $cacheKey = ($user?->id ?? 'guest') . '|' . ($companyId ?? '');
+        if (isset(self::$permCache[$cacheKey])) return self::$permCache[$cacheKey];
+
         $companyId = $companyId ?: $user?->companyId();
         $roles = $user ? DB::table('user_roles')->where('user_id', $user->id)->pluck('role')->all() : [];
         if (in_array('superadmin', $roles, true)) {
-            return array_fill_keys(array_keys(self::RESOURCES), ['can_view' => true, 'can_edit' => true, 'can_download' => true, 'source' => 'superadmin']);
+            return self::$permCache[$cacheKey] = array_fill_keys(array_keys(self::RESOURCES), ['can_view' => true, 'can_edit' => true, 'can_download' => true, 'source' => 'superadmin']);
         }
-        $profile = $user && $companyId ? DB::table('profiles')->where('company_id', $companyId)->where('user_id', $user->id)->first() : null;
-        $positionId = $profile?->position_id;
-        $departmentId = $profile?->department
-            ? DB::table('departments')->where('company_id', $companyId)->where('name', $profile->department)->value('id')
-            : null;
+        $profile = null;
+        $positionId = null;
+        $departmentId = null;
+        try {
+            $profile = $user && $companyId ? DB::table('profiles')->where('company_id', $companyId)->where('user_id', $user->id)->first() : null;
+            $positionId = $profile?->position_id;
+            if ($profile?->department && Schema::hasTable('departments')) {
+                $departmentId = DB::table('departments')->where('company_id', $companyId)->where('name', $profile->department)->value('id');
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
         $rules = collect();
         if ($companyId && Schema::hasTable('access_permission_rules')) {
             $rules = DB::table('access_permission_rules')->where('company_id', $companyId)->where(function ($q) use ($user, $roles, $positionId, $departmentId) {
+
                 $q->where(fn ($x) => $x->where('subject_type', 'role')->whereIn('subject_id', $roles));
                 if ($departmentId) $q->orWhere(fn ($x) => $x->where('subject_type', 'department')->where('subject_id', $departmentId));
                 if ($positionId) $q->orWhere(fn ($x) => $x->where('subject_type', 'position')->where('subject_id', $positionId));
