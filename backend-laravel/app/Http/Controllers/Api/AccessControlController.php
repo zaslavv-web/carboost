@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -91,6 +92,71 @@ class AccessControlController extends Controller
         return (bool) array_intersect($this->roles(), ['company_admin', 'superadmin']);
     }
 
+    private function hasRulesTable(): bool
+    {
+        return Schema::hasTable('access_permission_rules');
+    }
+
+    private function subjects(string $companyId): array
+    {
+        return [
+            'roles' => array_map(fn ($id) => ['id' => $id, 'label' => $id], self::ROLES),
+            'users' => DB::table('profiles')->where('company_id', $companyId)->orderBy('full_name')->get(['user_id as id', 'full_name as label'])->all(),
+            'positions' => DB::table('positions')->where('company_id', $companyId)->orderBy('title')->get(['id', 'title as label'])->all(),
+            'departments' => DB::table('departments')->where('company_id', $companyId)->orderBy('name')->get(['id', 'name as label'])->all(),
+        ];
+    }
+
+    public static function effectivePermissions($user, ?string $companyId = null): array
+    {
+        $companyId = $companyId ?: $user?->companyId();
+        $roles = $user ? DB::table('user_roles')->where('user_id', $user->id)->pluck('role')->all() : [];
+        if (in_array('superadmin', $roles, true)) {
+            return array_fill_keys(array_keys(self::RESOURCES), ['can_view' => true, 'can_edit' => true, 'can_download' => true, 'source' => 'superadmin']);
+        }
+        $profile = $user && $companyId ? DB::table('profiles')->where('company_id', $companyId)->where('user_id', $user->id)->first() : null;
+        $positionId = $profile?->position_id;
+        $departmentId = $profile?->department
+            ? DB::table('departments')->where('company_id', $companyId)->where('name', $profile->department)->value('id')
+            : null;
+        $rules = collect();
+        if ($companyId && Schema::hasTable('access_permission_rules')) {
+            $rules = DB::table('access_permission_rules')->where('company_id', $companyId)->where(function ($q) use ($user, $roles, $positionId, $departmentId) {
+                $q->where(fn ($x) => $x->where('subject_type', 'role')->whereIn('subject_id', $roles));
+                if ($departmentId) $q->orWhere(fn ($x) => $x->where('subject_type', 'department')->where('subject_id', $departmentId));
+                if ($positionId) $q->orWhere(fn ($x) => $x->where('subject_type', 'position')->where('subject_id', $positionId));
+                if ($user) $q->orWhere(fn ($x) => $x->where('subject_type', 'user')->where('subject_id', $user->id));
+            })->get();
+        }
+        $out = [];
+        foreach (array_keys(self::RESOURCES) as $resource) {
+            $base = ['can_view' => false, 'can_edit' => false, 'can_download' => false, 'source' => 'default'];
+            foreach ($roles as $role) {
+                $def = self::defaultFor($role, $resource);
+                foreach (['can_view','can_edit','can_download'] as $flag) $base[$flag] = $base[$flag] || $def[$flag];
+            }
+            foreach (['role', 'department', 'position', 'user'] as $type) {
+                $candidates = $rules->where('resource', $resource)->where('subject_type', $type);
+                if ($candidates->isEmpty()) continue;
+                $base = [
+                    'can_view' => (bool) $candidates->contains(fn ($r) => $r->can_view),
+                    'can_edit' => (bool) $candidates->contains(fn ($r) => $r->can_edit),
+                    'can_download' => (bool) $candidates->contains(fn ($r) => $r->can_download),
+                    'source' => $type,
+                ];
+            }
+            if (! $base['can_view']) $base['can_edit'] = $base['can_download'] = false;
+            $out[$resource] = $base;
+        }
+        return $out;
+    }
+
+    public static function allows($user, string $resource, string $action = 'view'): bool
+    {
+        $permission = self::effectivePermissions($user)[$resource] ?? null;
+        return (bool) ($permission['can_' . $action] ?? false);
+    }
+
     /** Дефолт для пары роль/раздел. */
     public static function defaultFor(string $role, string $resource): array
     {
@@ -120,10 +186,13 @@ class AccessControlController extends Controller
     public function matrix(Request $r)
     {
         $companyId = $this->companyId();
+        if (! $companyId) return response()->json(['error' => 'Не указана компания'], 422);
+        $subjectType = (string) $r->query('subject_type', 'role');
+        $subjectId = (string) $r->query('subject_id', 'employee');
         $overrides = [];
-        if ($companyId) {
-            foreach (DB::table('role_permissions')->where('company_id', $companyId)->get() as $row) {
-                $overrides[$row->role . '|' . $row->resource] = $row;
+        if ($this->hasRulesTable()) {
+            foreach (DB::table('access_permission_rules')->where('company_id', $companyId)->where('subject_type', $subjectType)->where('subject_id', $subjectId)->get() as $row) {
+                $overrides[$row->resource] = $row;
             }
         }
 
@@ -133,23 +202,24 @@ class AccessControlController extends Controller
         }
 
         $matrix = [];
-        foreach (self::ROLES as $role) {
-            foreach (self::RESOURCES as $key => $_) {
-                $def = self::defaultFor($role, $key);
-                $row = $overrides[$role . '|' . $key] ?? null;
+        foreach (self::RESOURCES as $key => $_) {
+                $def = $subjectType === 'role' ? self::defaultFor($subjectId, $key) : ['can_view' => false, 'can_edit' => false, 'can_download' => false];
+                $row = $overrides[$key] ?? null;
                 $matrix[] = [
-                    'role'         => $role,
+                    'subject_type' => $subjectType,
+                    'subject_id'   => $subjectId,
                     'resource'     => $key,
                     'can_view'     => $row ? (bool) $row->can_view : $def['can_view'],
                     'can_edit'     => $row ? (bool) $row->can_edit : $def['can_edit'],
                     'can_download' => $row ? (bool) $row->can_download : $def['can_download'],
                     'is_custom'    => (bool) $row,
                 ];
-            }
         }
 
         return response()->json([
             'roles'     => self::ROLES,
+            'subjects'  => $this->subjects($companyId),
+            'selected'  => ['type' => $subjectType, 'id' => $subjectId],
             'resources' => $resources,
             'matrix'    => $matrix,
             'editable'  => $this->canManage(),
@@ -159,37 +229,7 @@ class AccessControlController extends Controller
     /** Права текущего пользователя — используется фронтом для навигации. */
     public function me(Request $r)
     {
-        $roles = $this->roles();
-        if (in_array('superadmin', $roles, true)) {
-            $out = [];
-            foreach (array_keys(self::RESOURCES) as $key) {
-                $out[$key] = ['can_view' => true, 'can_edit' => true, 'can_download' => true];
-            }
-            return response()->json(['permissions' => $out]);
-        }
-
-        $companyId = $this->companyId();
-        $overrides = [];
-        if ($companyId && $roles) {
-            foreach (DB::table('role_permissions')->where('company_id', $companyId)->whereIn('role', $roles)->get() as $row) {
-                $overrides[$row->role . '|' . $row->resource] = $row;
-            }
-        }
-
-        $out = [];
-        foreach (array_keys(self::RESOURCES) as $key) {
-            $view = $edit = $down = false;
-            foreach ($roles as $role) {
-                $def = self::defaultFor($role, $key);
-                $row = $overrides[$role . '|' . $key] ?? null;
-                $view = $view || ($row ? (bool) $row->can_view : $def['can_view']);
-                $edit = $edit || ($row ? (bool) $row->can_edit : $def['can_edit']);
-                $down = $down || ($row ? (bool) $row->can_download : $def['can_download']);
-            }
-            $out[$key] = ['can_view' => $view, 'can_edit' => $edit, 'can_download' => $down];
-        }
-
-        return response()->json(['permissions' => $out]);
+        return response()->json(['permissions' => self::effectivePermissions($r->user(), $this->companyId())]);
     }
 
     /** Массовое сохранение изменений матрицы. */
@@ -204,9 +244,10 @@ class AccessControlController extends Controller
 
         DB::transaction(function () use ($items, $companyId) {
             foreach ($items as $item) {
-                $role = (string) ($item['role'] ?? '');
+                $subjectType = (string) ($item['subject_type'] ?? 'role');
+                $subjectId = (string) ($item['subject_id'] ?? '');
                 $resource = (string) ($item['resource'] ?? '');
-                if (! in_array($role, self::ROLES, true) || ! isset(self::RESOURCES[$resource])) {
+                if (! in_array($subjectType, ['role','user','position','department'], true) || $subjectId === '' || ! isset(self::RESOURCES[$resource])) {
                     continue;
                 }
                 $canView = (bool) ($item['can_view'] ?? false);
@@ -217,24 +258,32 @@ class AccessControlController extends Controller
                     'can_download' => $canView && (bool) ($item['can_download'] ?? false),
                     'updated_at'   => now(),
                 ];
-                $existing = DB::table('role_permissions')
-                    ->where('company_id', $companyId)->where('role', $role)->where('resource', $resource)
+                $existing = DB::table('access_permission_rules')
+                    ->where('company_id', $companyId)->where('subject_type', $subjectType)->where('subject_id', $subjectId)->where('resource', $resource)
                     ->first();
                 if ($existing) {
-                    DB::table('role_permissions')->where('id', $existing->id)->update($values);
+                    DB::table('access_permission_rules')->where('id', $existing->id)->update($values + ['updated_by' => Auth::id()]);
                 } else {
-                    DB::table('role_permissions')->insert($values + [
+                    DB::table('access_permission_rules')->insert($values + [
                         'id'         => (string) Str::uuid(),
                         'company_id' => $companyId,
-                        'role'       => $role,
+                        'subject_type' => $subjectType,
+                        'subject_id' => $subjectId,
                         'resource'   => $resource,
+                        'updated_by' => Auth::id(),
                         'created_at' => now(),
                     ]);
                 }
+                DB::table('access_permission_log')->insert([
+                    'id' => (string) Str::uuid(), 'company_id' => $companyId,
+                    'subject_type' => $subjectType, 'subject_id' => $subjectId, 'resource' => $resource,
+                    'before_value' => $existing ? json_encode($existing) : null, 'after_value' => json_encode($values),
+                    'changed_by' => Auth::id(), 'created_at' => now(),
+                ]);
             }
         });
 
-        return $this->matrix($r);
+        return response()->json(['saved' => count($items)]);
     }
 
     /** Сброс матрицы компании к значениям по умолчанию. */
@@ -243,9 +292,11 @@ class AccessControlController extends Controller
         if (! $this->canManage()) return response()->json(['error' => 'Недостаточно прав'], 403);
         $companyId = $this->companyId();
         if ($companyId) {
-            DB::table('role_permissions')->where('company_id', $companyId)->delete();
+            $type = (string) $r->input('subject_type', 'role');
+            $id = (string) $r->input('subject_id', 'employee');
+            DB::table('access_permission_rules')->where('company_id', $companyId)->where('subject_type', $type)->where('subject_id', $id)->delete();
         }
-        return $this->matrix($r);
+        return response()->json(['reset' => true]);
     }
 
     /** История назначения ролей сотрудникам. */

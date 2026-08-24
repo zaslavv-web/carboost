@@ -31,9 +31,8 @@ export function useAccessPermissions() {
   return {
     permissions,
     isLoading,
-    // Пока права не загружены, ничего не прячем — иначе меню «мигает».
-    canView: (resource: string) => permissions[resource]?.can_view ?? true,
-    canEdit: (resource: string) => permissions[resource]?.can_edit ?? true,
-    canDownload: (resource: string) => permissions[resource]?.can_download ?? true,
+    canView: (resource: string) => isLoading || permissions[resource]?.can_view === true,
+    canEdit: (resource: string) => !isLoading && permissions[resource]?.can_edit === true,
+    canDownload: (resource: string) => !isLoading && permissions[resource]?.can_download === true,
   };
 }
