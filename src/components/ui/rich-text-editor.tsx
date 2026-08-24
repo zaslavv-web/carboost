@@ -5,7 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { TextStyle } from "@tiptap/extension-text-style";
 import FontFamily from "@tiptap/extension-font-family";
-import { Bold, Italic, UnderlineIcon, List, ListOrdered, Link2, ImageIcon, Video, Upload, Undo2, Redo2, Loader2 } from "lucide-react";
+import { Bold, Italic, UnderlineIcon, List, ListOrdered, Link2, ImageIcon, Video, Upload, Undo2, Redo2, Loader2, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -41,12 +41,19 @@ type Props = {
   onChange: (html: string) => void;
   placeholder?: string;
   minHeight?: string;
+  /** Максимальная высота области ввода — дальше появляется скролл, а не растягивание страницы. */
+  maxHeight?: string;
 };
 
-export function RichTextEditor({ value, onChange, placeholder = "Начните писать…", minHeight = "220px" }: Props) {
+export function RichTextEditor({ value, onChange, placeholder = "Начните писать…", minHeight = "220px", maxHeight = "40vh" }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
+  // Последний HTML, отданный наружу: нужен, чтобы входящий `value` (уже
+  // прошедший санитайзер) не сбрасывал контент редактора на каждом нажатии
+  // клавиши — из-за этого терялись выделение и применённое форматирование.
+  const emitted = useRef<string>(value);
   const [uploading, setUploading] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -65,13 +72,26 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
         "aria-label": placeholder,
       },
     },
-    onUpdate: ({ editor: current }) => onChange(sanitizeRichHtml(current.getHTML())),
+    onUpdate: ({ editor: current }) => {
+      const html = sanitizeRichHtml(current.getHTML());
+      emitted.current = html;
+      onChange(html);
+    },
   });
 
   useEffect(() => {
-    if (!editor || editor.getHTML() === value) return;
+    if (!editor) return;
+    if (value === emitted.current || editor.getHTML() === value) return;
+    emitted.current = value;
     editor.commands.setContent(value ? contentToSafeHtml(value) : "", { emitUpdate: false });
   }, [editor, value]);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setFullscreen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullscreen]);
 
   if (!editor) return null;
 
@@ -111,6 +131,17 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
     editor.chain().focus().insertContent({ type: "video", attrs: { src } }).run();
   };
 
+  // Смена типа блока: снимаем инлайновый размер шрифта, иначе заголовок
+  // визуально остаётся обычным текстом (mark textStyle перекрывает h2/h3).
+  const applyBlockType = (v: string) => {
+    const chain = editor.chain().focus().selectParentNode().extendMarkRange("textStyle");
+    chain.setMark("textStyle", { fontSize: null }).run();
+    if (v === "p") editor.chain().focus().setParagraph().run();
+    else editor.chain().focus().setHeading({ level: v === "h2" ? 2 : 3 }).run();
+  };
+
+  const blockValue = editor.isActive("heading", { level: 2 }) ? "h2" : editor.isActive("heading", { level: 3 }) ? "h3" : "p";
+
   const tool = (label: string, icon: ReactNode, action: () => void, active = false, disabled = false) => (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -124,9 +155,14 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
 
   return (
     <TooltipProvider>
-      <div className="overflow-hidden rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring">
-        <div className="flex min-h-11 flex-wrap items-center gap-1 border-b bg-muted/40 p-1.5">
-          <Select value={editor.isActive("heading", { level: 2 }) ? "h2" : editor.isActive("heading", { level: 3 }) ? "h3" : "p"} onValueChange={(v) => v === "p" ? editor.chain().focus().setParagraph().run() : editor.chain().focus().toggleHeading({ level: v === "h2" ? 2 : 3 }).run()}>
+      <div
+        className={cn(
+          "flex flex-col overflow-hidden rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring",
+          fullscreen && "fixed inset-0 z-[120] rounded-none",
+        )}
+      >
+        <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-1 border-b bg-muted/40 p-1.5">
+          <Select value={blockValue} onValueChange={applyBlockType}>
             <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="p">Текст</SelectItem><SelectItem value="h2">Заголовок</SelectItem><SelectItem value="h3">Подзаголовок</SelectItem></SelectContent>
           </Select>
@@ -148,11 +184,16 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
           {tool("Видео по ссылке", <Video className="h-4 w-4" />, insertVideoUrl, false, uploading)}
           {tool("Загрузить видео", uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />, () => videoRef.current?.click(), false, uploading)}
           <span className="ml-auto flex gap-1">
+            {tool(fullscreen ? "Свернуть редактор" : "Развернуть на весь экран", fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />, () => setFullscreen((v) => !v), fullscreen)}
             {tool("Отменить", <Undo2 className="h-4 w-4" />, () => editor.chain().focus().undo().run(), false, !editor.can().undo())}
             {tool("Повторить", <Redo2 className="h-4 w-4" />, () => editor.chain().focus().redo().run(), false, !editor.can().redo())}
           </span>
         </div>
-        <EditorContent editor={editor} className={cn("cursor-text", uploading && "opacity-60")} />
+        <EditorContent
+          editor={editor}
+          className={cn("cursor-text overflow-y-auto", fullscreen ? "flex-1" : undefined, uploading && "opacity-60")}
+          style={fullscreen ? undefined : { maxHeight }}
+        />
         <input ref={fileRef} className="hidden" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(e) => { const file = e.target.files?.[0]; if (file) void upload(file, "image"); e.target.value = ""; }} />
         <input ref={videoRef} className="hidden" type="file" accept="video/mp4,video/webm" onChange={(e) => { const file = e.target.files?.[0]; if (file) void upload(file, "video"); e.target.value = ""; }} />
       </div>

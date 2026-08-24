@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { tooltipProps } from "@/lib/chartTooltip";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,6 +18,8 @@ import MotivationBlock from "@/components/motivation/MotivationBlock";
 import HRDCareerTracksAnalytics from "@/components/HRDCareerTracksAnalytics";
 import HRDEmployeeMap from "@/components/HRDEmployeeMap";
 import { useUserProfile, type AppRole } from "@/hooks/useUserProfile";
+import { ReorderableBlock } from "@/components/ui/reorderable-block";
+import { useBlockOrder } from "@/hooks/useBlockOrder";
 import { useTranslation } from "react-i18next";
 
 interface EmployeeWithRole {
@@ -240,6 +242,8 @@ const CompetencyComparisonModal = ({
   );
 };
 
+const DASHBOARD_BLOCKS = ["hero", "kpi", "charts", "workspace"];
+
 const HRDDashboard = () => {
   const { t } = useTranslation("manager");
   const roleBadge = useRoleBadge();
@@ -247,6 +251,20 @@ const HRDDashboard = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string | null>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+  const { move: moveBlock, position: blockPosition } = useBlockOrder("hrd-dashboard", DASHBOARD_BLOCKS);
+  const blockProps = (id: string, label: string) => {
+    const p = blockPosition(id);
+    return { id, label, order: p.index, isFirst: p.isFirst, isLast: p.isLast, onMove: moveBlock };
+  };
+  // Клик по KPI/графику работает как быстрый фильтр таблицы ниже, а не как переход.
+  const applyQuickFilter = (next: { role?: RoleFilter; department?: string | null }) => {
+    if (next.role !== undefined) setRoleFilter(next.role);
+    if (next.department !== undefined) setDepartmentFilter(next.department);
+    setActivePanel("employees");
+    requestAnimationFrame(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
   const [showRoleMenu, setShowRoleMenu] = useState<string | null>(null);
   const [showPositionMenu, setShowPositionMenu] = useState<string | null>(null);
   const [comparisonTarget, setComparisonTarget] = useState<{ emp: EmployeeWithRole; pos: Position } | null>(null);
@@ -389,7 +407,8 @@ const HRDDashboard = () => {
       e.full_name.toLowerCase().includes(search.toLowerCase()) ||
       (e.department || "").toLowerCase().includes(search.toLowerCase());
     const matchRole = roleFilter === "all" || e.role === roleFilter;
-    return matchSearch && matchRole;
+    const matchDepartment = !departmentFilter || (e.department || "Без отдела") === departmentFilter;
+    return matchSearch && matchRole && matchDepartment;
   });
 
   const roleCounts = {
@@ -435,8 +454,9 @@ const HRDDashboard = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="flex flex-col gap-6 animate-fade-in">
       <MotivationBlock />
+      <ReorderableBlock {...blockProps("hero", "Приветствие")}>
       {/* Hero */}
 
       <div className="relative overflow-hidden rounded-2xl gradient-hero p-6 md:p-8 shadow-elevated">
@@ -461,17 +481,19 @@ const HRDDashboard = () => {
           </div>
         </div>
       </div>
+      </ReorderableBlock>
 
       {/* Metrics — glass KPI strip */}
+      <ReorderableBlock {...blockProps("kpi", "Ключевые показатели")}>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <button type="button" onClick={() => navigate("/users")} className="glass rounded-xl p-4 hover-lift text-left">
+        <button type="button" onClick={() => applyQuickFilter({ role: "all", department: null })} className="glass rounded-xl p-4 hover-lift text-left">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <Users className="w-4 h-4 text-primary" /> {t("hrdDashboard.metrics.employees")}
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{employees.length}</div>
           <div className="text-xs text-muted-foreground mt-1">{t("hrdDashboard.metrics.managersCount", { count: roleCounts.manager })}</div>
         </button>
-        <button type="button" onClick={() => navigate("/people-analytics")} className="glass rounded-xl p-4 hover-lift text-left">
+        <button type="button" onClick={() => applyQuickFilter({})} className="glass rounded-xl p-4 hover-lift text-left">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <TrendingUp className="w-4 h-4 text-info" />
             <MetricLabel metricKey="avg_competency_score" labelOverride={t("hrdDashboard.metrics.avgScore")} />
@@ -479,21 +501,23 @@ const HRDDashboard = () => {
           <div className="mt-2 text-3xl font-bold text-foreground">{avgScore}</div>
           <div className="text-[11px] text-muted-foreground mt-1">0–5 по компании</div>
         </button>
-        <button type="button" onClick={() => navigate("/users?role=manager")} className="glass rounded-xl p-4 hover-lift text-left">
+        <button type="button" onClick={() => applyQuickFilter({ role: "manager", department: null })} className="glass rounded-xl p-4 hover-lift text-left">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <Shield className="w-4 h-4 text-warning" /> {t("hrdDashboard.metrics.managersLabel")}
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{roleCounts.manager}</div>
         </button>
-        <button type="button" onClick={() => navigate("/employee-map")} className="glass rounded-xl p-4 hover-lift text-left">
+        <button type="button" onClick={() => applyQuickFilter({ role: "all", department: null })} className="glass rounded-xl p-4 hover-lift text-left">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <BarChart3 className="w-4 h-4 text-success" /> {t("hrdDashboard.metrics.departments")}
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{deptMap.size}</div>
         </button>
       </div>
+      </ReorderableBlock>
 
 
+      <ReorderableBlock {...blockProps("charts", "Графики")}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Role distribution */}
         <div className="glass rounded-xl p-6">
@@ -502,7 +526,7 @@ const HRDDashboard = () => {
             <>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
-                  <Pie data={roleDistribution.filter((r) => r.value > 0)} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={4} cursor="pointer" onClick={(row) => navigate(`/users?role=${encodeURIComponent(row.role)}`)}>
+                  <Pie data={roleDistribution.filter((r) => r.value > 0)} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={4} cursor="pointer" onClick={(row: any) => applyQuickFilter({ role: (row?.role ?? "all") as RoleFilter, department: null })}>
                     {roleDistribution.filter((r) => r.value > 0).map((entry, i) => (
                       <Cell key={i} fill={entry.color} />
                     ))}
@@ -512,13 +536,18 @@ const HRDDashboard = () => {
               </ResponsiveContainer>
               <div className="space-y-2 mt-2">
                 {roleDistribution.map((r, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm">
+                  <button
+                    type="button"
+                    key={i}
+                    onClick={() => applyQuickFilter({ role: (r.role ?? "all") as RoleFilter, department: null })}
+                    className="flex w-full items-center justify-between text-sm hover:text-primary"
+                  >
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: r.color }} />
                       <span className="text-muted-foreground">{r.name}</span>
                     </div>
                     <span className="font-medium text-foreground">{r.value}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </>
@@ -541,8 +570,8 @@ const HRDDashboard = () => {
                 <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                 <Tooltip {...tooltipProps("bar")} />
                 <Legend />
-                <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name={t("hrdDashboard.charts.avgScoreBar")} cursor="pointer" onClick={(row) => navigate(`/users?department=${encodeURIComponent(row.name)}`)} />
-                <Bar dataKey="employees" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} name={t("hrdDashboard.charts.employeesBar")} cursor="pointer" onClick={(row) => navigate(`/users?department=${encodeURIComponent(row.name)}`)} />
+                <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name={t("hrdDashboard.charts.avgScoreBar")} cursor="pointer" onClick={(row: any) => applyQuickFilter({ department: row?.name ?? null })} />
+                <Bar dataKey="employees" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} name={t("hrdDashboard.charts.employeesBar")} cursor="pointer" onClick={(row: any) => applyQuickFilter({ department: row?.name ?? null })} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -550,7 +579,9 @@ const HRDDashboard = () => {
           )}
         </div>
       </div>
+      </ReorderableBlock>
 
+      <ReorderableBlock {...blockProps("workspace", "Рабочая область")} className="space-y-6">
       {/* Section tabs */}
       <div className="flex gap-2 overflow-x-auto -mx-1 px-1">
         {([
@@ -728,10 +759,30 @@ const HRDDashboard = () => {
 
       {/* Employee table */}
       {activePanel === "employees" && (
-      <div className="bg-card rounded-xl shadow-card border border-border overflow-hidden">
+      <div ref={tableRef} className="bg-card rounded-xl shadow-card border border-border overflow-hidden scroll-mt-20">
         <div className="p-6 border-b border-border">
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <h3 className="font-semibold text-foreground">{t("hrdDashboard.table.title")}</h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-semibold text-foreground">{t("hrdDashboard.table.title")}</h3>
+              {departmentFilter && (
+                <button
+                  type="button"
+                  onClick={() => setDepartmentFilter(null)}
+                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary"
+                >
+                  Отдел: {departmentFilter} ✕
+                </button>
+              )}
+              {roleFilter !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => setRoleFilter("all")}
+                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary"
+                >
+                  Роль: {roleBadge[roleFilter].label} ✕
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-3 flex-wrap">
               <Button
                 size="sm"
@@ -911,6 +962,7 @@ const HRDDashboard = () => {
         </div>
       </div>
       )}
+      </ReorderableBlock>
 
       {/* Comparison modal */}
       {comparisonTarget && (
