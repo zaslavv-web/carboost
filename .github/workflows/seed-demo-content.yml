@@ -11,6 +11,11 @@ on:
         options:
           - 'only-content'
           - 'full'
+      company_id:
+        description: 'ID или точное имя компании (пусто = автоопределение по демо-аккаунтам)'
+        required: false
+        default: ''
+        type: string
 
 env:
   FALLBACK_HOST: ssh.gro7659365.nichost.ru
@@ -77,8 +82,10 @@ jobs:
       - name: Run seeder
         run: |
           SEED_MODE="${{ github.event.inputs.seed_mode }}"
-          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' SEED_MODE='$SEED_MODE' bash -s" <<'REMOTE'
+          SEED_COMPANY="${{ github.event.inputs.company_id }}"
+          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' SEED_MODE='$SEED_MODE' SEED_COMPANY='$SEED_COMPANY' bash -s" <<'REMOTE'
           set -euo pipefail
+          SEED_COMPANY="${SEED_COMPANY:-}"
           cd "$BACKEND_ROOT"
 
           DB_CONTROLLER="app/Http/Controllers/Api/DbController.php"
@@ -90,8 +97,13 @@ jobs:
           ARTISAN="php -d memory_limit=1024M artisan"
           $ARTISAN optimize:clear || true
 
-          echo "→ Running demo:seed --$SEED_MODE"
-          $ARTISAN demo:seed --$SEED_MODE
+          COMPANY_ARG=""
+          if [ -n "${SEED_COMPANY:-}" ]; then
+            COMPANY_ARG="--company=$SEED_COMPANY"
+          fi
+
+          echo "→ Running demo:seed --$SEED_MODE $COMPANY_ARG"
+          $ARTISAN demo:seed --$SEED_MODE $COMPANY_ARG
 
           echo "✅ Seeding complete"
           REMOTE
