@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Edit2, Trash2, Package, Coins, ShoppingBag, Check, X, Upload, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
+import { productImageSrc } from "@/lib/productImage";
 
 const emptyProduct = {
   title: "", description: "", price: 100, image_url: "",
@@ -301,7 +302,7 @@ export default function ShopAdmin() {
             {products.map((p: any) => (
               <Card key={p.id} className={!p.is_active ? "opacity-60" : ""}>
                 <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
-                  {p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : <Package className="w-16 h-16 text-muted-foreground" />}
+                  <img src={productImageSrc(p.image_url, p.title)} alt={p.title} className="w-full h-full object-cover" />
                 </div>
                 <CardContent className="p-4 space-y-2">
                   <div className="flex justify-between items-start">

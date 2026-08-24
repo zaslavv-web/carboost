@@ -40,7 +40,9 @@ const RoleAwareLayout = () => {
   }
 
 
-  const hrdTodayEligible = role === "hrd" && isTodayCanary(user?.email);
+  // Модалка выбора режима — только для HRD и только после того, как роли
+  // реально загрузились (иначе она всплывала у сотрудников на первом рендере).
+  const hrdTodayEligible = rolesReady && role === "hrd" && isTodayCanary(user?.email);
   const mode = hrdTodayEligible ? readHrdUiMode() : null;
 
   // HRD on mobile with Today mode → Today shell on mobile, redirect /dashboard → /today.
