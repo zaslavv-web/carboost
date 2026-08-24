@@ -246,9 +246,9 @@ class SeedDemoCompany extends Command
      */
     private function runOnlyPerformance(): int
     {
-        $company = DB::table('companies')->where('name', $this->companyName)->first();
+        $company = $this->resolveDemoCompany();
         if (! $company) {
-            $this->error("Демо-компания «{$this->companyName}» не найдена. Сначала запустите полный сидинг.");
+            $this->reportCompanyNotFound();
             return self::FAILURE;
         }
         $this->companyId = (string) $company->id;
