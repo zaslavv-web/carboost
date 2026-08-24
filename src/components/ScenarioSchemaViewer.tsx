@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ReactFlow,
@@ -11,349 +11,373 @@ import {
   Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { X } from "lucide-react";
+import { X, Copy, Network, Braces } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface ScenarioSchemaViewerProps {
   scenario: any;
   onClose: () => void;
 }
 
-const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) => {
-  const { t } = useTranslation();
-  const data = scenario.scenario_data;
+/** Человекочитаемые подписи для частых ключей структуры сценария. */
+const LABELS_RU: Record<string, string> = {
+  brief: "Бриф",
+  summary: "Резюме",
+  description: "Описание",
+  title: "Название",
+  goal: "Цель",
+  purpose: "Цель",
+  context: "Контекст",
+  steps: "Шаги сценария",
+  stages: "Этапы",
+  tasks: "Задания",
+  questions: "Вопросы оценки",
+  criteria: "Критерии оценки",
+  competencies: "Компетенции",
+  skills: "Навыки",
+  key_points: "Ключевые пункты",
+  keyPoints: "Ключевые пункты",
+  indicators: "Индикаторы",
+  levels: "Уровни",
+  scale: "Шкала",
+  max_score: "Макс. балл",
+  duration: "Длительность",
+  roles: "Роли",
+  audience: "Аудитория",
+  materials: "Материалы",
+  outcomes: "Результаты",
+  notes: "Заметки",
+};
 
-  const { nodes, edges } = useMemo(() => {
+const LABELS_EN: Record<string, string> = {
+  brief: "Brief",
+  summary: "Summary",
+  description: "Description",
+  title: "Title",
+  goal: "Goal",
+  purpose: "Purpose",
+  context: "Context",
+  steps: "Scenario steps",
+  stages: "Stages",
+  tasks: "Tasks",
+  questions: "Assessment questions",
+  criteria: "Criteria",
+  competencies: "Competencies",
+  skills: "Skills",
+  key_points: "Key points",
+  keyPoints: "Key points",
+  indicators: "Indicators",
+  levels: "Levels",
+  scale: "Scale",
+  max_score: "Max score",
+  duration: "Duration",
+  roles: "Roles",
+  audience: "Audience",
+  materials: "Materials",
+  outcomes: "Outcomes",
+  notes: "Notes",
+};
+
+const humanize = (key: string, lang: string) => {
+  const dict = lang.startsWith("ru") ? LABELS_RU : LABELS_EN;
+  if (dict[key]) return dict[key];
+  return key
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^./, (c) => c.toUpperCase());
+};
+
+const isPrimitive = (v: any) =>
+  v === null || ["string", "number", "boolean"].includes(typeof v);
+
+/** Короткое имя элемента массива объектов. */
+const itemTitle = (item: any, index: number) => {
+  if (isPrimitive(item)) return String(item);
+  return (
+    item?.title ||
+    item?.name ||
+    item?.question ||
+    item?.label ||
+    item?.step ||
+    item?.text ||
+    `#${index + 1}`
+  );
+};
+
+const NODE_W = 260;
+const COL_GAP = 300;
+const ROW_GAP = 150;
+
+const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) => {
+  const { t, i18n } = useTranslation();
+  const [tab, setTab] = useState<"schema" | "json">("schema");
+  const lang = i18n.language || "ru";
+
+  /** scenario_data может прийти строкой — пробуем распарсить. */
+  const data = useMemo(() => {
+    const raw = scenario?.scenario_data;
+    if (typeof raw === "string") {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return raw;
+      }
+    }
+    return raw;
+  }, [scenario]);
+
+  const { nodes, edges, isEmpty } = useMemo(() => {
     const n: Node[] = [];
     const e: Edge[] = [];
+    const rowsPerLevel: Record<number, number> = {};
+    let idSeq = 0;
 
-    // Determine structure
-    const hasScenarioBlock = data?.scenario || data?.title;
-    const scenarioBlock = data?.scenario || data;
-    const questions: any[] = scenarioBlock?.questions || [];
-    const competencies: string[] = scenarioBlock?.competencies || [];
-    const keyPoints: string[] = data?.key_points || [];
+    const place = (level: number) => {
+      const row = rowsPerLevel[level] ?? 0;
+      rowsPerLevel[level] = row + 1;
+      return { x: level * COL_GAP, y: row * ROW_GAP };
+    };
 
-    const centerX = 400;
-    let yOffset = 0;
+    const baseStyle = {
+      background: "hsl(var(--card))",
+      color: "hsl(var(--card-foreground))",
+      borderRadius: "12px",
+      padding: "10px 14px",
+      border: "1px solid hsl(var(--border))",
+      minWidth: `${NODE_W}px`,
+      maxWidth: `${NODE_W}px`,
+    } as const;
 
-    // Root node — scenario title
-    const rootTitle = scenarioBlock?.title || scenario.title;
-    n.push({
-      id: "root",
-      position: { x: centerX - 120, y: yOffset },
-      data: {
-        label: (
-          <div className="text-center max-w-[220px]">
-            <div className="font-bold text-sm">{rootTitle}</div>
-            {scenarioBlock?.description && (
-              <div className="text-[10px] mt-1 opacity-70 line-clamp-2">{scenarioBlock.description}</div>
-            )}
-          </div>
-        ),
-      },
-      sourcePosition: Position.Bottom,
-      style: {
+    const addNode = (level: number, label: JSX.Element, style?: Record<string, any>) => {
+      const id = `n-${idSeq++}`;
+      n.push({
+        id,
+        position: place(level),
+        data: { label },
+        targetPosition: Position.Left,
+        sourcePosition: Position.Right,
+        style: { ...baseStyle, ...(style || {}) },
+      });
+      return id;
+    };
+
+    const connect = (from: string, to: string, dashed = false) => {
+      e.push({
+        id: `${from}->${to}`,
+        source: from,
+        target: to,
+        markerEnd: { type: MarkerType.ArrowClosed },
+        style: {
+          stroke: dashed ? "hsl(var(--muted-foreground))" : "hsl(var(--primary))",
+          ...(dashed ? { strokeDasharray: "5 5" } : {}),
+        },
+      });
+    };
+
+    // Корневой узел
+    const rootTitle =
+      (!isPrimitive(data) && !Array.isArray(data) && (data?.title || data?.scenario?.title)) ||
+      scenario.title;
+    const rootDescription =
+      (!isPrimitive(data) && !Array.isArray(data) && (data?.description || data?.scenario?.description)) ||
+      scenario.description;
+
+    const rootId = addNode(
+      0,
+      <div className="text-center">
+        <div className="font-bold text-sm">{rootTitle}</div>
+        {rootDescription && (
+          <div className="text-[10px] mt-1 opacity-80 line-clamp-3">{rootDescription}</div>
+        )}
+      </div>,
+      {
         background: "hsl(var(--primary))",
         color: "hsl(var(--primary-foreground))",
+        border: "none",
         borderRadius: "16px",
         padding: "14px 18px",
-        border: "none",
-        minWidth: "240px",
         boxShadow: "0 4px 20px hsl(var(--primary) / 0.25)",
       },
-    });
-    yOffset += 120;
+    );
 
-    // Summary node
-    if (data?.summary) {
-      n.push({
-        id: "summary",
-        position: { x: centerX - 140, y: yOffset },
-        data: {
-          label: (
-            <div className="max-w-[260px]">
-              <div className="font-semibold text-xs mb-1">{t("scenarioViewer.summary")}</div>
-              <div className="text-[10px] opacity-80 line-clamp-3">{data.summary}</div>
-            </div>
-          ),
-        },
-        sourcePosition: Position.Bottom,
-        targetPosition: Position.Top,
-        style: {
-          background: "hsl(var(--accent))",
-          color: "hsl(var(--accent-foreground))",
-          borderRadius: "12px",
-          padding: "10px 14px",
-          border: "1px solid hsl(var(--border))",
-          minWidth: "280px",
-        },
-      });
-      e.push({
-        id: "root-summary",
-        source: "root",
-        target: "summary",
-        markerEnd: { type: MarkerType.ArrowClosed },
-        style: { stroke: "hsl(var(--primary))" },
-      });
-      yOffset += 110;
-    }
+    let produced = 0;
 
-    // Key points
-    if (keyPoints.length > 0) {
-      const kpId = "keypoints";
-      n.push({
-        id: kpId,
-        position: { x: centerX - 140, y: yOffset },
-        data: {
-          label: (
-            <div className="max-w-[260px]">
-              <div className="font-semibold text-xs mb-1">{t("scenarioViewer.keyPoints")}</div>
-              <ul className="text-[10px] opacity-80 space-y-0.5 list-disc list-inside">
-                {keyPoints.slice(0, 5).map((kp, i) => (
-                  <li key={i} className="line-clamp-1">{kp}</li>
-                ))}
-                {keyPoints.length > 5 && <li>{t("scenarioViewer.more", { count: keyPoints.length - 5 })}</li>}
-              </ul>
-            </div>
-          ),
-        },
-        sourcePosition: Position.Bottom,
-        targetPosition: Position.Top,
-        style: {
-          background: "hsl(var(--muted))",
-          color: "hsl(var(--muted-foreground))",
-          borderRadius: "12px",
-          padding: "10px 14px",
-          border: "1px solid hsl(var(--border))",
-          minWidth: "280px",
-        },
-      });
-      e.push({
-        id: `${data?.summary ? "summary" : "root"}-kp`,
-        source: data?.summary ? "summary" : "root",
-        target: kpId,
-        markerEnd: { type: MarkerType.ArrowClosed },
-        style: { stroke: "hsl(var(--muted-foreground))" },
-      });
-      yOffset += 130;
-    }
+    /** Рекурсивный обход произвольной структуры. */
+    const walk = (value: any, parentId: string, level: number, depth: number) => {
+      if (value === null || value === undefined) return;
+      if (depth > 3) return;
 
-    // Questions hub
-    if (questions.length > 0) {
-      const hubId = "questions-hub";
-      n.push({
-        id: hubId,
-        position: { x: centerX - 80, y: yOffset },
-        data: {
-          label: (
-            <div className="text-center">
-              <div className="font-semibold text-xs">{t("scenarioViewer.questions")}</div>
-              <div className="text-[10px] opacity-70">{t("scenarioViewer.questionsCount", { count: questions.length })}</div>
-            </div>
-          ),
-        },
-        sourcePosition: Position.Bottom,
-        targetPosition: Position.Top,
-        style: {
-          background: "hsl(var(--card))",
-          color: "hsl(var(--card-foreground))",
-          borderRadius: "12px",
-          padding: "10px 16px",
-          border: "2px solid hsl(var(--primary))",
-          minWidth: "160px",
-        },
-      });
-      const prevNode = keyPoints.length > 0 ? "keypoints" : data?.summary ? "summary" : "root";
-      e.push({
-        id: `${prevNode}-hub`,
-        source: prevNode,
-        target: hubId,
-        markerEnd: { type: MarkerType.ArrowClosed },
-        style: { stroke: "hsl(var(--primary))" },
-      });
-      yOffset += 100;
-
-      // Individual questions
-      const cols = Math.min(questions.length, 3);
-      const colWidth = 280;
-      const startX = centerX - ((cols - 1) * colWidth) / 2 - 120;
-
-      questions.forEach((q, i) => {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const qId = `q-${i}`;
-        n.push({
-          id: qId,
-          position: { x: startX + col * colWidth, y: yOffset + row * 130 },
-          data: {
-            label: (
-              <div className="max-w-[230px]">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-semibold text-[10px] opacity-50">#{i + 1}</span>
-                  {q.max_score && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                      {t("scenarioViewer.maxShort", { count: q.max_score })}
-                    </span>
-                  )}
+      // Массив
+      if (Array.isArray(value)) {
+        if (value.length === 0) return;
+        const allPrimitive = value.every(isPrimitive);
+        if (allPrimitive) {
+          // отображается родителем как список — сюда не попадаем
+          return;
+        }
+        value.slice(0, 12).forEach((item, i) => {
+          const fields = isPrimitive(item) ? {} : (item as Record<string, any>);
+          const primEntries = Object.entries(fields).filter(
+            ([k, v]) => isPrimitive(v) && !["title", "name", "question", "label"].includes(k),
+          );
+          const id = addNode(
+            level,
+            <div className="text-left">
+              <div className="text-[10px] opacity-50 mb-0.5">#{i + 1}</div>
+              <div className="text-[11px] font-medium line-clamp-3">{itemTitle(item, i)}</div>
+              {primEntries.slice(0, 3).map(([k, v]) => (
+                <div key={k} className="text-[9px] opacity-70 line-clamp-1 mt-0.5">
+                  <span className="font-medium">{humanize(k, lang)}:</span> {String(v)}
                 </div>
-                <div className="text-[11px] font-medium line-clamp-2">{q.question}</div>
-                {q.criteria && (
-                  <div className="text-[9px] mt-1 opacity-60 line-clamp-1">
-                    {t("scenarioViewer.criterion")} {q.criteria}
-                  </div>
-                )}
-              </div>
-            ),
-          },
-          targetPosition: Position.Top,
-          sourcePosition: Position.Bottom,
-          style: {
-            background: "hsl(var(--card))",
-            color: "hsl(var(--card-foreground))",
-            borderRadius: "10px",
-            padding: "10px 12px",
-            border: "1px solid hsl(var(--border))",
-            minWidth: "250px",
-          },
+              ))}
+            </div>,
+          );
+          produced++;
+          connect(parentId, id);
+          // вложенные массивы/объекты внутри элемента
+          if (!isPrimitive(item)) {
+            Object.entries(fields).forEach(([k, v]) => {
+              if (isPrimitive(v)) return;
+              renderKey(k, v, id, level + 1, depth + 1);
+            });
+          }
         });
-        e.push({
-          id: `hub-q${i}`,
-          source: hubId,
-          target: qId,
-          markerEnd: { type: MarkerType.ArrowClosed },
-          style: { stroke: "hsl(var(--border))" },
-        });
-      });
+        if (value.length > 12) {
+          const id = addNode(
+            level,
+            <div className="text-[10px] opacity-70">{t("scenarioViewer.more", { count: value.length - 12 })}</div>,
+          );
+          produced++;
+          connect(parentId, id, true);
+        }
+        return;
+      }
 
-      const qRows = Math.ceil(questions.length / cols);
-      yOffset += qRows * 130 + 20;
-    }
+      // Объект
+      if (typeof value === "object") {
+        Object.entries(value).forEach(([k, v]) => renderKey(k, v, parentId, level, depth));
+      }
+    };
 
-    // Competencies
-    if (competencies.length > 0) {
-      const compHubId = "comp-hub";
-      n.push({
-        id: compHubId,
-        position: { x: centerX - 100, y: yOffset },
-        data: {
-          label: (
-            <div className="text-center">
-              <div className="font-semibold text-xs mb-1">{t("scenarioViewer.competencies")}</div>
-              <div className="flex flex-wrap gap-1 justify-center max-w-[200px]">
-                {competencies.map((c, i) => (
+    /** Рисует одну пару ключ→значение. */
+    const renderKey = (key: string, value: any, parentId: string, level: number, depth: number) => {
+      if (value === null || value === undefined || value === "") return;
+      if (depth > 3) return;
+
+      // Пропускаем поля, уже показанные в корне
+      if (parentId === rootId && ["title", "description"].includes(key)) return;
+
+      const label = humanize(key, lang);
+
+      if (isPrimitive(value)) {
+        const id = addNode(
+          level,
+          <div className="text-left">
+            <div className="font-semibold text-[11px] mb-0.5">{label}</div>
+            <div className="text-[10px] opacity-80 whitespace-pre-wrap line-clamp-5">{String(value)}</div>
+          </div>,
+          { background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" },
+        );
+        produced++;
+        connect(parentId, id);
+        return;
+      }
+
+      if (Array.isArray(value)) {
+        if (value.length === 0) return;
+        if (value.every(isPrimitive)) {
+          const id = addNode(
+            level,
+            <div className="text-left">
+              <div className="font-semibold text-[11px] mb-1">{label}</div>
+              <div className="flex flex-wrap gap-1">
+                {value.slice(0, 12).map((c, i) => (
                   <span
                     key={i}
                     className="text-[9px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium"
                   >
-                    {c}
+                    {String(c)}
                   </span>
                 ))}
-              </div>
-            </div>
-          ),
-        },
-        targetPosition: Position.Top,
-        style: {
-          background: "hsl(var(--card))",
-          color: "hsl(var(--card-foreground))",
-          borderRadius: "14px",
-          padding: "14px 18px",
-          border: "2px dashed hsl(var(--primary) / 0.4)",
-          minWidth: "220px",
-        },
-      });
-
-      // Connect from questions hub or root
-      const sourceForComp = questions.length > 0 ? "questions-hub" : keyPoints.length > 0 ? "keypoints" : "root";
-      e.push({
-        id: `${sourceForComp}-comp`,
-        source: sourceForComp,
-        target: compHubId,
-        markerEnd: { type: MarkerType.ArrowClosed },
-        style: { stroke: "hsl(var(--primary))", strokeDasharray: "5 5" },
-      });
-    }
-
-    // Handle array-based scenarios (plain data table)
-    if (Array.isArray(data) && data.length > 0 && !hasScenarioBlock) {
-      const keys = Object.keys(data[0] || {});
-      // Show structure as a table-like node
-      n.push({
-        id: "data-structure",
-        position: { x: centerX - 120, y: 120 },
-        data: {
-          label: (
-            <div className="max-w-[260px]">
-              <div className="font-semibold text-xs mb-1">{t("scenarioViewer.dataStructure")}</div>
-              <div className="text-[10px] opacity-70 mb-1">{t("scenarioViewer.recordsCount", { count: data.length })}</div>
-              <div className="flex flex-wrap gap-1">
-                {keys.map((k, i) => (
-                  <span key={i} className="text-[9px] px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
-                    {k}
+                {value.length > 12 && (
+                  <span className="text-[9px] opacity-70">
+                    {t("scenarioViewer.more", { count: value.length - 12 })}
                   </span>
-                ))}
+                )}
               </div>
+            </div>,
+            { border: "2px dashed hsl(var(--primary) / 0.4)" },
+          );
+          produced++;
+          connect(parentId, id);
+          return;
+        }
+        // массив объектов — хаб + элементы
+        const hubId = addNode(
+          level,
+          <div className="text-center">
+            <div className="font-semibold text-[11px]">{label}</div>
+            <div className="text-[10px] opacity-70">
+              {t("scenarioViewer.itemsCount", { count: value.length })}
             </div>
-          ),
-        },
-        targetPosition: Position.Top,
-        style: {
-          background: "hsl(var(--card))",
-          color: "hsl(var(--card-foreground))",
-          borderRadius: "12px",
-          padding: "12px 16px",
-          border: "1px solid hsl(var(--border))",
-          minWidth: "260px",
-        },
-      });
-      e.push({
-        id: "root-data",
-        source: "root",
-        target: "data-structure",
-        markerEnd: { type: MarkerType.ArrowClosed },
-        style: { stroke: "hsl(var(--primary))" },
-      });
+          </div>,
+          { border: "2px solid hsl(var(--primary))", minWidth: "180px", maxWidth: "220px" },
+        );
+        produced++;
+        connect(parentId, hubId);
+        walk(value, hubId, level + 1, depth + 1);
+        return;
+      }
 
-      // Show first 3 rows as samples
-      data.slice(0, 3).forEach((row: any, i: number) => {
-        const rowId = `row-${i}`;
-        n.push({
-          id: rowId,
-          position: { x: 60 + i * 300, y: 260 },
-          data: {
-            label: (
-              <div className="max-w-[240px]">
-                <div className="font-semibold text-[10px] opacity-50 mb-1">{t("scenarioViewer.record", { n: i + 1 })}</div>
-                {keys.slice(0, 4).map((k) => (
-                  <div key={k} className="text-[10px] truncate">
-                    <span className="font-medium">{k}:</span>{" "}
-                    <span className="opacity-70">{String(row[k] || "—").substring(0, 40)}</span>
-                  </div>
-                ))}
-              </div>
-            ),
-          },
-          targetPosition: Position.Top,
-          style: {
-            background: "hsl(var(--muted))",
-            color: "hsl(var(--muted-foreground))",
-            borderRadius: "10px",
-            padding: "8px 12px",
-            border: "1px solid hsl(var(--border))",
-          },
-        });
-        e.push({
-          id: `data-row${i}`,
-          source: "data-structure",
-          target: rowId,
-          style: { stroke: "hsl(var(--border))" },
-        });
-      });
+      // вложенный объект
+      const keys = Object.keys(value);
+      if (keys.length === 0) return;
+      const groupId = addNode(
+        level,
+        <div className="text-center">
+          <div className="font-semibold text-[11px]">{label}</div>
+          <div className="text-[10px] opacity-70">
+            {t("scenarioViewer.fieldsCount", { count: keys.length })}
+          </div>
+        </div>,
+        { border: "2px solid hsl(var(--primary) / 0.6)", minWidth: "180px", maxWidth: "220px" },
+      );
+      produced++;
+      connect(parentId, groupId);
+      if (depth + 1 > 3) return;
+      walk(value, groupId, level + 1, depth + 1);
+    };
+
+    if (Array.isArray(data)) {
+      renderKey("records", data, rootId, 1, 1);
+    } else if (data && typeof data === "object") {
+      // Разворачиваем обёртку { scenario: {...} }
+      const root = data.scenario && typeof data.scenario === "object" ? { ...data.scenario, ...Object.fromEntries(Object.entries(data).filter(([k]) => k !== "scenario")) } : data;
+      Object.entries(root).forEach(([k, v]) => renderKey(k, v, rootId, 1, 1));
+    } else if (isPrimitive(data) && data !== null && data !== "") {
+      renderKey("data", data, rootId, 1, 1);
     }
 
-    return { nodes: n, edges: e };
-  }, [data, scenario.title]);
+    return { nodes: n, edges: e, isEmpty: produced === 0 };
+  }, [data, scenario.title, scenario.description, lang, t]);
+
+  const jsonText = useMemo(() => {
+    try {
+      return JSON.stringify(data, null, 2);
+    } catch {
+      return String(data ?? "");
+    }
+  }, [data]);
+
+  const copyJson = async () => {
+    try {
+      await navigator.clipboard.writeText(jsonText);
+      toast.success(t("scenarioViewer.copied"));
+    } catch {
+      toast.error(t("scenarioViewer.copyFailed"));
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
@@ -361,34 +385,84 @@ const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) 
         className="bg-card rounded-2xl border border-border w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden"
         onClick={(ev) => ev.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">{scenario.title}</h2>
+        <div className="flex items-center justify-between gap-3 p-4 border-b border-border">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-foreground truncate">{scenario.title}</h2>
             <p className="text-xs text-muted-foreground">{t("scenarioViewer.subtitle")}</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setTab("schema")}
+                className={`flex items-center gap-1 px-3 py-1.5 text-xs ${tab === "schema" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:bg-muted"}`}
+              >
+                <Network className="w-3.5 h-3.5" />
+                {t("scenarioViewer.tabSchema")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("json")}
+                className={`flex items-center gap-1 px-3 py-1.5 text-xs ${tab === "json" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:bg-muted"}`}
+              >
+                <Braces className="w-3.5 h-3.5" />
+                {t("scenarioViewer.tabJson")}
+              </button>
+            </div>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
-        <div className="flex-1">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            fitView
-            fitViewOptions={{ padding: 0.3 }}
-            nodesDraggable
-            nodesConnectable={false}
-            elementsSelectable={false}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background gap={20} size={1} />
-            <Controls showInteractive={false} />
-            <MiniMap
-              style={{ background: "hsl(var(--muted))" }}
-              maskColor="hsl(var(--background) / 0.7)"
-            />
-          </ReactFlow>
-        </div>
+
+        {tab === "schema" ? (
+          <div className="flex-1 relative">
+            {isEmpty && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center p-6 bg-background/80">
+                <div className="text-center max-w-sm">
+                  <p className="text-sm font-medium text-foreground">{t("scenarioViewer.emptyTitle")}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("scenarioViewer.emptyDesc")}</p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={() => setTab("json")}>
+                    {t("scenarioViewer.tabJson")}
+                  </Button>
+                </div>
+              </div>
+            )}
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              fitView
+              fitViewOptions={{ padding: 0.2 }}
+              minZoom={0.1}
+              nodesDraggable
+              nodesConnectable={false}
+              elementsSelectable={false}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background gap={20} size={1} />
+              <Controls showInteractive={false} />
+              <MiniMap
+                style={{ background: "hsl(var(--muted))" }}
+                maskColor="hsl(var(--background) / 0.7)"
+              />
+            </ReactFlow>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-auto p-4 relative">
+            <Button
+              variant="outline"
+              size="sm"
+              className="absolute right-6 top-6 gap-1"
+              onClick={copyJson}
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {t("scenarioViewer.copy")}
+            </Button>
+            <pre className="text-[11px] leading-relaxed text-foreground whitespace-pre-wrap break-words font-mono">
+              {jsonText}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -130,7 +130,16 @@
     "competencies": "Оцениваемые компетенции",
     "dataStructure": "Структура данных",
     "recordsCount": "{{count}} записей",
-    "record": "Запись #{{n}}"
+    "record": "Запись #{{n}}",
+    "itemsCount": "{{count}} элементов",
+    "fieldsCount": "{{count}} полей",
+    "tabSchema": "Схема",
+    "tabJson": "JSON",
+    "copy": "Копировать",
+    "copied": "JSON скопирован",
+    "copyFailed": "Не удалось скопировать",
+    "emptyTitle": "Данные сценария пусты или в неизвестном формате",
+    "emptyDesc": "Загрузите файл сценария заново или проверьте содержимое во вкладке JSON."
   },
   "tracksAnalytics": {
     "stage": "Этап {{n}}",
