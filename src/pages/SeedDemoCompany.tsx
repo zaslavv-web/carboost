@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravel } from "@/integrations/laravel/client";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface CompanyRow { id: string; name: string; users: number; slug?: string | null }
+interface CompanyRow { id: string; name: string; users: number }
 interface DemoUser { email: string; full_name: string; role: string | null }
 interface DemoPosition { id: string; title: string; department: string | null }
 interface DemoStatus {
@@ -35,103 +35,47 @@ interface CareerTrackResult {
 }
 
 
-const LAST_COMPANY_KEY = "demo-seed:last-company";
-
 export default function SeedDemoCompany() {
   const qc = useQueryClient();
   const [headcount, setHeadcount] = useState(150);
-  const [company, setCompany] = useState<string>(() => localStorage.getItem(LAST_COMPANY_KEY) || "");
+  const [company, setCompany] = useState<string>('ООО "Демо"');
   const [customName, setCustomName] = useState("");
   const [output, setOutput] = useState<string>("");
 
-  const { data: companiesData, error: companiesError } = useQuery<{ default: string; companies: CompanyRow[] }>({
+  const { data: companiesData } = useQuery<{ default: string; companies: CompanyRow[] }>({
     queryKey: ["demo-companies"],
-    queryFn: async () => {
-      const { data, error } = await laravel.get<{ default: string; companies: CompanyRow[] }>("/superadmin/demo/companies");
-      if (error) throw new Error(error.message);
-      return data!;
-    },
-    retry: false,
+    queryFn: async () => (await laravel.get<{ default: string; companies: CompanyRow[] }>("/superadmin/demo/companies")).data,
   });
-
-  const companies = companiesData?.companies || [];
-
-  // Ничего не выбрано (или сохранённой компании больше нет) — подставляем demo_doom,
-  // иначе серверный default, иначе первую из списка. Новые компании не создаём.
-  useEffect(() => {
-    if (!companies.length) return;
-    if (company === "__new__") return;
-    if (company && companies.some((c) => c.name === company)) return;
-    const doom = companies.find((c) => `${c.name} ${c.slug ?? ""}`.toLowerCase().includes("doom"));
-    const fallback = doom?.name || companies.find((c) => c.name === companiesData?.default)?.name || companies[0].name;
-    setCompany(fallback);
-  }, [companies, companiesData?.default, company]);
-
-  const selectCompany = (value: string) => {
-    setCompany(value);
-    if (value !== "__new__") localStorage.setItem(LAST_COMPANY_KEY, value);
-  };
 
   const targetName = company === "__new__" ? customName.trim() : company;
 
-
-  const { data: status, isLoading, error: statusError } = useQuery<DemoStatus>({
+  const { data: status, isLoading } = useQuery<DemoStatus>({
     queryKey: ["demo-status", targetName],
-    queryFn: async () => {
-      const { data, error } = await laravel.get<DemoStatus>(`/superadmin/demo/status?company=${encodeURIComponent(targetName)}`);
-      if (error) throw new Error(error.message);
-      return data!;
-    },
+    queryFn: async () =>
+      (await laravel.get<DemoStatus>(`/superadmin/demo/status?company=${encodeURIComponent(targetName)}`)).data,
     enabled: targetName.length > 0,
-    retry: false,
   });
 
-  const loadError = (companiesError as Error | null)?.message || (statusError as Error | null)?.message || null;
-
-  /** Достаёт вывод команды из ошибки клиента (диагностика приходит в поле diagnostics). */
-  const applyErrorDiagnostics = (e: any) => {
-    const d = e?.diagnostics as { output?: string; where?: string; last_step?: string } | undefined;
-    const parts = [
-      e?.message ? `ОШИБКА: ${e.message}` : "",
-      d?.last_step ? `Последний шаг: ${d.last_step}` : "",
-      d?.where ? `Место: ${d.where}` : "",
-      d?.output || "",
-    ].filter(Boolean);
-    if (parts.length) setOutput(parts.join("\n"));
-  };
-
   const seed = useMutation({
-    mutationFn: async (reset: boolean) => {
-      const result = await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/seed", { reset, headcount, company: targetName });
-      if (result.error) throw result.error;
-      return result.data!;
-    },
+    mutationFn: async (reset: boolean) =>
+      (await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/seed", { reset, headcount, company: targetName })).data,
     onSuccess: (r) => {
       setOutput(r.output || "");
       toast.success(r.ok ? "Демо-компания создана" : "Готово");
       qc.invalidateQueries({ queryKey: ["demo-status"] });
     },
-    onError: (e: any) => {
-      applyErrorDiagnostics(e);
-      toast.error(e?.message || "Ошибка сидинга");
-    },
+    onError: (e: any) => toast.error(e?.message || "Ошибка сидинга"),
   });
 
   const reset = useMutation({
-    mutationFn: async () => {
-      const result = await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/reset", { headcount, company: targetName });
-      if (result.error) throw result.error;
-      return result.data!;
-    },
+    mutationFn: async () =>
+      (await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/reset", { headcount, company: targetName })).data,
     onSuccess: (r) => {
       setOutput(r.output || "");
       toast.success("Демо-компания сброшена и создана заново");
       qc.invalidateQueries({ queryKey: ["demo-status"] });
     },
-    onError: (e: any) => {
-      applyErrorDiagnostics(e);
-      toast.error(e?.message || "Ошибка сброса");
-    },
+    onError: (e: any) => toast.error(e?.message || "Ошибка сброса"),
   });
 
   const careerTracks = useMutation({
@@ -154,7 +98,8 @@ export default function SeedDemoCompany() {
       qc.invalidateQueries({ queryKey: ["demo-status"] });
     },
     onError: (e: any) => {
-      applyErrorDiagnostics(e);
+      const diagnostics = e?.diagnostics as { output?: string } | undefined;
+      if (diagnostics?.output) setOutput(diagnostics.output);
       toast.error(e?.message || "Ошибка назначения треков");
       qc.invalidateQueries({ queryKey: ["demo-status"] });
     },
@@ -172,12 +117,8 @@ export default function SeedDemoCompany() {
       toast.success("Все контентные разделы заполнены и проверены");
       qc.invalidateQueries({ queryKey: ["demo-status"] });
     },
-    onError: (e: any) => {
-      applyErrorDiagnostics(e);
-      toast.error(e?.message || "Ошибка контентного прогона");
-    },
+    onError: (e: any) => toast.error(e?.message || "Ошибка контентного прогона"),
   });
-
 
 
   const copyAllLogins = () => {
@@ -210,7 +151,7 @@ export default function SeedDemoCompany() {
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[260px]">
               <Label>Компания</Label>
-              <Select value={company || undefined} onValueChange={selectCompany}>
+              <Select value={company} onValueChange={setCompany}>
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите компанию" />
                 </SelectTrigger>
@@ -253,11 +194,6 @@ export default function SeedDemoCompany() {
               Дозаполнить весь контент
             </Button>
           </div>
-          {loadError && (
-            <div className="text-sm text-destructive border border-destructive/40 rounded p-3">
-              Не удалось загрузить данные сидера: {loadError}
-            </div>
-          )}
           {output && (
             <pre className="text-xs bg-muted p-3 rounded overflow-x-auto max-h-64">{output}</pre>
           )}
