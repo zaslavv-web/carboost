@@ -96,11 +96,11 @@ export default function ShopProductDetail() {
       <div className="grid md:grid-cols-2 gap-6">
         <Card className="overflow-hidden">
           <div className="aspect-square bg-muted flex items-center justify-center">
-            {product.image_url ? (
-              <img src={product.image_url} alt={product.title} className="w-full h-full object-cover" />
-            ) : (
-              <Package className="w-24 h-24 text-muted-foreground" />
-            )}
+            <img
+              src={productImageSrc(product.image_url, product.title)}
+              alt={product.title}
+              className="w-full h-full object-cover"
+            />
           </div>
         </Card>
 
