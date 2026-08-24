@@ -44,9 +44,14 @@ export default function SeedDemoCompany() {
   const [customName, setCustomName] = useState("");
   const [output, setOutput] = useState<string>("");
 
-  const { data: companiesData } = useQuery<{ default: string; companies: CompanyRow[] }>({
+  const { data: companiesData, error: companiesError } = useQuery<{ default: string; companies: CompanyRow[] }>({
     queryKey: ["demo-companies"],
-    queryFn: async () => (await laravel.get<{ default: string; companies: CompanyRow[] }>("/superadmin/demo/companies")).data,
+    queryFn: async () => {
+      const { data, error } = await laravel.get<{ default: string; companies: CompanyRow[] }>("/superadmin/demo/companies");
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    retry: false,
   });
 
   const companies = companiesData?.companies || [];
@@ -70,12 +75,18 @@ export default function SeedDemoCompany() {
   const targetName = company === "__new__" ? customName.trim() : company;
 
 
-  const { data: status, isLoading } = useQuery<DemoStatus>({
+  const { data: status, isLoading, error: statusError } = useQuery<DemoStatus>({
     queryKey: ["demo-status", targetName],
-    queryFn: async () =>
-      (await laravel.get<DemoStatus>(`/superadmin/demo/status?company=${encodeURIComponent(targetName)}`)).data,
+    queryFn: async () => {
+      const { data, error } = await laravel.get<DemoStatus>(`/superadmin/demo/status?company=${encodeURIComponent(targetName)}`);
+      if (error) throw new Error(error.message);
+      return data!;
+    },
     enabled: targetName.length > 0,
+    retry: false,
   });
+
+  const loadError = (companiesError as Error | null)?.message || (statusError as Error | null)?.message || null;
 
   /** Достаёт вывод команды из ошибки клиента (диагностика приходит в поле diagnostics). */
   const applyErrorDiagnostics = (e: any) => {
@@ -242,6 +253,11 @@ export default function SeedDemoCompany() {
               Дозаполнить весь контент
             </Button>
           </div>
+          {loadError && (
+            <div className="text-sm text-destructive border border-destructive/40 rounded p-3">
+              Не удалось загрузить данные сидера: {loadError}
+            </div>
+          )}
           {output && (
             <pre className="text-xs bg-muted p-3 rounded overflow-x-auto max-h-64">{output}</pre>
           )}

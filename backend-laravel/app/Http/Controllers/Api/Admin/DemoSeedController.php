@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 
 /**
@@ -25,65 +26,120 @@ class DemoSeedController extends Controller
     public function companies(Request $request): JsonResponse
     {
         $this->requireSuperadmin($request);
-        $companies = DB::table('companies')
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(function ($c) {
-                $c->users = DB::table('profiles')->where('company_id', $c->id)->count();
-                return $c;
-            });
 
-        return response()->json([
-            'default' => self::NAME,
-            'companies' => $companies,
-        ]);
+        try {
+            // Один агрегирующий запрос вместо N+1: на проде лимит соединений MySQL жёсткий.
+            $columns = ['companies.id', 'companies.name'];
+            if (Schema::hasColumn('companies', 'slug')) {
+                $columns[] = 'companies.slug';
+            }
+
+            $query = DB::table('companies')->select($columns);
+            if (Schema::hasTable('profiles')) {
+                $query->selectSub(
+                    DB::table('profiles')->selectRaw('count(*)')->whereColumn('profiles.company_id', 'companies.id'),
+                    'users'
+                );
+            } else {
+                $query->selectRaw('0 as users');
+            }
+
+            $companies = $query->orderBy('companies.name')->limit(500)->get();
+
+            return response()->json([
+                'default' => self::NAME,
+                'companies' => $companies,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->failure('companies', $e);
+        }
     }
 
     public function status(Request $request): JsonResponse
     {
         $this->requireSuperadmin($request);
         $name = $this->companyName($request);
-        $company = DB::table('companies')->where('name', $name)->first();
-        if (!$company) {
-            return response()->json(['exists' => false, 'name' => $name]);
+
+        try {
+            $company = DB::table('companies')->where('name', $name)->first();
+            if (!$company) {
+                return response()->json(['exists' => false, 'name' => $name]);
+            }
+
+            $count = fn (string $table) => Schema::hasTable($table) && Schema::hasColumn($table, 'company_id')
+                ? DB::table($table)->where('company_id', $company->id)->count()
+                : 0;
+
+            $counts = [
+                'users'         => $count('profiles'),
+                'departments'   => $count('departments'),
+                'positions'     => $count('positions'),
+                'tasks'         => $count('hr_tasks'),
+                'shop_products' => $count('shop_products'),
+                'shop_orders'   => $count('shop_orders'),
+                'initiatives'   => $count('initiatives'),
+                'career_templates'  => $count('career_track_templates'),
+                'career_assignments' => $count('employee_career_assignments'),
+            ];
+
+            // Собираем список логинов (email + full_name + role) для UI-таблицы
+            $usersQuery = DB::table('users')
+                ->join('profiles', 'profiles.user_id', '=', 'users.id')
+                ->where('profiles.company_id', $company->id);
+
+            if (Schema::hasTable('user_roles')) {
+                $usersQuery->leftJoin('user_roles', 'user_roles.user_id', '=', 'users.id')
+                    ->orderBy('user_roles.role')
+                    ->select('users.email', 'profiles.full_name', 'user_roles.role');
+            } else {
+                $usersQuery->selectRaw('users.email, profiles.full_name, null as role');
+            }
+
+            $users = $usersQuery->orderBy('users.email')->limit(1000)->get();
+
+            $positionsQuery = DB::table('positions')->where('company_id', $company->id);
+            $hasDepartment = Schema::hasColumn('positions', 'department');
+            if ($hasDepartment) {
+                $positionsQuery->orderBy('department');
+            }
+            $positions = $positionsQuery->orderBy('title')->limit(1000)
+                ->get($hasDepartment ? ['id', 'title', 'department'] : ['id', 'title']);
+
+            return response()->json([
+                'exists'     => true,
+                'company_id' => $company->id,
+                'name'       => $company->name,
+                'counts'     => $counts,
+                'password'   => 'DemoPass!2026',
+                'users'      => $users,
+                'positions'  => $positions,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->failure('status', $e);
         }
-        $counts = [
-            'users'         => DB::table('profiles')->where('company_id', $company->id)->count(),
-            'departments'   => DB::table('departments')->where('company_id', $company->id)->count(),
-            'positions'     => DB::table('positions')->where('company_id', $company->id)->count(),
-            'tasks'         => DB::table('hr_tasks')->where('company_id', $company->id)->count(),
-            'shop_products' => DB::table('shop_products')->where('company_id', $company->id)->count(),
-            'shop_orders'   => DB::table('shop_orders')->where('company_id', $company->id)->count(),
-            'initiatives'   => \Schema::hasTable('initiatives') ? DB::table('initiatives')->where('company_id', $company->id)->count() : 0,
-            'career_templates'  => \Schema::hasTable('career_track_templates') ? DB::table('career_track_templates')->where('company_id', $company->id)->count() : 0,
-            'career_assignments' => \Schema::hasTable('employee_career_assignments') ? DB::table('employee_career_assignments')->where('company_id', $company->id)->count() : 0,
-        ];
-        // Собираем список логинов (email + full_name + role) для UI-таблицы
-        $users = DB::table('users')
-            ->join('profiles', 'profiles.user_id', '=', 'users.id')
-            ->leftJoin('user_roles', 'user_roles.user_id', '=', 'users.id')
-            ->where('profiles.company_id', $company->id)
-            ->orderBy('user_roles.role')
-            ->orderBy('users.email')
-            ->select('users.email', 'profiles.full_name', 'user_roles.role')
-            ->get();
+    }
 
-        $positions = DB::table('positions')
-            ->where('company_id', $company->id)
-            ->orderBy('department')->orderBy('title')
-            ->get(['id', 'title', 'department']);
-
-        return response()->json([
-            'exists'     => true,
-            'company_id' => $company->id,
-            'name'       => $company->name,
-            'counts'     => $counts,
-            'password'   => 'DemoPass!2026',
-            'users'      => $users,
-            'positions'  => $positions,
+    /** Единый формат читаемой ошибки вместо голого 500. */
+    private function failure(string $action, \Throwable $e): JsonResponse
+    {
+        Log::error('demo-seed: ошибка ' . $action, [
+            'exception' => $e::class,
+            'message' => $e->getMessage(),
+            'where' => $e->getFile() . ':' . $e->getLine(),
+            'trace' => $e->getTraceAsString(),
         ]);
 
+        $where = basename($e->getFile()) . ':' . $e->getLine();
+
+        return response()->json([
+            'ok' => false,
+            'message' => $e->getMessage() . ' (' . $where . ')',
+            'exception' => $e::class,
+            'where' => $where,
+            'diagnostics' => ['action' => $action, 'where' => $where, 'exception' => $e::class],
+        ], 422);
     }
+
 
     public function seed(Request $request): JsonResponse
     {
@@ -188,9 +244,8 @@ class DemoSeedController extends Controller
                 ],
             ], 422);
         }
-
-        }
     }
+
 
     /** Последняя строка прогресса вида «4/12 Создаю 150 сотрудников…». */
     private function lastStep(string $output): ?string
