@@ -135,6 +135,8 @@ class PeopleAnalyticsController extends Controller
                 'requests' => $group->count(),
             ]);
 
+        $headcount = max(1, DB::table('profiles')->when($companyId, fn ($q) => $q->where('company_id', $companyId))->count());
+
         $series = [];
         for ($i = 0; $i < 6; $i++) {
             $key = $start->copy()->addMonths($i)->format('Y-m');
@@ -142,6 +144,7 @@ class PeopleAnalyticsController extends Controller
                 'month'    => $key,
                 'days'     => (float) ($rows[$key]->days ?? 0),
                 'requests' => (int) ($rows[$key]->requests ?? 0),
+                'rate'     => round(((float) ($rows[$key]->days ?? 0) / ($headcount * max(1, $start->copy()->addMonths($i)->daysInMonth))) * 100, 2),
             ];
         }
         return response()->json(['series' => $series]);

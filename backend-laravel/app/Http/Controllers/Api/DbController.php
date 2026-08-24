@@ -31,6 +31,16 @@ use Illuminate\Support\Facades\Gate;
  */
 class DbController extends Controller
 {
+    private const TABLE_RESOURCES = [
+        'profiles' => 'employees', 'departments' => 'employees', 'positions' => 'positions',
+        'employee_invitations' => 'invitations', 'onboarding_plans' => 'adaptation',
+        'onboarding_plan_steps' => 'adaptation', 'onboarding_assignments' => 'adaptation',
+        'performance_reviews' => 'performance', 'performance_cycles' => 'performance',
+        'performance_review_reviewers' => 'performance', 'competencies' => 'skills_matrix',
+        'hr_documents' => 'hr_documents', 'knowledge_articles' => 'knowledge_base',
+        'knowledge_categories' => 'knowledge_base', 'shop_products' => 'shop', 'shop_orders' => 'shop',
+        'pulse_surveys' => 'pulse', 'pulse_survey_questions' => 'pulse', 'pulse_survey_responses' => 'pulse',
+    ];
     /** Размер порции сырого чтения: ограничивает пик памяти до сборки ответа. */
     protected const RAW_CHUNK_ROWS = 25;
 
@@ -192,6 +202,7 @@ class DbController extends Controller
     public function index(Request $request, string $table)
     {
         try {
+            $this->authorizeResource($request, $table, 'view');
             $model = self::resolve($table);
             $this->authorizeAny('viewAny', $model);
 
@@ -606,6 +617,7 @@ class DbController extends Controller
 
     public function store(Request $request, string $table)
     {
+        $this->authorizeResource($request, $table, 'edit');
         $model = self::resolve($table);
         $payload = $request->input('values', $request->all());
         $rows = isset($payload[0]) ? $payload : [$payload];
@@ -661,6 +673,7 @@ class DbController extends Controller
     public function update(Request $request, string $table)
     {
         try {
+            $this->authorizeResource($request, $table, 'edit');
             $model = self::resolve($table);
             $query = $model::query();
             $applied = $this->applyFilters($query, $request);
@@ -719,6 +732,7 @@ class DbController extends Controller
     public function destroy(Request $request, string $table)
     {
         try {
+            $this->authorizeResource($request, $table, 'edit');
             $model = self::resolve($table);
             $query = $model::query();
             $applied = $this->applyFilters($query, $request);
@@ -945,5 +959,13 @@ class DbController extends Controller
             'error'   => 'Недостаточно прав',
             'details' => $diagnostics,
         ], 403));
+    }
+
+    private function authorizeResource(Request $request, string $table, string $action): void
+    {
+        $resource = self::TABLE_RESOURCES[$table] ?? null;
+        if ($resource && ! AccessControlController::allows($request->user(), $resource, $action)) {
+            abort(response()->json(['error' => 'Доступ к разделу запрещён ролевой моделью', 'resource' => $resource], 403));
+        }
     }
 }

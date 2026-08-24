@@ -119,6 +119,9 @@ class SeedDemoCompany extends Command
             $this->info('12.3  Лента компании, сообщества и Pulse…');
             $this->seedPortal();
             $this->seedPulseSurveys();
+
+            $this->info('12.3.1 Talent Review, адаптация, приглашения, документы, КЭДО и отсутствия…');
+            $this->seedMissingContentModules();
         });
 
         $this->info('12.4  Проекты и задачи трекера…');
@@ -1816,15 +1819,22 @@ class SeedDemoCompany extends Command
             'tracker_projects' => 'проекты трекера',
             'tracker_tasks' => 'задачи трекера',
             'shop_products' => 'товары магазина',
+            'shop_orders' => 'заказы магазина',
             'knowledge_articles' => 'база знаний',
             'assessment_scenarios' => 'сценарии оценки',
             'closed_question_tests' => 'тесты',
             'onboarding_plans' => 'планы адаптации',
             'employee_invitations' => 'приглашения',
             'performance_cycles' => 'Performance',
+            'performance_reviews' => 'оценки Performance',
+            'talent_review_sessions' => 'Talent Review',
+            'talent_review_ratings' => 'матрица Talent Review',
+            'probation_periods' => 'испытательный срок',
+            'disciplinary_records' => 'дисциплинарные взыскания',
             'hr_documents' => 'HR-документы',
             'kedo_documents' => 'КЭДО',
             'leave_requests' => 'отсутствия',
+            'leave_balances' => 'балансы отсутствий',
             'career_track_templates' => 'карьерные треки',
             'employee_career_assignments' => 'назначения карьерных треков',
         ];
@@ -1836,6 +1846,9 @@ class SeedDemoCompany extends Command
         }
         if (Schema::hasTable('tracker_sprints') && DB::table('tracker_sprints')->where('company_id', $this->companyId)->count() === 0) {
             $empty[] = 'спринты трекера';
+        }
+        if (Schema::hasTable('hr_documents') && DB::table('hr_documents')->where('company_id', $this->companyId)->where('document_type', 'policy')->count() === 0) {
+            $empty[] = 'политики компании';
         }
 
         // Каждый сотрудник должен видеть непустой бэклог.
@@ -1979,10 +1992,46 @@ class SeedDemoCompany extends Command
         if (Schema::hasTable('performance_cycles') && DB::table('performance_cycles')->where('company_id', $this->companyId)->doesntExist()) {
             $this->seedPerformance();
         }
+        $this->seedTalentReview($profiles, $admin);
 
         $this->seedPersonalHrDocuments($profiles, $admin);
         $this->seedKedo($profiles, $admin);
         $this->seedLeaves($profiles, $admin);
+    }
+
+    private function seedTalentReview($profiles, string $admin): void
+    {
+        if (! Schema::hasTable('talent_review_sessions') || ! Schema::hasTable('talent_review_ratings')) return;
+        if (DB::table('talent_review_sessions')->where('company_id', $this->companyId)->exists()) return;
+
+        $sessions = [
+            ['Калибровка талантов — полугодие', '9box', 'completed'],
+            ['Кадровый резерв руководителей', '9box', 'in_progress'],
+        ];
+        foreach ($sessions as $sessionIndex => [$title, $grid, $status]) {
+            $sessionId = (string) Str::uuid();
+            DB::table('talent_review_sessions')->insert([
+                'id' => $sessionId, 'company_id' => $this->companyId, 'title' => $title,
+                'grid_type' => $grid, 'status' => $status, 'facilitator_id' => $admin,
+                'scheduled_at' => now()->subDays($sessionIndex ? 2 : 30),
+                'completed_at' => $status === 'completed' ? now()->subDays(29) : null,
+                'protocol' => 'Обсуждены преемники, зоны развития и риски удержания. Решения закреплены за руководителями.',
+                'created_by' => $admin, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            foreach ($profiles->take(18) as $index => $profile) {
+                $perf = 1 + ($index % 3); $potential = 1 + (($index + $sessionIndex) % 3);
+                $box = ($potential - 1) * 3 + $perf;
+                DB::table('talent_review_ratings')->insert([
+                    'id' => (string) Str::uuid(), 'company_id' => $this->companyId,
+                    'session_id' => $sessionId, 'user_id' => $profile->user_id,
+                    'performance_score' => round(2.5 + $perf * .65, 2), 'perf_level' => $perf,
+                    'pot_level' => $potential, 'box' => $box, 'agreed' => $status === 'completed',
+                    'flight_risk' => ['low', 'medium', 'high'][$index % 3],
+                    'note' => $box >= 7 ? 'Высокий потенциал; включить в кадровый резерв.' : 'Согласовать индивидуальный план развития.',
+                    'rated_by' => $admin, 'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+        }
     }
 
     /** Персональные HR-документы сотрудников, включая истекающие в ближайшие 30 дней. */

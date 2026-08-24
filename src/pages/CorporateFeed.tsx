@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { laravel } from "@/integrations/laravel/client";
 
 type Post = {
   id: string;
@@ -110,18 +111,7 @@ export default function CorporateFeed() {
 
   const react = useMutation({
     mutationFn: async (postId: string) => {
-      const existing = reactionByPost.get(postId);
-      if (existing) {
-        const { error } = await laravelDb.from("portal_post_reactions" as any).delete().eq("id", existing);
-        if (error) throw error;
-        return;
-      }
-      const { error } = await laravelDb.from("portal_post_reactions" as any).insert({
-        company_id: companyId,
-        post_id: postId,
-        user_id: userId,
-        emoji: "👍",
-      });
+      const { error } = await laravel.post(`/portal/posts/${postId}/reaction`, { emoji: "👍" });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -191,6 +181,7 @@ export default function CorporateFeed() {
                   size="sm"
                   variant="ghost"
                   className={reactionByPost.has(p.id) ? "text-primary" : undefined}
+                  disabled={react.isPending}
                   onClick={() => react.mutate(p.id)}
                 >
                   <Heart className={`w-4 h-4 mr-1 ${reactionByPost.has(p.id) ? "fill-current" : ""}`} />

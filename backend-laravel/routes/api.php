@@ -790,6 +790,11 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::get ('/access-control/me',            [\App\Http\Controllers\Api\AccessControlController::class, 'me']);
         Route::get ('/access-control/role-changes',  [\App\Http\Controllers\Api\AccessControlController::class, 'roleChanges']);
 
+        Route::post('/portal/posts/{postId}/reaction', [\App\Http\Controllers\Api\PortalInteractionController::class, 'toggleReaction']);
+        Route::post('/portal/communities/{communityId}/join', [\App\Http\Controllers\Api\PortalInteractionController::class, 'joinCommunity']);
+        Route::delete('/portal/communities/{communityId}/membership', [\App\Http\Controllers\Api\PortalInteractionController::class, 'leaveCommunity']);
+        Route::post('/career/submission-files', [\App\Http\Controllers\Api\CareerSubmissionFileController::class, 'index']);
+
         // ---- Generic CRUD bridge (Phase 10, replaces legacy.from(...)) ----
 
         Route::get   ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'index']);
