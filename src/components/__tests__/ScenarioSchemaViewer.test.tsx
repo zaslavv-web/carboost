@@ -2,6 +2,12 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import ScenarioSchemaViewer from "../ScenarioSchemaViewer";
 
+class RO { observe() {} unobserve() {} disconnect() {} }
+// @ts-expect-error jsdom не реализует ResizeObserver, нужный React Flow
+global.ResizeObserver = global.ResizeObserver || RO;
+// @ts-expect-error jsdom не реализует DOMMatrixReadOnly
+global.DOMMatrixReadOnly = global.DOMMatrixReadOnly || class { m22 = 1; constructor(_t?: string) {} };
+
 describe("ScenarioSchemaViewer", () => {
   it("рисует узлы для структуры brief/steps/criteria", () => {
     render(
