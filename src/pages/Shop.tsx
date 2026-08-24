@@ -1,3 +1,4 @@
+import { productImageSrc } from "@/lib/productImage";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";

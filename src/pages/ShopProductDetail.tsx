@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Package, ShoppingCart, Zap, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { productImageSrc } from "@/lib/productImage";
 
 export default function ShopProductDetail() {
   const { t } = useTranslation("employee");

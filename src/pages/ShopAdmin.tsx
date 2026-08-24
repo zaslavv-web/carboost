@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Edit2, Trash2, Package, Coins, ShoppingBag, Check, X, Upload, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
+import { productImageSrc } from "@/lib/productImage";
 
 const emptyProduct = {
   title: "", description: "", price: 100, image_url: "",
