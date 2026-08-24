@@ -431,6 +431,18 @@ const UsersManagement = () => {
               Приняты: {hiredMonthFilter} ×
             </button>
           )}
+          {riskFilter !== "all" && (
+            <button type="button" onClick={() => {
+              setRiskFilter("all");
+              const next = new URLSearchParams(searchParams);
+              next.delete("risk");
+              setSearchParams(next, { replace: true });
+            }} className="px-3 py-2 rounded-lg bg-destructive/10 text-destructive text-xs font-medium">
+              Риск: {riskFilter === "high" ? "высокий" : riskFilter === "medium" ? "средний" : "низкий"} ×
+            </button>
+          )}
+
+
 
           {isSuperadmin && companies.length > 0 && (
             <select
