@@ -75,12 +75,18 @@ export default function SeedDemoCompany() {
   const targetName = company === "__new__" ? customName.trim() : company;
 
 
-  const { data: status, isLoading } = useQuery<DemoStatus>({
+  const { data: status, isLoading, error: statusError } = useQuery<DemoStatus>({
     queryKey: ["demo-status", targetName],
-    queryFn: async () =>
-      (await laravel.get<DemoStatus>(`/superadmin/demo/status?company=${encodeURIComponent(targetName)}`)).data,
+    queryFn: async () => {
+      const { data, error } = await laravel.get<DemoStatus>(`/superadmin/demo/status?company=${encodeURIComponent(targetName)}`);
+      if (error) throw new Error(error.message);
+      return data!;
+    },
     enabled: targetName.length > 0,
+    retry: false,
   });
+
+  const loadError = (companiesError as Error | null)?.message || (statusError as Error | null)?.message || null;
 
   /** Достаёт вывод команды из ошибки клиента (диагностика приходит в поле diagnostics). */
   const applyErrorDiagnostics = (e: any) => {
