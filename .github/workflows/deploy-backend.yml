@@ -21,6 +21,12 @@ on:
         default: 'false'
         type: choice
         options: ['false', 'true']
+      run_seed:
+        description: 'Run php artisan demo:seed --only-content after deploy'
+        required: true
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
 
 concurrency:
   group: deploy-backend
