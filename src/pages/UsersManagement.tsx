@@ -263,7 +263,9 @@ const UsersManagement = () => {
     ));
     const hiredMonth = hireDate ? hireDate.toLocaleString("ru-RU", { month: "short" }).replace(".", "") : "";
     const matchesHiredMonth = hiredMonthFilter === "all" || hiredMonth.toLowerCase() === hiredMonthFilter.replace(".", "").toLowerCase();
-    return matchesSearch && matchesStatus && matchesCompany && matchesRole && matchesDepartment && matchesPosition && matchesTenure && matchesHiredMonth;
+    const matchesRisk = riskFilter === "all" || riskLevels[u.user_id] === riskFilter;
+    return matchesSearch && matchesStatus && matchesCompany && matchesRole && matchesDepartment && matchesPosition && matchesTenure && matchesHiredMonth && matchesRisk;
+
   });
 
   const pendingCount = users.filter((u: any) => !u.is_verified).length;
