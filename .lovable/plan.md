@@ -1,0 +1,47 @@
+# Довести деплой бэкенда до боевого корня
+
+## Что показали проверки (факты, не догадки)
+
+- `GET https://growth-peak.pro/api/health` отвечает `200`, но поле `version` = `5e9afce`, тогда как текущая вершина репозитория — `f3de1a1e`. То есть боевой процесс исполняет старый код.
+- В том же ответе: `"fatals_last_hour": 12`, `"fatals_last_uri": "/api/db/profiles?select=company_id&maybeSingle=1&eq.user_id=1041"` — фаталы на профилях продолжаются прямо сейчас.
+- `cat VERSION` → файла нет. Файл `VERSION` пишет только workflow `deploy-backend`. Его отсутствие означает, что штатный деплой в этот каталог ни разу не отрабатывал.
+- `test ! -d backend-laravel` → вложенная копия есть. Это результат ручного `git pull`: новые файлы лежат в `docs/backend/backend-laravel/`, а Laravel работает из `docs/backend/`.
+- Миграции при этом применены (включая `0050_00_00_000000_create_access_permission_rules` [62] Ran) — то есть проблема только в доставке PHP-кода, не в схеме БД.
+- Ваши два `curl` не «промолчали»: я выполнил их сам — оба отдают `401 {"message":"Unauthenticated."}`. Вывод не появился, потому что `-o /dev/null -w "%{http_code}"` печатает код без перевода строки, а строка `|# те самые 500...` перед командами ломала ввод в консоли. Без токена эти эндпоинты в принципе не доходят до кода, который падал, поэтому такой проверкой 500 не увидеть.
+
+Вывод: код с `enforceResourceAccess` в репозитории корректен (все 4 вызова и объявление на месте), но на боевой сервер он не доставлен.
+
+## План
+
+1. Запустить GitHub Actions → **Deploy Backend** (`workflow_dispatch`, `run_migrations = true`). Workflow сам: удалит вложенную `backend-laravel/`, проверит наличие `enforceResourceAccess` и отсутствие `authorizeResource` в активном `DbController`, обновит vendor/автозагрузчик, кэши, запишет `VERSION` и сверит `version` из `/api/health` с SHA коммита.
+2. Если Action недоступен — резервная ручная доставка из корня приложения:
+   ```bash
+   cd /home/gro7659365/growth-peak.pro/docs/backend
+   git -C backend-laravel pull || git pull
+   rsync -a --exclude '.env' --exclude 'vendor' --exclude 'storage' backend-laravel/ ./
+   rm -rf backend-laravel
+   php -d memory_limit=1024M artisan optimize:clear
+   php -d memory_limit=1024M artisan migrate --force
+   php -d memory_limit=1024M artisan config:cache && php -d memory_limit=1024M artisan route:cache
+   printf '%s\n' "$(git rev-parse --short HEAD)" > VERSION
+   touch public/index.php
+   ```
+3. Проверка результата (критерии готовности):
+   - `cat VERSION` не пустой и совпадает с последним коммитом;
+   - `curl -sS https://growth-peak.pro/api/health` → `version` = тот же SHA, `fatals_last_hour` перестаёт расти при новых запросах;
+   - `grep -c enforceResourceAccess app/Http/Controllers/Api/DbController.php` ≥ 5, `grep -c 'function authorizeResource' ...` = 0;
+   - `test ! -d backend-laravel` → OK.
+4. Проверка ранее падавших запросов **с авторизацией** (без токена будет только 401):
+   ```bash
+   TOKEN=... # токен боевой HRD-сессии
+   curl -sS -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $TOKEN" \
+     'https://growth-peak.pro/api/db/positions?select=id&limit=1'
+   curl -sS -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $TOKEN" \
+     'https://growth-peak.pro/api/db/profiles?select=company_id&maybeSingle=1&eq.user_id=1041'
+   ```
+   Ожидание: `200`, не `500`.
+5. Если после доставки фаталы всё ещё идут — снять точную причину через уже существующий эндпоинт `GET /api/diag/last-fatal` (под авторизацией) и чинить по конкретному стеку, а не по симптому.
+
+## Изменения в коде
+
+Шаг 1–5 правок в приложении не требуют: код в репозитории уже содержит исправление. Если понадобится, добавлю в `DEPLOYMENT.md` короткий раздел «как проверить, что деплой доехал» с командами из шага 3.
