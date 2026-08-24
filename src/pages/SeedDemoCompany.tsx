@@ -253,6 +253,11 @@ export default function SeedDemoCompany() {
               Дозаполнить весь контент
             </Button>
           </div>
+          {loadError && (
+            <div className="text-sm text-destructive border border-destructive/40 rounded p-3">
+              Не удалось загрузить данные сидера: {loadError}
+            </div>
+          )}
           {output && (
             <pre className="text-xs bg-muted p-3 rounded overflow-x-auto max-h-64">{output}</pre>
           )}
