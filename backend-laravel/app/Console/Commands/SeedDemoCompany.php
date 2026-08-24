@@ -141,16 +141,62 @@ class SeedDemoCompany extends Command
     }
 
     /**
+     * Находит демо-компанию по имени, а если точного совпадения нет —
+     * по «похожему» названию или по домену демо-аккаунтов.
+     */
+    private function resolveDemoCompany(): ?object
+    {
+        $company = DB::table('companies')->where('name', $this->companyName)->first();
+        if ($company) {
+            return $company;
+        }
+
+        // Название могло быть сохранено с другими кавычками/регистром
+        $company = DB::table('companies')
+            ->where('name', 'like', '%Демо%')
+            ->orWhere('name', 'like', '%Demo%')
+            ->orderBy('created_at')
+            ->first();
+        if ($company) {
+            $this->warn("Точного совпадения «{$this->companyName}» нет — использую компанию «{$company->name}».");
+            return $company;
+        }
+
+        // Последний фолбэк: компания демо-пользователей
+        $companyId = DB::table('profiles')
+            ->where('email', 'like', '%@demo.%')
+            ->whereNotNull('company_id')
+            ->value('company_id');
+        if ($companyId) {
+            $company = DB::table('companies')->where('id', $companyId)->first();
+            if ($company) {
+                $this->warn("Компания найдена по демо-аккаунтам: «{$company->name}».");
+                return $company;
+            }
+        }
+
+        return null;
+    }
+
+    private function reportCompanyNotFound(): void
+    {
+        $this->error("Демо-компания «{$this->companyName}» не найдена. Сначала запустите полный сидинг.");
+        $names = DB::table('companies')->orderBy('created_at')->limit(20)->pluck('name')->all();
+        $this->line('Компании в базе: ' . (count($names) ? implode(' | ', $names) : '—'));
+    }
+
+    /**
      * Догоняющий прогон: компания и сотрудники уже есть, нужно только
      * (при необходимости) создать шаблоны треков и назначить их людям.
      */
     private function runOnlyCareer(): int
     {
-        $company = DB::table('companies')->where('name', $this->companyName)->first();
+        $company = $this->resolveDemoCompany();
         if (! $company) {
-            $this->error("Демо-компания «{$this->companyName}» не найдена. Сначала запустите полный сидинг.");
+            $this->reportCompanyNotFound();
             return self::FAILURE;
         }
+
         $this->companyId = (string) $company->id;
 
         // Карта должностей и список HRD — нужны для создания/назначения треков
@@ -200,9 +246,9 @@ class SeedDemoCompany extends Command
      */
     private function runOnlyPerformance(): int
     {
-        $company = DB::table('companies')->where('name', $this->companyName)->first();
+        $company = $this->resolveDemoCompany();
         if (! $company) {
-            $this->error("Демо-компания «{$this->companyName}» не найдена. Сначала запустите полный сидинг.");
+            $this->reportCompanyNotFound();
             return self::FAILURE;
         }
         $this->companyId = (string) $company->id;
@@ -1717,9 +1763,9 @@ class SeedDemoCompany extends Command
     /** Догоняющий прогон всех контентных разделов существующей демо-компании. */
     private function runOnlyContent(): int
     {
-        $company = DB::table('companies')->where('name', $this->companyName)->first();
+        $company = $this->resolveDemoCompany();
         if (! $company) {
-            $this->error("Демо-компания «{$this->companyName}» не найдена. Сначала запустите полный сидинг.");
+            $this->reportCompanyNotFound();
             return self::FAILURE;
         }
         $this->companyId = (string) $company->id;
