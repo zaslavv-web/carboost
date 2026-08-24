@@ -91,44 +91,111 @@ class DemoSeedController extends Controller
         $params = ['--headcount' => $headcount, '--name' => $this->companyName($request)];
         if ($reset) $params['--reset'] = true;
 
-        $exitCode = Artisan::call('demo:seed', $params);
-        $output = Artisan::output();
-        return response()->json([
-            'ok' => $exitCode === 0,
-            'output' => $output,
-            'exit_code' => $exitCode,
-        ], $exitCode === 0 ? 200 : 422);
+        return $this->runSeed('seed', $params);
     }
 
     public function reset(Request $request): JsonResponse
     {
         $this->requireSuperadmin($request);
-        $exitCode = Artisan::call('demo:seed', [
+
+        return $this->runSeed('reset', [
             '--reset' => true,
             '--headcount' => (int) $request->input('headcount', 150),
             '--name' => $this->companyName($request),
         ]);
-        return response()->json([
-            'ok' => $exitCode === 0,
-            'output' => Artisan::output(),
-            'exit_code' => $exitCode,
-        ], $exitCode === 0 ? 200 : 422);
     }
 
     /** Идемпотентно догоняет контент во всех рабочих модулях существующей компании. */
     public function content(Request $request): JsonResponse
     {
         $this->requireSuperadmin($request);
-        $exitCode = Artisan::call('demo:seed', [
+
+        return $this->runSeed('content', [
             '--only-content' => true,
             '--name' => $this->companyName($request),
         ]);
-
-        return response()->json([
-            'ok' => $exitCode === 0,
-            'output' => Artisan::output(),
-        ], $exitCode === 0 ? 200 : 422);
     }
+
+    /**
+     * Единая точка запуска demo:seed: снимает лимиты времени/памяти,
+     * ловит любые исключения и возвращает читаемую диагностику вместо голого 500.
+     */
+    private function runSeed(string $action, array $params): JsonResponse
+    {
+        $this->relaxRuntimeLimits();
+
+        try {
+            $exitCode = Artisan::call('demo:seed', $params);
+            $output = Artisan::output();
+
+            if ($exitCode !== 0) {
+                Log::warning('demo-seed: команда завершилась с ошибкой', [
+                    'action' => $action,
+                    'params' => $params,
+                    'exit_code' => $exitCode,
+                    'output' => mb_substr($output, -4000),
+                ]);
+            }
+
+            return response()->json([
+                'ok' => $exitCode === 0,
+                'output' => $output,
+                'exit_code' => $exitCode,
+                'message' => $exitCode === 0
+                    ? 'Готово'
+                    : 'Команда demo:seed завершилась с кодом ' . $exitCode . '. Подробности — в выводе ниже.',
+                'last_step' => $this->lastStep($output),
+            ], $exitCode === 0 ? 200 : 422);
+        } catch (\Throwable $e) {
+            $output = '';
+            try {
+                $output = Artisan::output();
+            } catch (\Throwable) {
+                // вывод недоступен — не мешаем диагностике
+            }
+
+            Log::error('demo-seed: исключение при сидинге', [
+                'action' => $action,
+                'params' => $params,
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+                'where' => $e->getFile() . ':' . $e->getLine(),
+                'output' => mb_substr($output, -4000),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => $e->getMessage(),
+                'exception' => $e::class,
+                'where' => basename($e->getFile()) . ':' . $e->getLine(),
+                'last_step' => $this->lastStep($output),
+                'output' => $output,
+            ], 422);
+        }
+    }
+
+    /** Последняя строка прогресса вида «4/12 Создаю 150 сотрудников…». */
+    private function lastStep(string $output): ?string
+    {
+        $lines = array_values(array_filter(array_map('trim', preg_split('/\r?\n/', $output) ?: [])));
+        for ($i = count($lines) - 1; $i >= 0; $i--) {
+            if (preg_match('/^\d+(\.\d+)?\/?\d*\s/u', $lines[$i])) {
+                return $lines[$i];
+            }
+        }
+        return $lines ? end($lines) : null;
+    }
+
+    /** Полный сидинг долгий и тяжёлый — поднимаем лимиты PHP на время запроса. */
+    private function relaxRuntimeLimits(): void
+    {
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+        @ini_set('memory_limit', '1024M');
+        DB::disableQueryLog();
+    }
+
 
     /** Догоняющее назначение карьерных треков без полного пересидинга. */
     public function careerTracks(Request $request): JsonResponse
