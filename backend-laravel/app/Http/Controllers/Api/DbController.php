@@ -202,7 +202,7 @@ class DbController extends Controller
     public function index(Request $request, string $table)
     {
         try {
-            $this->authorizeResource($request, $table, 'view');
+            $this->enforceResourceAccess($request, $table, 'view');
             $model = self::resolve($table);
             $this->authorizeAny('viewAny', $model);
 
@@ -617,7 +617,7 @@ class DbController extends Controller
 
     public function store(Request $request, string $table)
     {
-        $this->authorizeResource($request, $table, 'edit');
+        $this->enforceResourceAccess($request, $table, 'edit');
         $model = self::resolve($table);
         $payload = $request->input('values', $request->all());
         $rows = isset($payload[0]) ? $payload : [$payload];
@@ -673,7 +673,7 @@ class DbController extends Controller
     public function update(Request $request, string $table)
     {
         try {
-            $this->authorizeResource($request, $table, 'edit');
+            $this->enforceResourceAccess($request, $table, 'edit');
             $model = self::resolve($table);
             $query = $model::query();
             $applied = $this->applyFilters($query, $request);
@@ -732,7 +732,7 @@ class DbController extends Controller
     public function destroy(Request $request, string $table)
     {
         try {
-            $this->authorizeResource($request, $table, 'edit');
+            $this->enforceResourceAccess($request, $table, 'edit');
             $model = self::resolve($table);
             $query = $model::query();
             $applied = $this->applyFilters($query, $request);
@@ -961,7 +961,7 @@ class DbController extends Controller
         ], 403));
     }
 
-    private function authorizeResource(Request $request, string $table, string $action): void
+    private function enforceResourceAccess(Request $request, string $table, string $action): void
     {
         try {
             $resource = self::TABLE_RESOURCES[$table] ?? null;
