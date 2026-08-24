@@ -48,32 +48,12 @@ jobs:
           printf '{"version":"%s","built_at":"%s"}\n' "$SHA" "$(date -u +%FT%TZ)" > dist/version.json
           cat dist/version.json
 
-      - name: Cache headers (.htaccess для dist)
+      - name: Собрать .htaccess для сервера
         run: |
-          # Собираем ПОЛНЫЙ .htaccess: управляемый блок (кэш + pass-through для
-          # существующих файлов) + правила приложения из public/.htaccess.
-          # Детерминированно, без парсинга старого файла на сервере.
+          # Единственный источник правил — public/.htaccess (там же и кэш-заголовки).
+          # Никаких вторых RewriteEngine-блоков: дубли правил давали петли редиректов.
           cat > dist/.htaccess.cache <<'EOF'
-          # Managed by deploy-frontend workflow — файл собирается автоматически, правьте public/.htaccess
-          # Существующие файлы (version.json, manifest.json, robots.txt, ассеты)
-          # отдаются напрямую и НЕ должны переписываться на index.html.
-          <IfModule mod_rewrite.c>
-            RewriteEngine On
-            RewriteCond %{REQUEST_URI} !^/api
-            RewriteCond %{REQUEST_FILENAME} -f [OR]
-            RewriteCond %{REQUEST_FILENAME} -d
-            RewriteRule ^ - [L]
-          </IfModule>
-          <IfModule mod_headers.c>
-            <FilesMatch "^(index\.html|version\.json|manifest\.json)$">
-              Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
-              Header set Pragma "no-cache"
-            </FilesMatch>
-            <FilesMatch "\.(js|css|woff2?|png|jpg|jpeg|svg|webp)$">
-              Header set Cache-Control "public, max-age=31536000, immutable"
-            </FilesMatch>
-          </IfModule>
-
+          # Managed by deploy-frontend workflow — не правьте на сервере, правьте public/.htaccess
           EOF
           cat public/.htaccess >> dist/.htaccess.cache
           cat dist/.htaccess.cache
@@ -156,82 +136,83 @@ jobs:
             dist/ "$DEPLOY_USER@$DEPLOY_HOST:$WEB_ROOT/"
 
 
-      - name: Verify version.json on server (SSH)
+      - name: Применить .htaccess на сервере
+        run: |
+          SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
+          $SSH "$DEPLOY_USER@$DEPLOY_HOST" "WEB_ROOT='$WEB_ROOT' bash -s" <<'REMOTE'
+          set -e
+          cd "$WEB_ROOT"
+          if [ ! -f .htaccess.cache ]; then
+            echo "::error::.htaccess.cache не доехал на сервер"; exit 1
+          fi
+          if [ -f .htaccess ]; then cp .htaccess .htaccess.bak; fi
+          mv .htaccess.cache .htaccess
+          echo '✅ .htaccess обновлён (бэкап: .htaccess.bak)'
+          cat .htaccess
+          REMOTE
+
+      - name: Диагностика раскладки и версии на сервере (SSH)
         run: |
           SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
           SHA="${GITHUB_SHA::7}"
           OUT="$($SSH "$DEPLOY_USER@$DEPLOY_HOST" "
             echo '== web root:'; ls -l '$WEB_ROOT/version.json' '$WEB_ROOT/index.html' 2>&1;
             echo '== version.json:'; cat '$WEB_ROOT/version.json' 2>&1;
-            echo '== frontend/ (может перекрывать корень по .htaccess):';
-            ls -ld '$WEB_ROOT/frontend' 2>&1; cat '$WEB_ROOT/frontend/version.json' 2>&1
+            echo '== frontend/ (частая причина петли редиректов, если это симлинк на корень):';
+            ls -ld '$WEB_ROOT/frontend' 2>&1; readlink -f '$WEB_ROOT/frontend' 2>&1;
+            echo '== tail error_log:'; tail -n 20 '$WEB_ROOT/../logs/error_log' 2>/dev/null || tail -n 20 '$WEB_ROOT/error_log' 2>/dev/null || echo 'error_log не найден'
           " || true)"
           echo "$OUT"
           if echo "$OUT" | grep -q "$SHA"; then
-            echo "✅ version.json с версией $SHA найден на сервере"
+            echo "✅ version.json с версией $SHA лежит в веб-руте"
             echo "SERVER_VERSION_OK=true" >> "$GITHUB_ENV"
           else
-            echo "::error::version.json на сервере отсутствует или содержит другую версию (ожидалась $SHA)"
+            echo "::error::version.json в $WEB_ROOT отсутствует или содержит другую версию (ожидалась $SHA)"
             echo "SERVER_VERSION_OK=false" >> "$GITHUB_ENV"
             exit 1
           fi
 
-      - name: Apply .htaccess (управляемый блок + правила приложения)
+      - name: Post-deploy check (HTTP)
         run: |
-          SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
-          $SSH "$DEPLOY_USER@$DEPLOY_HOST" "WEB_ROOT='$WEB_ROOT' bash -s" <<'REMOTE'
-          set -e
-          cd "$WEB_ROOT"
-          test -f .htaccess.cache || { echo "::warning::.htaccess.cache не доехал — .htaccess не обновляю"; exit 0; }
-
-          # .htaccess.cache уже содержит полный набор правил (управляемый блок +
-          # public/.htaccess), поэтому просто подменяем файл, сохранив бэкап.
-          if [ -f .htaccess ]; then cp .htaccess .htaccess.bak; fi
-          mv .htaccess.cache .htaccess
-          echo '✅ .htaccess обновлён (бэкап: .htaccess.bak)'
-          head -30 .htaccess
-          REMOTE
-
-      - name: Post-deploy check
-        run: |
-          echo "Проверяю, что боевой сайт отдаёт свежую версию…"
           SHA="${GITHUB_SHA::7}"
-          STATUS="unknown"
+          STATUS="unknown"; CODE=""
           for i in 1 2 3 4 5; do
-            META="$(curl -s -o /tmp/ver.txt -w '%{http_code} %{content_type}' --max-time 20 \
+            CODE="$(curl -s -o /tmp/ver.txt -w '%{http_code}' --max-time 20 \
               -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
               "https://growth-peak.pro/version.json?t=$(date +%s)-$i" || true)"
             BODY="$(tr -d '\r\n' < /tmp/ver.txt || true)"
-            echo "попытка $i: [$META] тело: $(echo "$BODY" | head -c 200)"
-            if [ -z "$BODY" ]; then
-              STATUS="empty"
-            elif echo "$BODY" | grep -q "$SHA"; then
-              STATUS="ok"; break
-            elif echo "$BODY" | grep -qi '<!doctype html\|<html'; then
-              STATUS="html"
-            else
-              STATUS="mismatch"
-            fi
+            echo "попытка $i: HTTP $CODE, тело: $(echo "$BODY" | head -c 200)"
+            if echo "$BODY" | grep -q "$SHA"; then STATUS="ok"; break
+            elif [ "${CODE:0:1}" = "5" ]; then STATUS="server_error"
+            elif [ -z "$BODY" ]; then STATUS="empty"
+            elif echo "$BODY" | grep -qi '<!doctype html\|<html'; then STATUS="html"
+            else STATUS="mismatch"; fi
             sleep 5
           done
 
-          CC=$(curl -sI --max-time 20 "https://growth-peak.pro/" | tr -d '\r' | grep -i '^cache-control' || true)
-          echo "index.html $CC"
+          echo "— смоук боевых урлов —"
+          FAIL=0
+          for u in "/" "/api/health" "/manifest.json" "/robots.txt" "/dashboard"; do
+            C="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "https://growth-peak.pro$u" || true)"
+            echo "  $u → $C"
+            case "$C" in 5*) FAIL=1;; esac
+          done
+          curl -sI --max-time 20 "https://growth-peak.pro/" | tr -d '\r' | grep -i '^cache-control' || true
 
           case "$STATUS" in
             ok)
-              echo "✅ Deploy завершён — сайт отдаёт версию $SHA"
+              echo "✅ Сайт отдаёт версию $SHA"
               ;;
-            html|empty)
-              # Файлы уже подтверждены на сервере предыдущим шагом, значит проблема
-              # в правилах перезаписи или кэше фронтового прокси — не валим деплой.
-              if [ "${SERVER_VERSION_OK:-false}" = "true" ]; then
-                echo "::warning::version.json на сервере корректный ($SHA), но по HTTP пришёл '$STATUS' (SPA-фолбэк или кэш прокси). Деплой считаю успешным."
-              else
-                echo "::error::version.json недоступен по HTTP ($STATUS) и не подтверждён на сервере"; exit 1
-              fi
+            server_error)
+              echo "::error::version.json отдаёт HTTP $CODE — ошибка сервера (проверьте петлю редиректов в .htaccess и error_log выше)"; exit 1
+              ;;
+            html)
+              echo "::error::version.json перехватывается SPA-фолбэком (отдан index.html) — правило pass-through в .htaccess не работает"; exit 1
               ;;
             *)
-              echo "::error::Сайт отдаёт другую версию (ожидалась $SHA)"; exit 1
+              echo "::error::version.json недоступен ($STATUS, HTTP $CODE), ожидалась версия $SHA"; exit 1
               ;;
           esac
+
+          [ "$FAIL" = "0" ] || { echo "::error::какой-то из боевых урлов отдаёт 5xx"; exit 1; }
+          echo "✅ Смоук боевых урлов пройден"
