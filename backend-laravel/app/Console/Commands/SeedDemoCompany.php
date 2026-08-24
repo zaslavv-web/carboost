@@ -2351,7 +2351,33 @@ class SeedDemoCompany extends Command
         if (Schema::hasTable('portal_post_comments')) {
             foreach (array_chunk($commentRows, 300) as $chunk) DB::table('portal_post_comments')->insert($chunk);
         }
+        $this->syncPortalCounters();
     }
+
+    /** Пересчитывает счётчики комментариев и реакций у всех постов компании. */
+    private function syncPortalCounters(): void
+    {
+        if (! Schema::hasTable('portal_posts')) return;
+        $postIds = DB::table('portal_posts')->where('company_id', $this->companyId)->pluck('id')->map('strval')->all();
+        if (! $postIds) return;
+
+        $comments = Schema::hasTable('portal_post_comments')
+            ? DB::table('portal_post_comments')->whereIn('post_id', $postIds)
+                ->groupBy('post_id')->selectRaw('post_id, count(*) as c')->pluck('c', 'post_id')->all()
+            : [];
+        $reactions = Schema::hasTable('portal_post_reactions')
+            ? DB::table('portal_post_reactions')->whereIn('post_id', $postIds)
+                ->groupBy('post_id')->selectRaw('post_id, count(*) as c')->pluck('c', 'post_id')->all()
+            : [];
+
+        foreach ($postIds as $pid) {
+            DB::table('portal_posts')->where('id', $pid)->update([
+                'comments_count'  => (int) ($comments[$pid] ?? 0),
+                'reactions_count' => (int) ($reactions[$pid] ?? 0),
+            ]);
+        }
+    }
+
 
     /** Pulse-опросы: 4 опроса (закрытые/активные) с вопросами и ответами. */
     private function seedPulseSurveys(): void
