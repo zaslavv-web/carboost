@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
-import { Newspaper, Plus, Pin, MessageCircle, Heart, Trash2, Megaphone } from "lucide-react";
+import { Newspaper, Plus, Pin, MessageCircle, Heart, Trash2, Megaphone, Paperclip, Loader2, X } from "lucide-react";
+import { laravelStorage } from "@/integrations/laravel/storage";
 import { RichContent } from "@/components/ui/rich-content";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Button } from "@/components/ui/button";
@@ -23,11 +24,14 @@ type Post = {
   title?: string;
   body_md?: string;
   is_pinned: boolean;
+  attachments?: Attachment[] | null;
   published_at?: string | null;
   reactions_count: number;
   comments_count: number;
   created_at: string;
 };
+
+type Attachment = { name: string; url: string; size?: number };
 
 type Comment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 
@@ -176,6 +180,17 @@ export default function CorporateFeed() {
                   <RichContent value={p.body_md} className="line-clamp-6" />
                 </div>
               )}
+              {Array.isArray(p.attachments) && p.attachments.length > 0 && (
+                <ul className="space-y-1">
+                  {p.attachments.map((a, i) => (
+                    <li key={i}>
+                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
+                        <Paperclip className="w-3.5 h-3.5" />{a.name}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div className="flex items-center gap-3 pt-2 border-t">
                 <Button
                   size="sm"
@@ -211,6 +226,17 @@ export default function CorporateFeed() {
                 {KIND_LABEL[detail.kind]} · {new Date(detail.created_at).toLocaleString("ru-RU")}
               </div>
               {detail.body_md && <RichContent value={detail.body_md} />}
+              {Array.isArray(detail.attachments) && detail.attachments.length > 0 && (
+                <ul className="space-y-1">
+                  {detail.attachments.map((a, i) => (
+                    <li key={i}>
+                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
+                        <Paperclip className="w-3.5 h-3.5" />{a.name}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <Comments postId={detail.id} companyId={companyId} userId={userId} />
             </div>
           )}
@@ -272,11 +298,31 @@ function CreatePostDialog({ onSubmit }: { onSubmit: (v: Partial<Post>) => void }
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [pin, setPin] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
   const hasBody = body.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0 || /<(img|video)\b/i.test(body);
+
+  const attach = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploading(true);
+    for (const file of Array.from(files)) {
+      const ext = file.name.split(".").pop() || "bin";
+      const { data, error } = await laravelStorage
+        .from("content-media")
+        .upload(`attachments/${crypto.randomUUID()}.${ext}`, file);
+      if (error || !data?.url) {
+        toast.error(error?.message || `Не удалось прикрепить «${file.name}»`);
+        continue;
+      }
+      setAttachments((prev) => [...prev, { name: file.name, url: data.url as string, size: file.size }]);
+    }
+    setUploading(false);
+  };
+
   return (
-    <DialogContent>
-      <DialogHeader><DialogTitle>Новая публикация</DialogTitle></DialogHeader>
-      <div className="space-y-3">
+    <DialogContent className="flex max-h-[90vh] w-[min(100vw-2rem,60rem)] max-w-none flex-col gap-0 p-0">
+      <DialogHeader className="border-b p-6 pb-4"><DialogTitle>Новая публикация</DialogTitle></DialogHeader>
+      <div className="flex-1 space-y-3 overflow-y-auto p-6">
         <div>
           <Label>Тип</Label>
           <Select value={kind} onValueChange={(v) => setKind(v as Post["kind"])}>
@@ -287,14 +333,33 @@ function CreatePostDialog({ onSubmit }: { onSubmit: (v: Partial<Post>) => void }
           </Select>
         </div>
         <div><Label>Заголовок</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
-        <div><Label>Текст публикации</Label><RichTextEditor value={body} onChange={setBody} minHeight="260px" /></div>
+        <div><Label>Текст публикации</Label><RichTextEditor value={body} onChange={setBody} minHeight="220px" maxHeight="45vh" /></div>
+        <div className="space-y-2">
+          <Label>Вложения</Label>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-primary hover:underline">
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+            Прикрепить файлы
+            <input type="file" multiple className="sr-only" disabled={uploading} onChange={(e) => { void attach(e.target.files); e.target.value = ""; }} />
+          </label>
+          <ul className="space-y-1">
+            {attachments.map((a, i) => (
+              <li key={i} className="flex items-center gap-2 text-sm">
+                <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="truncate">{a.name}</span>
+                <Button size="icon" variant="ghost" className="h-6 w-6" aria-label={`Убрать ${a.name}`} onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={pin} onChange={(e) => setPin(e.target.checked)} />
           Закрепить в ленте
         </label>
       </div>
-      <DialogFooter>
-        <Button disabled={!hasBody} onClick={() => onSubmit({ kind, title, body_md: body, is_pinned: pin })}>
+      <DialogFooter className="border-t bg-background p-4">
+        <Button disabled={!hasBody || uploading} onClick={() => onSubmit({ kind, title, body_md: body, is_pinned: pin, attachments })}>
           Опубликовать
         </Button>
       </DialogFooter>

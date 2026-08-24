@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile, usePrimaryRole } from "@/hooks/useUserProfile";
-import { Users, Plus, Lock, Globe, EyeOff, UserPlus, UserMinus, ImagePlus, Loader2 } from "lucide-react";
+import { Users, Plus, Lock, Globe, EyeOff, UserPlus, UserMinus, ImagePlus, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +41,8 @@ export default function Communities() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const navigate = useNavigate();
 
   const uploadImage = async (communityId: string, kind: "cover" | "avatar", file?: File) => {
     if (!file || !companyId) return;
@@ -83,6 +86,14 @@ export default function Communities() {
   });
 
   const memberOf = new Map(myMemberships.map((m) => [m.community_id, m.id]));
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return communities;
+    return communities.filter((c) =>
+      `${c.title} ${c.description ?? ""}`.toLowerCase().includes(q),
+    );
+  }, [communities, search]);
 
   const createCommunity = useMutation({
     mutationFn: async (patch: Partial<Community>) => {
@@ -147,27 +158,46 @@ export default function Communities() {
         )}
       </div>
 
+      <div className="relative max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="pl-9"
+          placeholder="Поиск сообщества по названию или описанию…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Поиск сообщества"
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {communities.length === 0 && (
-          <p className="text-sm text-muted-foreground col-span-full">Сообществ пока нет</p>
+        {visible.length === 0 && (
+          <p className="text-sm text-muted-foreground col-span-full">
+            {communities.length === 0 ? "Сообществ пока нет" : "Ничего не найдено — измените запрос"}
+          </p>
         )}
-        {communities.map((c) => {
+        {visible.map((c) => {
           const Icon = PRIVACY_ICON[c.privacy];
           const membershipId = memberOf.get(c.id);
           return (
             <Card key={c.id}>
               {c.cover_url ? (
-                <img src={c.cover_url} alt={`Обложка сообщества ${c.title}`} className="h-32 w-full object-cover rounded-t-lg" loading="lazy" />
+                <img src={c.cover_url} alt={`Обложка сообщества ${c.title}`} className="h-32 w-full cursor-pointer object-cover rounded-t-lg" loading="lazy" onClick={() => navigate(`/communities/${c.id}`)} />
               ) : (
-                <div className="h-32 bg-muted flex items-center justify-center rounded-t-lg"><Users className="h-10 w-10 text-muted-foreground" /></div>
+                <div className="h-32 bg-muted flex items-center justify-center rounded-t-lg cursor-pointer" onClick={() => navigate(`/communities/${c.id}`)}><Users className="h-10 w-10 text-muted-foreground" /></div>
               )}
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                   {c.avatar_url ? <img src={c.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" /> : <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10"><Users className="h-4 w-4 text-primary" /></span>}
-                  <CardTitle className="text-base flex-1 truncate">{c.title}</CardTitle>
+                  <CardTitle
+                    className="text-base flex-1 truncate cursor-pointer transition-colors hover:text-primary"
+                    onClick={() => navigate(`/communities/${c.id}`)}
+                  >
+                    {c.title}
+                  </CardTitle>
                   <Badge variant="outline"><Icon className="w-3 h-3 mr-1" />{PRIVACY_LABEL[c.privacy]}</Badge>
                 </div>
               </CardHeader>
+
               <CardContent className="space-y-3">
                 {c.description && <p className="text-sm text-muted-foreground line-clamp-3">{c.description}</p>}
                 <div className="flex items-center justify-between">
@@ -182,6 +212,11 @@ export default function Communities() {
                     </Button>
                   )}
                 </div>
+                <button type="button" className="text-xs text-primary hover:underline" onClick={() => navigate(`/communities/${c.id}`)}>
+                  Открыть сообщество
+                </button>
+
+
                 {(c.owner_id === userId || canCreate) && (
                   <div className="flex flex-wrap gap-3">
                     {(["avatar", "cover"] as const).map((kind) => <label key={kind} className="inline-flex cursor-pointer items-center gap-2 text-xs text-primary hover:underline">

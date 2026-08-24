@@ -80,6 +80,7 @@ import SkillsMatrix from "@/pages/SkillsMatrix";
 import PerformanceReview360 from "@/pages/PerformanceReview360";
 import CorporateFeed from "@/pages/CorporateFeed";
 import Communities from "@/pages/Communities";
+import CommunityDetail from "@/pages/CommunityDetail";
 import PulseSurveys from "@/pages/PulseSurveys";
 import HrDocumentsPersonal from "@/pages/HrDocumentsPersonal";
 import PeopleAnalytics from "@/pages/PeopleAnalytics";
@@ -248,6 +249,7 @@ const App = () => (
                 <Route path="/my-documents" element={<MyDocuments />} />
                 <Route path="/feed" element={<CorporateFeed />} />
                 <Route path="/communities" element={<Communities />} />
+                <Route path="/communities/:id" element={<CommunityDetail />} />
                 <Route path="/pulse-surveys" element={<PulseSurveys />} />
                 <Route path="/pulse-surveys/:surveyId" element={<PulseSurveys />} />
 
