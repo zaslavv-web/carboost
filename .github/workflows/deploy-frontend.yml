@@ -50,12 +50,16 @@ jobs:
 
       - name: Cache headers (.htaccess для dist)
         run: |
+          # Собираем ПОЛНЫЙ .htaccess: управляемый блок (кэш + pass-through для
+          # существующих файлов) + правила приложения из public/.htaccess.
+          # Детерминированно, без парсинга старого файла на сервере.
           cat > dist/.htaccess.cache <<'EOF'
-          # Managed by deploy-frontend workflow
+          # Managed by deploy-frontend workflow — файл собирается автоматически, правьте public/.htaccess
           # Существующие файлы (version.json, manifest.json, robots.txt, ассеты)
           # отдаются напрямую и НЕ должны переписываться на index.html.
           <IfModule mod_rewrite.c>
             RewriteEngine On
+            RewriteCond %{REQUEST_URI} !^/api
             RewriteCond %{REQUEST_FILENAME} -f [OR]
             RewriteCond %{REQUEST_FILENAME} -d
             RewriteRule ^ - [L]
@@ -69,7 +73,9 @@ jobs:
               Header set Cache-Control "public, max-age=31536000, immutable"
             </FilesMatch>
           </IfModule>
+
           EOF
+          cat public/.htaccess >> dist/.htaccess.cache
           cat dist/.htaccess.cache
 
       - name: Sanity check dist/
