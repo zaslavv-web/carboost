@@ -28,7 +28,7 @@ type Reviewer = {
   submitted_at?: string | null;
 };
 
-type Profile = { user_id: string; full_name?: string | null; position?: string | null; department?: string | null };
+type Profile = { user_id: string; full_name?: string | null; position?: string | null; department?: string | null; role?: string | null };
 
 const ROLE_LABEL = { self: "Self", manager: "Руководитель", peer: "Коллега", subordinate: "Подчинённый", hr: "HR" } as const;
 const STATUS_ICON = { invited: Clock, submitted: CheckCircle2, declined: XCircle } as const;
@@ -57,9 +57,9 @@ export default function PerformanceReview360() {
   const { data: profiles = [] } = useQuery({
     queryKey: ["360-profiles"],
     queryFn: async () => {
-      const { data, error } = await laravelDb.from("profiles").select("user_id, full_name, position, department");
+      const { data, error } = await laravelDb.from("profiles").select("user_id, full_name, position, department, requested_role");
       if (error) throw error;
-      return (data as any[] as Profile[]) ?? [];
+      return ((data as any[]) ?? []).map((item) => ({ ...item, role: item.requested_role })) as Profile[];
     },
   });
 
@@ -215,18 +215,24 @@ function InviteDialog({
 }) {
   const [role, setRole] = useState<"peer" | "manager" | "subordinate" | "hr" | "self">("peer");
   const [department, setDepartment] = useState<string>("all");
+  const [position, setPosition] = useState<string>("all");
+  const [profileRole, setProfileRole] = useState<string>("all");
   const [selected, setSelected] = useState<string[]>([]);
 
   const departments = useMemo(
     () => Array.from(new Set(profiles.map((p) => p.department).filter(Boolean))) as string[],
     [profiles],
   );
+  const positions = useMemo(() => Array.from(new Set(profiles.map((p) => p.position).filter(Boolean))) as string[], [profiles]);
+  const roles = useMemo(() => Array.from(new Set(profiles.map((p) => p.role).filter(Boolean))) as string[], [profiles]);
   const visible = useMemo(
     () =>
       profiles
         .filter((p) => !existingIds.includes(p.user_id))
-        .filter((p) => department === "all" || p.department === department),
-    [profiles, department, existingIds],
+        .filter((p) => department === "all" || p.department === department)
+        .filter((p) => position === "all" || p.position === position)
+        .filter((p) => profileRole === "all" || p.role === profileRole),
+    [profiles, department, position, profileRole, existingIds],
   );
 
   const toggle = (uid: string) =>
@@ -250,6 +256,8 @@ function InviteDialog({
               </SelectContent>
             </Select>
           </div>
+          <div><Label>Должность</Label><Select value={position} onValueChange={setPosition}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Все должности</SelectItem>{positions.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
+          <div><Label>Роль</Label><Select value={profileRole} onValueChange={setProfileRole}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Все роли</SelectItem>{roles.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
           <div>
             <Label>Отдел</Label>
             <Select value={department} onValueChange={(v) => { setDepartment(v); }}>

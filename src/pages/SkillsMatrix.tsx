@@ -28,7 +28,9 @@ type Profile = {
   full_name?: string | null;
   position?: string | null;
   department?: string | null;
+  position_id?: string | null;
 };
+type PositionProfile = { id: string; competency_profile?: Array<{ skill?: string; name?: string; required_level?: number }> | string | null };
 
 const cellColor = (v: number, t: number | null | undefined) => {
   if (!t) return "bg-muted/40";
@@ -62,9 +64,19 @@ export default function SkillsMatrix() {
     queryFn: async () => {
       const { data, error } = await laravelDb
         .from("profiles")
-        .select("user_id, full_name, position, department");
+        .select("user_id, full_name, position, position_id, department");
       if (error) throw error;
       return (data as any[] as Profile[]) ?? [];
+    },
+  });
+
+  const { data: positions = [] } = useQuery({
+    queryKey: ["skills-matrix-positions", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await laravelDb.from("positions").select("id, competency_profile");
+      if (error) throw error;
+      return (data as unknown as PositionProfile[]) ?? [];
     },
   });
 
@@ -101,12 +113,19 @@ export default function SkillsMatrix() {
   const gapStats = useMemo(() => {
     const gaps: number[] = [];
     let pairs = 0;
-    for (const [, sk] of byUser) {
+    for (const [userId, sk] of byUser) {
+      const positionId = profiles.find((profile) => profile.user_id === userId)?.position_id;
+      const rawProfile = positions.find((position) => position.id === positionId)?.competency_profile;
+      let competencyProfile: PositionProfile["competency_profile"] = rawProfile;
+      if (typeof rawProfile === "string") {
+        try { competencyProfile = JSON.parse(rawProfile); } catch { competencyProfile = []; }
+      }
+      const required = new Map((Array.isArray(competencyProfile) ? competencyProfile : []).map((item) => [item.skill ?? item.name ?? "", Number(item.required_level ?? 0)]));
       for (const skill of skills) {
         const c = sk.get(skill);
         if (!c) continue;
         pairs += 1;
-        const t = targets.get(skill);
+        const t = required.get(skill) || c.target_value || targets.get(skill);
         if (t) gaps.push(Math.max(0, t - c.skill_value));
       }
     }
@@ -116,7 +135,7 @@ export default function SkillsMatrix() {
       pairs,
       skillsWithTarget: skills.filter((s) => targets.get(s)).length,
     };
-  }, [byUser, skills, targets]);
+  }, [byUser, skills, targets, profiles, positions]);
 
   const addComp = useMutation({
     mutationFn: async (payload: {

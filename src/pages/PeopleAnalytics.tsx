@@ -27,7 +27,7 @@ import { tooltipProps } from "@/lib/chartTooltip";
 
 type Bucket = { label: string; value: number };
 type MonthPoint = { month: string; value: number };
-type AbsencePoint = { month: string; days: number; requests: number };
+type AbsencePoint = { month: string; days: number; requests: number; rate: number };
 
 const COLORS = ["#D5A52A", "#B8860B", "#8B6914", "#DAA520", "#6B4E11"];
 
@@ -166,7 +166,7 @@ export default function PeopleAnalytics() {
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} />
                 <Tooltip {...tooltipProps("bar")} />
-                <Bar dataKey="days" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(row: AbsencePoint) => navigate(`/leaves?month=${encodeURIComponent(row.month)}&status=approved`)} />
+                <Bar dataKey="rate" name="Доля отсутствий, %" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(row: AbsencePoint) => navigate(`/leaves?month=${encodeURIComponent(row.month)}&status=approved`)} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
