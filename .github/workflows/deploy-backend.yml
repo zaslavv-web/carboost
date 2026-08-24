@@ -129,6 +129,24 @@ jobs:
             rm -rf "backend-laravel"
           fi
 
+          # Проверяем именно активный корень приложения до запуска PHP. Это
+          # останавливает deploy, если rsync попал во вложенный каталог или на
+          # сервере осталась старая копия DbController.
+          DB_CONTROLLER="app/Http/Controllers/Api/DbController.php"
+          test -f "$DB_CONTROLLER" || {
+            echo "::error::Активный DbController не найден: $BACKEND_ROOT/$DB_CONTROLLER"
+            exit 1
+          }
+          grep -q 'function enforceResourceAccess' "$DB_CONTROLLER" || {
+            echo "::error::В активном DbController отсутствует enforceResourceAccess — код развернут не в корень Laravel"
+            exit 1
+          }
+          if grep -Eq 'function[[:space:]]+authorizeResource[[:space:]]*\(' "$DB_CONTROLLER"; then
+            echo "::error::В активном DbController остался конфликтующий authorizeResource"
+            exit 1
+          fi
+          echo "DbController deployment layout OK"
+
           php -v
           composer --version || true
 
