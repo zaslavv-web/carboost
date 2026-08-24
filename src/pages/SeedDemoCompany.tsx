@@ -35,10 +35,12 @@ interface CareerTrackResult {
 }
 
 
+const LAST_COMPANY_KEY = "demo-seed:last-company";
+
 export default function SeedDemoCompany() {
   const qc = useQueryClient();
   const [headcount, setHeadcount] = useState(150);
-  const [company, setCompany] = useState<string>('ООО "Демо"');
+  const [company, setCompany] = useState<string>(() => localStorage.getItem(LAST_COMPANY_KEY) || "");
   const [customName, setCustomName] = useState("");
   const [output, setOutput] = useState<string>("");
 
@@ -47,7 +49,26 @@ export default function SeedDemoCompany() {
     queryFn: async () => (await laravel.get<{ default: string; companies: CompanyRow[] }>("/superadmin/demo/companies")).data,
   });
 
+  const companies = companiesData?.companies || [];
+
+  // Ничего не выбрано (или сохранённой компании больше нет) — подставляем demo_doom,
+  // иначе серверный default, иначе первую из списка. Новые компании не создаём.
+  useEffect(() => {
+    if (!companies.length) return;
+    if (company === "__new__") return;
+    if (company && companies.some((c) => c.name === company)) return;
+    const doom = companies.find((c) => `${c.name} ${c.slug ?? ""}`.toLowerCase().includes("doom"));
+    const fallback = doom?.name || companies.find((c) => c.name === companiesData?.default)?.name || companies[0].name;
+    setCompany(fallback);
+  }, [companies, companiesData?.default, company]);
+
+  const selectCompany = (value: string) => {
+    setCompany(value);
+    if (value !== "__new__") localStorage.setItem(LAST_COMPANY_KEY, value);
+  };
+
   const targetName = company === "__new__" ? customName.trim() : company;
+
 
   const { data: status, isLoading } = useQuery<DemoStatus>({
     queryKey: ["demo-status", targetName],
