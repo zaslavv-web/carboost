@@ -418,7 +418,7 @@ const ScenarioSchemaViewer = ({ scenario, onClose }: ScenarioSchemaViewerProps) 
         {tab === "schema" ? (
           <div className="flex-1 relative">
             {isEmpty && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center p-6 bg-background/80">
+              <div className="absolute inset-0 z-10 flex items-center justify-center p-6 bg-background">
                 <div className="text-center max-w-sm">
                   <p className="text-sm font-medium text-foreground">{t("scenarioViewer.emptyTitle")}</p>
                   <p className="text-xs text-muted-foreground mt-1">{t("scenarioViewer.emptyDesc")}</p>
