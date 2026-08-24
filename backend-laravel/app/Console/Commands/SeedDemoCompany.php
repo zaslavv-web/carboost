@@ -2313,7 +2313,7 @@ class SeedDemoCompany extends Command
                 ];
             }
 
-            $cCount = mt_rand(1, 5);
+            $cCount = mt_rand(3, 9);
             for ($c = 0; $c < $cCount; $c++) {
                 $commentRows[] = [
                     'id' => (string) Str::uuid(), 'company_id' => $this->companyId,
