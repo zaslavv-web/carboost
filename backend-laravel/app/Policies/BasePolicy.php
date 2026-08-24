@@ -53,6 +53,11 @@ abstract class BasePolicy
 
     protected function ownsRecord(User $user, $model, string $column = 'user_id'): bool
     {
-        return isset($model->{$column}) && $model->{$column} === $user->id;
+        $value = is_object($model) ? ($model->{$column} ?? null) : null;
+        if ($value === null || $value === '') return false;
+        // ID пользователя может приходить как int (users.id) и как string (колонки uuid/varchar) —
+        // сравниваем как строки, иначе строгое === даёт ложные 403.
+        return (string) $value === (string) $user->id;
     }
+
 }
