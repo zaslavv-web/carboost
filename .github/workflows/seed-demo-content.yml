@@ -105,6 +105,9 @@ jobs:
           echo "→ Running demo:seed --$SEED_MODE $COMPANY_ARG"
           $ARTISAN demo:seed --$SEED_MODE $COMPANY_ARG
 
+          echo "→ Ensuring company admin"
+          $ARTISAN demo:create-admin $COMPANY_ARG || echo "::warning::demo:create-admin failed"
+
           echo "✅ Seeding complete"
           REMOTE
 

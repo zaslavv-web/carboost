@@ -1,0 +1,98 @@
+name: Create Company Admin
+
+on:
+  workflow_dispatch:
+    inputs:
+      company:
+        description: 'ID или имя компании (например Demo_doom). Пусто = компания демо-аккаунтов'
+        required: false
+        default: ''
+        type: string
+      email:
+        description: 'Email админа (пусто = company_admin.01@demo.pikrosta.ru)'
+        required: false
+        default: ''
+        type: string
+      name:
+        description: 'ФИО админа'
+        required: false
+        default: ''
+        type: string
+
+env:
+  FALLBACK_HOST: ssh.gro7659365.nichost.ru
+  FALLBACK_USER: gro7659365
+  FALLBACK_ROOT: /home/gro7659365/growth-peak.pro/docs
+
+jobs:
+  create-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve deploy config
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          TARGET_DIR: ${{ secrets.TARGET_DIR }}
+        run: |
+          HOST="${SERVER_IP:-$FALLBACK_HOST}"
+          USER_NAME="${SERVER_USER:-$FALLBACK_USER}"
+          ROOT="${TARGET_DIR:-$FALLBACK_ROOT}"
+          echo "DEPLOY_HOST=$HOST" >> "$GITHUB_ENV"
+          echo "DEPLOY_USER=$USER_NAME" >> "$GITHUB_ENV"
+          echo "BACKEND_ROOT=$ROOT/backend" >> "$GITHUB_ENV"
+
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          KEY="${SSH_PRIVATE_KEY:-$DEPLOY_SSH_KEY}"
+          if [ -z "$KEY" ]; then
+            echo "::error::Neither SSH_PRIVATE_KEY nor DEPLOY_SSH_KEY is set"
+            exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+          ssh-add -l
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          ssh-keyscan -t rsa,ecdsa,ed25519 -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          cat > ~/.ssh/config <<EOF
+          Host $DEPLOY_HOST
+            HostName $DEPLOY_HOST
+            User $DEPLOY_USER
+            HostKeyAlgorithms +ssh-rsa
+            PubkeyAcceptedAlgorithms +ssh-rsa
+            PubkeyAcceptedKeyTypes +ssh-rsa
+            CASignatureAlgorithms +ssh-rsa
+            RequiredRSASize 1024
+            UpdateHostKeys no
+            StrictHostKeyChecking accept-new
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Run demo:create-admin
+        run: |
+          ADMIN_COMPANY="${{ github.event.inputs.company }}"
+          ADMIN_EMAIL="${{ github.event.inputs.email }}"
+          ADMIN_NAME="${{ github.event.inputs.name }}"
+          ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' ADMIN_COMPANY='$ADMIN_COMPANY' ADMIN_EMAIL='$ADMIN_EMAIL' ADMIN_NAME='$ADMIN_NAME' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$BACKEND_ROOT"
+
+          ARTISAN="php -d memory_limit=512M artisan"
+          $ARTISAN optimize:clear || true
+
+          ARGS=""
+          [ -n "${ADMIN_COMPANY:-}" ] && ARGS="$ARGS --company=$ADMIN_COMPANY"
+          [ -n "${ADMIN_EMAIL:-}" ] && ARGS="$ARGS --email=$ADMIN_EMAIL"
+          [ -n "${ADMIN_NAME:-}" ] && ARGS="$ARGS --name=$ADMIN_NAME"
+
+          echo "→ php artisan demo:create-admin $ARGS"
+          $ARTISAN demo:create-admin $ARGS
+          REMOTE
