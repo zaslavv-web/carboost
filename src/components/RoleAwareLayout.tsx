@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { usePrimaryRole } from "@/hooks/useUserProfile";
+import { usePrimaryRole, useRolesReady } from "@/hooks/useUserProfile";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "./AppLayout";
 import MobileEmployeeLayout from "./MobileEmployeeLayout";
