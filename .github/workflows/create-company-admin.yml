@@ -88,11 +88,13 @@ jobs:
           ARTISAN="php -d memory_limit=512M artisan"
           $ARTISAN optimize:clear || true
 
-          ARGS=""
-          [ -n "${ADMIN_COMPANY:-}" ] && ARGS="$ARGS --company=$ADMIN_COMPANY"
-          [ -n "${ADMIN_EMAIL:-}" ] && ARGS="$ARGS --email=$ADMIN_EMAIL"
-          [ -n "${ADMIN_NAME:-}" ] && ARGS="$ARGS --name=$ADMIN_NAME"
+          # Собираем аргументы массивом: значения с пробелами (ФИО) не должны
+          # разбиваться на отдельные аргументы.
+          ARGS=()
+          [ -n "${ADMIN_COMPANY:-}" ] && ARGS+=("--company=$ADMIN_COMPANY")
+          [ -n "${ADMIN_EMAIL:-}" ] && ARGS+=("--email=$ADMIN_EMAIL")
+          [ -n "${ADMIN_NAME:-}" ] && ARGS+=("--name=$ADMIN_NAME")
 
-          echo "→ php artisan demo:create-admin $ARGS"
-          $ARTISAN demo:create-admin $ARGS
+          echo "→ php artisan demo:create-admin ${ARGS[*]-}"
+          php -d memory_limit=512M artisan demo:create-admin ${ARGS[@]+"${ARGS[@]}"}
           REMOTE
