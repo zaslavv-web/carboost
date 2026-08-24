@@ -963,9 +963,16 @@ class DbController extends Controller
 
     private function authorizeResource(Request $request, string $table, string $action): void
     {
-        $resource = self::TABLE_RESOURCES[$table] ?? null;
-        if ($resource && ! AccessControlController::allows($request->user(), $resource, $action)) {
+        try {
+            $resource = self::TABLE_RESOURCES[$table] ?? null;
+            $denied = $resource && ! AccessControlController::allows($request->user(), $resource, $action);
+        } catch (\Throwable $e) {
+            report($e);
+            return; // ролевая модель не должна превращаться в 500
+        }
+        if ($denied) {
             abort(response()->json(['error' => 'Доступ к разделу запрещён ролевой моделью', 'resource' => $resource], 403));
         }
     }
+
 }
