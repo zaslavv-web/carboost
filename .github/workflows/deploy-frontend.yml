@@ -52,6 +52,14 @@ jobs:
         run: |
           cat > dist/.htaccess.cache <<'EOF'
           # Managed by deploy-frontend workflow
+          # Существующие файлы (version.json, manifest.json, robots.txt, ассеты)
+          # отдаются напрямую и НЕ должны переписываться на index.html.
+          <IfModule mod_rewrite.c>
+            RewriteEngine On
+            RewriteCond %{REQUEST_FILENAME} -f [OR]
+            RewriteCond %{REQUEST_FILENAME} -d
+            RewriteRule ^ - [L]
+          </IfModule>
           <IfModule mod_headers.c>
             <FilesMatch "^(index\.html|version\.json|manifest\.json)$">
               Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
