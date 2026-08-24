@@ -147,6 +147,11 @@ class DemoSeedController extends Controller
                     ? 'Готово'
                     : 'Команда demo:seed завершилась с кодом ' . $exitCode . '. Подробности — в выводе ниже.',
                 'last_step' => $this->lastStep($output),
+                'diagnostics' => [
+                    'output' => $output,
+                    'exit_code' => $exitCode,
+                    'last_step' => $this->lastStep($output),
+                ],
             ], $exitCode === 0 ? 200 : 422);
         } catch (\Throwable $e) {
             $output = '';
@@ -166,14 +171,24 @@ class DemoSeedController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
+            $where = basename($e->getFile()) . ':' . $e->getLine();
+
             return response()->json([
                 'ok' => false,
-                'message' => $e->getMessage(),
+                'message' => $e->getMessage() . ' (' . $where . ')',
                 'exception' => $e::class,
-                'where' => basename($e->getFile()) . ':' . $e->getLine(),
+                'where' => $where,
                 'last_step' => $this->lastStep($output),
                 'output' => $output,
+                'diagnostics' => [
+                    'output' => $output,
+                    'where' => $where,
+                    'exception' => $e::class,
+                    'last_step' => $this->lastStep($output),
+                ],
             ], 422);
+        }
+
         }
     }
 
