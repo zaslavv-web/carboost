@@ -136,6 +136,36 @@ jobs:
             dist/ "$DEPLOY_USER@$DEPLOY_HOST:$WEB_ROOT/"
 
 
+      - name: Убрать старый симлинк/папку frontend/ (причина петли редиректов)
+        run: |
+          SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
+          $SSH "$DEPLOY_USER@$DEPLOY_HOST" "WEB_ROOT='$WEB_ROOT' bash -s" <<'REMOTE'
+          cd "$WEB_ROOT"
+          if [ -e frontend ] || [ -L frontend ]; then
+            echo "⚠️  Найден frontend/ — удаляю (новый .htaccess его не использует)"
+            ls -ld frontend
+            rm -rf frontend
+            echo "✅ frontend/ удалён"
+          else
+            echo "ℹ️  frontend/ не найден — пропускаю"
+          fi
+          REMOTE
+
+      - name: Гарантировать version.json в веб-руте (SSH)
+        run: |
+          SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
+          SHA="${GITHUB_SHA::7}"
+          TS="$(date -u +%FT%TZ)"
+          $SSH "$DEPLOY_USER@$DEPLOY_HOST" "WEB_ROOT='$WEB_ROOT' SHA='$SHA' TS='$TS' bash -s" <<'REMOTE'
+          set -e
+          cd "$WEB_ROOT"
+          # Если rsync не доехал или файл был в frontend/, пересоздаём напрямую.
+          printf '{"version":"%s","built_at":"%s"}\n' "$SHA" "$TS" > version.json
+          echo "✅ version.json записан в $WEB_ROOT:"
+          cat version.json
+          ls -l version.json
+          REMOTE
+
       - name: Применить .htaccess на сервере
         run: |
           SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
