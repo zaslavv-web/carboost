@@ -251,8 +251,15 @@ function Comments({ postId, companyId, userId }: { postId: string; companyId: st
       });
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["portal-comments", postId] }); setText(""); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["portal-comments", postId] });
+      // счётчик комментариев в шапке поста пересчитывается на бэкенде
+      qc.invalidateQueries({ queryKey: ["portal-posts"] });
+      setText("");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Не удалось отправить комментарий"),
   });
+
   return (
     <div className="space-y-2 pt-2 border-t">
       {comments.map((c) => (

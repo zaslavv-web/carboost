@@ -316,38 +316,67 @@ class SeedTrackerTasks extends Command
         return $ids;
     }
 
+    /**
+     * Спринты создаются для КАЖДОГО проекта: завершённый, активный и запланированный,
+     * чтобы страница «Спринты» не была пустой ни в одном проекте.
+     */
     private function createSprints(int $n, array $projectIds, int &$counter): array
     {
         if ($n === 0 || !Schema::hasTable('tracker_sprints')) return [];
+
+        // Сколько спринтов на проект (минимум 3: прошлый / текущий / следующий).
+        $perProject = max(3, (int) ceil($n / max(1, count($projectIds))));
+        $phases = [
+            ['status' => 'completed', 'from' => -28, 'to' => -15, 'label' => 'Прошлый спринт'],
+            ['status' => 'active',    'from' => -7,  'to' => 7,   'label' => 'Текущий спринт'],
+            ['status' => 'planned',   'from' => 8,   'to' => 21,  'label' => 'Следующий спринт'],
+        ];
+        $goals = [
+            'Закрыть приоритетные задачи квартала и снять блокеры.',
+            'Ускорить обработку заявок и обновить регламенты.',
+            'Довести до релиза ключевые улучшения продукта.',
+            'Разобрать техдолг и стабилизировать метрики.',
+        ];
+
         $sprints = [];
-        for ($i = 0; $i < $n; $i++) {
-            $projectId = $projectIds[$i % count($projectIds)];
-            $sid = (string) Str::uuid();
-            $starts = now()->subDays(7)->startOfDay();
-            $ends   = now()->addDays(7)->endOfDay();
-            $row = [
-                'id' => $sid,
-                'company_id' => $this->companyId,
-                'project_id' => $projectId,
-                'name' => 'Спринт ' . ($i + 1),
-                'goal' => "Демо-спринт, двухнедельный цикл. [{$this->marker}]",
-                'status' => 'active',
-                'position' => $i,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-            // Реальные имена колонок из миграции 0019 — start_date/end_date.
-            if (Schema::hasColumn('tracker_sprints', 'start_date')) $row['start_date'] = $starts;
-            if (Schema::hasColumn('tracker_sprints', 'end_date'))   $row['end_date']   = $ends;
-            // Fallback на альтернативные имена, если БД мигрирована иначе.
-            if (Schema::hasColumn('tracker_sprints', 'starts_at'))  $row['starts_at']  = $starts;
-            if (Schema::hasColumn('tracker_sprints', 'ends_at'))    $row['ends_at']    = $ends;
-            DB::table('tracker_sprints')->insert($row);
-            $sprints[] = ['id' => $sid, 'project_id' => $projectId];
-            $counter++;
+        foreach ($projectIds as $pIdx => $projectId) {
+            for ($i = 0; $i < $perProject; $i++) {
+                $phase = $phases[min($i, count($phases) - 1)];
+                if ($i >= count($phases)) {
+                    // Дополнительные спринты — запланированные, дальше по календарю.
+                    $phase = ['status' => 'planned', 'from' => 8 + ($i - 2) * 14, 'to' => 21 + ($i - 2) * 14, 'label' => 'Спринт'];
+                }
+                $sid = (string) Str::uuid();
+                $starts = now()->addDays($phase['from'])->startOfDay();
+                $ends   = now()->addDays($phase['to'])->endOfDay();
+                $row = [
+                    'id' => $sid,
+                    'company_id' => $this->companyId,
+                    'project_id' => $projectId,
+                    'name' => sprintf('Спринт %d.%d — %s', $pIdx + 1, $i + 1, $phase['label']),
+                    'goal' => $goals[($pIdx + $i) % count($goals)] . " [{$this->marker}]",
+                    'status' => $phase['status'],
+                    'position' => $i,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+                if ($phase['status'] === 'completed' && Schema::hasColumn('tracker_sprints', 'completed_at')) {
+                    $row['completed_at'] = $ends;
+                }
+                // Реальные имена колонок из миграции 0019 — start_date/end_date.
+                if (Schema::hasColumn('tracker_sprints', 'start_date')) $row['start_date'] = $starts;
+                if (Schema::hasColumn('tracker_sprints', 'end_date'))   $row['end_date']   = $ends;
+                // Fallback на альтернативные имена, если БД мигрирована иначе.
+                if (Schema::hasColumn('tracker_sprints', 'starts_at'))  $row['starts_at']  = $starts;
+                if (Schema::hasColumn('tracker_sprints', 'ends_at'))    $row['ends_at']    = $ends;
+                DB::table('tracker_sprints')->insert($row);
+                $sprints[] = ['id' => $sid, 'project_id' => $projectId, 'status' => $phase['status']];
+                $counter++;
+            }
         }
         return $sprints;
     }
+
 
     private function createTasks(int $count, array $projectIds, array $sprints, array $statusIds, string $workflowId, array $assignees, array $authors): int
     {
@@ -410,7 +439,8 @@ class SeedTrackerTasks extends Command
 
         // спринты по проекту
         $sprintByProject = [];
-        foreach ($sprints as $s) $sprintByProject[$s['project_id']] = $s['id'];
+        foreach ($sprints as $s) $sprintByProject[$s['project_id']][] = $s;
+
 
         $orderIdx = array_fill_keys($projectIds, 0);
         $batch = [];
@@ -473,7 +503,22 @@ class SeedTrackerTasks extends Command
                 'updated_at' => now(),
             ];
             if ($hasProject)  $row['project_id']  = $projectId;
-            if ($hasSprint)   $row['sprint_id']   = (mt_rand(1, 100) <= 60 && isset($sprintByProject[$projectId])) ? $sprintByProject[$projectId] : null;
+            if ($hasSprint) {
+                // 70% задач попадают в спринты проекта (в основном в активный),
+                // остальные остаются в бэклоге проекта.
+                $row['sprint_id'] = null;
+                $list = $sprintByProject[$projectId] ?? [];
+                if ($list && mt_rand(1, 100) <= 70) {
+                    $active    = array_values(array_filter($list, fn ($s) => $s['status'] === 'active'));
+                    $completed = array_values(array_filter($list, fn ($s) => $s['status'] === 'completed'));
+                    $planned   = array_values(array_filter($list, fn ($s) => $s['status'] === 'planned'));
+                    $roll = mt_rand(1, 100);
+                    $bucket = $roll <= 55 ? $active : ($roll <= 80 ? $completed : $planned);
+                    if (! $bucket) $bucket = $list;
+                    $row['sprint_id'] = $bucket[array_rand($bucket)]['id'];
+                }
+            }
+
             if ($hasWorkflow) $row['workflow_id'] = $workflowId;
             if ($hasWfStatus) $row['workflow_status_id'] = $statusIds[$stKey];
             if ($hasType)     $row['type']       = $type;
