@@ -204,8 +204,28 @@ class DemoSeedController extends Controller
     {
         $this->requireSuperadmin($request);
         $name = $this->companyName($request);
-        $exitCode = Artisan::call('demo:seed', ['--only-career' => true, '--name' => $name]);
-        $output = Artisan::output();
+        $this->relaxRuntimeLimits();
+        try {
+            $exitCode = Artisan::call('demo:seed', ['--only-career' => true, '--name' => $name]);
+            $output = Artisan::output();
+        } catch (\Throwable $e) {
+            Log::error('demo-seed: исключение при назначении карьерных треков', [
+                'company' => $name,
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+                'where' => $e->getFile() . ':' . $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => $e->getMessage(),
+                'exception' => $e::class,
+                'where' => basename($e->getFile()) . ':' . $e->getLine(),
+                'output' => '',
+            ], 422);
+        }
+
         $company = DB::table('companies')->where('name', $name)->first();
         $assignments = $company
             ? DB::table('employee_career_assignments')->where('company_id', $company->id)->count()
