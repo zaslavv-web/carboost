@@ -108,6 +108,23 @@ const UsersManagement = () => {
     },
   });
 
+  // Drill-down из Risk Analytics: /users?risk=high — подтягиваем уровни риска только когда фильтр активен.
+  const { data: riskLevels = {} } = useQuery<Record<string, string>>({
+    queryKey: ["admin_users_risk_levels"],
+    enabled: riskFilter !== "all",
+    queryFn: async () => {
+      const { data, error } = await laravelDb
+        .from("employee_risk_scores")
+        .select("user_id, risk_level");
+      if (error) return {};
+      const map: Record<string, string> = {};
+      for (const row of (data || []) as any[]) map[row.user_id] = row.risk_level;
+      return map;
+    },
+  });
+
+
+
   const verifyMutation = useMutation({
     mutationFn: async (userId: string) => {
       const { error } = await laravelRpc("verify_user", { _target_user_id: userId });
