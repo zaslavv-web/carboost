@@ -145,4 +145,29 @@ class DbControllerTest extends TestCase
         $this->assertDatabaseMissing('companies', ['id' => $target->id]);
         $this->assertDatabaseHas('companies', ['id' => $other->id]);
     }
+
+    /**
+     * Клиент шлёт `eq.is_active=true`; в MySQL строка 'true' приводилась к 0,
+     * из-за чего магазин демо-компании выглядел пустым при живых товарах.
+     */
+    public function test_boolean_true_filter_matches_active_rows(): void
+    {
+        $company = $this->makeCompany();
+        DB::table('shop_products')->insert([
+            ['id' => (string) \Illuminate\Support\Str::uuid(), 'company_id' => $company->id, 'title' => 'Активный', 'price' => 100, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => (string) \Illuminate\Support\Str::uuid(), 'company_id' => $company->id, 'title' => 'Скрытый', 'price' => 100, 'is_active' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $this->actingAs($this->makeUser('hrd', $company->id), 'sanctum')
+            ->getJson('/api/db/shop_products?select=*&eq.company_id=' . $company->id . '&eq.is_active=true')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.title', 'Активный');
+
+        $this->actingAs($this->makeUser('hrd', $company->id), 'sanctum')
+            ->getJson('/api/db/shop_products?select=*&eq.company_id=' . $company->id . '&eq.is_active=false')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.title', 'Скрытый');
+    }
 }

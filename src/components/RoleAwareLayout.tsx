@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { usePrimaryRole } from "@/hooks/useUserProfile";
+import { usePrimaryRole, useRolesReady } from "@/hooks/useUserProfile";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "./AppLayout";
 import MobileEmployeeLayout from "./MobileEmployeeLayout";
@@ -23,20 +23,22 @@ import { isTodayCanary, readHrdUiMode } from "@/lib/hrdUiMode";
 const RoleAwareLayout = () => {
   const isMobile = useIsMobile();
   const role = usePrimaryRole();
+  const rolesReady = useRolesReady();
   const location = useLocation();
   const { user } = useAuth();
 
   // Restrict /users to platform admins. HRD now manages people via /dashboard.
   const isAdminOnly = location.pathname.startsWith("/users");
-  if (isAdminOnly && role && role !== "superadmin" && role !== "company_admin") {
+  if (rolesReady && isAdminOnly && role && role !== "superadmin" && role !== "company_admin") {
     return <Navigate to="/dashboard" replace />;
   }
 
   // Merge /employees into /dashboard for HRD-level roles — one canonical screen.
   const isEmployeesRoute = location.pathname === "/employees";
-  if (isEmployeesRoute && (role === "hr" || role === "hrd" || role === "company_admin" || role === "superadmin")) {
+  if (rolesReady && isEmployeesRoute && (role === "hr" || role === "hrd" || role === "company_admin" || role === "superadmin")) {
     return <Navigate to="/dashboard" replace />;
   }
+
 
   const hrdTodayEligible = role === "hrd" && isTodayCanary(user?.email);
   const mode = hrdTodayEligible ? readHrdUiMode() : null;
