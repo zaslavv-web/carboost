@@ -56,26 +56,50 @@ export default function SeedDemoCompany() {
     enabled: targetName.length > 0,
   });
 
+  /** Достаёт вывод команды из ошибки клиента (диагностика приходит в поле diagnostics). */
+  const applyErrorDiagnostics = (e: any) => {
+    const d = e?.diagnostics as { output?: string; where?: string; last_step?: string } | undefined;
+    const parts = [
+      e?.message ? `ОШИБКА: ${e.message}` : "",
+      d?.last_step ? `Последний шаг: ${d.last_step}` : "",
+      d?.where ? `Место: ${d.where}` : "",
+      d?.output || "",
+    ].filter(Boolean);
+    if (parts.length) setOutput(parts.join("\n"));
+  };
+
   const seed = useMutation({
-    mutationFn: async (reset: boolean) =>
-      (await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/seed", { reset, headcount, company: targetName })).data,
+    mutationFn: async (reset: boolean) => {
+      const result = await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/seed", { reset, headcount, company: targetName });
+      if (result.error) throw result.error;
+      return result.data!;
+    },
     onSuccess: (r) => {
       setOutput(r.output || "");
       toast.success(r.ok ? "Демо-компания создана" : "Готово");
       qc.invalidateQueries({ queryKey: ["demo-status"] });
     },
-    onError: (e: any) => toast.error(e?.message || "Ошибка сидинга"),
+    onError: (e: any) => {
+      applyErrorDiagnostics(e);
+      toast.error(e?.message || "Ошибка сидинга");
+    },
   });
 
   const reset = useMutation({
-    mutationFn: async () =>
-      (await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/reset", { headcount, company: targetName })).data,
+    mutationFn: async () => {
+      const result = await laravel.post<{ ok: boolean; output: string }>("/superadmin/demo/reset", { headcount, company: targetName });
+      if (result.error) throw result.error;
+      return result.data!;
+    },
     onSuccess: (r) => {
       setOutput(r.output || "");
       toast.success("Демо-компания сброшена и создана заново");
       qc.invalidateQueries({ queryKey: ["demo-status"] });
     },
-    onError: (e: any) => toast.error(e?.message || "Ошибка сброса"),
+    onError: (e: any) => {
+      applyErrorDiagnostics(e);
+      toast.error(e?.message || "Ошибка сброса");
+    },
   });
 
   const careerTracks = useMutation({
@@ -98,8 +122,7 @@ export default function SeedDemoCompany() {
       qc.invalidateQueries({ queryKey: ["demo-status"] });
     },
     onError: (e: any) => {
-      const diagnostics = e?.diagnostics as { output?: string } | undefined;
-      if (diagnostics?.output) setOutput(diagnostics.output);
+      applyErrorDiagnostics(e);
       toast.error(e?.message || "Ошибка назначения треков");
       qc.invalidateQueries({ queryKey: ["demo-status"] });
     },
@@ -117,8 +140,12 @@ export default function SeedDemoCompany() {
       toast.success("Все контентные разделы заполнены и проверены");
       qc.invalidateQueries({ queryKey: ["demo-status"] });
     },
-    onError: (e: any) => toast.error(e?.message || "Ошибка контентного прогона"),
+    onError: (e: any) => {
+      applyErrorDiagnostics(e);
+      toast.error(e?.message || "Ошибка контентного прогона");
+    },
   });
+
 
 
   const copyAllLogins = () => {
