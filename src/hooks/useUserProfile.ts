@@ -96,6 +96,17 @@ export const useUserRoles = () => {
 };
 
 
+
+/**
+ * True, когда роли пользователя реально загружены (или запрос завершился ошибкой).
+ * Пока false — нельзя принимать решения о доступе: `usePrimaryRole()` в этот
+ * момент отдаёт дефолтный "employee", из-за чего HRD выбрасывало с /employee-map.
+ */
+export const useRolesReady = (): boolean => {
+  const { isSuccess, isError } = useUserRoles();
+  return isSuccess || isError;
+};
+
 export const usePrimaryRole = (): AppRole => {
   const { data: roles } = useUserRoles();
   if (!roles || roles.length === 0) return "employee";
@@ -106,6 +117,7 @@ export const usePrimaryRole = (): AppRole => {
   if (roles.includes("manager")) return "manager";
   return "employee";
 };
+
 
 /** Returns the REAL authenticated user's role, ignoring impersonation */
 export const useRealPrimaryRole = (): AppRole => {
