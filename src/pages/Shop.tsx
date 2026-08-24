@@ -67,11 +67,12 @@ export default function Shop() {
             <Link key={p.id} to={`/shop/${p.id}`}>
               <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full">
                 <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
-                  {p.image_url ? (
-                    <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <Package className="w-16 h-16 text-muted-foreground" />
-                  )}
+                  <img
+                    src={productImageSrc(p.image_url, p.title)}
+                    alt={p.title}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <CardContent className="p-4 space-y-2">
                   <h3 className="font-semibold line-clamp-2">{p.title}</h3>
