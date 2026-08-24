@@ -96,5 +96,5 @@ jobs:
           [ -n "${ADMIN_NAME:-}" ] && ARGS+=("--name=$ADMIN_NAME")
 
           echo "→ php artisan demo:create-admin ${ARGS[*]-}"
-          php -d memory_limit=512M artisan demo:create-admin "${ARGS[@]}"
+          php -d memory_limit=512M artisan demo:create-admin ${ARGS[@]+"${ARGS[@]}"}
           REMOTE
