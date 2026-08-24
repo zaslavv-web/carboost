@@ -244,9 +244,8 @@ class DemoSeedController extends Controller
                 ],
             ], 422);
         }
-
-        }
     }
+
 
     /** Последняя строка прогресса вида «4/12 Создаю 150 сотрудников…». */
     private function lastStep(string $output): ?string
