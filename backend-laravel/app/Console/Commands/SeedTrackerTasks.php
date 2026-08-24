@@ -439,7 +439,8 @@ class SeedTrackerTasks extends Command
 
         // спринты по проекту
         $sprintByProject = [];
-        foreach ($sprints as $s) $sprintByProject[$s['project_id']] = $s['id'];
+        foreach ($sprints as $s) $sprintByProject[$s['project_id']][] = $s;
+
 
         $orderIdx = array_fill_keys($projectIds, 0);
         $batch = [];
