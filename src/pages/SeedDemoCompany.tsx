@@ -199,7 +199,7 @@ export default function SeedDemoCompany() {
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[260px]">
               <Label>Компания</Label>
-              <Select value={company} onValueChange={setCompany}>
+              <Select value={company || undefined} onValueChange={selectCompany}>
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите компанию" />
                 </SelectTrigger>
