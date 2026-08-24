@@ -1,18 +1,35 @@
-RewriteEngine On
-RewriteRule ^api(/.*)?$ backend/public/index.php [L,QSA]
-RewriteCond %{DOCUMENT_ROOT}/frontend/%{REQUEST_URI} -f
-RewriteRule ^(.*)$ frontend/$1 [L]
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ frontend/index.html [L]
+DirectoryIndex index.html
 
-# index.html НЕ кешируется — после деплоя браузер должен подтянуть свежий
-# html с новыми хешами /assets/*, иначе будет «чёрный экран» из-за 404 на
-# старые чанки.
+RewriteEngine On
+RewriteBase /
+
+# ── API → Laravel ───────────────────────────────────────────────────────────
+RewriteRule ^api(/.*)?$ backend/public/index.php [L,QSA]
+
+# ── Реальные файлы и каталоги отдаём напрямую ───────────────────────────────
+# Важно: version.json, manifest.json, robots.txt, /assets/* НЕ должны попадать
+# в SPA-фолбэк, иначе проверка версии после деплоя получает index.html.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# ── SPA-фолбэк ─────────────────────────────────────────────────────────────
+# Ровно один внутренний редирект на корневой index.html. Условие !^/index\.html$
+# обязательно: без него Apache уходит в петлю («Request exceeded the limit of 10
+# internal redirects») и любой deep link отдаёт 500.
+RewriteCond %{REQUEST_URI} !^/index\.html$
+RewriteRule ^ /index.html [L]
+
+# index.html и version.json НЕ кешируются — после деплоя браузер должен
+# подтянуть свежий html с новыми хешами /assets/*, иначе «чёрный экран»
+# из-за 404 на старые чанки.
 <IfModule mod_headers.c>
-  <FilesMatch "index\.html$">
-    Header set Cache-Control "no-store, must-revalidate"
+  <FilesMatch "^(index\.html|version\.json|manifest\.json)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
     Header set Pragma "no-cache"
     Header set Expires "0"
+  </FilesMatch>
+  <FilesMatch "\.(js|css|woff2?|png|jpg|jpeg|svg|webp)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 </IfModule>
