@@ -28,6 +28,7 @@ class SeedDemoCompany extends Command
         {--only-performance : Только наполнить Performance/испытательные/дисциплинарные записи}
         {--only-content : Догоняющее наполнение всех пользовательских разделов демо-компании}
         {--name=ООО "Демо" : Название компании}
+        {--company= : Явный id или точное имя компании для догоняющих режимов}
         {--email-domain= : Домен для логинов (по умолчанию demo.pikrosta.ru)}';
 
     protected $description = 'Создаёт демо-компанию и наполняет её контентом по всем модулям';
@@ -141,14 +142,54 @@ class SeedDemoCompany extends Command
     }
 
     /**
-     * Находит демо-компанию по имени, а если точного совпадения нет —
-     * по «похожему» названию или по домену демо-аккаунтов.
+     * Находит демо-компанию: явный --company (id или имя) → компания демо-аккаунтов
+     * (users.email LIKE %@demo.%) → точное имя → похожее имя.
+     *
+     * Приоритет у реальных демо-аккаунтов: именно в их компании живёт контент,
+     * который смотрит пользователь, а название компании на проде может отличаться.
      */
     private function resolveDemoCompany(): ?object
     {
+        $explicit = trim((string) $this->option('company'));
+        if ($explicit !== '') {
+            $company = DB::table('companies')
+                ->where('id', $explicit)
+                ->orWhere('name', $explicit)
+                ->first();
+            if ($company) {
+                $this->line("Компания задана явно: «{$company->name}» ({$company->id}).");
+                return $this->announceCompany($company);
+            }
+            $this->warn("Компания «{$explicit}» не найдена, продолжаю автоопределение.");
+        }
+
+        // Основной путь: компания, в которой сидят демо-пользователи
+        $companyId = DB::table('users')
+            ->join('profiles', 'profiles.user_id', '=', 'users.id')
+            ->where('users.email', 'like', '%@' . $this->emailDomain)
+            ->whereNotNull('profiles.company_id')
+            ->orderByDesc(DB::raw('1'))
+            ->value('profiles.company_id');
+
+        if (! $companyId) {
+            $companyId = DB::table('users')
+                ->join('profiles', 'profiles.user_id', '=', 'users.id')
+                ->where('users.email', 'like', '%@demo.%')
+                ->whereNotNull('profiles.company_id')
+                ->value('profiles.company_id');
+        }
+
+        if ($companyId) {
+            $company = DB::table('companies')->where('id', $companyId)->first();
+            if ($company) {
+                $this->line("Компания определена по демо-аккаунтам: «{$company->name}».");
+                return $this->announceCompany($company);
+            }
+        }
+
         $company = DB::table('companies')->where('name', $this->companyName)->first();
         if ($company) {
-            return $company;
+            return $this->announceCompany($company);
         }
 
         // Название могло быть сохранено с другими кавычками/регистром
@@ -159,24 +200,21 @@ class SeedDemoCompany extends Command
             ->first();
         if ($company) {
             $this->warn("Точного совпадения «{$this->companyName}» нет — использую компанию «{$company->name}».");
-            return $company;
-        }
-
-        // Последний фолбэк: компания демо-пользователей
-        $companyId = DB::table('profiles')
-            ->where('email', 'like', '%@demo.%')
-            ->whereNotNull('company_id')
-            ->value('company_id');
-        if ($companyId) {
-            $company = DB::table('companies')->where('id', $companyId)->first();
-            if ($company) {
-                $this->warn("Компания найдена по демо-аккаунтам: «{$company->name}».");
-                return $company;
-            }
+            return $this->announceCompany($company);
         }
 
         return null;
     }
+
+    /** Всегда печатаем, какую компанию наполняем: иначе сидинг «успешен», но не туда. */
+    private function announceCompany(object $company): object
+    {
+        $users = DB::table('profiles')->where('company_id', $company->id)->count();
+        $this->info("→ Наполняю компанию «{$company->name}» (id={$company->id}), профилей: {$users}");
+
+        return $company;
+    }
+
 
     private function reportCompanyNotFound(): void
     {
@@ -1777,8 +1815,17 @@ class SeedDemoCompany extends Command
                 DB::transaction(fn () => $this->seedShop());
             }
         });
+        $products = DB::table('shop_products')->where('company_id', $this->companyId)->count();
         $fixed = $this->runContentStep('изображения товаров', fn () => $this->backfillProductImages()) ?? 0;
-        $this->line("     обновлено товаров: {$fixed}");
+        $noImage = DB::table('shop_products')
+            ->where('company_id', $this->companyId)
+            ->where(function ($q) { $q->whereNull('image_url')->orWhere('image_url', ''); })
+            ->count();
+        $this->line("     товаров: {$products}, обновлено картинок: {$fixed}, без картинки осталось: {$noImage}");
+        if ($noImage > 0) {
+            $this->error("     ! у {$noImage} товаров нет изображения — шаг картинок не отработал");
+        }
+
 
         $this->info('2/6  База знаний…');
         $this->runContentStep('база знаний', fn () => DB::transaction(fn () => $this->seedKnowledgeBase()));
