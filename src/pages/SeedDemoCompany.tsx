@@ -44,9 +44,14 @@ export default function SeedDemoCompany() {
   const [customName, setCustomName] = useState("");
   const [output, setOutput] = useState<string>("");
 
-  const { data: companiesData } = useQuery<{ default: string; companies: CompanyRow[] }>({
+  const { data: companiesData, error: companiesError } = useQuery<{ default: string; companies: CompanyRow[] }>({
     queryKey: ["demo-companies"],
-    queryFn: async () => (await laravel.get<{ default: string; companies: CompanyRow[] }>("/superadmin/demo/companies")).data,
+    queryFn: async () => {
+      const { data, error } = await laravel.get<{ default: string; companies: CompanyRow[] }>("/superadmin/demo/companies");
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    retry: false,
   });
 
   const companies = companiesData?.companies || [];
