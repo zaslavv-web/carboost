@@ -59,6 +59,42 @@ Workflow: `.github/workflows/deploy-backend.yml`.
 > ```
 > Workflow при каждом деплое сам удаляет вложенную копию, если она появилась.
 
+### Как проверить, что деплой реально доехал
+
+На сервере (в корне приложения `docs/backend`):
+
+```bash
+cat VERSION                                   # должен быть короткий SHA последнего коммита
+test ! -d backend-laravel && echo "OK: нет вложенной копии" || echo "ERROR: вложенная backend-laravel/"
+grep -c enforceResourceAccess app/Http/Controllers/Api/DbController.php   # >= 5
+grep -c 'function authorizeResource' app/Http/Controllers/Api/DbController.php || true  # 0
+php -d memory_limit=1024M artisan migrate:status | grep -c Pending        # 0
+```
+
+Снаружи:
+
+```bash
+curl -sS -H 'Accept: application/json' https://growth-peak.pro/api/health
+```
+
+- `checks.version` должен совпадать с `VERSION` и с SHA последнего коммита. Если нет — код не доставлен либо OPcache отдаёт старую копию (`touch public/index.php`).
+- `checks.fatals_last_hour` должен перестать расти; `checks.fatals_last_uri` показывает последний упавший запрос.
+
+Проверка ранее падавших эндпоинтов требует токена — **без него всегда `401`**, и это не признак исправления:
+
+```bash
+TOKEN='<боевой токен сессии>'
+curl -sS -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $TOKEN" \
+  'https://growth-peak.pro/api/db/positions?select=id&limit=1'
+curl -sS -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $TOKEN" \
+  'https://growth-peak.pro/api/db/profiles?select=company_id&maybeSingle=1&eq.user_id=1041'
+```
+
+Ожидание: `200`. Если `500` — точный стек берётся с `GET /api/diag/last-fatal` (под авторизацией).
+
+Токен проще всего взять из браузера на боевом сайте: DevTools → Application → Local Storage → ключ с access token.
+
+
 `deploy/deploy-laravel.sh` — запасной ручной путь: composer install, миграции, кеши. Запускается в каталоге Laravel-приложения (обычно `/var/www/api`, `/home/gro7659365/growth-peak.pro/docs/backend` или `backend-laravel/`).
 
 
