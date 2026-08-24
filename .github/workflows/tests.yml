@@ -19,7 +19,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  workflows:
+    name: Валидация workflow-файлов
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Все .github/workflows/*.yml разбираются и имеют name
+        run: |
+          python3 - <<'PY'
+          import glob, sys, yaml
+          bad = []
+          for f in sorted(glob.glob('.github/workflows/*.yml')):
+              try:
+                  data = yaml.safe_load(open(f))
+              except Exception as e:
+                  bad.append(f"{f}: не парсится — {e}")
+                  continue
+              if not data.get('name'):
+                  bad.append(f"{f}: отсутствует поле name")
+          for line in bad:
+              print(f"::error::{line}")
+          print('\n'.join(f'OK {f}' for f in sorted(glob.glob('.github/workflows/*.yml'))))
+          sys.exit(1 if bad else 0)
+          PY
+
   frontend:
+
     name: Фронтенд — unit + сборка
     runs-on: ubuntu-latest
     steps:
