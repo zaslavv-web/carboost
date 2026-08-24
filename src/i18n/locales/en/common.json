@@ -130,7 +130,16 @@
     "competencies": "Assessed competencies",
     "dataStructure": "Data structure",
     "recordsCount": "{{count}} records",
-    "record": "Record #{{n}}"
+    "record": "Record #{{n}}",
+    "itemsCount": "{{count}} items",
+    "fieldsCount": "{{count}} fields",
+    "tabSchema": "Schema",
+    "tabJson": "JSON",
+    "copy": "Copy",
+    "copied": "JSON copied",
+    "copyFailed": "Copy failed",
+    "emptyTitle": "Scenario data is empty or in an unknown format",
+    "emptyDesc": "Re-upload the scenario file or inspect the raw content in the JSON tab."
   },
   "tracksAnalytics": {
     "stage": "Stage {{n}}",
