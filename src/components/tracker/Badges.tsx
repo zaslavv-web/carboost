@@ -32,8 +32,12 @@ const MEETING_STATUS: Record<MeetingStatus, { label: string; cls: string }> = {
   cancelled: { label: "Отменена",       cls: "bg-muted text-muted-foreground" },
 };
 
+const FALLBACK = { label: "—", cls: "bg-muted text-muted-foreground", dot: "bg-muted-foreground" };
+const pick = <T extends { label: string; cls: string }>(map: Record<string, T>, key: string | null | undefined) =>
+  (key && map[key]) || ({ ...FALLBACK, label: key ? String(key) : FALLBACK.label } as unknown as T);
+
 export const UrgencyBadge = ({ urgency }: { urgency: TaskUrgency }) => {
-  const u = URGENCY[urgency];
+  const u = pick(URGENCY as Record<string, typeof URGENCY[TaskUrgency]>, urgency);
   return (
     <Badge variant="outline" className={cn("gap-1.5 font-medium", u.cls)}>
       <span className={cn("w-1.5 h-1.5 rounded-full", u.dot)} />
@@ -43,17 +47,17 @@ export const UrgencyBadge = ({ urgency }: { urgency: TaskUrgency }) => {
 };
 
 export const TaskStatusBadge = ({ status }: { status: TaskStatus }) => {
-  const s = TASK_STATUS[status];
+  const s = pick(TASK_STATUS as Record<string, { label: string; cls: string }>, status);
   return <Badge variant="secondary" className={cn("font-medium", s.cls)}>{s.label}</Badge>;
 };
 
 export const GoalStatusBadge = ({ status }: { status: GoalStatus }) => {
-  const s = GOAL_STATUS[status];
+  const s = pick(GOAL_STATUS as Record<string, { label: string; cls: string }>, status);
   return <Badge variant="secondary" className={cn("font-medium", s.cls)}>{s.label}</Badge>;
 };
 
 export const MeetingStatusBadge = ({ status }: { status: MeetingStatus }) => {
-  const s = MEETING_STATUS[status];
+  const s = pick(MEETING_STATUS as Record<string, { label: string; cls: string }>, status);
   return <Badge variant="secondary" className={cn("font-medium", s.cls)}>{s.label}</Badge>;
 };
 
