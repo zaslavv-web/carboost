@@ -503,7 +503,22 @@ class SeedTrackerTasks extends Command
                 'updated_at' => now(),
             ];
             if ($hasProject)  $row['project_id']  = $projectId;
-            if ($hasSprint)   $row['sprint_id']   = (mt_rand(1, 100) <= 60 && isset($sprintByProject[$projectId])) ? $sprintByProject[$projectId] : null;
+            if ($hasSprint) {
+                // 70% задач попадают в спринты проекта (в основном в активный),
+                // остальные остаются в бэклоге проекта.
+                $row['sprint_id'] = null;
+                $list = $sprintByProject[$projectId] ?? [];
+                if ($list && mt_rand(1, 100) <= 70) {
+                    $active    = array_values(array_filter($list, fn ($s) => $s['status'] === 'active'));
+                    $completed = array_values(array_filter($list, fn ($s) => $s['status'] === 'completed'));
+                    $planned   = array_values(array_filter($list, fn ($s) => $s['status'] === 'planned'));
+                    $roll = mt_rand(1, 100);
+                    $bucket = $roll <= 55 ? $active : ($roll <= 80 ? $completed : $planned);
+                    if (! $bucket) $bucket = $list;
+                    $row['sprint_id'] = $bucket[array_rand($bucket)]['id'];
+                }
+            }
+
             if ($hasWorkflow) $row['workflow_id'] = $workflowId;
             if ($hasWfStatus) $row['workflow_status_id'] = $statusIds[$stKey];
             if ($hasType)     $row['type']       = $type;
