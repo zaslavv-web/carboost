@@ -162,14 +162,20 @@ class AccessControlController extends Controller
             if (! $base['can_view']) $base['can_edit'] = $base['can_download'] = false;
             $out[$resource] = $base;
         }
-        return $out;
+        return self::$permCache[$cacheKey] = $out;
     }
 
     public static function allows($user, string $resource, string $action = 'view'): bool
     {
-        $permission = self::effectivePermissions($user)[$resource] ?? null;
+        try {
+            $permission = self::effectivePermissions($user)[$resource] ?? null;
+        } catch (\Throwable $e) {
+            report($e);
+            return true; // ролевая модель не должна ронять API — fail-open с логом
+        }
         return (bool) ($permission['can_' . $action] ?? false);
     }
+
 
     /** Дефолт для пары роль/раздел. */
     public static function defaultFor(string $role, string $resource): array
