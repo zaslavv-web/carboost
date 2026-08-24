@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface CompanyRow { id: string; name: string; users: number }
+interface CompanyRow { id: string; name: string; users: number; slug?: string | null }
 interface DemoUser { email: string; full_name: string; role: string | null }
 interface DemoPosition { id: string; title: string; department: string | null }
 interface DemoStatus {
