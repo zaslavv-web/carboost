@@ -842,12 +842,30 @@ class DbController extends Controller
                 $value === 'null' ? $query->whereNull($col) : $query->whereNotNull($col);
                 $applied++;
             } elseif (isset(self::OPS[$op])) {
-                $query->where($col, self::OPS[$op], $value);
+                $query->where($col, self::OPS[$op], $this->normalizeFilterValue($op, $value));
                 $applied++;
             }
         }
         return $applied;
     }
+
+    /**
+     * Клиент (PostgREST-совместимый слой) шлёт булевы значения как `true`/`false`.
+     * MySQL хранит их в tinyint(1) и приводит строку 'true' к 0 — из-за этого
+     * `shop_products?eq.is_active=true` возвращал пустой список при живых товарах.
+     * Приводим литералы к 1/0 для операторов сравнения (like/ilike не трогаем).
+     */
+    protected function normalizeFilterValue(string $op, string $value): string
+    {
+        if ($op === 'like' || $op === 'ilike') {
+            return $value;
+        }
+        $lower = strtolower($value);
+        if ($lower === 'true')  return '1';
+        if ($lower === 'false') return '0';
+        return $value;
+    }
+
 
     protected function applySelect($query, Request $request): void
     {
