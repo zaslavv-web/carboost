@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravel } from "@/integrations/laravel/client";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface CompanyRow { id: string; name: string; users: number }
+interface CompanyRow { id: string; name: string; users: number; slug?: string | null }
 interface DemoUser { email: string; full_name: string; role: string | null }
 interface DemoPosition { id: string; title: string; department: string | null }
 interface DemoStatus {
@@ -35,10 +35,12 @@ interface CareerTrackResult {
 }
 
 
+const LAST_COMPANY_KEY = "demo-seed:last-company";
+
 export default function SeedDemoCompany() {
   const qc = useQueryClient();
   const [headcount, setHeadcount] = useState(150);
-  const [company, setCompany] = useState<string>('ООО "Демо"');
+  const [company, setCompany] = useState<string>(() => localStorage.getItem(LAST_COMPANY_KEY) || "");
   const [customName, setCustomName] = useState("");
   const [output, setOutput] = useState<string>("");
 
@@ -47,7 +49,26 @@ export default function SeedDemoCompany() {
     queryFn: async () => (await laravel.get<{ default: string; companies: CompanyRow[] }>("/superadmin/demo/companies")).data,
   });
 
+  const companies = companiesData?.companies || [];
+
+  // Ничего не выбрано (или сохранённой компании больше нет) — подставляем demo_doom,
+  // иначе серверный default, иначе первую из списка. Новые компании не создаём.
+  useEffect(() => {
+    if (!companies.length) return;
+    if (company === "__new__") return;
+    if (company && companies.some((c) => c.name === company)) return;
+    const doom = companies.find((c) => `${c.name} ${c.slug ?? ""}`.toLowerCase().includes("doom"));
+    const fallback = doom?.name || companies.find((c) => c.name === companiesData?.default)?.name || companies[0].name;
+    setCompany(fallback);
+  }, [companies, companiesData?.default, company]);
+
+  const selectCompany = (value: string) => {
+    setCompany(value);
+    if (value !== "__new__") localStorage.setItem(LAST_COMPANY_KEY, value);
+  };
+
   const targetName = company === "__new__" ? customName.trim() : company;
+
 
   const { data: status, isLoading } = useQuery<DemoStatus>({
     queryKey: ["demo-status", targetName],
@@ -178,7 +199,7 @@ export default function SeedDemoCompany() {
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[260px]">
               <Label>Компания</Label>
-              <Select value={company} onValueChange={setCompany}>
+              <Select value={company || undefined} onValueChange={selectCompany}>
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите компанию" />
                 </SelectTrigger>
