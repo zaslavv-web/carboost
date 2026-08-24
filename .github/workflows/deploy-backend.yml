@@ -193,6 +193,15 @@ jobs:
           touch public/index.php
           $ARTISAN route:list --path=performance-cycles || true
 
+          if [ "$RUN_SEED" = "true" ]; then
+            echo "→ Running demo:seed --only-content"
+            $ARTISAN demo:seed --only-content || {
+              echo "::warning::demo:seed --only-content failed (non-fatal)"
+            }
+          else
+            echo "ℹ️  demo:seed skipped"
+          fi
+
           REMOTE
 
       - name: Set PHP runtime limits via .user.ini
