@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Loader2, FileText, CheckCircle2, XCircle, Download, Clock, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslation } from "react-i18next";
+import { laravel } from "@/integrations/laravel/client";
 import { getDateLocale } from "@/lib/dateLocale";
 
 const CareerReviews = () => {
@@ -56,11 +57,9 @@ const CareerReviews = () => {
     queryKey: ["review_files", submissionIds],
     queryFn: async () => {
       if (!submissionIds.length) return [];
-      const { data } = await laravelDb
-        .from("career_step_submission_files")
-        .select("*")
-        .in("submission_id", submissionIds);
-      return data || [];
+      const { data, error } = await laravel.post<{ data: any[] }>("/career/submission-files", { submission_ids: submissionIds });
+      if (error) throw error;
+      return data?.data || [];
     },
     enabled: submissionIds.length > 0,
   });

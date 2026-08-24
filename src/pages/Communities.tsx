@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { laravelStorage } from "@/integrations/laravel/storage";
+import { laravel } from "@/integrations/laravel/client";
 
 type Community = {
   id: string;
@@ -104,9 +105,7 @@ export default function Communities() {
 
   const join = useMutation({
     mutationFn: async (communityId: string) => {
-      const { error } = await laravelDb.from("portal_community_members" as any).insert({
-        company_id: companyId, community_id: communityId, user_id: userId, role: "member",
-      });
+      const { error } = await laravel.post(`/portal/communities/${communityId}/join`);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -118,8 +117,8 @@ export default function Communities() {
   });
 
   const leave = useMutation({
-    mutationFn: async (membershipId: string) => {
-      const { error } = await laravelDb.from("portal_community_members" as any).delete().eq("id", membershipId);
+    mutationFn: async (communityId: string) => {
+      const { error } = await laravel.delete(`/portal/communities/${communityId}/membership`);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -174,12 +173,12 @@ export default function Communities() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">{c.members_count || 0} участн.</span>
                   {membershipId ? (
-                    <Button size="sm" variant="outline" onClick={() => leave.mutate(membershipId)}>
+                    <Button size="sm" variant="outline" onClick={() => leave.mutate(c.id)}>
                       <UserMinus className="w-3 h-3 mr-1" />Выйти
                     </Button>
                   ) : (
-                    <Button size="sm" onClick={() => join.mutate(c.id)}>
-                      <UserPlus className="w-3 h-3 mr-1" />Вступить
+                    <Button size="sm" disabled={c.privacy !== "open" || join.isPending} onClick={() => join.mutate(c.id)}>
+                      <UserPlus className="w-3 h-3 mr-1" />{c.privacy === "open" ? "Вступить" : "По приглашению"}
                     </Button>
                   )}
                 </div>
