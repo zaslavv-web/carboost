@@ -41,6 +41,22 @@ class DbController extends Controller
         'knowledge_categories' => 'knowledge_base', 'shop_products' => 'shop', 'shop_orders' => 'shop',
         'pulse_surveys' => 'pulse', 'pulse_survey_questions' => 'pulse', 'pulse_survey_responses' => 'pulse',
     ];
+
+    /**
+     * Самообслуживание: действия, которые не проходят через матрицу разделов.
+     * Матрица описывает доступ к админ-разделам, а не к личным данным сотрудника,
+     * поэтому здесь доступ определяют политики моделей (владелец/компания).
+     */
+    private const SELF_SERVICE_TABLE_ACTIONS = [
+        'profiles'               => ['view', 'edit'],
+        'departments'            => ['view'],
+        'positions'              => ['view'],
+        'competencies'           => ['view', 'edit'],
+        'pulse_surveys'          => ['view'],
+        'pulse_survey_questions' => ['view'],
+        'pulse_survey_responses' => ['view', 'edit'],
+    ];
+
     /** Размер порции сырого чтения: ограничивает пик памяти до сборки ответа. */
     protected const RAW_CHUNK_ROWS = 25;
 
@@ -981,6 +997,9 @@ class DbController extends Controller
 
     private function enforceResourceAccess(Request $request, string $table, string $action): void
     {
+        if (in_array($action, self::SELF_SERVICE_TABLE_ACTIONS[$table] ?? [], true)) {
+            return; // личные данные: решают политики моделей
+        }
         try {
             $resource = self::TABLE_RESOURCES[$table] ?? null;
             $denied = $resource && ! AccessControlController::allows($request->user(), $resource, $action);

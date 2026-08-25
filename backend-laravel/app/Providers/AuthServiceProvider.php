@@ -9,6 +9,7 @@ use App\Policies\CompanyScopedPolicy;
 use App\Policies\DemoRequestPolicy;
 use App\Policies\GoalChecklistItemPolicy;
 use App\Policies\OwnedRecordPolicy;
+use App\Policies\PulseSurveyResponsePolicy;
 use App\Policies\ProfilePolicy;
 use App\Policies\TeamMemberPolicy;
 use App\Policies\TrackerChildPolicy;
@@ -136,7 +137,7 @@ class AuthServiceProvider extends ServiceProvider
         Models\PortalCommunityMember::class => CompanyScopedPolicy::class,
         Models\PulseSurvey::class           => CompanyScopedPolicy::class,
         Models\PulseSurveyQuestion::class   => CompanyScopedPolicy::class,
-        Models\PulseSurveyResponse::class   => CompanyScopedPolicy::class,
+        Models\PulseSurveyResponse::class   => PulseSurveyResponsePolicy::class,
     ];
 
 

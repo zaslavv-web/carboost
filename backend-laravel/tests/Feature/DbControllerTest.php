@@ -171,4 +171,45 @@ class DbControllerTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.title', 'Скрытый');
     }
+    /**
+     * Регрессия: матрица разделов описывает админ-разделы, а не личные данные.
+     * Сотрудник обязан видеть опросы/должности/профили и отправлять ответы.
+     */
+    public function test_employee_can_read_pulse_and_positions_and_answer_survey(): void
+    {
+        $company = $this->makeCompany();
+        $hrd = $this->makeUser('hrd', $company->id);
+        $employee = $this->makeUser('employee', $company->id);
+
+        $surveyId = (string) \Illuminate\Support\Str::uuid();
+        DB::table('pulse_surveys')->insert([
+            'id' => $surveyId, 'company_id' => $company->id, 'created_by' => $hrd->id,
+            'title' => 'Пульс недели', 'status' => 'running',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $questionId = (string) \Illuminate\Support\Str::uuid();
+        DB::table('pulse_survey_questions')->insert([
+            'id' => $questionId, 'company_id' => $company->id, 'survey_id' => $surveyId,
+            'title' => 'Как настроение?', 'kind' => 'scale',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        Position::create(['company_id' => $company->id, 'created_by' => $hrd->id, 'title' => 'Аналитик']);
+
+        $this->actingAs($employee, 'sanctum')
+            ->getJson('/api/db/pulse_surveys?select=*')->assertOk();
+        $this->actingAs($employee, 'sanctum')
+            ->getJson('/api/db/pulse_survey_questions?select=*&eq.survey_id=' . $surveyId)->assertOk();
+        $this->actingAs($employee, 'sanctum')
+            ->getJson('/api/db/positions?select=*')->assertOk();
+
+        $this->actingAs($employee, 'sanctum')
+            ->postJson('/api/db/pulse_survey_responses', ['values' => [
+                'company_id' => $company->id,
+                'survey_id' => $surveyId,
+                'question_id' => $questionId,
+                'user_id' => $employee->id,
+                'value_number' => 8,
+            ]])
+            ->assertSuccessful();
+    }
 }
