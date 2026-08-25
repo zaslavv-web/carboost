@@ -14,9 +14,10 @@ import {
   ShoppingBag, Store, Rocket, Mail, Heart, Activity, ClipboardCheck,
   Banknote, CalendarDays, Star, AlertOctagon, TimerReset, Palette, Brain,
   BookText, GraduationCap, Crosshair, BookOpen, Sparkles, Newspaper, Webhook, Database,
-  ArrowLeftRight, Grid3X3,
+  ArrowLeftRight, Grid3X3, GripVertical,
 } from "lucide-react";
 import { isTodayCanary, writeHrdUiMode } from "@/lib/hrdUiMode";
+import { useMenuOrder } from "@/hooks/useMenuOrder";
 
 import brandLogo from "@/assets/logo-growth-peak.png";
 import { useBranding } from "@/contexts/BrandingContext";
@@ -57,6 +58,8 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
   const { t } = useTranslation();
   const { activeLogoUrl } = useBranding();
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const { order: orderMenu, move: moveMenu } = useMenuOrder(profile?.user_id);
+  const draggedEntry = useRef<{ scope: string; key: string } | null>(null);
 
   const getSections = (): NavSection[] => {
     const S = (key: string) => t(`nav.sections.${key}`);
@@ -280,7 +283,14 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     ];
   };
 
-  const sections = getSections().filter((s) => s.entries.length > 0);
+  const entryKey = (entry: NavEntry) => isGroup(entry) ? `group:${entry.label}` : `item:${entry.path}`;
+  const sections = getSections().filter((s) => s.entries.length > 0).map((section) => ({
+    ...section,
+    entries: orderMenu(`section:${section.key}`, section.entries, entryKey).map((entry) => isGroup(entry) ? {
+      ...entry,
+      children: orderMenu(`group:${section.key}:${entry.label}`, entry.children, (child) => child.path),
+    } : entry),
+  }));
 
   const sectionIconMap: Record<string, any> = {
     myWork: Briefcase, communication: MessageCircle, analytics: BarChart3,
@@ -349,13 +359,45 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     superadmin: t("roles.superadmin"),
   };
 
-  const renderEntry = (entry: NavEntry, sectionKey: string, forceExpanded = false) => {
+  const dragHandle = (scope: string, key: string) => (
+    <span
+      draggable
+      title="Перетащить пункт"
+      aria-label="Перетащить пункт"
+      className="cursor-grab touch-none text-sidebar-foreground/35 hover:text-sidebar-foreground active:cursor-grabbing"
+      onClick={(event) => event.stopPropagation()}
+      onDragStart={(event) => {
+        draggedEntry.current = { scope, key };
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", key);
+      }}
+      onDragEnd={() => { draggedEntry.current = null; }}
+    >
+      <GripVertical className="h-3.5 w-3.5" />
+    </span>
+  );
+
+  const renderEntry = (entry: NavEntry, sectionKey: string, siblings: NavEntry[], forceExpanded = false) => {
     const isCompact = collapsed && !forceExpanded;
+    const scope = `section:${sectionKey}`;
+    const key = entryKey(entry);
+    const dropProps = {
+      onDragOver: (event: React.DragEvent) => {
+        if (draggedEntry.current?.scope === scope) event.preventDefault();
+      },
+      onDrop: (event: React.DragEvent) => {
+        event.preventDefault();
+        const dragged = draggedEntry.current;
+        if (!dragged || dragged.scope !== scope) return;
+        moveMenu(scope, siblings.map(entryKey), dragged.key, key);
+        draggedEntry.current = null;
+      },
+    };
     if (isGroup(entry)) {
       const hasActive = entry.children.some((c) => c.path === location.pathname);
       const isOpen = isCompact ? false : (hasActive || !!openGroups[entry.label]);
       return (
-        <div key={`group:${sectionKey}:${entry.label}`}>
+        <div key={`group:${sectionKey}:${entry.label}`} {...dropProps}>
           <button
             onClick={() => {
               if (isCompact) {
@@ -375,6 +417,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             {!isCompact && (
               <>
                 <span className="flex-1 text-left truncate">{entry.label}</span>
+                {dragHandle(scope, key)}
                 <ChevronDown className={`w-3 h-3 opacity-60 transition-transform ${isOpen ? "rotate-180" : ""}`} />
               </>
             )}
@@ -383,19 +426,32 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
             <div className="mt-1 ml-5 pl-3 border-l border-sidebar-border/40 space-y-0.5">
               {entry.children.map((child) => {
                 const childActive = location.pathname === child.path;
+                const childScope = `group:${sectionKey}:${entry.label}`;
                 return (
-                  <button
+                  <div
                     key={`child:${sectionKey}:${child.path}`}
-                    onClick={() => { navigate(child.path); if (isMobile) onHide?.(); }}
-                    className={`w-full flex items-center gap-2.5 pl-2 pr-2 py-1.5 rounded-md text-[13px] transition-colors ${
-                      childActive
-                        ? "text-sidebar-primary font-semibold bg-sidebar-primary/15"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    }`}
+                    onDragOver={(event) => { if (draggedEntry.current?.scope === childScope) event.preventDefault(); }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const dragged = draggedEntry.current;
+                      if (!dragged || dragged.scope !== childScope) return;
+                      moveMenu(childScope, entry.children.map((item) => item.path), dragged.key, child.path);
+                      draggedEntry.current = null;
+                    }}
                   >
-                    <child.icon className="w-4 h-4 flex-shrink-0" />
-                    <span className="truncate text-left">{child.label}</span>
-                  </button>
+                    <button
+                      onClick={() => { navigate(child.path); if (isMobile) onHide?.(); }}
+                      className={`w-full flex items-center gap-2.5 pl-2 pr-2 py-1.5 rounded-md text-[13px] transition-colors ${
+                        childActive
+                          ? "text-sidebar-primary font-semibold bg-sidebar-primary/15"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      }`}
+                    >
+                      <child.icon className="w-4 h-4 flex-shrink-0" />
+                      <span className="flex-1 truncate text-left">{child.label}</span>
+                      {dragHandle(childScope, child.path)}
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -407,23 +463,24 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const item = entry;
     const isActive = location.pathname === item.path;
     return (
-      <button
-        key={`item:${sectionKey}:${item.path}`}
-        onClick={() => { navigate(item.path); if (isMobile) onHide?.(); }}
-        title={isCompact ? item.label : undefined}
-        className={`${ROW_BASE} ${isActive ? ROW_ACTIVE : ROW_IDLE} ${isCompact ? "justify-center" : ""}`}
-      >
-        {isActive && !isCompact && (
-          <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-sidebar-primary" />
-        )}
-        <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
-        {!isCompact && <span className="flex-1 text-left truncate">{item.label}</span>}
-        {item.badge ? (
-          <span className={`${isCompact ? "absolute top-1 right-1" : ""} min-w-[18px] h-[18px] px-1 rounded-full bg-destructive/90 text-destructive-foreground text-[10px] font-semibold flex items-center justify-center`}>
-            {item.badge}
-          </span>
-        ) : null}
-      </button>
+      <div key={`item:${sectionKey}:${item.path}`} {...dropProps}>
+        <button
+          onClick={() => { navigate(item.path); if (isMobile) onHide?.(); }}
+          title={isCompact ? item.label : undefined}
+          className={`${ROW_BASE} ${isActive ? ROW_ACTIVE : ROW_IDLE} ${isCompact ? "justify-center" : ""}`}
+        >
+          {isActive && !isCompact && (
+            <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-sidebar-primary" />
+          )}
+          <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
+          {!isCompact && <><span className="flex-1 text-left truncate">{item.label}</span>{dragHandle(scope, key)}</>}
+          {item.badge ? (
+            <span className={`${isCompact ? "absolute top-1 right-1" : ""} min-w-[18px] h-[18px] px-1 rounded-full bg-destructive/90 text-destructive-foreground text-[10px] font-semibold flex items-center justify-center`}>
+              {item.badge}
+            </span>
+          ) : null}
+        </button>
+      </div>
     );
   };
 
@@ -499,7 +556,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
                         <span>{section.label}</span>
                       </div>
                       <div className="space-y-0.5">
-                        {section.entries.map((e) => renderEntry(e, section.key, true))}
+                         {section.entries.map((e) => renderEntry(e, section.key, section.entries, true))}
                       </div>
                     </div>
                   </div>
@@ -524,7 +581,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
               </button>
               {isOpen && (
                 <div className="space-y-0.5 mt-0.5">
-                  {section.entries.map((e) => renderEntry(e, section.key))}
+                   {section.entries.map((e) => renderEntry(e, section.key, section.entries))}
                 </div>
               )}
             </div>
