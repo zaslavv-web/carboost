@@ -15,6 +15,7 @@ import { useRealPrimaryRole } from "@/hooks/useUserProfile";
 import { useTranslation } from "react-i18next";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { useChat } from "@/contexts/ChatContext";
+import { Button } from "@/components/ui/button";
 
 type StatusFilter = "all" | "verified" | "pending";
 
@@ -776,12 +777,15 @@ const UsersManagement = () => {
                             <IdCard className="w-3.5 h-3.5" /> Карточка
                           </Link>
                           {u.user_id !== currentUser?.id && (
-                            <button
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
                               onClick={() => handleDirectMessage(u)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 transition-colors"
+                              className="h-auto px-3 py-1.5 text-xs"
                             >
                               <MessageCircle className="w-3.5 h-3.5" /> Написать
-                            </button>
+                            </Button>
                           )}
                           <button
                             onClick={() => handleImpersonate(u)}
@@ -928,12 +932,15 @@ const UsersManagement = () => {
                     <IdCard className="w-3.5 h-3.5" /> Карточка
                   </Link>
                   {u.user_id !== currentUser?.id && (
-                    <button
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
                       onClick={() => handleDirectMessage(u)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 transition-colors"
+                      className="h-auto px-2.5 py-1.5 text-xs"
                     >
                       <MessageCircle className="w-3.5 h-3.5" /> Написать
-                    </button>
+                    </Button>
                   )}
                   <button
                     onClick={() => handleImpersonate(u)}
