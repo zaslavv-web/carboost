@@ -234,6 +234,10 @@ class DbController extends Controller
             $model = self::resolve($table);
             $this->authorizeAny('viewAny', $model);
 
+            if ($table === 'assessment_scenarios') {
+                $this->ensureAssessmentScenarios($request);
+            }
+
             // Быстрый путь для `select(..., { count: 'exact', head: true })`.
             // Считаем строки сырым запросом: без Eloquent-гидрации, глобальных
             // scope-ов и каскада служебных подзапросов (именно они на бою упирались
@@ -348,6 +352,161 @@ class DbController extends Controller
         } catch (\Throwable $e) {
             return $this->serverError('db_index_failed', $table, $request, $e);
         }
+    }
+
+    /**
+     * Select-запрос через POST body. Нужен для PostgREST-совместимых `in(...)`
+     * с сотнями UUID: nginx отсекает такие URL с 414 до попадания в Laravel.
+     */
+    public function query(Request $request, string $table)
+    {
+        $queryString = (string) $request->input('query', '');
+        $queryString = ltrim($queryString, '?');
+        if (strlen($queryString) > 64 * 1024) {
+            return response()->json([
+                'data' => null,
+                'error' => 'Слишком длинный запрос к таблице',
+                'code' => 'query_too_large',
+            ], 413);
+        }
+
+        $proxy = Request::create('/api/db/' . rawurlencode($table) . ($queryString !== '' ? '?' . $queryString : ''), 'GET');
+        $proxy->setUserResolver(fn () => $request->user());
+        return $this->index($proxy, $table);
+    }
+
+    /**
+     * Демо/HRD-раздел «Сценарии» не должен быть пустым после деплоя или
+     * частичного сидинга: если в компании нет наполненных сценариев оценки,
+     * создаём безопасный базовый набор прямо перед чтением.
+     */
+    private function ensureAssessmentScenarios(Request $request): void
+    {
+        $user = $request->user();
+        if (! $user || ! method_exists($user, 'companyId')) return;
+        $companyId = $user->companyId();
+        if (! $companyId) return;
+        if (! method_exists($user, 'hasRole') || ! $user->hasRole(['superadmin', 'company_admin', 'hrd', 'hr'])) return;
+        if (! \Illuminate\Support\Facades\Schema::hasTable('assessment_scenarios')) return;
+
+        $filled = \Illuminate\Support\Facades\DB::table('assessment_scenarios')
+            ->where('company_id', $companyId)
+            ->get(['scenario_data'])
+            ->filter(function ($row) {
+                $data = is_string($row->scenario_data) ? json_decode($row->scenario_data, true) : $row->scenario_data;
+                return is_array($data) && ! empty($data['steps']) && count($data['steps']) >= 3;
+            })
+            ->count();
+
+        if ($filled >= 3) return;
+
+        foreach ($this->defaultAssessmentScenarios() as $scenario) {
+            $payload = [
+                'description' => $scenario['description'],
+                'scenario_data' => json_encode($scenario['data'], JSON_UNESCAPED_UNICODE),
+                'is_active' => true,
+                'updated_at' => now(),
+            ];
+
+            $existing = \Illuminate\Support\Facades\DB::table('assessment_scenarios')
+                ->where('company_id', $companyId)
+                ->where('title', $scenario['title'])
+                ->first();
+
+            if ($existing) {
+                \Illuminate\Support\Facades\DB::table('assessment_scenarios')
+                    ->where('id', $existing->id)
+                    ->update($payload);
+                continue;
+            }
+
+            \Illuminate\Support\Facades\DB::table('assessment_scenarios')->insert($payload + [
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'company_id' => $companyId,
+                'title' => $scenario['title'],
+                'created_by' => $user->id,
+                'created_at' => now(),
+            ]);
+        }
+    }
+
+    private function defaultAssessmentScenarios(): array
+    {
+        $steps = fn (array $rows) => array_map(
+            fn ($r) => ['title' => $r[0], 'duration' => $r[1], 'description' => $r[2]],
+            $rows,
+        );
+
+        return [
+            [
+                'title' => 'Ассессмент руководителя команды',
+                'description' => 'Ситуационные задачи на обратную связь, делегирование и принятие решений.',
+                'data' => [
+                    'title' => 'Ассессмент руководителя команды',
+                    'brief' => 'Кандидат управляет командой из 6 человек в условиях сдвинутых сроков.',
+                    'duration' => '60 минут',
+                    'audience' => 'Руководители и кадровый резерв',
+                    'competencies' => ['Лидерство', 'Делегирование', 'Обратная связь', 'Принятие решений'],
+                    'steps' => $steps([
+                        ['Введение и контекст', '5 минут', 'Ведущий описывает ситуацию: срыв срока по ключевому проекту.'],
+                        ['Анализ вводных', '15 минут', 'Участник изучает данные команды и формулирует корневую причину.'],
+                        ['План действий', '20 минут', 'Участник предлагает план восстановления сроков и распределяет роли.'],
+                        ['Ролевая игра', '10 минут', 'Разговор 1:1 с демотивированным сотрудником.'],
+                        ['Рефлексия', '10 минут', 'Самооценка и обратная связь наблюдателей.'],
+                    ]),
+                    'questions' => [
+                        ['question' => 'Как вы определили ключевую проблему?', 'criteria' => 'структурность анализа', 'max_score' => 5],
+                        ['question' => 'Какие альтернативы рассматривали?', 'criteria' => 'аргументация', 'max_score' => 5],
+                        ['question' => 'Как донесёте решение до команды?', 'criteria' => 'коммуникация', 'max_score' => 5],
+                    ],
+                ],
+            ],
+            [
+                'title' => 'Оценка клиентского мышления',
+                'description' => 'Практический сценарий работы со сложным запросом внутреннего клиента.',
+                'data' => [
+                    'title' => 'Оценка клиентского мышления',
+                    'brief' => 'Внутренний заказчик требует функциональность вне дорожной карты.',
+                    'duration' => '45 минут',
+                    'audience' => 'Специалисты и менеджеры',
+                    'competencies' => ['Клиентоориентированность', 'Коммуникация', 'Переговоры'],
+                    'steps' => $steps([
+                        ['Знакомство с запросом', '5 минут', 'Участник читает переписку с заказчиком.'],
+                        ['Уточняющие вопросы', '10 минут', 'Диалог с ведущим в роли заказчика.'],
+                        ['Предложение решения', '20 минут', 'Формулирование компромисса и сроков.'],
+                        ['Обратная связь', '10 минут', 'Разбор наблюдателями.'],
+                    ]),
+                    'questions' => [
+                        ['question' => 'Какую задачу заказчика вы решаете на самом деле?', 'criteria' => 'выявление потребности', 'max_score' => 5],
+                        ['question' => 'Как вы говорите «нет» и сохраняете отношения?', 'criteria' => 'переговоры', 'max_score' => 5],
+                        ['question' => 'Как зафиксируете договорённости?', 'criteria' => 'ответственность', 'max_score' => 5],
+                    ],
+                ],
+            ],
+            [
+                'title' => 'Центр оценки кадрового резерва',
+                'description' => 'Комплексный кейс для участников программы развития.',
+                'data' => [
+                    'title' => 'Центр оценки кадрового резерва',
+                    'brief' => 'Участники проектируют инициативу роста выручки и защищают её перед комитетом.',
+                    'duration' => '90 минут',
+                    'audience' => 'HiPo и кадровый резерв',
+                    'competencies' => ['Стратегическое мышление', 'Работа в команде', 'Развитие людей'],
+                    'steps' => $steps([
+                        ['Командный брифинг', '10 минут', 'Распределение ролей и уточнение цели кейса.'],
+                        ['Анализ данных', '25 минут', 'Поиск ограничений, рисков и точек роста.'],
+                        ['Проектирование инициативы', '30 минут', 'Сборка плана, метрик успеха и ресурсов.'],
+                        ['Защита решения', '15 минут', 'Презентация перед наблюдателями и ответы на вопросы.'],
+                        ['Индивидуальная обратная связь', '10 минут', 'Фиксация сильных сторон и зон развития.'],
+                    ]),
+                    'questions' => [
+                        ['question' => 'Какие метрики докажут успех инициативы?', 'criteria' => 'ориентация на результат', 'max_score' => 5],
+                        ['question' => 'Как распределили роли в команде?', 'criteria' => 'командность', 'max_score' => 5],
+                        ['question' => 'Какие риски требуют эскалации?', 'criteria' => 'управление рисками', 'max_score' => 5],
+                    ],
+                ],
+            ],
+        ];
     }
 
     /**
