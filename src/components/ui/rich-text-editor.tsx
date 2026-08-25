@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Node, mergeAttributes } from "@tiptap/core";
 import { useEditor, EditorContent } from "@tiptap/react";
+import { TextSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { TextStyle } from "@tiptap/extension-text-style";
@@ -52,6 +53,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
   // прошедший санитайзер) не сбрасывал контент редактора на каждом нажатии
   // клавиши — из-за этого терялись выделение и применённое форматирование.
   const emitted = useRef<string>(value);
+  const selection = useRef({ from: 1, to: 1 });
   const [uploading, setUploading] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const editor = useEditor({
@@ -67,10 +69,21 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
     content: value ? contentToSafeHtml(value) : "",
     editorProps: {
       attributes: {
-        class: "prose prose-sm dark:prose-invert max-w-none px-4 py-3 focus:outline-none",
+        class: "rich-text-editor max-w-none px-4 py-3 focus:outline-none",
         style: `min-height:${minHeight}`,
         "aria-label": placeholder,
       },
+      handleKeyDown: (view, event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+          const all = TextSelection.create(view.state.doc, 0, view.state.doc.content.size);
+          view.dispatch(view.state.tr.setSelection(all));
+          return true;
+        }
+        return false;
+      },
+    },
+    onSelectionUpdate: ({ editor: current }) => {
+      selection.current = { from: current.state.selection.from, to: current.state.selection.to };
     },
     onUpdate: ({ editor: current }) => {
       const html = sanitizeRichHtml(current.getHTML());
@@ -133,11 +146,12 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
 
   // Смена типа блока: снимаем инлайновый размер шрифта, иначе заголовок
   // визуально остаётся обычным текстом (mark textStyle перекрывает h2/h3).
+  const restoreSelection = () => editor.chain().focus().setTextSelection(selection.current);
+
   const applyBlockType = (v: string) => {
-    const chain = editor.chain().focus().selectParentNode().extendMarkRange("textStyle");
-    chain.setMark("textStyle", { fontSize: null }).run();
-    if (v === "p") editor.chain().focus().setParagraph().run();
-    else editor.chain().focus().setHeading({ level: v === "h2" ? 2 : 3 }).run();
+    const chain = restoreSelection().unsetMark("textStyle");
+    if (v === "p") chain.setParagraph().run();
+    else chain.setHeading({ level: v === "h2" ? 2 : 3 }).run();
   };
 
   const blockValue = editor.isActive("heading", { level: 2 }) ? "h2" : editor.isActive("heading", { level: 3 }) ? "h3" : "p";
@@ -145,7 +159,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
   const tool = (label: string, icon: ReactNode, action: () => void, active = false, disabled = false) => (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button type="button" size="icon" variant={active ? "secondary" : "ghost"} className="h-8 w-8" onClick={action} disabled={disabled} aria-label={label}>
+        <Button type="button" size="icon" variant={active ? "secondary" : "ghost"} className="h-8 w-8" onMouseDown={(event) => event.preventDefault()} onClick={action} disabled={disabled} aria-label={label}>
           {icon}
         </Button>
       </TooltipTrigger>
@@ -161,7 +175,9 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
           fullscreen && "fixed inset-0 z-[120] rounded-none",
         )}
       >
-        <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-1 border-b bg-muted/40 p-1.5">
+        <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-1 border-b bg-muted/40 p-1.5" onPointerDown={() => {
+          selection.current = { from: editor.state.selection.from, to: editor.state.selection.to };
+        }}>
           <Select value={blockValue} onValueChange={applyBlockType}>
             <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="p">Текст</SelectItem><SelectItem value="h2">Заголовок</SelectItem><SelectItem value="h3">Подзаголовок</SelectItem></SelectContent>
@@ -191,7 +207,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
         </div>
         <EditorContent
           editor={editor}
-          className={cn("cursor-text overflow-y-auto", fullscreen ? "flex-1" : undefined, uploading && "opacity-60")}
+          className={cn("cursor-text select-text overflow-y-auto", fullscreen ? "flex-1" : undefined, uploading && "opacity-60")}
           style={fullscreen ? undefined : { maxHeight }}
         />
         <input ref={fileRef} className="hidden" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(e) => { const file = e.target.files?.[0]; if (file) void upload(file, "image"); e.target.value = ""; }} />
