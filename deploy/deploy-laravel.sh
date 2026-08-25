@@ -98,6 +98,16 @@ $PHP_BIN artisan route:list --path=performance-cycles || true
 $PHP_BIN artisan view:cache
 $PHP_BIN artisan event:cache
 
+echo "==> дымовой тест контейнера (view/files/db/router/hash)"
+$PHP_BIN -r '
+  $app = require "bootstrap/app.php";
+  $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+  foreach (["view", "files", "db", "router", "hash"] as $svc) { $app->make($svc); }
+  echo "container smoke OK\n";
+' || { echo "FATAL: контейнер не резолвит базовые сервисы — кеши собраны неполно"; exit 1; }
+
+
+
 echo "==> очередь и реверб (если включены)"
 sudo systemctl reload php8.2-fpm || true
 sudo supervisorctl reread || true
