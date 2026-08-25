@@ -17,7 +17,7 @@ import { isTodayCanary, readHrdUiMode } from "@/lib/hrdUiMode";
  *  - Employees on mobile (< 768px) get a dedicated mobile shell.
  *  - HRD on mobile get a Today-first mobile shell (mirrors the desktop Today mode).
  *  - Allowlisted HRDs in Today-mode get the streamlined Today shell on desktop.
- *  - `/users` is admin-only — HRD / managers / employees are redirected to /dashboard.
+ *  - `/users` is restricted to people-management roles; employees are redirected to /dashboard.
  *  - For HRD/admin, `/employees` is folded into `/dashboard` (single rich screen).
  */
 const RoleAwareLayout = () => {
@@ -27,11 +27,12 @@ const RoleAwareLayout = () => {
   const location = useLocation();
   const { user } = useAuth();
 
-  // Restrict the employee directory to platform admins, but allow direct profile cards
+  // Restrict the employee directory to people-management roles, but allow direct profile cards
   // (/users/:id) from chats, analytics and task drill-downs.
   const isUserProfileRoute = /^\/users\/[^/]+$/.test(location.pathname);
   const isAdminOnly = location.pathname.startsWith("/users") && !isUserProfileRoute;
-  if (rolesReady && isAdminOnly && role && role !== "superadmin" && role !== "company_admin") {
+  const canOpenPeopleDirectory = role === "superadmin" || role === "company_admin" || role === "hrd" || role === "hr" || role === "manager";
+  if (rolesReady && isAdminOnly && role && !canOpenPeopleDirectory) {
     // Сохраняем query: drill-down из аналитики несёт фильтры (department/position/tenure...).
     return <Navigate to={`/dashboard${location.search}`} replace />;
   }

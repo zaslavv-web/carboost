@@ -119,12 +119,25 @@ class SeedDemoExtras extends Command
         // падала на любом окружении, где демо-учётки называются иначе
         // (например, demo_doom), хотя данные для наполнения есть.
         if (! $companyId) {
-            $companyId = DB::table('profiles')
+            $rankedCompanies = DB::table('profiles')
                 ->whereNotNull('company_id')
                 ->select('company_id', DB::raw('COUNT(*) as cnt'))
                 ->groupBy('company_id')
                 ->orderByDesc('cnt')
-                ->value('company_id');
+                ->limit(10)
+                ->get();
+
+            if ($rankedCompanies->count() > 1) {
+                $names = DB::table('companies')
+                    ->whereIn('id', $rankedCompanies->pluck('company_id')->all())
+                    ->pluck('name', 'id');
+                $available = $rankedCompanies
+                    ->map(fn ($row) => sprintf('%s (%d)', $names[$row->company_id] ?? $row->company_id, $row->cnt))
+                    ->implode(', ');
+                $this->line('Найдено несколько компаний с сотрудниками: ' . $available);
+            }
+
+            $companyId = $rankedCompanies->first()->company_id ?? null;
             if ($companyId) {
                 $name = DB::table('companies')->where('id', $companyId)->value('name');
                 $this->warn("Компания не задана — беру самую населённую: «{$name}». Для другой укажите --company=<id|название>.");
