@@ -40,7 +40,7 @@ class AuthServiceProvider extends ServiceProvider
         Models\Department::class               => CompanyScopedPolicy::class,
         Models\Position::class                 => CompanyScopedPolicy::class,
         Models\PositionCareerPath::class       => CompanyScopedPolicy::class,
-        Models\HrDocument::class               => CompanyScopedPolicy::class,
+        Models\HrDocument::class               => HrDocumentPolicy::class,
         Models\AssessmentScenario::class       => CompanyScopedPolicy::class,
         Models\CareerTrackTemplate::class      => CompanyScopedPolicy::class,
         Models\CareerStepScenario::class       => CompanyScopedPolicy::class,
