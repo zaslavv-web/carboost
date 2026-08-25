@@ -5,6 +5,7 @@ import { ChatMessage } from "@/integrations/laravel/chat";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
 import i18n from "@/i18n";
+import { Link } from "react-router-dom";
 
 const QUICK_EMOJI = ["👍", "❤️", "😂", "🎉", "🙏", "🔥"];
 
@@ -15,6 +16,8 @@ const MessageBubble = ({
   onReply,
   onReact,
   replyToBody,
+  senderName,
+  senderAvatar,
 }: {
   message: ChatMessage;
   isOwn: boolean;
@@ -22,6 +25,8 @@ const MessageBubble = ({
   onReply: () => void;
   onReact: (emoji: string) => void;
   replyToBody: string | null;
+  senderName?: string;
+  senderAvatar?: string;
 }) => {
   const { t } = useTranslation("chat");
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -30,7 +35,23 @@ const MessageBubble = ({
 
   return (
     <div className={`group flex ${isOwn ? "justify-end" : "justify-start"}`}>
+      {!isOwn && (
+        <Link to={`/users/${message.sender_id}`} className="mr-2 mt-1 flex-shrink-0" title={senderName}>
+          {senderAvatar ? (
+            <img src={senderAvatar} alt={senderName || ""} className="w-7 h-7 rounded-full object-cover" />
+          ) : (
+            <span className="w-7 h-7 rounded-full bg-secondary text-[11px] flex items-center justify-center text-muted-foreground">
+              {(senderName || "?").trim().charAt(0).toUpperCase()}
+            </span>
+          )}
+        </Link>
+      )}
       <div className={`max-w-[80%] flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
+        {!isOwn && senderName && (
+          <Link to={`/users/${message.sender_id}`} className="text-[11px] text-muted-foreground hover:underline mb-0.5">
+            {senderName}
+          </Link>
+        )}
         <div
           className={`rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap ${
             isOwn ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary text-foreground rounded-bl-md"
