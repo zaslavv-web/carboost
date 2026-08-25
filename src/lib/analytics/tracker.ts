@@ -51,6 +51,14 @@ const BASE_URL =
   (import.meta as any).env?.VITE_LARAVEL_API_URL?.replace(/\/+$/, "") || "/api";
 const INGEST_URL = `${BASE_URL}/analytics/ingest`;
 
+const isSameOriginUrl = (url: string): boolean => {
+  try {
+    return new URL(url, window.location.origin).origin === window.location.origin;
+  } catch {
+    return true;
+  }
+};
+
 const uuid = (): string =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -302,7 +310,8 @@ class Tracker {
         ended_reason: viaBeacon ? "beacon" : undefined,
       },
     });
-    if (viaBeacon && typeof navigator !== "undefined" && "sendBeacon" in navigator) {
+    const sameOriginIngest = isSameOriginUrl(INGEST_URL);
+    if (viaBeacon && sameOriginIngest && typeof navigator !== "undefined" && "sendBeacon" in navigator) {
       try {
         const blob = new Blob([body], { type: "application/json" });
         navigator.sendBeacon(INGEST_URL, blob);
@@ -332,6 +341,7 @@ class Tracker {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body,
+      credentials: sameOriginIngest ? "same-origin" : "omit",
       // keepalive нужен только при выгрузке страницы: на обычном флаше он
       // держит idle-соединение и провоцирует ERR_HTTP2_PING_FAILED в консоли.
       keepalive: viaBeacon,
