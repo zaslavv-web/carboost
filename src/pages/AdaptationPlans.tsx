@@ -488,22 +488,52 @@ const AssignmentDetailDialog = ({
   const generateDocument = useMutation({
     mutationFn: async (step: Step) => {
       if (!assignment?.user_id || !companyId || !profile?.user_id) throw new Error("Не хватает данных для документа");
+
+      // Формируем реальный файл (HTML — открывается и печатается в PDF из браузера),
+      // раньше создавалась пустая запись с processing_status = no_file.
+      const generatedAt = new Date().toLocaleString("ru-RU");
+      const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<title>Чек-лист адаптации: ${step.title}</title>
+<style>body{font-family:Arial,Helvetica,sans-serif;margin:40px;color:#1b1d22}
+h1{font-size:20px}h2{font-size:16px;margin-top:24px}
+table{border-collapse:collapse;width:100%;margin-top:12px}
+td,th{border:1px solid #ddd;padding:8px;font-size:13px;text-align:left}
+.meta{color:#666;font-size:12px}</style></head><body>
+<h1>Чек-лист адаптации</h1>
+<p class="meta">Сотрудник: ${employeeName || "—"}<br>Шаг: ${step.title}<br>Сформирован: ${generatedAt}</p>
+<h2>Описание</h2>
+<p>${step.description || "Описание не заполнено."}</p>
+<h2>Отметка о выполнении</h2>
+<table><tr><th>Пункт</th><th>Выполнено</th><th>Дата</th><th>Подпись</th></tr>
+<tr><td>${step.title}</td><td></td><td></td><td></td></tr></table>
+</body></html>`;
+
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const fileName = `checklist_${step.id}_${Date.now()}.html`;
+      const upload = await laravelStorage
+        .from("hr-documents")
+        .upload(`onboarding-checklists/${companyId}/${fileName}`, blob, { contentType: "text/html" });
+      if (upload.error) throw new Error(upload.error.message);
+      const storedPath = upload.data?.path;
+      if (!storedPath) throw new Error("Файл не загрузился");
+
       const { error } = await laravelDb.from("hr_documents" as any).insert({
         company_id: companyId,
         owner_user_id: assignment.user_id,
         document_type: "onboarding_checklist",
         title: `Чек-лист: ${step.title}`,
         description: step.description || `Документ сформирован из шага адаптации «${step.title}».`,
-        file_url: null,
-        file_name: null,
-        processing_status: "no_file",
+        file_url: `storage://hr-documents/${storedPath}`,
+        file_name: fileName,
+        processing_status: "ready",
         created_by: profile.user_id,
       });
       if (error) throw error;
     },
-    onSuccess: () => toast.success("Запись документа создана в личном деле"),
+    onSuccess: () => toast.success("Документ сформирован и добавлен в личное дело"),
     onError: (e: any) => toast.error(e?.message ?? "Не удалось создать документ"),
   });
+
 
   const steps = stepsQ.data ?? [];
   const doneCount = steps.filter((s) =>
