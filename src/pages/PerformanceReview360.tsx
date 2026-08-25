@@ -151,7 +151,7 @@ export default function PerformanceReview360() {
             <CardTitle className="text-base">
               {reviewee ? `Ревьюеры для: ${nameOf(reviewee.user_id)}` : "Выберите ревью"}
             </CardTitle>
-            {selectedReview && (
+            {selectedReview && reviewee?.status !== "closed" && reviewee?.status !== "completed" && (
               <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm"><UserPlus className="w-4 h-4 mr-2" />Пригласить</Button>
@@ -167,6 +167,8 @@ export default function PerformanceReview360() {
           <CardContent>
             {!selectedReview ? (
               <div className="text-sm text-muted-foreground py-8 text-center">Выберите ревью слева</div>
+            ) : reviewee?.status === "closed" || reviewee?.status === "completed" ? (
+              <div className="text-sm text-muted-foreground py-8 text-center">Ревью завершено — новых ревьюеров приглашать нельзя</div>
             ) : (
               <>
                 <div className="flex gap-2 mb-4">

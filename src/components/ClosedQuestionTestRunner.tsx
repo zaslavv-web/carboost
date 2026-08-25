@@ -41,7 +41,7 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<null | { score: number; total: number; breakdown: { competency: string; score: number; total: number }[] }>(null);
 
-  const allAnswered = test.questions.every((q) => !!answers[q.id]);
+  const allAnswered = test.questions.length > 0 && test.questions.every((q) => !!answers[q.id]);
 
   const handleSubmit = async () => {
     if (!user || !allAnswered) return;
@@ -170,6 +170,11 @@ const ClosedQuestionTestRunner = ({ test, onRetake }: Props) => {
       </div>
 
       <div className="space-y-5">
+        {test.questions.length === 0 && (
+          <div className="bg-card rounded-xl border border-border p-5 text-sm text-muted-foreground shadow-card">
+            {t("testRunner.noQuestions")}
+          </div>
+        )}
         {test.questions.map((q, idx) => (
           <div key={q.id} className="bg-card rounded-xl border border-border p-5 shadow-card">
             <div className="flex items-start gap-2 mb-3">

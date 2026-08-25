@@ -496,12 +496,12 @@ const AssignmentDetailDialog = ({
         description: step.description || `Документ сформирован из шага адаптации «${step.title}».`,
         file_url: null,
         file_name: null,
-        processing_status: "completed",
+        processing_status: "no_file",
         created_by: profile.user_id,
       });
       if (error) throw error;
     },
-    onSuccess: () => toast.success("Документ создан в личном деле"),
+    onSuccess: () => toast.success("Запись документа создана в личном деле"),
     onError: (e: any) => toast.error(e?.message ?? "Не удалось создать документ"),
   });
 
@@ -565,7 +565,7 @@ const AssignmentDetailDialog = ({
                         generateDocument.mutate(s);
                       }}
                     >
-                      <FileText className="mr-1 h-3 w-3" /> Создать документ
+                      <FileText className="mr-1 h-3 w-3" /> Создать запись документа
                     </Button>
                   )}
                 </div>

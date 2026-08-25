@@ -39,6 +39,7 @@ class DbController extends Controller
         'performance_review_reviewers' => 'performance', 'competencies' => 'skills_matrix',
         'hr_documents' => 'hr_documents', 'knowledge_articles' => 'knowledge_base',
         'knowledge_categories' => 'knowledge_base', 'shop_products' => 'shop', 'shop_orders' => 'shop',
+        'shop_order_items' => 'shop', 'shop_cart_items' => 'shop',
         'pulse_surveys' => 'pulse', 'pulse_survey_questions' => 'pulse', 'pulse_survey_responses' => 'pulse',
         'tracker_projects' => 'tracker', 'tracker_okr_periods' => 'tracker', 'tracker_goals' => 'tracker',
         'tracker_key_results' => 'tracker', 'tracker_tasks' => 'tracker', 'tracker_task_goal_links' => 'tracker',
@@ -64,6 +65,7 @@ class DbController extends Controller
         'pulse_survey_responses' => ['view', 'edit'],
         'shop_cart_items'        => ['view', 'edit'],
         'shop_orders'            => ['view'],
+        'shop_order_items'       => ['view'],
     ];
 
     /** Размер порции сырого чтения: ограничивает пик памяти до сборки ответа. */
@@ -692,6 +694,21 @@ class DbController extends Controller
             }
             unset($row);
         }
+        if ($table === 'shop_cart_items') {
+            $user = $request->user();
+            $isStaff = $user && method_exists($user, 'hasRole') && $user->hasRole(['superadmin', 'company_admin', 'hrd', 'hr']);
+            if ($user && ! $isStaff) {
+                $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
+                $companyId = method_exists($user, 'companyId') ? $user->companyId() : null;
+                foreach ($rows as &$row) {
+                    $row['user_id'] = (string) $domainUserId;
+                    if ($companyId) {
+                        $row['company_id'] = (string) $companyId;
+                    }
+                }
+                unset($row);
+            }
+        }
         $upsert = $request->boolean('upsert');
         $onConflict = $request->input('onConflict');
 
@@ -742,6 +759,11 @@ class DbController extends Controller
             $model = self::resolve($table);
             $query = $model::query();
             $applied = $this->applyFilters($query, $request);
+            $this->applyRowLevelScope(
+                $query,
+                (new $model())->getTable(),
+                \Illuminate\Support\Facades\Schema::getColumnListing((new $model())->getTable()),
+            );
             $values = $request->input('values', []);
             if ($table === 'portal_posts' && array_key_exists('body_md', $values)) {
                 $values['body_md'] = \App\Support\RichTextSanitizer::clean($values['body_md']);
@@ -801,6 +823,11 @@ class DbController extends Controller
             $model = self::resolve($table);
             $query = $model::query();
             $applied = $this->applyFilters($query, $request);
+            $this->applyRowLevelScope(
+                $query,
+                (new $model())->getTable(),
+                \Illuminate\Support\Facades\Schema::getColumnListing((new $model())->getTable()),
+            );
             if ($applied === 0 || empty($query->getQuery()->wheres)) {
                 \Illuminate\Support\Facades\Log::warning('DbController mass delete blocked', [
                     'table' => $table, 'query' => $request->server('QUERY_STRING'),
@@ -891,14 +918,25 @@ class DbController extends Controller
 
         $applied = 0;
         foreach ($pairs as [$key, $value]) {
-            if (! str_contains($key, '.')) continue;
-            [$op, $col] = explode('.', $key, 2);
+            $op = null;
+            $col = null;
+            if (str_contains($key, '.')) {
+                [$op, $col] = explode('.', $key, 2);
+            } elseif (str_contains($value, '.')) {
+                [$op, $value] = explode('.', $value, 2);
+                $col = $key;
+            }
+            if (! $op || ! $col) continue;
             // Guard against empty values that would otherwise expand to
             // `where col = ''` and quietly match nothing (or, for text cols,
             // everything on some ORMs). Treat as "no filter applied".
             if ($value === '' && $op !== 'is') continue;
 
             if ($op === 'in') {
+                $value = trim($value);
+                if (str_starts_with($value, '(') && str_ends_with($value, ')')) {
+                    $value = substr($value, 1, -1);
+                }
                 $items = array_values(array_filter(explode(',', $value), fn ($x) => $x !== ''));
                 if (! $items) continue;
                 $query->whereIn($col, $items);
