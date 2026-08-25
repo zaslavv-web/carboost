@@ -103,7 +103,13 @@ const UsersManagement = () => {
     enabled: isSuperadmin,
   });
 
-  const { data: users = [], isLoading } = useQuery({
+  const {
+    data: users = [],
+    isLoading,
+    isError: usersError,
+    error: usersErrorObj,
+    refetch: refetchUsers,
+  } = useQuery({
     queryKey: ["admin_users_list"],
     queryFn: async () => {
       const profiles = await fetchHrdDirectory();
@@ -321,6 +327,10 @@ const UsersManagement = () => {
   });
 
   const pendingCount = users.filter((u: any) => !u.is_verified).length;
+  const usersErrorMessage =
+    usersErrorObj instanceof Error
+      ? usersErrorObj.message
+      : "Не удалось загрузить сотрудников.";
 
   const handleImpersonate = async (user: any) => {
     try {
@@ -573,6 +583,17 @@ const UsersManagement = () => {
 
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+      ) : usersError ? (
+        <div className="rounded-xl border border-border bg-card p-6 text-center space-y-3">
+          <p className="font-medium text-foreground">Список сотрудников не загрузился</p>
+          <p className="text-sm text-muted-foreground break-words">{usersErrorMessage}</p>
+          <button
+            onClick={() => void refetchUsers()}
+            className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            Повторить
+          </button>
+        </div>
       ) : (
         <>
           <ResponsiveTable
