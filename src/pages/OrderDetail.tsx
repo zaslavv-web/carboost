@@ -30,6 +30,8 @@ export default function OrderDetail() {
   const backLabel = fromAdmin ? "К заказам магазина" : "К заказам";
   const { data: settings } = useCurrencySettings();
   const icon = settings?.currency_icon ?? "🪙";
+  const viewerId = useEffectiveUserId();
+
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["shop_order", orderId],
