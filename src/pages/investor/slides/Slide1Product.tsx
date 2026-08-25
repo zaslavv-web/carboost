@@ -125,7 +125,7 @@ export default function Slide1Product() {
 
         <div className="mt-5 flex items-center justify-between text-[18px] text-[#1B1D22]/60">
           <Editable id="s1.foot.brand" defaultValue="Пик роста · 2026" />
-          <Editable id="s1.foot.page" defaultValue="01 / 08" />
+          <Editable id="s1.foot.page" defaultValue="01 / 10" />
         </div>
       </div>
     </SlideLayout>

@@ -134,7 +134,7 @@ export default function Slide7Status() {
 
         <div className="mt-4 flex items-center justify-between text-[17px] text-[#1B1D22]/60">
           <Editable id="s7.foot.brand" defaultValue="Пик роста · 2026" />
-          <Editable id="s7.foot.page" defaultValue="08 / 08" />
+          <Editable id="s7.foot.page" defaultValue="10 / 10" />
         </div>
       </div>
     </SlideLayout>
