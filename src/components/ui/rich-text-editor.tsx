@@ -95,6 +95,9 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
   useEffect(() => {
     if (!editor) return;
     if (value === emitted.current || editor.getHTML() === value) return;
+    // Родитель обновляет value после каждого символа. Пока пользователь печатает
+    // или выделяет текст, повторный setContent уничтожает DOM-выделение.
+    if (editor.isFocused) return;
     emitted.current = value;
     editor.commands.setContent(value ? contentToSafeHtml(value) : "", { emitUpdate: false });
   }, [editor, value]);

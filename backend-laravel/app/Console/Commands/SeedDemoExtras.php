@@ -537,7 +537,8 @@ HTML;
 
         $email = (string) $this->option('email');
         $target = DB::table('profiles')->join('users', 'users.id', '=', 'profiles.user_id')
-            ->where('users.email', $email)->select('profiles.*')->first();
+            ->where('users.email', $email)->where('profiles.company_id', $this->companyId)
+            ->select('profiles.*')->first();
         if ($target) {
             if (trim((string) ($target->avatar_url ?? '')) === '') $problems[] = "у {$email} нет аватара";
             if (trim((string) ($target->department ?? '')) === '') $problems[] = "у {$email} не заполнен отдел";

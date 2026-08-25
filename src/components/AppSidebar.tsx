@@ -363,7 +363,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     <span
       draggable
       title="Перетащить пункт"
-      aria-label="Перетащить пункт"
+      aria-hidden="true"
       className="cursor-grab touch-none text-sidebar-foreground/35 hover:text-sidebar-foreground active:cursor-grabbing"
       onClick={(event) => event.stopPropagation()}
       onDragStart={(event) => {
