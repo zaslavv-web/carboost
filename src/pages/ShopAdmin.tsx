@@ -22,11 +22,20 @@ import { Plus, Edit2, Trash2, Package, Coins, ShoppingBag, Check, X, Upload, Bar
 import { toast } from "sonner";
 import { ProductImage } from "@/components/shop/ProductImage";
 
+const FULFILLMENT_KINDS = [
+  { value: "material", label: "Материальный — сотрудник указывает место и время получения" },
+  { value: "workflow", label: "Рабочий процесс — формируется документ (отгул, формат работы)" },
+  { value: "partner", label: "Закупка у партнёра — создаётся задача ответственному" },
+  { value: "digital", label: "Цифровой — активируется сразу" },
+];
+
 const emptyProduct = {
   title: "", description: "", price: 100, image_url: "",
   stock: null as number | null, max_per_user: null as number | null,
   max_per_period: null as number | null, period_kind: "none", is_active: true,
+  fulfillment_kind: "material",
 };
+
 
 export default function ShopAdmin() {
   const { t } = useTranslation("admin");
