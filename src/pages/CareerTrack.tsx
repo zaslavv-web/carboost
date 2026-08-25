@@ -17,6 +17,27 @@ const statusConfig: Record<string, { color: string; textColor: string }> = {
 
 type Step = RichStep;
 
+const IN_QUERY_BATCH_SIZE = 40;
+
+const uniqueIds = (values: Array<string | null | undefined>) =>
+  Array.from(new Set(values.filter((value): value is string => Boolean(value))));
+
+async function fetchInBatches(table: string, column: string, ids: string[], select = "*", orderColumn?: string) {
+  const unique = uniqueIds(ids);
+  const rows: any[] = [];
+
+  for (let i = 0; i < unique.length; i += IN_QUERY_BATCH_SIZE) {
+    const batch = unique.slice(i, i + IN_QUERY_BATCH_SIZE);
+    const query = laravelDb.from(table).select(select).in(column, batch);
+    if (orderColumn) query.order(orderColumn);
+    const { data, error } = await query;
+    if (error) throw error;
+    rows.push(...(data || []));
+  }
+
+  return rows;
+}
+
 const CareerTrack = () => {
   const { t } = useTranslation("employee");
   const effectiveUserId = useEffectiveUserId();
@@ -47,11 +68,9 @@ const CareerTrack = () => {
       const { data: goalsData, error: goalsErr } = await laravelDb
         .from("career_goals").select("*").eq("user_id", effectiveUserId).order("created_at", { ascending: true });
       if (goalsErr) throw goalsErr;
-      const goalIds = (goalsData || []).map(g => g.id);
+      const goalIds = uniqueIds((goalsData || []).map(g => g.id));
       if (!goalIds.length) return [];
-      const { data: items, error: itemsErr } = await laravelDb
-        .from("goal_checklist_items").select("*").in("goal_id", goalIds).order("created_at", { ascending: true });
-      if (itemsErr) throw itemsErr;
+      const items = await fetchInBatches("goal_checklist_items", "goal_id", goalIds, "*", "created_at");
       return (goalsData || []).map(g => ({ ...g, checklist: (items || []).filter(i => i.goal_id === g.id) }));
     },
     enabled: !!effectiveUserId,
@@ -70,25 +89,22 @@ const CareerTrack = () => {
   });
 
   const { data: templates = [] } = useQuery({
-    queryKey: ["career_track_templates_for_employee", effectiveUserId, assignments.map(a => a.template_id).join(",")],
+    queryKey: ["career_track_templates_for_employee", effectiveUserId, uniqueIds(assignments.map(a => a.template_id)).join(",")],
     queryFn: async () => {
-      const ids = assignments.map(a => a.template_id);
+      const ids = uniqueIds(assignments.map(a => a.template_id));
       if (!ids.length) return [];
-      const { data, error } = await laravelDb.from("career_track_templates").select("*").in("id", ids);
-      if (error) throw error;
-      return data || [];
+      return fetchInBatches("career_track_templates", "id", ids);
     },
     enabled: assignments.length > 0,
   });
 
   const { data: levelActions = [] } = useQuery({
-    queryKey: ["career_level_actions_for_employee", effectiveUserId, assignments.map(a => a.template_id).join(",")],
+    queryKey: ["career_level_actions_for_employee", effectiveUserId, uniqueIds(assignments.map(a => a.template_id)).join(",")],
     queryFn: async () => {
-      const ids = assignments.map(a => a.template_id);
+      const ids = uniqueIds(assignments.map(a => a.template_id));
       if (!ids.length) return [];
-      const { data, error } = await laravelDb.from("career_level_actions").select("*").in("template_id", ids).order("action_order");
-      if (error) throw error;
-      return data || [];
+      return (await fetchInBatches("career_level_actions", "template_id", ids, "*", "action_order"))
+        .sort((a, b) => (a.action_order || 0) - (b.action_order || 0));
     },
     enabled: assignments.length > 0,
   });
