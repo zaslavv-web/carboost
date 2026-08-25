@@ -67,6 +67,12 @@ class SeedDemoExtras extends Command
         $community = $this->ensureCommunityContent();
         $this->line("  записей в сообществах: {$community}");
 
+        $pulse = $this->ensurePulseSurveys();
+        $this->line("  pulse-опросов и ответов: {$pulse}");
+
+        $onboarding = $this->ensureOnboardingPlans();
+        $this->line("  планов адаптации и назначений: {$onboarding}");
+
         $tests = $this->ensureTestsAndScenarios();
         $this->line("  тестов и сценариев оценки: {$tests}");
 
@@ -536,8 +542,9 @@ class SeedDemoExtras extends Command
     {
         if (! Schema::hasTable('leave_requests') || ! Schema::hasTable('leave_types')) return 0;
 
-        $profiles = DB::table('profiles')->where('company_id', $this->companyId)->pluck('user_id')->all();
-        if (! $profiles) return 0;
+        $profiles = DB::table('profiles')->where('company_id', $this->companyId)
+            ->get(['user_id', 'department']);
+        if ($profiles->isEmpty()) return 0;
 
         $types = [
             ['annual', 'Ежегодный отпуск', true, 28, false],
@@ -559,6 +566,7 @@ class SeedDemoExtras extends Command
             $typeIds[$code] = (string) $id;
         }
 
+        $userIds = $profiles->pluck('user_id')->all();
         $codes = array_keys($typeIds);
         $created = 0;
 
@@ -571,35 +579,66 @@ class SeedDemoExtras extends Command
                 ->where('status', 'approved')
                 ->whereBetween('start_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
                 ->count();
-            if ($approved >= 3) continue;
+            if ($approved < 3) {
+                for ($k = $approved; $k < 3; $k++) {
+                    $userId = $userIds[($m * 3 + $k) % count($userIds)];
+                    $code = $codes[($m + $k) % count($codes)];
+                    $start = $monthStart->copy()->addDays(3 + (($m + $k) * 4) % 20);
+                    if ($start->greaterThan($monthEnd)) $start = $monthEnd->copy()->subDays(2);
+                    $days = 2 + (($m + $k) % 5);
 
-            for ($k = $approved; $k < 3; $k++) {
-                $userId = $profiles[($m * 3 + $k) % count($profiles)];
-                $code = $codes[($m + $k) % count($codes)];
-                $start = $monthStart->copy()->addDays(3 + (($m + $k) * 4) % 20);
-                if ($start->greaterThan($monthEnd)) $start = $monthEnd->copy()->subDays(2);
-                $days = 2 + (($m + $k) % 5);
-
-                DB::table('leave_requests')->insert([
-                    'id' => (string) Str::uuid(),
-                    'company_id' => $this->companyId,
-                    'user_id' => $userId,
-                    'leave_type_id' => $typeIds[$code],
-                    'start_date' => $start->toDateString(),
-                    'end_date' => $start->copy()->addDays($days - 1)->toDateString(),
-                    'days_count' => $days,
-                    'reason' => $code === 'sick' ? 'Больничный лист' : 'Плановый отдых',
-                    'status' => 'approved',
-                    'manager_decision_at' => $start->copy()->subDays(3),
-                    'manager_comment' => 'Согласовано',
-                    'hr_decision_at' => $start->copy()->subDays(2),
-                    'paid_days' => $code === 'unpaid' ? 0 : $days,
-                    'unpaid_days' => $code === 'unpaid' ? $days : 0,
-                    'created_at' => $start->copy()->subDays(5),
-                    'updated_at' => now(),
-                ]);
-                $created++;
+                    DB::table('leave_requests')->insert([
+                        'id' => (string) Str::uuid(),
+                        'company_id' => $this->companyId,
+                        'user_id' => $userId,
+                        'leave_type_id' => $typeIds[$code],
+                        'start_date' => $start->toDateString(),
+                        'end_date' => $start->copy()->addDays($days - 1)->toDateString(),
+                        'days_count' => $days,
+                        'reason' => $code === 'sick' ? 'Больничный лист' : 'Плановый отдых',
+                        'status' => 'approved',
+                        'manager_decision_at' => $start->copy()->subDays(3),
+                        'manager_comment' => 'Согласовано',
+                        'hr_decision_at' => $start->copy()->subDays(2),
+                        'hr_comment' => 'Учтено в календаре команды',
+                        'paid_days' => $code === 'unpaid' ? 0 : $days,
+                        'unpaid_days' => $code === 'unpaid' ? $days : 0,
+                        'created_at' => $start->copy()->subDays(5),
+                        'updated_at' => now(),
+                    ]);
+                    $created++;
+                }
             }
+        }
+
+        // Вкладка «Входящие» показывает pending_manager/pending_hr. Создаём
+        // демонстрационные заявки на согласовании отдельно от approved-графика.
+        foreach (['pending_manager', 'pending_hr'] as $i => $status) {
+            $exists = DB::table('leave_requests')
+                ->where('company_id', $this->companyId)
+                ->where('status', $status)
+                ->exists();
+            if ($exists) continue;
+            $userId = $userIds[$i % count($userIds)];
+            $start = now()->addDays(7 + $i * 5);
+            DB::table('leave_requests')->insert([
+                'id' => (string) Str::uuid(),
+                'company_id' => $this->companyId,
+                'user_id' => $userId,
+                'leave_type_id' => $typeIds[$i === 0 ? 'annual' : 'sick'],
+                'start_date' => $start->toDateString(),
+                'end_date' => $start->copy()->addDays(2 + $i)->toDateString(),
+                'days_count' => 3 + $i,
+                'reason' => $i === 0 ? 'Семейные обстоятельства' : 'Плановое обследование',
+                'status' => $status,
+                'manager_decision_at' => $status === 'pending_hr' ? now()->subDay() : null,
+                'manager_comment' => $status === 'pending_hr' ? 'Руководитель согласовал' : null,
+                'paid_days' => 3 + $i,
+                'unpaid_days' => 0,
+                'created_at' => now()->subDays(2 + $i),
+                'updated_at' => now(),
+            ]);
+            $created++;
         }
 
         return $created;
@@ -725,6 +764,246 @@ HTML;
         return $created;
     }
 
+    /** Pulse-опросы: активные анкеты, вопросы, ответы и таргетинг по отделам. */
+    private function ensurePulseSurveys(): int
+    {
+        if (! Schema::hasTable('pulse_surveys') || ! Schema::hasTable('pulse_survey_questions')) return 0;
+        $admin = $this->adminUserId();
+        if (! $admin) return 0;
+
+        $profiles = DB::table('profiles')->where('company_id', $this->companyId)
+            ->limit(60)->get(['user_id', 'department']);
+        if ($profiles->isEmpty()) return 0;
+
+        $blueprints = [
+            [
+                'title' => 'Еженедельный пульс команды',
+                'description' => 'Короткий замер нагрузки, фокуса и настроения сотрудников.',
+                'is_anonymous' => true,
+                'questions' => [
+                    ['scale', 'Насколько комфортна текущая нагрузка?', null],
+                    ['nps', 'Насколько вы готовы рекомендовать команду как место работы?', null],
+                    ['text', 'Что поможет работать лучше на этой неделе?', null],
+                ],
+            ],
+            [
+                'title' => 'Опрос после запуска продукта',
+                'description' => 'Небольшой ретро-опрос по взаимодействию между отделами.',
+                'is_anonymous' => false,
+                'questions' => [
+                    ['single', 'Как вы оцениваете качество коммуникации?', ['Отлично', 'Хорошо', 'Требует улучшения']],
+                    ['scale', 'Насколько понятны приоритеты на следующий спринт?', null],
+                    ['text', 'Какие блокеры нужно снять?', null],
+                ],
+            ],
+        ];
+
+        $created = 0;
+        foreach ($blueprints as $bi => $survey) {
+            $row = DB::table('pulse_surveys')->where('company_id', $this->companyId)->where('title', $survey['title'])->first();
+            $surveyId = $row->id ?? (string) Str::uuid();
+            $payload = [
+                'company_id' => $this->companyId,
+                'created_by' => $admin,
+                'title' => $survey['title'],
+                'description' => $survey['description'],
+                'audience' => 'company',
+                'is_anonymous' => $survey['is_anonymous'],
+                'status' => 'running',
+                'starts_at' => now()->subDays(7 + $bi),
+                'ends_at' => now()->addDays(14 + $bi),
+                'updated_at' => now(),
+            ];
+            if ($row) {
+                DB::table('pulse_surveys')->where('id', $surveyId)->update($payload);
+            } else {
+                DB::table('pulse_surveys')->insert($payload + ['id' => $surveyId, 'created_at' => now()->subDays(8 + $bi)]);
+                $created++;
+            }
+
+            foreach ($survey['questions'] as $qi => [$kind, $title, $options]) {
+                $q = DB::table('pulse_survey_questions')->where('survey_id', $surveyId)->where('title', $title)->first();
+                $questionId = $q->id ?? (string) Str::uuid();
+                $qPayload = [
+                    'company_id' => $this->companyId,
+                    'survey_id' => $surveyId,
+                    'order_index' => $qi,
+                    'kind' => $kind,
+                    'title' => $title,
+                    'options' => $options ? json_encode($options, JSON_UNESCAPED_UNICODE) : null,
+                    'is_required' => true,
+                    'updated_at' => now(),
+                ];
+                if ($q) {
+                    DB::table('pulse_survey_questions')->where('id', $questionId)->update($qPayload);
+                } else {
+                    DB::table('pulse_survey_questions')->insert($qPayload + ['id' => $questionId, 'created_at' => now()->subDays(8 + $bi)]);
+                    $created++;
+                }
+
+                if (Schema::hasTable('pulse_survey_responses')) {
+                    $existingResponses = DB::table('pulse_survey_responses')->where('question_id', $questionId)->count();
+                    if ($existingResponses < 12) {
+                        $rows = [];
+                        foreach ($profiles->take(18) as $ri => $profile) {
+                            $valueNumber = null;
+                            $valueText = null;
+                            if ($kind === 'nps') $valueNumber = 6 + (($ri + $qi) % 5);
+                            elseif ($kind === 'scale') $valueNumber = 3 + (($ri + $qi) % 3);
+                            elseif ($kind === 'single') $valueText = $options[($ri + $qi) % count($options)];
+                            else $valueText = ['Нужно меньше переключений между задачами', 'Помог бы общий план на неделю', 'Команда хорошо синхронизировалась'][$ri % 3];
+                            $rows[] = [
+                                'id' => (string) Str::uuid(),
+                                'company_id' => $this->companyId,
+                                'survey_id' => $surveyId,
+                                'question_id' => $questionId,
+                                'user_id' => $survey['is_anonymous'] ? null : $profile->user_id,
+                                'value_number' => $valueNumber,
+                                'value_text' => $valueText,
+                                'value_json' => null,
+                                'created_at' => now()->subDays(($ri % 5) + 1),
+                                'updated_at' => now(),
+                            ];
+                        }
+                        if ($rows) DB::table('pulse_survey_responses')->insert($rows);
+                        $created += count($rows);
+                    }
+                }
+            }
+
+            if (Schema::hasTable('pulse_survey_targets')) {
+                $department = $profiles->pluck('department')->filter()->unique()->values()->get($bi);
+                if ($department && Schema::hasTable('departments')) {
+                    $departmentId = DB::table('departments')->where('company_id', $this->companyId)->where('name', $department)->value('id');
+                    if ($departmentId) {
+                        DB::table('pulse_survey_targets')->updateOrInsert(
+                            ['survey_id' => $surveyId, 'target_type' => 'department', 'target_ref' => $departmentId],
+                            ['id' => (string) Str::uuid(), 'company_id' => $this->companyId, 'created_at' => now(), 'updated_at' => now()]
+                        );
+                    }
+                }
+            }
+        }
+
+        return $created;
+    }
+
+    /** Планы адаптации: шаблоны, шаги, назначения и прогресс. */
+    private function ensureOnboardingPlans(): int
+    {
+        if (! Schema::hasTable('onboarding_plans') || ! Schema::hasTable('onboarding_plan_steps') || ! Schema::hasTable('onboarding_assignments')) return 0;
+        $admin = $this->adminUserId();
+        if (! $admin) return 0;
+
+        $profiles = DB::table('profiles')->where('company_id', $this->companyId)
+            ->orderBy('created_at')->limit(40)->get(['user_id', 'full_name', 'requested_role']);
+        if ($profiles->isEmpty()) return 0;
+
+        $created = 0;
+        $planTitle = '90 дней: уверенный старт сотрудника';
+        $plan = DB::table('onboarding_plans')->where('company_id', $this->companyId)->where('title', $planTitle)->first();
+        $planId = $plan->id ?? (string) Str::uuid();
+        $planPayload = [
+            'company_id' => $this->companyId,
+            'created_by' => $admin,
+            'title' => $planTitle,
+            'description' => 'Готовый демо-план адаптации: документы, доступы, встречи, обучение и чек-листы.',
+            'target_role' => 'employee',
+            'duration_days' => 90,
+            'is_active' => true,
+            'auto_assign' => true,
+            'updated_at' => now(),
+        ];
+        if ($plan) DB::table('onboarding_plans')->where('id', $planId)->update($planPayload);
+        else {
+            DB::table('onboarding_plans')->insert($planPayload + ['id' => $planId, 'created_at' => now()->subDays(30)]);
+            $created++;
+        }
+
+        $steps = [
+            ['Подписать пакет документов', 'document', 'hr', 'pre_day1', 0, '/demo/corporate-program.pdf', 'Трудовой договор, NDA и согласия в КЭДО.'],
+            ['Получить доступы к рабочим системам', 'access', 'manager', 'first_day', 1, null, 'Почта, трекер, база знаний и корпоративный мессенджер.'],
+            ['Встреча с бадди', 'meeting', 'buddy', 'first_week', 3, null, 'Разобрать карту команды, договориться о формате поддержки.'],
+            ['Пройти вводный курс по стандартам', 'training', 'employee', 'first_week', 7, '/courses', 'Короткий курс и закрытый тест по корпоративным правилам.'],
+            ['Первый чек-ин по целям', 'checklist', 'manager', 'first_month', 21, '/tracker/goals', 'Согласовать личные OKR и критерии успешной адаптации.'],
+            ['Итог probation review', 'meeting', 'manager', 'probation', 75, '/performance', 'Финальная встреча по результатам испытательного срока.'],
+        ];
+        $stepIds = [];
+        foreach ($steps as $i => [$title, $type, $responsible, $stage, $due, $url, $description]) {
+            $step = DB::table('onboarding_plan_steps')->where('plan_id', $planId)->where('title', $title)->first();
+            $stepId = $step->id ?? (string) Str::uuid();
+            $payload = [
+                'company_id' => $this->companyId,
+                'plan_id' => $planId,
+                'title' => $title,
+                'description' => $description,
+                'step_type' => $type,
+                'responsible' => $responsible,
+                'stage' => $stage,
+                'order_index' => $i,
+                'due_offset_days' => $due,
+                'material_url' => $url,
+                'is_required' => true,
+                'updated_at' => now(),
+            ];
+            if ($step) DB::table('onboarding_plan_steps')->where('id', $stepId)->update($payload);
+            else {
+                DB::table('onboarding_plan_steps')->insert($payload + ['id' => $stepId, 'created_at' => now()->subDays(30)]);
+                $created++;
+            }
+            $stepIds[] = $stepId;
+        }
+
+        foreach ($profiles->take(12) as $i => $profile) {
+            $assignment = DB::table('onboarding_assignments')->where('company_id', $this->companyId)->where('user_id', $profile->user_id)->first();
+            $assignmentId = $assignment->id ?? (string) Str::uuid();
+            $start = now()->subDays(($i * 4) % 50)->toDateString();
+            $progress = 20 + (($i * 9) % 70);
+            $payload = [
+                'company_id' => $this->companyId,
+                'user_id' => $profile->user_id,
+                'plan_id' => $planId,
+                'manager_id' => $admin,
+                'buddy_id' => $profiles->get(($i + 1) % $profiles->count())->user_id,
+                'hr_id' => $admin,
+                'start_date' => $start,
+                'expected_end_date' => now()->parse($start)->addDays(90)->toDateString(),
+                'status' => $progress >= 90 ? 'completed' : 'in_progress',
+                'current_stage' => $progress < 35 ? 'first_week' : ($progress < 70 ? 'first_month' : 'probation'),
+                'progress_percent' => $progress,
+                'notes' => 'Демо-назначение адаптационного плана.',
+                'updated_at' => now(),
+            ];
+            if ($assignment) DB::table('onboarding_assignments')->where('id', $assignmentId)->update($payload);
+            else {
+                DB::table('onboarding_assignments')->insert($payload + ['id' => $assignmentId, 'created_at' => now()->subDays(20)]);
+                $created++;
+            }
+
+            if (Schema::hasTable('onboarding_step_progress')) {
+                foreach ($stepIds as $si => $stepId) {
+                    $status = $si * 16 < $progress ? 'done' : ($si * 14 < $progress ? 'in_progress' : 'pending');
+                    DB::table('onboarding_step_progress')->updateOrInsert(
+                        ['assignment_id' => $assignmentId, 'step_id' => $stepId],
+                        [
+                            'id' => (string) Str::uuid(),
+                            'company_id' => $this->companyId,
+                            'status' => $status,
+                            'completed_at' => $status === 'done' ? now()->subDays(max(1, 15 - $si))->toDateTimeString() : null,
+                            'completed_by' => $status === 'done' ? $profile->user_id : null,
+                            'comment' => $status === 'done' ? 'Выполнено на демо-стенде' : null,
+                            'attachment_url' => $si === 0 ? '/demo/corporate-program.pdf' : null,
+                            'created_at' => now()->subDays(20),
+                            'updated_at' => now(),
+                        ]
+                    );
+                }
+            }
+        }
+
+        return $created;
+    }
+
     /**
      * Раздел «Сценарии и тесты»: закрытые тесты с осмысленными вопросами и
      * наполненные сценарии ассессмента. Без этого раздел выглядит пустым.
@@ -742,16 +1021,19 @@ HTML;
                     ->where('company_id', $this->companyId)->where('title', $blueprint['title'])->first();
 
                 $payload = [
-                    'position_id' => $positions[$blueprint['position']] ?? null,
+                    // Сотрудник должен видеть хотя бы демо-тесты независимо от должности: 
+                    // строгая привязка к position_id оставляла раздел пустым у большинства профилей.
+                    'position_id' => null,
                     'description' => $blueprint['description'],
                     'questions' => json_encode($blueprint['questions'], JSON_UNESCAPED_UNICODE),
                     'is_active' => true,
                     'updated_at' => now(),
                 ];
+                if (Schema::hasColumn('closed_question_tests', 'audience_rules')) {
+                    $payload['audience_rules'] = json_encode(['user_ids' => [], 'departments' => [], 'position_ids' => []], JSON_UNESCAPED_UNICODE);
+                }
 
                 if ($existing) {
-                    $questions = json_decode((string) ($existing->questions ?? '[]'), true);
-                    if (is_array($questions) && count($questions) >= 3) continue;
                     DB::table('closed_question_tests')->where('id', $existing->id)->update($payload);
                     $created++;
                     continue;
@@ -1253,6 +1535,19 @@ HTML;
             if ($filledScenarios < 3) $problems[] = "наполненных сценариев оценки только {$filledScenarios}";
         }
 
+        if (Schema::hasTable('pulse_surveys')) {
+            $runningPulse = DB::table('pulse_surveys')->where('company_id', $this->companyId)->where('status', 'running')->count();
+            if ($runningPulse < 1) $problems[] = 'нет активных pulse-опросов';
+        }
+        if (Schema::hasTable('onboarding_plans') && Schema::hasTable('onboarding_assignments')) {
+            $plans = DB::table('onboarding_plans')->where('company_id', $this->companyId)->count();
+            $assignments = DB::table('onboarding_assignments')->where('company_id', $this->companyId)->count();
+            if ($plans < 1 || $assignments < 1) $problems[] = 'нет планов адаптации или назначений';
+        }
+        if (Schema::hasTable('employee_invitations')) {
+            $invites = DB::table('employee_invitations')->where('company_id', $this->companyId)->count();
+            if ($invites < 3) $problems[] = "приглашений сотрудников только {$invites}";
+        }
 
         if ($problems) {
             throw new \RuntimeException('demo:seed-extras: ' . implode('; ', $problems) . '.');
