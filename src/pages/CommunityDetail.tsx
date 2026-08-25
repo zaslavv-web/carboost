@@ -220,7 +220,7 @@ export default function CommunityDetail() {
                     ))}
                   </ul>
                 )}
-                <PostComments postId={p.id} companyId={companyId} userId={userId} canComment={isMember} />
+                <PostComments postId={p.id} companyId={companyId} userId={userId} canComment={isMember} people={memberProfiles as any[]} />
               </CardContent>
             </Card>
           ))}
@@ -295,15 +295,42 @@ function PostComments({
   companyId,
   userId,
   canComment,
+  people,
 }: {
   postId: string;
   companyId: string | null;
   userId: string | null;
   canComment: boolean;
+  people: any[];
 }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+
+  // Упоминания: «@» + начало ФИО/e-mail открывает список коллег.
+  const mentionMatches = (() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.trim().toLowerCase();
+    return (people ?? [])
+      .filter((p) => !q || String(p.full_name ?? "").toLowerCase().includes(q) || String(p.email ?? "").toLowerCase().includes(q))
+      .slice(0, 6);
+  })();
+
+  const handleTextChange = (value: string) => {
+    setText(value);
+    const m = value.match(/(?:^|\s)@([^@\n]{0,30})$/);
+    setMentionQuery(m ? m[1] : null);
+  };
+
+  const insertMention = (person: any) => {
+    const next = text.replace(/(?:^|\s)@([^@\n]{0,30})$/, (full) => {
+      const prefix = full.startsWith("@") ? "" : full[0];
+      return `${prefix}@[${person.full_name}](${person.user_id}) `;
+    });
+    setText(next);
+    setMentionQuery(null);
+  };
 
   const { data: comments = [] } = useQuery({
     queryKey: ["portal-post-comments", postId],
@@ -390,7 +417,7 @@ function PostComments({
                     </Link>
                     <span className="text-[11px] text-muted-foreground">{new Date(c.created_at).toLocaleString("ru-RU")}</span>
                   </div>
-                  <p className="whitespace-pre-wrap break-words text-sm">{c.body}</p>
+                  <CommentBody body={String(c.body ?? "")} />
                 </div>
                 {String(c.author_id) === String(userId) && (
                   <Button size="icon" variant="ghost" onClick={() => removeComment.mutate(c.id)} title="Удалить">
@@ -402,11 +429,28 @@ function PostComments({
           })}
 
           {canComment ? (
-            <div className="flex items-end gap-2">
+            <div className="relative flex items-end gap-2">
+              {mentionQuery !== null && mentionMatches.length > 0 && (
+                <div className="absolute bottom-full left-0 z-50 mb-1 w-72 rounded-md border bg-popover p-1 shadow-lg">
+                  {mentionMatches.map((person: any) => (
+                    <button
+                      key={person.user_id}
+                      type="button"
+                      onClick={() => insertMention(person)}
+                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-secondary"
+                    >
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[11px]">
+                        {(person.full_name || "?").slice(0, 1)}
+                      </span>
+                      <span className="truncate">{person.full_name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               <Textarea
                 value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Написать комментарий…"
+                onChange={(e) => handleTextChange(e.target.value)}
+                placeholder="Написать комментарий… (@ — упомянуть коллегу)"
                 rows={2}
                 className="min-h-0 flex-1"
               />
@@ -424,5 +468,33 @@ function PostComments({
         </div>
       )}
     </div>
+  );
+}
+
+/** Рендер текста комментария: @[Имя](user_id) превращается в ссылку на профиль. */
+function CommentBody({ body }: { body: string }) {
+  const parts: (string | { name: string; id: string })[] = [];
+  const re = /@\[([^\]]+)\]\(([^)]+)\)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    if (m.index > last) parts.push(body.slice(last, m.index));
+    parts.push({ name: m[1], id: m[2] });
+    last = m.index + m[0].length;
+  }
+  if (last < body.length) parts.push(body.slice(last));
+
+  return (
+    <p className="whitespace-pre-wrap break-words text-sm">
+      {parts.map((part, i) =>
+        typeof part === "string" ? (
+          <span key={i}>{part}</span>
+        ) : (
+          <Link key={i} to={`/users/${part.id}`} className="text-primary hover:underline">
+            @{part.name}
+          </Link>
+        ),
+      )}
+    </p>
   );
 }
