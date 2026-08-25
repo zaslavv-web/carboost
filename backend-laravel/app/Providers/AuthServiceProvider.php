@@ -58,6 +58,7 @@ class AuthServiceProvider extends ServiceProvider
         // Owned by user
         Models\Achievement::class              => OwnedRecordPolicy::class,
         Models\Assessment::class               => OwnedRecordPolicy::class,
+        Models\TestAttempt::class              => OwnedRecordPolicy::class,
         Models\Competency::class               => OwnedRecordPolicy::class,
         Models\CareerGoal::class               => OwnedRecordPolicy::class,
         Models\Notification::class             => OwnedRecordPolicy::class,

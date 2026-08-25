@@ -279,4 +279,100 @@ class DbControllerTest extends TestCase
             ]])
             ->assertSuccessful();
     }
+
+    public function test_employee_can_read_own_test_attempts(): void
+    {
+        $company = $this->makeCompany();
+        $employee = $this->makeUser('employee', $company->id);
+        $otherEmployee = $this->makeUser('employee', $company->id);
+        $ownAttemptId = (string) \Illuminate\Support\Str::uuid();
+
+        DB::table('test_attempts')->insert([
+            [
+                'id' => $ownAttemptId,
+                'company_id' => $company->id,
+                'user_id' => $employee->id,
+                'test_source' => 'hrd',
+                'answers' => json_encode([]),
+                'competency_breakdown' => json_encode([]),
+                'score' => 80,
+                'total' => 100,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'company_id' => $company->id,
+                'user_id' => $otherEmployee->id,
+                'test_source' => 'hrd',
+                'answers' => json_encode([]),
+                'competency_breakdown' => json_encode([]),
+                'score' => 10,
+                'total' => 100,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $this->actingAs($employee, 'sanctum')
+            ->getJson('/api/db/test_attempts?select=id,score,total&order=score.desc')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $ownAttemptId)
+            ->assertJsonPath('data.0.score', 80);
+    }
+
+    public function test_employee_can_add_and_read_own_shop_cart_items(): void
+    {
+        $companyId = (string) Str::uuid();
+        $employee = User::factory()->create(['meta' => ['sub' => (string) Str::uuid()]]);
+        $otherEmployee = User::factory()->create(['meta' => ['sub' => (string) Str::uuid()]]);
+        $this->seedProfile($employee, $companyId, 'employee');
+        $this->seedProfile($otherEmployee, $companyId, 'employee');
+
+        $productId = (string) Str::uuid();
+        DB::table('shop_products')->insert([
+            'id' => $productId,
+            'company_id' => $companyId,
+            'title' => 'Книга',
+            'description' => 'Тестовый товар',
+            'price' => 100,
+            'stock' => 10,
+            'max_per_user' => null,
+            'max_per_period' => null,
+            'period_kind' => 'none',
+            'is_active' => true,
+            'created_by' => $employee->domainUserId(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('shop_cart_items')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $otherEmployee->domainUserId(),
+            'company_id' => $companyId,
+            'product_id' => $productId,
+            'quantity' => 3,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($employee, 'sanctum')
+            ->postJson('/api/db/shop_cart_items', [
+                'values' => [
+                    'user_id' => $employee->domainUserId(),
+                    'company_id' => $companyId,
+                    'product_id' => $productId,
+                    'quantity' => 1,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.product_id', $productId);
+
+        $this->actingAs($employee, 'sanctum')
+            ->getJson('/api/db/shop_cart_items?select=*,product:shop_products(*)&eq.user_id=' . $employee->domainUserId())
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.quantity', 1)
+            ->assertJsonPath('data.0.product.title', 'Книга');
+    }
 }

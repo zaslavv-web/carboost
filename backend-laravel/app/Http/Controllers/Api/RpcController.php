@@ -49,6 +49,9 @@ class RpcController extends Controller
             '_assignment_id' => 'uuid', '_step_order' => 'int',
             '_payload' => 'jsonb',
         ],
+        'submit_test_attempt'            => [
+            '_test_id' => 'uuid', '_source' => 'text', '_answers' => 'jsonb',
+        ],
         'review_career_step'             => [
             '_submission_id' => 'uuid', '_approve' => 'bool', '_reason' => 'text',
         ],
@@ -111,6 +114,10 @@ class RpcController extends Controller
         }
         if ($name === 'award_currency') {
             return $this->awardCurrency($request, $payload);
+        }
+
+        if ($name === 'submit_test_attempt') {
+            return $this->submitTestAttempt($request, $payload);
         }
 
 
@@ -416,6 +423,107 @@ class RpcController extends Controller
 
         $balance = $this->balanceOf($targetId, $companyId);
         return response()->json(['data' => ['balance' => $balance]]);
+    }
+
+    private function submitTestAttempt(Request $request, array $payload)
+    {
+        $actor = $request->user();
+        $uid = $this->actorDomainId($actor);
+        if (! $actor || ! $uid) return response()->json(['error' => 'Не авторизован'], 401);
+
+        $testId = (string) ($payload['_test_id'] ?? $payload['test_id'] ?? '');
+        $source = (string) ($payload['_source'] ?? $payload['source'] ?? 'hrd');
+        $answers = $payload['_answers'] ?? $payload['answers'] ?? [];
+        if (is_string($answers)) {
+            $answers = json_decode($answers, true) ?: [];
+        }
+        if ($testId === '' || ! is_array($answers)) {
+            return response()->json(['error' => 'Некорректные параметры теста'], 422);
+        }
+
+        try {
+            $result = DB::transaction(function () use ($actor, $uid, $testId, $source, $answers) {
+                $test = DB::table('closed_question_tests')->where('id', $testId)->first();
+                if (! $test) throw new \RuntimeException('Тест не найден');
+
+                $companyId = $this->actorCompanyId($actor);
+                if (! $actor->hasRole('superadmin') && (string) ($test->company_id ?? '') !== (string) ($companyId ?? '')) {
+                    throw new \RuntimeException('Недостаточно прав');
+                }
+
+                $questions = is_string($test->questions ?? null)
+                    ? (json_decode($test->questions, true) ?: [])
+                    : ((array) ($test->questions ?? []));
+                $totalWeight = 0.0;
+                $earnedWeight = 0.0;
+                $details = [];
+                $competencies = [];
+
+                foreach ($questions as $question) {
+                    if (! is_array($question)) continue;
+                    $questionId = (string) ($question['id'] ?? '');
+                    if ($questionId === '') continue;
+                    $competency = (string) ($question['competency'] ?? 'general');
+                    $weight = (float) ($question['weight'] ?? 1);
+                    if ($weight <= 0) $weight = 1;
+                    $selected = $answers[$questionId] ?? null;
+                    $correct = $question['correct_option_id'] ?? null;
+                    $isCorrect = $selected !== null && (string) $selected === (string) $correct;
+
+                    $totalWeight += $weight;
+                    if ($isCorrect) $earnedWeight += $weight;
+
+                    $details[] = [
+                        'question_id' => $questionId,
+                        'selected_option_id' => $selected,
+                        'is_correct' => $isCorrect,
+                        'competency' => $competency,
+                        'weight' => $weight,
+                    ];
+
+                    $current = $competencies[$competency] ?? ['earned' => 0.0, 'total' => 0.0];
+                    $current['total'] += $weight;
+                    if ($isCorrect) $current['earned'] += $weight;
+                    $competencies[$competency] = $current;
+                }
+
+                $score = (int) round(($earnedWeight / max($totalWeight, 1)) * 100);
+                $breakdown = [];
+                foreach ($competencies as $competency => $value) {
+                    $breakdown[] = [
+                        'competency' => $competency,
+                        'score' => (int) round(($value['earned'] / max($value['total'], 1)) * 100),
+                        'total' => $value['total'],
+                    ];
+                }
+
+                $attemptId = (string) Str::uuid();
+                DB::table('test_attempts')->insert([
+                    'id' => $attemptId,
+                    'user_id' => $uid,
+                    'company_id' => $companyId ?? $test->company_id,
+                    'test_id' => $testId,
+                    'test_source' => $source !== '' ? $source : 'hrd',
+                    'answers' => json_encode($details, JSON_UNESCAPED_UNICODE),
+                    'competency_breakdown' => json_encode($breakdown, JSON_UNESCAPED_UNICODE),
+                    'score' => $score,
+                    'total' => 100,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                return [
+                    'attempt_id' => $attemptId,
+                    'score' => $score,
+                    'total' => 100,
+                    'breakdown' => $breakdown,
+                ];
+            });
+        } catch (Throwable $e) {
+            return response()->json(['error' => self::localize($e->getMessage())], 422);
+        }
+
+        return response()->json(['data' => $result]);
     }
 
 
@@ -1098,6 +1206,12 @@ class RpcController extends Controller
         }
         if (preg_match('/foreign key constraint/i', $raw)) {
             return 'Связанная запись не найдена';
+        }
+        if (preg_match('/Недостаточно прав|forbidden/i', $raw)) {
+            return 'Недостаточно прав';
+        }
+        if (preg_match('/Тест не найден|test not found/i', $raw)) {
+            return 'Тест не найден';
         }
         // Postgres `RAISE EXCEPTION 'msg'` arrives as: SQLSTATE[P0001]: ... ERROR:  msg  CONTEXT: ...
         if (preg_match('/ERROR:\s*([^\n]+?)(?:\s+CONTEXT:|$)/u', $raw, $m)) {

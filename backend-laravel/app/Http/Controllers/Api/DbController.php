@@ -58,9 +58,12 @@ class DbController extends Controller
         'departments'            => ['view'],
         'positions'              => ['view'],
         'competencies'           => ['view', 'edit'],
+        'test_attempts'          => ['view'],
         'pulse_surveys'          => ['view'],
         'pulse_survey_questions' => ['view'],
         'pulse_survey_responses' => ['view', 'edit'],
+        'shop_cart_items'        => ['view', 'edit'],
+        'shop_orders'            => ['view'],
     ];
 
     /** Размер порции сырого чтения: ограничивает пик памяти до сборки ответа. */
@@ -123,6 +126,7 @@ class DbController extends Controller
         'assessments'              => \App\Models\Assessment::class,
         'assessment_scenarios'     => \App\Models\AssessmentScenario::class,
         'closed_question_tests'    => \App\Models\ClosedQuestionTest::class,
+        'test_attempts'            => \App\Models\TestAttempt::class,
         'competencies'             => \App\Models\Competency::class,
         'currency_balances'        => \App\Models\CurrencyBalance::class,
         'currency_transactions'    => \App\Models\CurrencyTransaction::class,
@@ -564,9 +568,6 @@ class DbController extends Controller
      */
     private function applyRowLevelScope($query, string $tableName, array $columns): void
     {
-        if ($tableName !== 'hr_documents' || ! in_array('owner_user_id', $columns, true)) {
-            return;
-        }
         $user = auth()->user();
         if (! $user) {
             return;
@@ -579,10 +580,18 @@ class DbController extends Controller
         if ($impersonator && method_exists($impersonator, 'hasRole') && $impersonator->hasRole('superadmin')) {
             return;
         }
-        $query->where(function ($q) use ($tableName, $user) {
-            $q->whereNull($tableName . '.owner_user_id')
-              ->orWhere($tableName . '.owner_user_id', (string) $user->id);
-        });
+        if ($tableName === 'hr_documents' && in_array('owner_user_id', $columns, true)) {
+            $query->where(function ($q) use ($tableName, $user) {
+                $q->whereNull($tableName . '.owner_user_id')
+                  ->orWhere($tableName . '.owner_user_id', (string) $user->id);
+            });
+            return;
+        }
+        if (in_array($tableName, ['test_attempts', 'shop_cart_items', 'shop_orders'], true)
+            && in_array('user_id', $columns, true)) {
+            $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
+            $query->where($tableName . '.user_id', (string) $domainUserId);
+        }
     }
 
     /**
