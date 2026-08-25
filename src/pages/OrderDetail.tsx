@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
@@ -21,6 +21,10 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function OrderDetail() {
   const { orderId } = useParams<{ orderId: string }>();
+  const [params] = useSearchParams();
+  const fromAdmin = params.get("from") === "admin";
+  const backTo = fromAdmin ? "/shop-admin" : "/my-orders";
+  const backLabel = fromAdmin ? "К заказам магазина" : "К заказам";
   const { data: settings } = useCurrencySettings();
   const icon = settings?.currency_icon ?? "🪙";
 
@@ -54,7 +58,7 @@ export default function OrderDetail() {
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6">
       <Button asChild variant="ghost" size="sm">
-        <Link to="/my-orders"><ArrowLeft className="mr-1" /> К заказам</Link>
+        <Link to={backTo}><ArrowLeft className="mr-1" /> {backLabel}</Link>
       </Button>
 
       {isLoading ? (
@@ -70,8 +74,12 @@ export default function OrderDetail() {
               <h1 className="text-2xl font-bold">Заказ #{String(order.id).substring(0, 8)}</h1>
               <p className="text-sm text-muted-foreground">
                 {new Date(order.created_at).toLocaleString(getIntlLocale())}
-                {buyer?.full_name ? ` · ${buyer.full_name}` : ""}
               </p>
+              {order.user_id && (
+                <Link to={`/users/${order.user_id}`} className="text-sm text-primary underline underline-offset-2">
+                  {buyer?.full_name || "Открыть профиль покупателя"}
+                </Link>
+              )}
             </div>
             <Badge variant={STATUS_VARIANT[order.status] ?? "outline"}>
               {STATUS_LABEL[order.status] ?? order.status}
