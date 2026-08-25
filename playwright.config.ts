@@ -9,10 +9,19 @@ import { defineConfig, devices } from "@playwright/test";
  *   ui-mobile    — UI-смоук по ролям, мобильный 390×844
  *   mobile-375 / tablet-768 — визуальная регрессия лендинга (src/e2e/landing.*)
  *
- * Базовый URL: PLAYWRIGHT_BASE_URL / E2E_BASE_URL (по умолчанию http://localhost:8080).
+ * Базовый URL: PLAYWRIGHT_BASE_URL / E2E_BASE_URL (по умолчанию https://growth-peak.pro).
  */
-const BASE_URL =
-  process.env.PLAYWRIGHT_BASE_URL ?? process.env.E2E_BASE_URL ?? "http://localhost:8080";
+const envUrl = (name: string): string | null => {
+  const raw = process.env[name];
+  const value = raw ? String(raw).trim() : "";
+  return value === "" ? null : value;
+};
+// Незаданный секрет в GitHub Actions приходит пустой строкой — трактуем как «не задано».
+const RAW_BASE_URL =
+  envUrl("PLAYWRIGHT_BASE_URL") ?? envUrl("E2E_BASE_URL") ?? "https://growth-peak.pro";
+const BASE_URL = /^https?:\/\//i.test(RAW_BASE_URL)
+  ? RAW_BASE_URL.replace(/\/+$/, "")
+  : `https://${RAW_BASE_URL.replace(/\/+$/, "")}`;
 
 export default defineConfig({
   testDir: "./src/e2e",

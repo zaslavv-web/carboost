@@ -95,9 +95,21 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
+      - name: Доступность стенда
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL || 'https://growth-peak.pro' }}
+        run: |
+          echo "Стенд: $E2E_BASE_URL"
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$E2E_BASE_URL/api/health" || echo 000)
+          echo "GET /api/health -> $code"
+          if [ "$code" != "200" ]; then
+            echo "::error::Стенд $E2E_BASE_URL недоступен (health=$code) — E2E запускать бессмысленно"
+            exit 1
+          fi
+
       - name: Playwright (api + ui)
         env:
-          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL || 'https://growth-peak.pro' }}
           E2E_HRD_EMAIL: ${{ secrets.E2E_HRD_EMAIL }}
           E2E_HRD_PASSWORD: ${{ secrets.E2E_HRD_PASSWORD }}
           E2E_HR_EMAIL: ${{ secrets.E2E_HR_EMAIL }}
@@ -108,6 +120,8 @@ jobs:
           E2E_EMPLOYEE_PASSWORD: ${{ secrets.E2E_EMPLOYEE_PASSWORD }}
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_SUPERADMIN_EMAIL: ${{ secrets.E2E_SUPERADMIN_EMAIL }}
+          E2E_SUPERADMIN_PASSWORD: ${{ secrets.E2E_SUPERADMIN_PASSWORD }}
         run: bunx playwright test --project=api --project=ui-desktop --project=ui-mobile
       - uses: actions/upload-artifact@v4
         if: always()
