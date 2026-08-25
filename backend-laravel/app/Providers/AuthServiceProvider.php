@@ -9,6 +9,7 @@ use App\Policies\CompanyScopedPolicy;
 use App\Policies\DemoRequestPolicy;
 use App\Policies\GoalChecklistItemPolicy;
 use App\Policies\OwnedRecordPolicy;
+use App\Policies\PulseSurveyResponsePolicy;
 use App\Policies\ProfilePolicy;
 use App\Policies\TeamMemberPolicy;
 use App\Policies\TrackerChildPolicy;
