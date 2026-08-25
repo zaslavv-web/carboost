@@ -136,7 +136,7 @@ class AuthServiceProvider extends ServiceProvider
         Models\PortalCommunityMember::class => CompanyScopedPolicy::class,
         Models\PulseSurvey::class           => CompanyScopedPolicy::class,
         Models\PulseSurveyQuestion::class   => CompanyScopedPolicy::class,
-        Models\PulseSurveyResponse::class   => CompanyScopedPolicy::class,
+        Models\PulseSurveyResponse::class   => PulseSurveyResponsePolicy::class,
     ];
 
 
