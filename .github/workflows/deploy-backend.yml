@@ -117,6 +117,58 @@ jobs:
             --exclude 'bootstrap/cache/*.php' \
             backend-laravel/ "$DEPLOY_USER@$DEPLOY_HOST:$BACKEND_ROOT/"
 
+      - name: Проверка активного корня (какой каталог реально обслуживает сайт)
+        run: |
+          SSH_OPTS="-o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no"
+          MARKER="deploy-marker-${GITHUB_SHA:0:12}.txt"
+
+          # Раньше расхождение «rsync положил файлы в один каталог, а Apache
+          # исполняет другой» вскрывалось только на финальной проверке версии
+          # (12 попыток по 5 секунд и невнятная ошибка). Теперь доказываем это
+          # сразу: кладём в public/ уникальный файл и пробуем скачать его по HTTP.
+          ROOT_ID="$(ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' MARKER='$MARKER' GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$BACKEND_ROOT"
+          printf '%s\n' "$GITHUB_SHA" > "public/$MARKER"
+          chmod 644 "public/$MARKER"
+          php -r 'echo substr(sha1(realpath(".")), 0, 8), PHP_EOL;'
+          REMOTE
+          )"
+          ROOT_ID="$(printf '%s' "$ROOT_ID" | tr -d '\r' | tail -n1)"
+          echo "ROOT_ID (каталог доставки): $ROOT_ID"
+          echo "DEPLOY_ROOT_ID=$ROOT_ID" >> "$GITHUB_ENV"
+
+          SERVED=""
+          for attempt in $(seq 1 6); do
+            SERVED="$(curl -fsS "https://growth-peak.pro/$MARKER?cb=$attempt" 2>/dev/null || true)"
+            SERVED="$(printf '%s' "$SERVED" | tr -d '\r\n')"
+            [ "$SERVED" = "$GITHUB_SHA" ] && break
+            echo "Маркер ещё не отдаётся (попытка $attempt/6)"
+            sleep 5
+          done
+
+          # Диагностика прочих копий Laravel — печатаем всегда, она нужна и при успехе.
+          ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' MARKER='$MARKER' bash -s" <<'REMOTE'
+          set -uo pipefail
+          echo "--- активный корень доставки: $BACKEND_ROOT"
+          ls -l "$BACKEND_ROOT/VERSION" 2>/dev/null || echo "VERSION отсутствует (ещё не записан на этом шаге)"
+          echo "--- другие копии Laravel в \$HOME (public/index.php + artisan рядом):"
+          find "$HOME" -maxdepth 5 -name artisan -type f 2>/dev/null | while read -r a; do
+            d="$(dirname "$a")"
+            printf '%s  root_id=%s  version=%s\n' "$d" \
+              "$(php -r 'echo substr(sha1(realpath($argv[1])),0,8);' "$d" 2>/dev/null)" \
+              "$(head -c 40 "$d/VERSION" 2>/dev/null | tr -d '\n' || echo '-')"
+          done
+          rm -f "$BACKEND_ROOT/public/$MARKER"
+          REMOTE
+
+          if [ "$SERVED" != "$GITHUB_SHA" ]; then
+            echo "::error::Каталог доставки ($BACKEND_ROOT, root_id=$ROOT_ID) не обслуживает https://growth-peak.pro — маркер public/$MARKER по HTTP не отдался. Поправьте секрет TARGET_DIR на реально активный корень (см. список копий Laravel выше)."
+            exit 1
+          fi
+          echo "Активный корень подтверждён: маркер отдан вебом из каталога доставки"
+
+
       - name: Install, migrate, refresh Laravel caches
         run: |
           RUN_MIGRATIONS="${{ github.event.inputs.run_migrations }}"
@@ -189,11 +241,29 @@ jobs:
           $ARTISAN view:cache || true
           $ARTISAN event:cache || true
 
+          # VERSION читает /api/health от имени веб-процесса, поэтому права
+          # обязательны: без них health молча уходит в git-фолбэк и деплой
+          # выглядит «не доехавшим».
           printf '%s\n' "${GITHUB_SHA:-unknown}" > VERSION
+          chmod 644 VERSION
+          ls -l VERSION
+          php -r 'echo "root_id=", substr(sha1(realpath(".")),0,8), " version_readable=", var_export(is_readable("VERSION"), true), PHP_EOL;'
+
+          # Ручной `git pull` на сервере делает вид, что код обновился: health
+          # берёт версию из .git, когда VERSION недоступен. Явно сообщаем о
+          # рассинхроне рабочей копии с доставленным коммитом.
+          if [ -d .git ]; then
+            SERVER_HEAD="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+            if [ "$SERVER_HEAD" != "${GITHUB_SHA:-unknown}" ]; then
+              echo "::warning::В активном корне есть рабочая копия git (HEAD=$SERVER_HEAD), не совпадающая с доставкой ${GITHUB_SHA:-unknown}. Источник правды — этот workflow, ручной git pull использовать нельзя."
+            fi
+          fi
+
           # Обновление timestamp фронт-контроллера заставляет OPcache с
           # validate_timestamps подхватить новые классы после rsync.
           touch public/index.php
           $ARTISAN route:list --path=performance-cycles || true
+
 
           if [ "$RUN_SEED" = "true" ]; then
             echo "→ Running demo:seed --only-content"
@@ -254,18 +324,36 @@ jobs:
           # SHA текущей доставки и ждём короткое окно обновления OPcache.
           EXPECTED_VERSION="${GITHUB_SHA:0:7}"
           ACTUAL_VERSION=""
+          VERSION_SOURCE=""
+          SERVED_ROOT_ID=""
           for attempt in $(seq 1 12); do
             BODY="$(curl -fsS -H 'Accept: application/json' "https://growth-peak.pro/api/health?deploy_check=${GITHUB_SHA}&attempt=${attempt}")"
             ACTUAL_VERSION="$(printf '%s' "$BODY" | php -r '$d=json_decode(stream_get_contents(STDIN), true); echo (string)($d["checks"]["version"] ?? "");')"
+            VERSION_SOURCE="$(printf '%s' "$BODY" | php -r '$d=json_decode(stream_get_contents(STDIN), true); echo (string)($d["checks"]["version_source"] ?? "");')"
+            SERVED_ROOT_ID="$(printf '%s' "$BODY" | php -r '$d=json_decode(stream_get_contents(STDIN), true); echo (string)($d["checks"]["root_id"] ?? "");')"
             if [[ "$ACTUAL_VERSION" == "$EXPECTED_VERSION" || "$ACTUAL_VERSION" == "$GITHUB_SHA" ]]; then
-              echo "Backend version verified: $ACTUAL_VERSION"
+              echo "Backend version verified: $ACTUAL_VERSION (source=$VERSION_SOURCE, root_id=$SERVED_ROOT_ID)"
               break
             fi
-            echo "Waiting for backend version $EXPECTED_VERSION (currently ${ACTUAL_VERSION:-unknown}), attempt $attempt/12"
+            echo "Waiting for backend version $EXPECTED_VERSION (currently ${ACTUAL_VERSION:-unknown}, source=${VERSION_SOURCE:-unknown}), attempt $attempt/12"
             sleep 5
           done
 
           if [[ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" && "$ACTUAL_VERSION" != "$GITHUB_SHA" ]]; then
-            echo "::error::Deployment did not reach production: expected $EXPECTED_VERSION, got ${ACTUAL_VERSION:-unknown}. Health endpoint is serving stale code."
+            echo "::error::Deployment did not reach production: expected $EXPECTED_VERSION, got ${ACTUAL_VERSION:-unknown} (source=${VERSION_SOURCE:-unknown}, served root_id=${SERVED_ROOT_ID:-unknown}, deploy root_id=${DEPLOY_ROOT_ID:-unknown}). Health endpoint is serving stale code."
             exit 1
           fi
+
+          # Версия совпала — но если она пришла из git-фолбэка, значит файл
+          # VERSION веб-процессу недоступен, и следующая выкатка снова
+          # «зависнет» на старом коммите. Это ошибка, а не мелочь.
+          if [[ "$VERSION_SOURCE" != "file" ]]; then
+            echo "::error::Health отдал версию из источника '${VERSION_SOURCE:-unknown}', а не из файла VERSION: веб-процесс не читает VERSION в активном корне."
+            exit 1
+          fi
+
+          if [[ -n "${DEPLOY_ROOT_ID:-}" && -n "$SERVED_ROOT_ID" && "$SERVED_ROOT_ID" != "$DEPLOY_ROOT_ID" ]]; then
+            echo "::error::Веб исполняет другой каталог: served root_id=$SERVED_ROOT_ID, deploy root_id=$DEPLOY_ROOT_ID. Поправьте TARGET_DIR."
+            exit 1
+          fi
+
