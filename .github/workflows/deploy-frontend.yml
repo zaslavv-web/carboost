@@ -57,6 +57,9 @@ jobs:
           EOF
           cat public/.htaccess >> dist/.htaccess.cache
           cat dist/.htaccess.cache
+          HTACCESS_SHA="$(sha256sum dist/.htaccess.cache | awk '{print $1}')"
+          echo "HTACCESS_SHA=$HTACCESS_SHA" >> "$GITHUB_ENV"
+          echo "sha256: $HTACCESS_SHA"
 
       - name: Sanity check dist/
         run: |
@@ -168,18 +171,49 @@ jobs:
 
       - name: Применить .htaccess на сервере
         run: |
+          set -euo pipefail
           SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
-          $SSH "$DEPLOY_USER@$DEPLOY_HOST" "WEB_ROOT='$WEB_ROOT' bash -s" <<'REMOTE'
+          # Содержимое передаём прямо в SSH-сессию (base64), не полагаясь на rsync.
+          B64="$(base64 -w0 dist/.htaccess.cache)"
+          RC=0
+          OUT="$($SSH "$DEPLOY_USER@$DEPLOY_HOST" "WEB_ROOT='$WEB_ROOT' B64='$B64' bash -s" 2>&1 <<'REMOTE'
           set -e
           cd "$WEB_ROOT"
-          if [ ! -f .htaccess.cache ]; then
-            echo "::error::.htaccess.cache не доехал на сервер"; exit 1
+          printf '%s' "$B64" | base64 -d > .htaccess.new
+          if [ ! -s .htaccess.new ]; then
+            echo "::error::.htaccess.new пуст после декодирования"; exit 1
+          fi
+          if ! grep -q 'RewriteEngine' .htaccess.new; then
+            echo "::error::в .htaccess.new нет RewriteEngine — доставка повреждена"; exit 1
           fi
           if [ -f .htaccess ]; then cp .htaccess .htaccess.bak; fi
-          mv .htaccess.cache .htaccess
+          mv .htaccess.new .htaccess
+          rm -f .htaccess.cache
           echo '✅ .htaccess обновлён (бэкап: .htaccess.bak)'
-          cat .htaccess
+          head -n 20 .htaccess
+          if command -v sha256sum >/dev/null 2>&1; then
+            echo "REMOTE_SHA=$(sha256sum .htaccess | awk '{print $1}')"
+          elif command -v shasum >/dev/null 2>&1; then
+            echo "REMOTE_SHA=$(shasum -a 256 .htaccess | awk '{print $1}')"
+          else
+            echo "REMOTE_SHA=unknown"
+          fi
           REMOTE
+          )" || RC=$?
+          echo "$OUT"
+          if [ "$RC" != "0" ]; then
+            echo "::error::шаг применения .htaccess на сервере завершился с кодом $RC"
+            exit "$RC"
+          fi
+          REMOTE_SHA="$(echo "$OUT" | sed -n 's/^REMOTE_SHA=//p' | tail -n1)"
+          if [ "$REMOTE_SHA" = "unknown" ] || [ -z "$REMOTE_SHA" ]; then
+            echo "⚠️  Не удалось посчитать контрольную сумму на сервере — пропускаю сверку"
+          elif [ "$REMOTE_SHA" != "$HTACCESS_SHA" ]; then
+            echo "::error::.htaccess на сервере отличается от собранного (ожидалось $HTACCESS_SHA, получено $REMOTE_SHA)"
+            exit 1
+          else
+            echo "✅ Контрольная сумма .htaccess совпала: $REMOTE_SHA"
+          fi
 
       - name: Диагностика раскладки и версии на сервере (SSH)
         run: |
