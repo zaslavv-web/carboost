@@ -139,8 +139,20 @@ export default function ShopProductDetail() {
               </Alert>
             )}
 
+            {!canAfford && (
+              <p className="text-xs text-destructive">
+                Не хватает {formatCoins(total - balance)} {icon}
+              </p>
+            )}
+
             <div className="flex gap-2 pt-4">
-              <Button onClick={() => addToCart.mutate()} disabled={addToCart.isPending || isImpersonating} variant="outline" className="flex-1">
+              <Button
+                onClick={() => addToCart.mutate()}
+                disabled={addToCart.isPending || isImpersonating || !canAfford}
+                title={!canAfford ? `Не хватает ${formatCoins(total - balance)}` : undefined}
+                variant="outline"
+                className="flex-1"
+              >
                 <ShoppingCart className="mr-2" /> {t("shopProduct.addToCart")}
               </Button>
               <Button onClick={() => buyNow.mutate()} disabled={buyNow.isPending || !canAfford || isImpersonating} className="flex-1">
