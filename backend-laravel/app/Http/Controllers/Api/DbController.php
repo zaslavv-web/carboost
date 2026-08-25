@@ -62,6 +62,8 @@ class DbController extends Controller
         'pulse_surveys'          => ['view'],
         'pulse_survey_questions' => ['view'],
         'pulse_survey_responses' => ['view', 'edit'],
+        'shop_cart_items'        => ['view', 'edit'],
+        'shop_orders'            => ['view'],
     ];
 
     /** Размер порции сырого чтения: ограничивает пик памяти до сборки ответа. */
@@ -585,7 +587,8 @@ class DbController extends Controller
             });
             return;
         }
-        if ($tableName === 'test_attempts' && in_array('user_id', $columns, true)) {
+        if (in_array($tableName, ['test_attempts', 'shop_cart_items', 'shop_orders'], true)
+            && in_array('user_id', $columns, true)) {
             $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
             $query->where($tableName . '.user_id', (string) $domainUserId);
         }

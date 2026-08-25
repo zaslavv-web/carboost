@@ -19,7 +19,8 @@ class ShopOwnedPolicy extends BasePolicy
 
     public function view(User $user, $model): bool
     {
-        if (($model->user_id ?? null) === $user->id) return true;
+        $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
+        if ((string) ($model->user_id ?? '') === (string) $domainUserId) return true;
         if (($this->isHrd($user) || $this->isCompanyAdmin($user))
             && $this->sameCompany($user, $model->company_id ?? null)) return true;
         return false;
@@ -32,7 +33,8 @@ class ShopOwnedPolicy extends BasePolicy
 
     public function update(User $user, $model): bool
     {
-        if (($model->user_id ?? null) === $user->id) return true;
+        $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
+        if ((string) ($model->user_id ?? '') === (string) $domainUserId) return true;
         return ($this->isHrd($user) || $this->isCompanyAdmin($user))
             && $this->sameCompany($user, $model->company_id ?? null);
     }
