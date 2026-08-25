@@ -34,8 +34,9 @@ const costs = [
 const costsTotal = costs.reduce((s, c) => s + c.value, 0); // 2 100 тыс./мес
 
 const kpi = [
-  { Icon: Layers, label: "Прайс по модулям", value: `${listPriceMonth} руб.`, note: `сотрудник / мес · ${listPriceYear.toLocaleString("ru-RU")} руб. в год` },
-  { Icon: Receipt, label: "Пакет со скидкой", value: `${bundleMonth} руб.`, note: `сотрудник / мес · ${bundleYear.toLocaleString("ru-RU")} руб. в год` },
+  { Icon: Layers, label: "Прайс по модулям", value: `${listPriceMonth.toLocaleString("ru-RU")} руб.`, note: `сотрудник / мес · ${listPriceYear.toLocaleString("ru-RU")} руб. в год` },
+  { Icon: Receipt, label: "Пакет со скидкой", value: `${bundleMonth.toLocaleString("ru-RU")} руб.`, note: `сотрудник / мес · ${bundleYear.toLocaleString("ru-RU")} руб. в год` },
+
   { Icon: Calculator, label: "Клиент 250 сотрудников", value: "225 тыс. руб./мес", note: "2,7 млн руб. в год подписки" },
   { Icon: Wallet, label: "Кастомизация", value: "2 000 руб./час", note: "~100 часов = 200 тыс. руб. на проект" },
 ];
