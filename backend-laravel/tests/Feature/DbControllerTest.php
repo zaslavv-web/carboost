@@ -94,7 +94,7 @@ class DbControllerTest extends TestCase
         $this->actingAs($emp, 'sanctum')
             ->postJson('/api/db/departments', ['values' => ['name' => 'X']])
             ->assertStatus(403)
-            ->assertJsonPath('error', 'Недостаточно прав');
+            ->assertJsonPath('error', 'Доступ к разделу запрещён ролевой моделью');
     }
 
     public function test_filters_eq_in_is_apply(): void
