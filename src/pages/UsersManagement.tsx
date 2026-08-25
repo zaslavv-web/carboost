@@ -241,7 +241,25 @@ const UsersManagement = () => {
     ]),
   ).sort() as string[];
 
+  const tenureOptions = ["< 3 мес", "3–12 мес", "1–3 года", "3–5 лет", "> 5 лет"];
+  const setUrlFilter = (key: string, value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === "all") next.delete(key);
+    else next.set(key, value);
+    setSearchParams(next, { replace: true });
+  };
+
   const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
+
+  const tenureLabel = (u: any) => {
+    if (!u.hire_date) return "—";
+    const months = Math.max(0, (Date.now() - new Date(u.hire_date).getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+    if (months < 1) return "< 1 мес";
+    if (months < 12) return `${Math.floor(months)} мес`;
+    const years = Math.floor(months / 12);
+    const rest = Math.floor(months % 12);
+    return rest > 0 ? `${years} г ${rest} мес` : `${years} г`;
+  };
 
   // Стажировка / испытательный срок: меньше 3 месяцев с даты найма.
   const isProbation = (u: any) => {
@@ -524,17 +542,79 @@ const UsersManagement = () => {
         <>
           <ResponsiveTable
             items={filtered}
-            tableMinWidth={900}
+            tableMinWidth={1040}
             table={
               <>
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colUser")}</th>
-                    {isSuperadmin && <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colCompany")}</th>}
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Должность</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colDept")}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colRole")}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colStatus")}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                      <div className="space-y-1">
+                        <span>{t("users.colUser")}</span>
+                        <input
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                          placeholder={t("users.searchPlaceholder")}
+                          className="block w-44 rounded-md border border-input bg-background px-2 py-1 text-xs font-normal text-foreground placeholder:text-muted-foreground"
+                        />
+                      </div>
+                    </th>
+                    {isSuperadmin && (
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                        <div className="space-y-1">
+                          <span>{t("users.colCompany")}</span>
+                          <select value={companyFilter} onChange={(e) => updateCompanyFilter(e.target.value)} className="block w-44 rounded-md border border-input bg-background px-2 py-1 text-xs font-normal text-foreground">
+                            <option value="all">{t("users.allCompanies")}</option>
+                            <option value="none">{t("users.noCompany")}</option>
+                            {companies.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                      </th>
+                    )}
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                      <div className="space-y-1">
+                        <span>Должность</span>
+                        <select value={positionFilter} onChange={(e) => { setPositionFilter(e.target.value); setUrlFilter("position", e.target.value); }} className="block w-40 rounded-md border border-input bg-background px-2 py-1 text-xs font-normal text-foreground">
+                          <option value="all">Все</option>
+                          {positions.map((position) => <option key={position} value={position}>{position}</option>)}
+                        </select>
+                      </div>
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                      <div className="space-y-1">
+                        <span>{t("users.colDept")}</span>
+                        <select value={departmentFilter} onChange={(e) => { setDepartmentFilter(e.target.value); setUrlFilter("department", e.target.value); }} className="block w-36 rounded-md border border-input bg-background px-2 py-1 text-xs font-normal text-foreground">
+                          <option value="all">Все</option>
+                          <option value="none">{t("users.noDept")}</option>
+                          {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      </div>
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                      <div className="space-y-1">
+                        <span>Стаж</span>
+                        <select value={tenureFilter} onChange={(e) => { setTenureFilter(e.target.value); setUrlFilter("tenure", e.target.value); }} className="block w-32 rounded-md border border-input bg-background px-2 py-1 text-xs font-normal text-foreground">
+                          <option value="all">Все</option>
+                          {tenureOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                        </select>
+                      </div>
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                      <div className="space-y-1">
+                        <span>{t("users.colRole")}</span>
+                        <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setUrlFilter("role", e.target.value); }} className="block w-36 rounded-md border border-input bg-background px-2 py-1 text-xs font-normal text-foreground">
+                          <option value="all">Все</option>
+                          {Object.entries(roleLabelMap).map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+                        </select>
+                      </div>
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                      <div className="space-y-1">
+                        <span>{t("users.colStatus")}</span>
+                        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)} className="block w-32 rounded-md border border-input bg-background px-2 py-1 text-xs font-normal text-foreground">
+                          {statusFilters.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+                        </select>
+                      </div>
+                    </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colActions")}</th>
                   </tr>
                 </thead>
@@ -578,6 +658,7 @@ const UsersManagement = () => {
                         )}
                       </td>
                       <td className="px-4 py-3 text-foreground">{u.department || "—"}</td>
+                      <td className="px-4 py-3 text-foreground whitespace-nowrap">{tenureLabel(u)}</td>
                       <td className="px-4 py-3">
                         <select
                           value={u.role}
@@ -699,6 +780,10 @@ const UsersManagement = () => {
                   <div>
                     <p className="text-muted-foreground mb-1">{t("users.colDept")}</p>
                     <p className="text-foreground">{u.department || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground mb-1">Стаж</p>
+                    <p className="text-foreground">{tenureLabel(u)}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground mb-1">{t("users.colRole")}</p>
