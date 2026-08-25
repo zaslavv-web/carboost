@@ -997,6 +997,9 @@ class DbController extends Controller
 
     private function enforceResourceAccess(Request $request, string $table, string $action): void
     {
+        if (in_array($action, self::SELF_SERVICE_TABLE_ACTIONS[$table] ?? [], true)) {
+            return; // личные данные: решают политики моделей
+        }
         try {
             $resource = self::TABLE_RESOURCES[$table] ?? null;
             $denied = $resource && ! AccessControlController::allows($request->user(), $resource, $action);
