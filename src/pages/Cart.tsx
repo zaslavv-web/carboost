@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,9 +11,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { ArrowLeft, Trash2, Package, ShoppingCart, AlertTriangle } from "lucide-react";
 import { ProductImage } from "@/components/shop/ProductImage";
 import { toast } from "sonner";
+
 
 export default function Cart() {
   const { t } = useTranslation("employee");
@@ -81,6 +85,25 @@ export default function Cart() {
     });
   }, [items, balance]);
   const total = cartRows.reduce((s: number, row: any) => s + row.subtotal, 0);
+  const shortageRows = useMemo(() => cartRows.filter((r: any) => r.shortage), [cartRows]);
+
+  const [shortageOpen, setShortageOpen] = useState(false);
+
+  const trimCart = useMutation({
+    mutationFn: async () => {
+      for (const row of shortageRows) {
+        await laravelDb.from("shop_cart_items").delete().eq("id", row.item.id);
+      }
+    },
+    onSuccess: () => {
+      setShortageOpen(false);
+      toast.success("Корзина сокращена до доступного баланса");
+      qc.invalidateQueries({ queryKey: ["shop_cart"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
@@ -145,11 +168,49 @@ export default function Cart() {
                   <AlertDescription>{t("cart.impersonationBlocked")}</AlertDescription>
                 </Alert>
               )}
-              <Button className="w-full" size="lg" disabled={checkout.isPending || balance < total || isImpersonating} onClick={() => checkout.mutate()}>
+              <Button
+                className="w-full"
+                size="lg"
+                disabled={checkout.isPending || isImpersonating}
+                onClick={() => (balance < total ? setShortageOpen(true) : checkout.mutate())}
+              >
                 {balance < total ? t("cart.insufficient") : t("cart.checkout")}
               </Button>
             </CardContent>
           </Card>
+
+          <Dialog open={shortageOpen} onOpenChange={setShortageOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Недостаточно баланса</DialogTitle>
+                <DialogDescription>
+                  К оплате {formatCoins(total)} {icon}, на балансе {formatCoins(balance)} {icon}.
+                  Не хватает {formatCoins(total - balance)} {icon}. Сократите корзину или накопите баллы.
+                </DialogDescription>
+              </DialogHeader>
+              {shortageRows.length > 0 && (
+                <div className="space-y-2 text-sm">
+                  <p className="text-muted-foreground">Не проходят по балансу:</p>
+                  {shortageRows.map(({ item, subtotal }: any) => (
+                    <div key={item.id} className="flex justify-between gap-3">
+                      <span className="truncate">{item.product.title} × {item.quantity}</span>
+                      <span className="whitespace-nowrap">{formatCoins(subtotal)} {icon}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setShortageOpen(false)}>Оставить как есть</Button>
+                <Button
+                  disabled={shortageRows.length === 0 || trimCart.isPending}
+                  onClick={() => trimCart.mutate()}
+                >
+                  Убрать лишнее ({shortageRows.length})
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
         </>
       )}
     </div>

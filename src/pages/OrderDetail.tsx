@@ -2,11 +2,14 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
+import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Package } from "lucide-react";
 import { getIntlLocale } from "@/lib/dateLocale";
+import { OrderItemActivation } from "@/components/shop/OrderItemActivation";
+
 
 const STATUS_VARIANT: Record<string, any> = {
   pending_fulfillment: "secondary",
@@ -27,6 +30,8 @@ export default function OrderDetail() {
   const backLabel = fromAdmin ? "К заказам магазина" : "К заказам";
   const { data: settings } = useCurrencySettings();
   const icon = settings?.currency_icon ?? "🪙";
+  const viewerId = useEffectiveUserId();
+
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["shop_order", orderId],
@@ -54,6 +59,9 @@ export default function OrderDetail() {
     },
     enabled: !!order?.user_id,
   });
+
+  const isOwner = !!viewerId && String(order?.user_id ?? "") === String(viewerId);
+
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6">
@@ -101,6 +109,16 @@ export default function OrderDetail() {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Получение и активация</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {(order.items ?? []).map((it: any) => (
+                <OrderItemActivation key={it.id} item={it} canActivate={!fromAdmin && isOwner} />
+              ))}
+            </CardContent>
+          </Card>
+
 
           {(order.cancel_reason || order.fulfilled_at) && (
             <Card>

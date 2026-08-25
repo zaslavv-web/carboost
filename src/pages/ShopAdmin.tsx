@@ -22,11 +22,20 @@ import { Plus, Edit2, Trash2, Package, Coins, ShoppingBag, Check, X, Upload, Bar
 import { toast } from "sonner";
 import { ProductImage } from "@/components/shop/ProductImage";
 
+const FULFILLMENT_KINDS = [
+  { value: "material", label: "Материальный — сотрудник указывает место и время получения" },
+  { value: "workflow", label: "Рабочий процесс — формируется документ (отгул, формат работы)" },
+  { value: "partner", label: "Закупка у партнёра — создаётся задача ответственному" },
+  { value: "digital", label: "Цифровой — активируется сразу" },
+];
+
 const emptyProduct = {
   title: "", description: "", price: 100, image_url: "",
   stock: null as number | null, max_per_user: null as number | null,
   max_per_period: null as number | null, period_kind: "none", is_active: true,
+  fulfillment_kind: "material",
 };
+
 
 export default function ShopAdmin() {
   const { t } = useTranslation("admin");
@@ -146,7 +155,9 @@ export default function ShopAdmin() {
         max_per_user: form.max_per_user || null,
         max_per_period: form.max_per_period || null,
         period_kind: form.period_kind || "none",
+        fulfillment_kind: form.fulfillment_kind || "material",
         is_active: form.is_active,
+
       };
       if (editing === "new") {
         payload.created_by = user.id;
@@ -460,6 +471,21 @@ export default function ShopAdmin() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Тип выдачи</Label>
+              <Select value={form.fulfillment_kind ?? "material"} onValueChange={(v) => setForm({ ...form, fulfillment_kind: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FULFILLMENT_KINDS.map((k) => (
+                    <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                От типа зависит, что происходит после покупки: запрос реквизитов получения, автодокумент или задача на закупку.
+              </p>
+            </div>
+
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
               <Label>{t("shopAdmin.activeLabel")}</Label>
