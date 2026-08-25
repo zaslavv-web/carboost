@@ -59,6 +59,11 @@ for (const role of Object.keys(ROUTE_MAP) as Role[]) {
     test.skip(!credsFor(role), `нет E2E_${role}_EMAIL / E2E_${role}_PASSWORD`);
 
     test(`ключевые маршруты открываются без ошибок`, async ({ page }) => {
+      const routes = ROUTE_MAP[role];
+      // Бюджет: обход нескольких тяжёлых страниц боевого стенда не влезает
+      // в дефолтные 60 секунд.
+      test.setTimeout(45_000 + routes.length * 25_000);
+
       const token = await loginAs(role);
       test.skip(!token, "логин не удался");
 
@@ -67,18 +72,22 @@ for (const role of Object.keys(ROUTE_MAP) as Role[]) {
       await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
       await page.evaluate((t) => window.localStorage.setItem("laravel_token", t), token!);
 
-      for (const route of ROUTE_MAP[role]) {
-        await page.goto(`${BASE_URL}${route}`, { waitUntil: "domcontentloaded" });
-        await page.waitForLoadState("networkidle").catch(() => undefined);
-        // Приложение отрисовало хоть что-то, а не белый экран/крэш-баундари.
-        await expect(page.locator("body"), `${route}: пустой экран`).not.toHaveText("");
-        const crashed = await page.getByText(/Something went wrong|Произошла ошибка/i).count();
-        expect(crashed, `${route}: crash boundary`).toBe(0);
+      for (const route of routes) {
+        await test.step(route, async () => {
+          await page.goto(`${BASE_URL}${route}`, { waitUntil: "domcontentloaded" });
+          // networkidle недостижим: приложение держит поллинг и долгие запросы,
+          // поэтому ждём появление контента внутри #root.
+          await expect(page.locator("#root"), `${route}: пустой экран`).not.toBeEmpty({ timeout: 20_000 });
+          await page.waitForTimeout(1500);
+          const crashed = await page.getByText(/Something went wrong|Произошла ошибка/i).count();
+          expect(crashed, `${route}: crash boundary`).toBe(0);
+        });
       }
 
       expect(serverErrors, "5xx во время обхода UI").toEqual([]);
       expect(consoleErrors, "ошибки в консоли").toEqual([]);
     });
+
   });
 }
 

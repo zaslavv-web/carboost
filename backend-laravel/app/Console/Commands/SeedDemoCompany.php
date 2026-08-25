@@ -1714,7 +1714,12 @@ class SeedDemoCompany extends Command
                 'role' => $role,
             ]);
         }
+
+        // Демо-учётка должна иметь ровно одну роль: ручные выдачи (например,
+        // hrd рядовому сотруднику) ломают проверки доступа и E2E-контроль прав.
+        DB::table('user_roles')->where('user_id', $uid)->where('role', '!=', $role)->delete();
     }
+
 
     private function pickPositionForRole(string $role, string $dept): string
     {
