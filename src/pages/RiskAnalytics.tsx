@@ -126,43 +126,14 @@ const RiskAnalytics = () => {
   const recompute = useMutation({
     mutationFn: async () => {
       if (!profile?.company_id) return;
-      // Lightweight client-side scoring based on profile data — placeholder model.
-      // Real-world: move this to an Edge Function with richer signals.
-      const upserts = employees.map((emp: any) => {
-        const seedStr = emp.user_id;
-        let h = 0;
-        for (let i = 0; i < seedStr.length; i++) h = (h * 31 + seedStr.charCodeAt(i)) | 0;
-        const rand = (offset = 0) => Math.abs((h + offset) % 100);
-        const attrition = rand(7);
-        const burnout = rand(13);
-        const engagement = 100 - Math.round((attrition + burnout) / 2);
-        const risk_level: "low" | "medium" | "high" =
-          Math.max(attrition, burnout) >= 70 ? "high" : Math.max(attrition, burnout) >= 40 ? "medium" : "low";
-        return {
-          user_id: emp.user_id,
-          company_id: profile.company_id!,
-          attrition_risk: attrition,
-          burnout_risk: burnout,
-          engagement_score: engagement,
-          risk_level,
-          factors: [
-            attrition > 50 ? t("riskAnalytics.factors.lowCareerActivity") : t("riskAnalytics.factors.stableProgress"),
-            burnout > 50 ? t("riskAnalytics.factors.highHrLoad") : t("riskAnalytics.factors.normalLoad"),
-            engagement < 50 ? t("riskAnalytics.factors.lowSocialActivity") : t("riskAnalytics.factors.goodEngagement"),
-          ],
-          recommendations:
-            risk_level === "high"
-              ? [t("riskAnalytics.recs.oneOnOne"), t("riskAnalytics.recs.reviewGoals"), t("riskAnalytics.recs.reduceLoad")]
-              : risk_level === "medium"
-              ? [t("riskAnalytics.recs.scheduleReview"), t("riskAnalytics.recs.addMentor")]
-              : [t("riskAnalytics.recs.maintainPace")],
-        };
+      // Расчёт выполняется на сервере (RiskComputationService): единый источник правды
+      // и никаких массовых upsert'ов из браузера (они падали с 422).
+      const { error } = await laravel.post("/risks/recompute", {
+        company_id: profile.company_id,
       });
-      const { error } = await laravelDb
-        .from("employee_risk_scores")
-        .upsert(upserts, { onConflict: "user_id" });
       if (error) throw error;
     },
+
     onSuccess: () => {
       toast.success(t("riskAnalytics.toast.recalculated"));
       qc.invalidateQueries({ queryKey: ["risk-scores"] });
