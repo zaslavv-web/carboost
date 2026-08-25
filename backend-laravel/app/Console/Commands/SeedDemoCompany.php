@@ -1866,6 +1866,8 @@ class SeedDemoCompany extends Command
         $this->info('6/6  Задачи трекера…');
         $this->runContentStep('трекер задач', fn () => $this->seedTrackerContent());
 
+        // Extras запускается после трекера: связывает задачи со статусами и
+        // проверяет OKR/воркфлоу именно целевой демо-учётки на готовых данных.
         $this->info('6.1/6  Профили, OKR, воркфлоу и сообщества…');
         $this->runContentStep('профили, OKR и сообщества', function () {
             $code = $this->call('demo:seed-extras', ['--company' => $this->companyId]);

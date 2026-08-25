@@ -342,7 +342,9 @@ class SeedDemoExtras extends Command
                 $deptGoalId = (string) $deptGoal->id;
             }
 
-            foreach ($members->take(40) as $index => $member) {
+            // Цель нужна каждому сотруднику отдела. Лимит в 40 оставлял
+            // employee.76 и остальных сотрудников больших отделов без OKR.
+            foreach ($members as $index => $member) {
                 $holderId = (string) $member->user_id;
                 $personal = DB::table('tracker_goals')->where('company_id', $this->companyId)
                     ->where('holder_id', $holderId)->whereNotNull('parent_goal_id')->exists();
@@ -424,17 +426,17 @@ class SeedDemoExtras extends Command
 <ul><li>18:00 — сбор гостей и welcome-зона</li><li>19:00 — итоги года и награждение</li><li>20:30 — фуршет и живая музыка</li><li>22:00 — фотозона и афтерпати</li></ul>
 <h3>Что нужно сделать заранее</h3>
 <ol><li>Подтвердить участие до 5 декабря</li><li>Указать пожелания по питанию</li><li>Скачать программу из вложений</li></ol>
-<p><img src="https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1200&q=80" alt="Команда на корпоративном мероприятии"></p>
+<p><img src="/demo/corporate-event.jpg" alt="Команда на корпоративном мероприятии"></p>
 <h3>Видео с прошлого года</h3>
-<video src="https://cdn.coverr.co/videos/coverr-people-toasting-at-a-party-4881/1080p.mp4" controls preload="metadata"></video>
+<video src="/demo/corporate-event.mp4" controls preload="metadata"></video>
 <p>Подробности — на <a href="https://growth-peak.pro" target="_blank" rel="noopener noreferrer">внутреннем портале</a>.
 Вопросы задавайте HR-команде в комментариях: мы отвечаем в течение рабочего дня.</p>
 <blockquote>Совет: используйте «Заголовок» для смысловых блоков и «Подзаголовок» для деталей — так новость легче читать с телефона.</blockquote>
 HTML;
 
         $attachments = [
-            ['name' => 'Программа корпоратива.pdf', 'url' => 'https://growth-peak.pro/docs/corporate-program.pdf'],
-            ['name' => 'Схема проезда.png', 'url' => 'https://growth-peak.pro/docs/venue-map.png'],
+            ['name' => 'Программа корпоратива.pdf', 'url' => '/demo/corporate-program.pdf'],
+            ['name' => 'Фотография команды.jpg', 'url' => '/demo/corporate-event.jpg'],
         ];
 
         $author = DB::table('profiles')->where('company_id', $this->companyId)->value('user_id');
@@ -535,7 +537,8 @@ HTML;
 
         $email = (string) $this->option('email');
         $target = DB::table('profiles')->join('users', 'users.id', '=', 'profiles.user_id')
-            ->where('users.email', $email)->select('profiles.*')->first();
+            ->where('users.email', $email)->where('profiles.company_id', $this->companyId)
+            ->select('profiles.*')->first();
         if ($target) {
             if (trim((string) ($target->avatar_url ?? '')) === '') $problems[] = "у {$email} нет аватара";
             if (trim((string) ($target->department ?? '')) === '') $problems[] = "у {$email} не заполнен отдел";
@@ -558,6 +561,17 @@ HTML;
         if (Schema::hasTable('portal_posts')
             && DB::table('portal_posts')->where('company_id', $this->companyId)->whereNotNull('community_id')->doesntExist()) {
             $problems[] = 'в сообществах нет записей';
+        }
+        if (Schema::hasTable('portal_posts')) {
+            $showcase = DB::table('portal_posts')->where('company_id', $this->companyId)
+                ->where('title', 'Как оформить новость: гид по возможностям редактора')->first();
+            $body = (string) ($showcase->body_md ?? '');
+            $attachments = json_decode((string) ($showcase->attachments ?? '[]'), true);
+            if (! $showcase || ! str_contains($body, '<h2>') || ! str_contains($body, '<h3>')
+                || ! str_contains($body, '<img ') || ! str_contains($body, '<video ')
+                || ! is_array($attachments) || count($attachments) < 2) {
+                $problems[] = 'показательная новость создана не полностью';
+            }
         }
 
         if ($problems) {
