@@ -30,7 +30,8 @@ const RoleAwareLayout = () => {
   // Restrict /users to platform admins. HRD now manages people via /dashboard.
   const isAdminOnly = location.pathname.startsWith("/users");
   if (rolesReady && isAdminOnly && role && role !== "superadmin" && role !== "company_admin") {
-    return <Navigate to="/dashboard" replace />;
+    // Сохраняем query: drill-down из аналитики несёт фильтры (department/position/tenure...).
+    return <Navigate to={`/dashboard${location.search}`} replace />;
   }
 
   // Merge /employees into /dashboard for HRD-level roles — one canonical screen.

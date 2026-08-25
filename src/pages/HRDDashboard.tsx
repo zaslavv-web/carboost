@@ -882,6 +882,21 @@ const HRDDashboard = () => {
                   className="pl-10 pr-4 py-2 w-64 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                 />
               </div>
+              {(positionFilter !== null || tenureFilter || hiredMonthFilter || probationFilter || departmentFilter) && (
+                <button
+                  type="button"
+                  onClick={() => { clearDrillFilters(); setDepartmentFilter(null); }}
+                  className="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium"
+                >
+                  {[
+                    departmentFilter && `Отдел: ${departmentFilter}`,
+                    positionFilter !== null && `Должность: ${positionFilter || "не задана"}`,
+                    tenureFilter && `Стаж: ${tenureFilter}`,
+                    probationFilter && "Стажировка / испытательный срок",
+                    hiredMonthFilter && `Найм: ${hiredMonthFilter}`,
+                  ].filter(Boolean).join(" · ")} ×
+                </button>
+              )}
               <div className="flex rounded-lg border border-border overflow-hidden">
                 {(["all", "employee", "manager", "hrd"] as RoleFilter[]).map((r) => (
                   <button
