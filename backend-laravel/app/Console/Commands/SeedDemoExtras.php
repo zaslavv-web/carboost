@@ -67,6 +67,20 @@ class SeedDemoExtras extends Command
         $community = $this->ensureCommunityContent();
         $this->line("  записей в сообществах: {$community}");
 
+        $tests = $this->ensureTestsAndScenarios();
+        $this->line("  тестов и сценариев оценки: {$tests}");
+
+        $invites = $this->ensureInvitations();
+        $this->line("  приглашений сотрудников: {$invites}");
+
+        $perf = $this->ensurePerformance();
+        $this->line("  performance-ревью: {$perf}");
+
+        $docs = $this->ensurePersonalDocuments();
+        $this->line("  персональных документов: {$docs}");
+
+
+
 
         $this->verify();
 
