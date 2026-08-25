@@ -374,8 +374,9 @@ class ScormController extends Controller
                 return new Response('Ссылка устарела, откройте урок заново.', 410, ['Content-Type' => 'text/plain; charset=utf-8']);
             }
         }
-        // Тикет допускает повторный GET в течение двух минут: браузер, антивирус
-        // или прокси могут предварительно открыть URL до iframe.
+        // Тикет допускает повторный GET: браузер, антивирус или прокси могут
+        // предварительно открыть URL до iframe, а уже выданная cookie продолжает
+        // легитимную SCORM-сессию после истечения короткого launch URL.
 
         $course = DB::table('courses')->where('id', $payload['course_id'])->first();
         $lesson = DB::table('lessons')->where('id', $payload['lesson_id'])->first();
