@@ -124,7 +124,7 @@ export default function Slide5bRevenue() {
 
         <div className="mt-auto pt-3 flex items-center justify-between text-[15px] text-[#1B1D22]/60">
           <Editable id="s5b.foot.brand" defaultValue="Пик роста · 2026" />
-          <Editable id="s5b.foot.page" defaultValue="06 / 10" />
+          <Editable id="s5b.foot.page" defaultValue="06 / 11" />
         </div>
       </div>
     </SlideLayout>

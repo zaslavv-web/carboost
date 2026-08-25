@@ -10,6 +10,7 @@ import Slide4AI from "./slides/Slide4AI";
 import Slide5Economics from "./slides/Slide5Economics";
 import Slide5bRevenue from "./slides/Slide5bRevenue";
 import Slide5cPlan from "./slides/Slide5cPlan";
+import Slide5dCalc from "./slides/Slide5dCalc";
 import Slide6Sales from "./slides/Slide6Sales";
 import Slide8Asia from "./slides/Slide8Asia";
 import Slide7Status from "./slides/Slide7Status";
@@ -22,6 +23,7 @@ const slides = [
   Slide5Economics,
   Slide5bRevenue,
   Slide5cPlan,
+  Slide5dCalc,
   Slide6Sales,
   Slide8Asia,
   Slide7Status,
