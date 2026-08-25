@@ -57,6 +57,9 @@ jobs:
           EOF
           cat public/.htaccess >> dist/.htaccess.cache
           cat dist/.htaccess.cache
+          HTACCESS_SHA="$(sha256sum dist/.htaccess.cache | awk '{print $1}')"
+          echo "HTACCESS_SHA=$HTACCESS_SHA" >> "$GITHUB_ENV"
+          echo "sha256: $HTACCESS_SHA"
 
       - name: Sanity check dist/
         run: |
