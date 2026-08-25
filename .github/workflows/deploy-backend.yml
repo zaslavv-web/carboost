@@ -241,11 +241,29 @@ jobs:
           $ARTISAN view:cache || true
           $ARTISAN event:cache || true
 
+          # VERSION читает /api/health от имени веб-процесса, поэтому права
+          # обязательны: без них health молча уходит в git-фолбэк и деплой
+          # выглядит «не доехавшим».
           printf '%s\n' "${GITHUB_SHA:-unknown}" > VERSION
+          chmod 644 VERSION
+          ls -l VERSION
+          php -r 'echo "root_id=", substr(sha1(realpath(".")),0,8), " version_readable=", var_export(is_readable("VERSION"), true), PHP_EOL;'
+
+          # Ручной `git pull` на сервере делает вид, что код обновился: health
+          # берёт версию из .git, когда VERSION недоступен. Явно сообщаем о
+          # рассинхроне рабочей копии с доставленным коммитом.
+          if [ -d .git ]; then
+            SERVER_HEAD="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+            if [ "$SERVER_HEAD" != "${GITHUB_SHA:-unknown}" ]; then
+              echo "::warning::В активном корне есть рабочая копия git (HEAD=$SERVER_HEAD), не совпадающая с доставкой ${GITHUB_SHA:-unknown}. Источник правды — этот workflow, ручной git pull использовать нельзя."
+            fi
+          fi
+
           # Обновление timestamp фронт-контроллера заставляет OPcache с
           # validate_timestamps подхватить новые классы после rsync.
           touch public/index.php
           $ARTISAN route:list --path=performance-cycles || true
+
 
           if [ "$RUN_SEED" = "true" ]; then
             echo "→ Running demo:seed --only-content"
