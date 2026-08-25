@@ -30,6 +30,7 @@ interface EmployeeWithRole {
   position_id: string | null;
   pending_position_id: string | null;
   department: string | null;
+  hire_date: string | null;
   overall_score: number | null;
   role_readiness: number | null;
   role: AppRole;
@@ -283,6 +284,16 @@ const HRDDashboard = () => {
 
   const tenureMonths = (hireDate?: string | null) =>
     hireDate ? (Date.now() - new Date(hireDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44) : null;
+  const tenureLabel = (hireDate?: string | null) => {
+    const months = tenureMonths(hireDate);
+    if (months === null) return "—";
+    const safeMonths = Math.max(0, months);
+    if (safeMonths < 1) return "< 1 мес";
+    if (safeMonths < 12) return `${Math.floor(safeMonths)} мес`;
+    const years = Math.floor(safeMonths / 12);
+    const rest = Math.floor(safeMonths % 12);
+    return rest > 0 ? `${years} г ${rest} мес` : `${years} г`;
+  };
   const inTenureBucket = (months: number | null, bucket: string) => {
     if (months === null) return false;
     if (bucket === "< 3 мес") return months < 3;
@@ -909,6 +920,7 @@ const HRDDashboard = () => {
                 <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("hrdDashboard.table.colEmployee")}</th>
                 <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("hrdDashboard.table.colPosition")}</th>
                 <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("hrdDashboard.table.colDept")}</th>
+                <th className="text-left py-3 px-4 text-muted-foreground font-medium">Стаж</th>
                 <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("hrdDashboard.table.colRole")}</th>
                 <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("hrdDashboard.table.colScore")}</th>
                 <th className="text-left py-3 px-4 text-muted-foreground font-medium">{t("hrdDashboard.table.colMatch")}</th>
@@ -979,6 +991,7 @@ const HRDDashboard = () => {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-foreground">{emp.department || "—"}</td>
+                    <td className="py-3 px-4 text-foreground whitespace-nowrap">{tenureLabel(emp.hire_date)}</td>
                     <td className="py-3 px-4">
                       <div className="relative">
                         <button
@@ -1034,7 +1047,7 @@ const HRDDashboard = () => {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-muted-foreground">
+                  <td colSpan={7} className="py-12 text-center text-muted-foreground">
                     {employees.length === 0 ? t("hrdDashboard.table.noEmployees") : t("hrdDashboard.table.noResults")}
                   </td>
                 </tr>
