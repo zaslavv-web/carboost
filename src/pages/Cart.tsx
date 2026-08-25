@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -68,7 +69,16 @@ export default function Cart() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const total = items.reduce((s: number, i: any) => s + i.product.price * i.quantity, 0);
+  const cartRows = useMemo(() => {
+    let remaining = balance;
+    return items.map((item: any) => {
+      const subtotal = Number(item.product?.price ?? 0) * Number(item.quantity ?? 0);
+      const deficit = Math.max(0, subtotal - remaining);
+      remaining = Math.max(0, remaining - subtotal);
+      return { item, subtotal, deficit, shortage: deficit > 0 };
+    });
+  }, [items, balance]);
+  const total = cartRows.reduce((s: number, row: any) => s + row.subtotal, 0);
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
@@ -83,23 +93,23 @@ export default function Cart() {
       ) : (
         <>
           <div className="space-y-3">
-            {items.map((i: any) => (
-              <Card key={i.id}>
+            {cartRows.map(({ item: i, subtotal, deficit, shortage }: any) => (
+              <Card key={i.id} className={shortage ? "border-destructive/50 bg-destructive/5" : undefined}>
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="w-16 h-16 bg-muted rounded flex items-center justify-center overflow-hidden flex-shrink-0">
                     <ProductImage imageUrl={i.product.image_url} title={i.product.title} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate">{i.product.title}</p>
-                    {i.product.price * i.quantity > balance && (
-                      <p className="text-xs text-destructive">Не хватает {formatCoins(i.product.price * i.quantity - balance)} {icon}</p>
+                    {shortage && (
+                      <p className="text-xs text-destructive">Не хватает {formatCoins(deficit)} {icon}</p>
                     )}
                     <p className="text-sm text-primary font-medium">{formatCoins(i.product.price)} {icon}</p>
                   </div>
                   <Input type="number" min={1} value={i.quantity}
                     onChange={(e) => updateQty.mutate({ id: i.id, quantity: parseInt(e.target.value) || 1 })}
                     className="w-20" />
-                  <div className="font-bold whitespace-nowrap">{formatCoins(i.product.price * i.quantity)} {icon}</div>
+                  <div className="font-bold whitespace-nowrap">{formatCoins(subtotal)} {icon}</div>
                   <Button variant="ghost" size="icon" onClick={() => updateQty.mutate({ id: i.id, quantity: 0 })}>
                     <Trash2 className="text-destructive" />
                   </Button>

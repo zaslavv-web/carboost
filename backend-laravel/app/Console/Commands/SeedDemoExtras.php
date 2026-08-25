@@ -1539,6 +1539,13 @@ HTML;
             $runningPulse = DB::table('pulse_surveys')->where('company_id', $this->companyId)->where('status', 'running')->count();
             if ($runningPulse < 1) $problems[] = 'нет активных pulse-опросов';
         }
+        if (Schema::hasTable('performance_cycles') && Schema::hasTable('performance_reviews')) {
+            $activeCycles = DB::table('performance_cycles')->where('company_id', $this->companyId)
+                ->where('status', 'active')->count();
+            $reviews = DB::table('performance_reviews')->where('company_id', $this->companyId)->count();
+            if ($activeCycles < 1) $problems[] = 'нет активного performance-цикла';
+            if ($reviews < 10) $problems[] = "performance-ревью только {$reviews}";
+        }
         if (Schema::hasTable('onboarding_plans') && Schema::hasTable('onboarding_assignments')) {
             $plans = DB::table('onboarding_plans')->where('company_id', $this->companyId)->count();
             $assignments = DB::table('onboarding_assignments')->where('company_id', $this->companyId)->count();

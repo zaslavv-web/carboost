@@ -18,6 +18,7 @@ import {
   PieChart, Pie, Cell, Legend, CartesianGrid,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Loader2, Users, TrendingUp, CalendarDays, AlertTriangle, Building2 } from "lucide-react";
 import { MetricLabel } from "@/components/metrics/MetricLabel";
 import { ChartExplainer } from "@/components/metrics/ChartExplainer";
@@ -41,6 +42,8 @@ export default function PeopleAnalytics() {
   const [absence, setAbsence] = useState<AbsencePoint[]>([]);
   const [risk, setRisk] = useState<Bucket[]>([]);
   const activeSlice = searchParams.get("slice");
+  const activeRisk = searchParams.get("risk");
+  const activeDepartment = searchParams.get("department");
   // Drill-down всегда строит ЧИСТЫЙ набор параметров: предыдущие фильтры
   // (роль, департамент, риск) не должны «залипать» и давать пустой список.
   const openEmployees = (params: Record<string, string>) => {
@@ -48,6 +51,12 @@ export default function PeopleAnalytics() {
       Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""),
     );
     navigate(`/users?${query.toString()}`);
+  };
+  const openFilteredEmployees = () => {
+    openEmployees({
+      risk: activeRisk || "all",
+      department: activeDepartment || "",
+    });
   };
   // Recharts отдаёт в onClick служебный объект: реальная строка лежит в payload.
   const rowLabel = (row: any): string => String(row?.payload?.label ?? row?.label ?? "").trim();
@@ -90,6 +99,14 @@ export default function PeopleAnalytics() {
         <p className="text-sm text-muted-foreground">
           Сводная HR-аналитика по компании: численность, стажевые когорты, найм, отсутствия и риски.
         </p>
+        {(activeRisk || activeDepartment) && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 text-sm">
+            <span className="text-muted-foreground">Активный срез:</span>
+            {activeRisk && <span className="rounded-md bg-destructive/10 px-2 py-1 text-destructive">риск {activeRisk}</span>}
+            {activeDepartment && <span className="rounded-md bg-primary/10 px-2 py-1 text-primary">{activeDepartment}</span>}
+            <Button size="sm" variant="outline" onClick={openFilteredEmployees}>Открыть сотрудников</Button>
+          </div>
+        )}
       </header>
 
       {/* KPI cards */}
@@ -203,7 +220,7 @@ export default function PeopleAnalytics() {
         </Card>
 
         {risk.some((b) => b.value > 0) && (
-          <Card className="lg:col-span-2">
+          <Card className={activeSlice === "risk" ? "lg:col-span-2 ring-2 ring-primary" : "lg:col-span-2"}>
             <CardHeader><CardTitle className="text-base"><ChartExplainer metricKey="risk_index" hint="Красная и жёлтая зоны требуют HR-действий в первую очередь." /></CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-4 gap-4">

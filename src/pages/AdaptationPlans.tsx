@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
+import { laravelStorage } from "@/integrations/laravel/storage";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Rocket, Plus, Trash2, Users, ClipboardList, CheckCircle2, Clock, GripVertical, Paperclip } from "lucide-react";
+import { Rocket, Plus, Trash2, Users, ClipboardList, CheckCircle2, Clock, GripVertical, Paperclip, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -155,8 +156,20 @@ const AdaptationPlans = () => {
   });
 
   const addStep = useMutation({
-    mutationFn: async (patch: Partial<Step>) => {
+    mutationFn: async (patch: Partial<Step> & { material_file?: File | null }) => {
       const nextOrder = (stepsQ.data?.length ?? 0) + 1;
+      let materialUrl = patch.material_url ?? null;
+      if (patch.material_file) {
+        const safeName = patch.material_file.name.replace(/[^\p{L}\p{N}._-]+/gu, "_");
+        const upload = await laravelStorage
+          .from("hr-documents")
+          .upload(`onboarding-materials/${companyId}/${Date.now()}_${safeName}`, patch.material_file);
+        if (upload.error) throw new Error(upload.error.message);
+        if (upload.data?.path) {
+          materialUrl = laravelStorage.from("hr-documents").getPublicUrl(upload.data.path).data.publicUrl;
+        }
+      }
+      const { material_file: _materialFile, ...stepPatch } = patch;
       const { error } = await laravelDb.from("onboarding_plan_steps" as any).insert({
         company_id: companyId,
         plan_id: selectedPlan,
@@ -166,7 +179,8 @@ const AdaptationPlans = () => {
         responsible: "employee",
         due_offset_days: 0,
         is_required: true,
-        ...patch,
+        ...stepPatch,
+        material_url: materialUrl,
       });
       if (error) throw error;
     },
@@ -385,6 +399,7 @@ const AssignmentDetailDialog = ({
   companyId: string | null;
 }) => {
   const qc = useQueryClient();
+  const { data: profile } = useUserProfile();
 
   const stepsQ = useQuery({
     queryKey: ["onboarding_plan_steps", assignment?.plan_id],
@@ -438,6 +453,26 @@ const AssignmentDetailDialog = ({
     onError: (e: any) => toast.error(e?.message ?? "Не удалось обновить шаг"),
   });
 
+  const generateDocument = useMutation({
+    mutationFn: async (step: Step) => {
+      if (!assignment?.user_id || !companyId || !profile?.user_id) throw new Error("Не хватает данных для документа");
+      const { error } = await laravelDb.from("hr_documents" as any).insert({
+        company_id: companyId,
+        owner_user_id: assignment.user_id,
+        document_type: "onboarding_checklist",
+        title: `Чек-лист: ${step.title}`,
+        description: step.description || `Документ сформирован из шага адаптации «${step.title}».`,
+        file_url: null,
+        file_name: null,
+        processing_status: "completed",
+        created_by: profile.user_id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => toast.success("Документ создан в личном деле"),
+    onError: (e: any) => toast.error(e?.message ?? "Не удалось создать документ"),
+  });
+
   const steps = stepsQ.data ?? [];
   const doneCount = steps.filter((s) =>
     progressQ.data?.some((p: any) => String(p.step_id) === String(s.id) && p.status === "done"),
@@ -480,6 +515,22 @@ const AssignmentDetailDialog = ({
                     >
                       <Paperclip className="w-3 h-3" /> Открыть материал
                     </a>
+                  )}
+                  {(s.step_type === "checklist" || s.step_type === "document") && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 h-7 px-2 text-xs"
+                      disabled={generateDocument.isPending}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        generateDocument.mutate(s);
+                      }}
+                    >
+                      <FileText className="mr-1 h-3 w-3" /> Создать документ
+                    </Button>
                   )}
                 </div>
               </label>
@@ -526,14 +577,16 @@ const NewPlanForm = ({ onSubmit, loading }: { onSubmit: (v: any) => void; loadin
 
 const NewStepForm = ({ onSubmit, loading }: { onSubmit: (v: any) => void; loading: boolean }) => {
   const [v, setV] = useState({ title: "", stage: "first_week", step_type: "task", responsible: "employee", due_offset_days: 0, material_url: "" });
+  const [file, setFile] = useState<File | null>(null);
   return (
     <form
       className="grid grid-cols-1 md:grid-cols-6 gap-2 p-3 rounded-lg border border-dashed border-border"
       onSubmit={(e) => {
         e.preventDefault();
         if (!v.title.trim()) return;
-        onSubmit({ ...v, material_url: v.material_url.trim() || null });
+        onSubmit({ ...v, material_url: v.material_url.trim() || null, material_file: file });
         setV({ ...v, title: "", material_url: "" });
+        setFile(null);
       }}
     >
       <Input className="md:col-span-2" placeholder="Название шага" value={v.title} onChange={(e) => setV({ ...v, title: e.target.value })} />
@@ -554,6 +607,11 @@ const NewStepForm = ({ onSubmit, loading }: { onSubmit: (v: any) => void; loadin
         placeholder="Ссылка на материал (регламент, курс, форма) — необязательно"
         value={v.material_url}
         onChange={(e) => setV({ ...v, material_url: e.target.value })}
+      />
+      <Input
+        className="md:col-span-5"
+        type="file"
+        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
       />
       <Button type="submit" disabled={loading}><Plus className="w-4 h-4" /></Button>
     </form>
