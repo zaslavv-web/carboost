@@ -286,6 +286,7 @@ export const metricsCatalog = M({
       ru: "Сверьте с планом найма и рисками оттока.",
       en: "Compare to hiring plan and attrition risk.",
     },
+    href: "/users",
   },
   hiring_funnel_conversion: {
     key: "hiring_funnel_conversion",
@@ -303,6 +304,7 @@ export const metricsCatalog = M({
       ru: "Разверните этапы воронки и найдите этап с падением.",
       en: "Drill into stages and find where the drop happens.",
     },
+    href: "/people-analytics",
   },
   absence_rate: {
     key: "absence_rate",
@@ -320,6 +322,7 @@ export const metricsCatalog = M({
       ru: "Разверните разбивку по отделам и проверьте комфорт.",
       en: "Drill into departments and check comfort scores.",
     },
+    href: "/leaves?status=approved",
   },
   time_to_hire: {
     key: "time_to_hire",
@@ -337,6 +340,7 @@ export const metricsCatalog = M({
       ru: "Найдите самый долгий этап воронки и ускорьте его.",
       en: "Find the slowest funnel stage and accelerate it.",
     },
+    href: "/people-analytics",
   },
   promotion_rate: {
     key: "promotion_rate",
@@ -354,6 +358,7 @@ export const metricsCatalog = M({
       ru: "Свяжите с карьерными треками и назначьте IDP.",
       en: "Link with career tracks and assign IDPs.",
     },
+    href: "/career-tracks",
   },
   avg_tenure: {
     key: "avg_tenure",
@@ -371,6 +376,7 @@ export const metricsCatalog = M({
       ru: "Соотнесите с индексом риска и планом развития.",
       en: "Correlate with risk index and development plans.",
     },
+    href: "/users?tenure=3%E2%80%935%20%D0%BB%D0%B5%D1%82",
   },
 
   // ─────── Карьерные треки ───────

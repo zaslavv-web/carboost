@@ -1,7 +1,6 @@
 import { Info, ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { useLocation } from "react-router-dom";
 import {
   Popover,
   PopoverContent,
@@ -31,15 +30,10 @@ const HEADINGS: Record<MetricLang, { what: string; how: string; read: string; do
 
 export const MetricLabel = ({ metricKey, className, iconOnly, labelOverride }: Props) => {
   const lang = useLang();
-  const location = useLocation();
   const m = getMetric(metricKey);
   const h = HEADINGS[lang];
   const label = labelOverride ?? m.label[lang];
-  const href = (() => {
-    if (!m.href) return undefined;
-    const [path] = m.href.split("?");
-    return path === location.pathname && location.search ? `${location.pathname}${location.search}` : m.href;
-  })();
+  const href = m.href;
 
   return (
     <span className={cn("inline-flex items-center gap-1.5", className)}>
