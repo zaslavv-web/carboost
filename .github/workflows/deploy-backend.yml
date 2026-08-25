@@ -117,6 +117,58 @@ jobs:
             --exclude 'bootstrap/cache/*.php' \
             backend-laravel/ "$DEPLOY_USER@$DEPLOY_HOST:$BACKEND_ROOT/"
 
+      - name: Проверка активного корня (какой каталог реально обслуживает сайт)
+        run: |
+          SSH_OPTS="-o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no"
+          MARKER="deploy-marker-${GITHUB_SHA:0:12}.txt"
+
+          # Раньше расхождение «rsync положил файлы в один каталог, а Apache
+          # исполняет другой» вскрывалось только на финальной проверке версии
+          # (12 попыток по 5 секунд и невнятная ошибка). Теперь доказываем это
+          # сразу: кладём в public/ уникальный файл и пробуем скачать его по HTTP.
+          ROOT_ID="$(ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' MARKER='$MARKER' GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$BACKEND_ROOT"
+          printf '%s\n' "$GITHUB_SHA" > "public/$MARKER"
+          chmod 644 "public/$MARKER"
+          php -r 'echo substr(sha1(realpath(".")), 0, 8), PHP_EOL;'
+          REMOTE
+          )"
+          ROOT_ID="$(printf '%s' "$ROOT_ID" | tr -d '\r' | tail -n1)"
+          echo "ROOT_ID (каталог доставки): $ROOT_ID"
+          echo "DEPLOY_ROOT_ID=$ROOT_ID" >> "$GITHUB_ENV"
+
+          SERVED=""
+          for attempt in $(seq 1 6); do
+            SERVED="$(curl -fsS "https://growth-peak.pro/$MARKER?cb=$attempt" 2>/dev/null || true)"
+            SERVED="$(printf '%s' "$SERVED" | tr -d '\r\n')"
+            [ "$SERVED" = "$GITHUB_SHA" ] && break
+            echo "Маркер ещё не отдаётся (попытка $attempt/6)"
+            sleep 5
+          done
+
+          # Диагностика прочих копий Laravel — печатаем всегда, она нужна и при успехе.
+          ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "BACKEND_ROOT='$BACKEND_ROOT' MARKER='$MARKER' bash -s" <<'REMOTE'
+          set -uo pipefail
+          echo "--- активный корень доставки: $BACKEND_ROOT"
+          ls -l "$BACKEND_ROOT/VERSION" 2>/dev/null || echo "VERSION отсутствует (ещё не записан на этом шаге)"
+          echo "--- другие копии Laravel в \$HOME (public/index.php + artisan рядом):"
+          find "$HOME" -maxdepth 5 -name artisan -type f 2>/dev/null | while read -r a; do
+            d="$(dirname "$a")"
+            printf '%s  root_id=%s  version=%s\n' "$d" \
+              "$(php -r 'echo substr(sha1(realpath($argv[1])),0,8);' "$d" 2>/dev/null)" \
+              "$(head -c 40 "$d/VERSION" 2>/dev/null | tr -d '\n' || echo '-')"
+          done
+          rm -f "$BACKEND_ROOT/public/$MARKER"
+          REMOTE
+
+          if [ "$SERVED" != "$GITHUB_SHA" ]; then
+            echo "::error::Каталог доставки ($BACKEND_ROOT, root_id=$ROOT_ID) не обслуживает https://growth-peak.pro — маркер public/$MARKER по HTTP не отдался. Поправьте секрет TARGET_DIR на реально активный корень (см. список копий Laravel выше)."
+            exit 1
+          fi
+          echo "Активный корень подтверждён: маркер отдан вебом из каталога доставки"
+
+
       - name: Install, migrate, refresh Laravel caches
         run: |
           RUN_MIGRATIONS="${{ github.event.inputs.run_migrations }}"
