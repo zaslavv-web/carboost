@@ -13,6 +13,11 @@ RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
+# Отсутствующие хешированные ассеты должны отдавать 404, а не index.html.
+# Иначе браузер получает HTML вместо JS/CSS, а диагностика выглядит как
+# случайные runtime-ошибки старого бандла.
+RewriteRule ^assets/ - [R=404,L]
+
 # ── SPA-фолбэк ─────────────────────────────────────────────────────────────
 # Ровно один внутренний редирект на корневой index.html. Условие !^/index\.html$
 # обязательно: без него Apache уходит в петлю («Request exceeded the limit of 10
