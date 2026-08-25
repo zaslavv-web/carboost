@@ -40,6 +40,12 @@ class DbController extends Controller
         'hr_documents' => 'hr_documents', 'knowledge_articles' => 'knowledge_base',
         'knowledge_categories' => 'knowledge_base', 'shop_products' => 'shop', 'shop_orders' => 'shop',
         'pulse_surveys' => 'pulse', 'pulse_survey_questions' => 'pulse', 'pulse_survey_responses' => 'pulse',
+        'tracker_projects' => 'tracker', 'tracker_okr_periods' => 'tracker', 'tracker_goals' => 'tracker',
+        'tracker_key_results' => 'tracker', 'tracker_tasks' => 'tracker', 'tracker_task_goal_links' => 'tracker',
+        'tracker_task_checkins' => 'tracker', 'tracker_one_on_ones' => 'tracker', 'tracker_one_on_one_agenda' => 'tracker',
+        'tracker_audit_log' => 'tracker', 'tracker_workflows' => 'tracker', 'tracker_workflow_statuses' => 'tracker',
+        'tracker_workflow_transitions' => 'tracker', 'tracker_sprints' => 'tracker', 'tracker_comments' => 'tracker',
+        'tracker_attachments' => 'tracker',
     ];
 
     /**

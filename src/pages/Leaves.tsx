@@ -8,7 +8,7 @@
  *  - balances: остатки по типам отсутствий
  *  - types (HR): управление справочником
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -47,8 +47,9 @@ const Leaves = () => {
   const isHr = role === "hr" || role === "hrd" || role === "company_admin" || role === "superadmin";
   const isManagerOrHr = isHr || role === "manager";
 
+  const hasCalendarDeepLink = searchParams.has("month") || searchParams.has("status");
   const [tab, setTab] = useState<"mine" | "inbox" | "balances" | "calendar" | "types">(
-    searchParams.has("month") || searchParams.has("status") ? "calendar" : "mine",
+    hasCalendarDeepLink ? "calendar" : "mine",
   );
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -75,6 +76,16 @@ const Leaves = () => {
     queryFn: () => leavesApi.listRequests("all"),
     enabled: isManagerOrHr,
   });
+
+  useEffect(() => {
+    if (hasCalendarDeepLink && isManagerOrHr) setTab("calendar");
+  }, [hasCalendarDeepLink, isManagerOrHr]);
+
+  useEffect(() => {
+    if (!hasCalendarDeepLink && isManagerOrHr && tab === "mine" && !loadingMine && !loadingTeam && mine.length === 0 && teamAll.length > 0) {
+      setTab("calendar");
+    }
+  }, [hasCalendarDeepLink, isManagerOrHr, loadingMine, loadingTeam, mine.length, tab, teamAll.length]);
 
   const approve = useMutation({
     mutationFn: ({ id, comment }: { id: string; comment?: string }) =>

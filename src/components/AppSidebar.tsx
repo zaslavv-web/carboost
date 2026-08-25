@@ -108,6 +108,7 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
         { key: "analytics", label: S("analytics"), entries: [
           dashboard,
           { icon: Activity, label: t("nav.productAnalytics"), path: "/product-analytics" },
+          pulse,
         ]},
         { key: "hr", label: S("hr"), entries: [
           { icon: Shield, label: t("nav.companies"), path: "/companies" },

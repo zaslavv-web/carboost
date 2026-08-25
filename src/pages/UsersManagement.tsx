@@ -45,7 +45,10 @@ const UsersManagement = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
+    const status = searchParams.get("status");
+    return status === "verified" || status === "pending" ? status : "all";
+  });
   const [companyFilter, setCompanyFilter] = useState<string>(
     () => searchParams.get("companyId") || "all"
   );
@@ -73,7 +76,10 @@ const UsersManagement = () => {
     // Новый drill-down = чистый фильтр: локальные (не URL) фильтры сбрасываем,
     // иначе роль/статус из прошлого перехода дают пустую таблицу.
     if (!searchParams.get("companyId")) setCompanyFilter("all");
-    setStatusFilter("all");
+    {
+      const status = searchParams.get("status");
+      setStatusFilter(status === "verified" || status === "pending" ? status : "all");
+    }
     setSearch("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
@@ -276,6 +282,8 @@ const UsersManagement = () => {
       (u.email || "").toLowerCase().includes(q) ||
       (u.department || "").toLowerCase().includes(q) ||
       (u.position || "").toLowerCase().includes(q) ||
+      tenureLabel(u).toLowerCase().includes(q) ||
+      (isProbation(u) && "стажировка испытательный срок probation".includes(q)) ||
       roleLabelMap[u.role]?.toLowerCase().includes(q);
     const matchesStatus =
       statusFilter === "all" ||

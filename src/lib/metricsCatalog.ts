@@ -286,7 +286,7 @@ export const metricsCatalog = M({
       ru: "Сверьте с планом найма и рисками оттока.",
       en: "Compare to hiring plan and attrition risk.",
     },
-    href: "/users",
+    href: "/users?status=all",
   },
   hiring_funnel_conversion: {
     key: "hiring_funnel_conversion",
