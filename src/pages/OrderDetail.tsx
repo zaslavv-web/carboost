@@ -2,11 +2,14 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
+import { useEffectiveUserId } from "@/hooks/useEffectiveUser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Package } from "lucide-react";
 import { getIntlLocale } from "@/lib/dateLocale";
+import { OrderItemActivation } from "@/components/shop/OrderItemActivation";
+
 
 const STATUS_VARIANT: Record<string, any> = {
   pending_fulfillment: "secondary",
