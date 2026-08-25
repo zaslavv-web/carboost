@@ -10,6 +10,7 @@
  */
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\StorageController;
 
 Route::get('/', function () {
     return response()->json([
@@ -18,3 +19,5 @@ Route::get('/', function () {
         'health'  => url('/api/health'),
     ]);
 });
+
+Route::get('/storage/{bucket}/{path}', [StorageController::class, 'publicFile'])->where('path', '.*');

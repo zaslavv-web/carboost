@@ -125,10 +125,28 @@ class StorageController extends Controller
             return response()->json(['error' => 'forbidden'], 403);
         }
         $disk = Storage::disk('content-media');
-        if (! $disk->exists($path)) return response()->json(['error' => 'not found'], 404);
+        if (! $disk->exists($path)) return $this->missingMediaResponse($path);
         return response()->file($disk->path($path), [
             'Content-Type' => $disk->mimeType($path) ?: 'application/octet-stream',
             'Cache-Control' => 'private, max-age=86400',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    public function publicFile(Request $request, string $bucket, string $path)
+    {
+        $cfg = self::cfg($bucket);
+        if (! $cfg[1]) abort(404);
+
+        $path = ltrim($path, '/');
+        if ($path === '' || str_contains($path, '..')) abort(404);
+
+        $disk = Storage::disk($cfg[0]);
+        if (! $disk->exists($path)) return $this->missingMediaResponse($path);
+
+        return response()->file($disk->path($path), [
+            'Content-Type' => $disk->mimeType($path) ?: 'application/octet-stream',
+            'Cache-Control' => 'public, max-age=86400',
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }
@@ -149,5 +167,19 @@ class StorageController extends Controller
     private function contentSignature(string $path): string
     {
         return hash_hmac('sha256', $path, (string) config('app.key'));
+    }
+
+    private function missingMediaResponse(string $path)
+    {
+        if (preg_match('/\.(png|jpe?g|webp|gif|svg)$/i', $path)) {
+            $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><rect width="640" height="360" fill="#1B1D22"/><path d="M120 260l95-115 73 82 46-55 126 88H120z" fill="#D5A52A" fill-opacity=".34"/><circle cx="430" cy="115" r="34" fill="#D5A52A" fill-opacity=".55"/></svg>';
+            return response($svg, 200, [
+                'Content-Type' => 'image/svg+xml; charset=utf-8',
+                'Cache-Control' => 'public, max-age=300',
+                'X-Content-Type-Options' => 'nosniff',
+            ]);
+        }
+
+        return response('', 204, ['Cache-Control' => 'public, max-age=300']);
     }
 }

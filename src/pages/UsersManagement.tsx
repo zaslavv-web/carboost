@@ -407,7 +407,9 @@ const UsersManagement = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+          <label className="space-y-1 text-xs text-muted-foreground">
+            <span>Роль</span>
           <select
             value={roleFilter}
             onChange={(e) => {
@@ -416,14 +418,17 @@ const UsersManagement = () => {
               if (e.target.value === "all") next.delete("role"); else next.set("role", e.target.value);
               setSearchParams(next, { replace: true });
             }}
-            className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
+            className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
           >
             <option value="all">{t("users.allRoles")}</option>
             {Object.entries(roleLabelMap).map(([val, label]) => (
               <option key={val} value={val}>{label}</option>
             ))}
           </select>
+          </label>
 
+          <label className="space-y-1 text-xs text-muted-foreground">
+            <span>Отдел</span>
           <select
             value={departmentFilter}
             onChange={(e) => {
@@ -432,7 +437,7 @@ const UsersManagement = () => {
               if (e.target.value === "all") next.delete("department"); else next.set("department", e.target.value);
               setSearchParams(next, { replace: true });
             }}
-            className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
+            className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
           >
             <option value="all">{t("users.allDepts")}</option>
             <option value="none">{t("users.noDept")}</option>
@@ -440,7 +445,10 @@ const UsersManagement = () => {
               <option key={d} value={d}>{d}</option>
             ))}
           </select>
+          </label>
 
+          <label className="space-y-1 text-xs text-muted-foreground">
+            <span>Должность</span>
           <select
             value={positionFilter}
             onChange={(e) => {
@@ -449,11 +457,46 @@ const UsersManagement = () => {
               if (e.target.value === "all") next.delete("position"); else next.set("position", e.target.value);
               setSearchParams(next, { replace: true });
             }}
-            className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
+            className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
           >
             <option value="all">Все должности</option>
             {positions.map((position) => <option key={position} value={position}>{position}</option>)}
           </select>
+          </label>
+
+          <label className="space-y-1 text-xs text-muted-foreground">
+            <span>Стаж работы</span>
+            <select
+              value={tenureFilter}
+              onChange={(e) => {
+                setTenureFilter(e.target.value);
+                setUrlFilter("tenure", e.target.value);
+              }}
+              className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
+            >
+              <option value="all">Любой стаж</option>
+              {tenureOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
+
+          {isSuperadmin && companies.length > 0 && (
+            <label className="space-y-1 text-xs text-muted-foreground">
+              <span>Компания</span>
+              <select
+                value={companyFilter}
+                onChange={(e) => updateCompanyFilter(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
+              >
+                <option value="all">{t("users.allCompanies")}</option>
+                <option value="none">{t("users.noCompany")}</option>
+                {companies.map((c: any) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-4 xl:col-span-6">
 
           {tenureFilter !== "all" && (
             <button type="button" onClick={() => {
@@ -495,23 +538,6 @@ const UsersManagement = () => {
               Риск: {riskFilter === "high" ? "высокий" : riskFilter === "medium" ? "средний" : "низкий"} ×
             </button>
           )}
-
-
-
-          {isSuperadmin && companies.length > 0 && (
-            <select
-              value={companyFilter}
-              onChange={(e) => updateCompanyFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-secondary text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-ring/20"
-            >
-              <option value="all">{t("users.allCompanies")}</option>
-              <option value="none">{t("users.noCompany")}</option>
-              {companies.map((c: any) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          )}
-
           {(roleFilter !== "all" || departmentFilter !== "all" || positionFilter !== "all" || tenureFilter !== "all" || companyFilter !== "all" || statusFilter !== "all" || riskFilter !== "all" || hiredMonthFilter !== "all" || probationFilter || search) && (
             <button
               onClick={() => {
@@ -533,6 +559,7 @@ const UsersManagement = () => {
               {t("users.resetFilters")}
             </button>
           )}
+          </div>
         </div>
       </div>
 
@@ -542,7 +569,7 @@ const UsersManagement = () => {
         <>
           <ResponsiveTable
             items={filtered}
-            tableMinWidth={1040}
+            tableMinWidth={920}
             table={
               <>
                 <thead>

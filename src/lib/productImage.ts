@@ -4,6 +4,8 @@
  * с инициалами названия — стабильный для одного и того же title.
  */
 
+import { resolveUrl } from "@/lib/utils";
+
 const PALETTE: Array<[string, string]> = [
   ["#1B1D22", "#D5A52A"],
   ["#22252C", "#C08A3E"],
@@ -50,5 +52,5 @@ export function productImageSrc(imageUrl: string | null | undefined, title: stri
   const src = imageUrl?.trim();
   if (!src) return productPlaceholder(title);
   if (/^https?:\/\//i.test(src)) return productPlaceholder(title);
-  return src;
+  return resolveUrl(src) ?? productPlaceholder(title);
 }
