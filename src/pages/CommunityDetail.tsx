@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravel } from "@/integrations/laravel/client";
+import { chatApi } from "@/integrations/laravel/chat";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { ArrowLeft, Users, Lock, Globe, EyeOff, UserPlus, UserMinus, Plus, Paperclip, FileText, MessageSquare, Trash2, Send } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -140,13 +141,13 @@ export default function CommunityDetail() {
   });
 
   const startDirectChat = async (targetUserId: string) => {
-    const { data, error } = await laravel.post("/chats/direct", { user_id: targetUserId });
+    const { data, error } = await chatApi.createDirect(String(targetUserId));
     if (error) {
       toast.error(error.message ?? "Не удалось открыть диалог");
       return;
     }
     const conversationId = (data as any)?.data?.id ?? (data as any)?.id;
-    navigate(conversationId ? `/chat?conversation=${conversationId}` : "/chat");
+    navigate(conversationId ? `/chats/${conversationId}` : "/chats");
   };
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Загрузка сообщества…</div>;
