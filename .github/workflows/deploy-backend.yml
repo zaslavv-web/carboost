@@ -204,7 +204,17 @@ jobs:
           # (Class "Composer\Autoload\ComposerStaticInit..." not found). Даём памяти и
           # обязательно перегенерируем автозагрузчик, затем проверяем его работоспособность.
           COMPOSER_BIN="$(command -v composer)"
-          php -d memory_limit=-1 "$COMPOSER_BIN" install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+
+          # КРИТИЧНО: сносим bootstrap/cache ДО composer install.
+          # `--no-dev` удаляет dev-пакеты (pail, sail, collision, pint), а в
+          # bootstrap/cache/packages.php|services.php остаётся их манифест.
+          # Composer-скрипты запускаются с этим манифестом, package:discover
+          # падает, кеш провайдеров сохраняется недособранным — и в рантайме
+          # весь /api/* отдаёт 500 «Class "view" does not exist»
+          # (ViewServiceProvider так и не зарегистрировался).
+          rm -f bootstrap/cache/*.php
+
+          php -d memory_limit=-1 "$COMPOSER_BIN" install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-scripts
           php -d memory_limit=-1 "$COMPOSER_BIN" dump-autoload --no-dev --optimize --no-interaction
           php -d memory_limit=-1 -r 'require "vendor/autoload.php"; if (!class_exists(Illuminate\Foundation\Application::class)) { fwrite(STDERR, "autoload broken\n"); exit(1);} echo "autoload OK\n";'
 
@@ -212,6 +222,9 @@ jobs:
           # поэтому артизан-команды и сидеры падают там, где веб (256M) живёт.
           # Держим единый лимит для всех вызовов артизана.
           ARTISAN="php -d memory_limit=1024M artisan"
+
+          # Манифест пакетов пересобираем явно: install шёл с --no-scripts.
+          $ARTISAN package:discover --ansi
 
           $ARTISAN optimize:clear || true
           $ARTISAN config:clear || true
@@ -228,6 +241,21 @@ jobs:
           $ARTISAN route:cache
           $ARTISAN view:cache || true
           $ARTISAN event:cache || true
+
+          # Дымовой тест контейнера уже с прогретыми кешами: если сервис-провайдеры
+          # собраны неполно (как было с "view"), падаем здесь, а не в проде.
+          php -d memory_limit=1024M -r '
+            $app = require "bootstrap/app.php";
+            $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+            foreach (["view", "files", "db", "router", "hash"] as $svc) {
+              $app->make($svc);
+            }
+            echo "container smoke OK\n";
+          ' || {
+            echo "::error::Контейнер Laravel не резолвит базовые сервисы после сборки кешей — деплой остановлен"
+            exit 1
+          }
+
 
           # VERSION читает /api/health от имени веб-процесса, поэтому права
           # обязательны: без них health молча уходит в git-фолбэк и деплой
