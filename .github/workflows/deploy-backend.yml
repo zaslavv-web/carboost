@@ -324,18 +324,36 @@ jobs:
           # SHA текущей доставки и ждём короткое окно обновления OPcache.
           EXPECTED_VERSION="${GITHUB_SHA:0:7}"
           ACTUAL_VERSION=""
+          VERSION_SOURCE=""
+          SERVED_ROOT_ID=""
           for attempt in $(seq 1 12); do
             BODY="$(curl -fsS -H 'Accept: application/json' "https://growth-peak.pro/api/health?deploy_check=${GITHUB_SHA}&attempt=${attempt}")"
             ACTUAL_VERSION="$(printf '%s' "$BODY" | php -r '$d=json_decode(stream_get_contents(STDIN), true); echo (string)($d["checks"]["version"] ?? "");')"
+            VERSION_SOURCE="$(printf '%s' "$BODY" | php -r '$d=json_decode(stream_get_contents(STDIN), true); echo (string)($d["checks"]["version_source"] ?? "");')"
+            SERVED_ROOT_ID="$(printf '%s' "$BODY" | php -r '$d=json_decode(stream_get_contents(STDIN), true); echo (string)($d["checks"]["root_id"] ?? "");')"
             if [[ "$ACTUAL_VERSION" == "$EXPECTED_VERSION" || "$ACTUAL_VERSION" == "$GITHUB_SHA" ]]; then
-              echo "Backend version verified: $ACTUAL_VERSION"
+              echo "Backend version verified: $ACTUAL_VERSION (source=$VERSION_SOURCE, root_id=$SERVED_ROOT_ID)"
               break
             fi
-            echo "Waiting for backend version $EXPECTED_VERSION (currently ${ACTUAL_VERSION:-unknown}), attempt $attempt/12"
+            echo "Waiting for backend version $EXPECTED_VERSION (currently ${ACTUAL_VERSION:-unknown}, source=${VERSION_SOURCE:-unknown}), attempt $attempt/12"
             sleep 5
           done
 
           if [[ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" && "$ACTUAL_VERSION" != "$GITHUB_SHA" ]]; then
-            echo "::error::Deployment did not reach production: expected $EXPECTED_VERSION, got ${ACTUAL_VERSION:-unknown}. Health endpoint is serving stale code."
+            echo "::error::Deployment did not reach production: expected $EXPECTED_VERSION, got ${ACTUAL_VERSION:-unknown} (source=${VERSION_SOURCE:-unknown}, served root_id=${SERVED_ROOT_ID:-unknown}, deploy root_id=${DEPLOY_ROOT_ID:-unknown}). Health endpoint is serving stale code."
             exit 1
           fi
+
+          # Версия совпала — но если она пришла из git-фолбэка, значит файл
+          # VERSION веб-процессу недоступен, и следующая выкатка снова
+          # «зависнет» на старом коммите. Это ошибка, а не мелочь.
+          if [[ "$VERSION_SOURCE" != "file" ]]; then
+            echo "::error::Health отдал версию из источника '${VERSION_SOURCE:-unknown}', а не из файла VERSION: веб-процесс не читает VERSION в активном корне."
+            exit 1
+          fi
+
+          if [[ -n "${DEPLOY_ROOT_ID:-}" && -n "$SERVED_ROOT_ID" && "$SERVED_ROOT_ID" != "$DEPLOY_ROOT_ID" ]]; then
+            echo "::error::Веб исполняет другой каталог: served root_id=$SERVED_ROOT_ID, deploy root_id=$DEPLOY_ROOT_ID. Поправьте TARGET_DIR."
+            exit 1
+          fi
+
