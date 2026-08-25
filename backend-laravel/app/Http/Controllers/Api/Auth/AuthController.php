@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\AuthUserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -160,8 +161,15 @@ class AuthController extends Controller
                 if ($target) $user = $target;
             }
             return response()->json($this->presentUser($user));
+        } catch (QueryException $e) {
+            Log::warning('auth/me database unavailable', ['error' => $e->getMessage()]);
+            try { DB::disconnect(); } catch (\Throwable) {}
+            return response()->json([
+                'message'    => 'База данных временно перегружена. Повторите через несколько секунд.',
+                'error_code' => 'db_busy',
+            ], 503)->header('Retry-After', '3');
         } catch (\Throwable $e) {
-            Log::error('auth/me failed', ['error' => $e->getMessage()]);
+            Log::error('auth/me failed', ['error' => $e->getMessage(), 'class' => $e::class]);
             return response()->json(['message' => 'Не авторизован', 'code' => 'me_failed'], 401);
         }
     }
@@ -169,7 +177,27 @@ class AuthController extends Controller
     public function presentUser(User $user): array
     {
         $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
-        $profile      = DB::table('profiles')->where('user_id', $domainUserId)->first();
+        $profile = null;
+        $roles = [];
+
+        try {
+            $profile = DB::table('profiles')->where('user_id', $domainUserId)->first();
+            $roles = DB::table('user_roles')
+                ->where('user_id', $domainUserId)
+                ->pluck('role')
+                ->map(fn ($role) => (string) $role)
+                ->values()
+                ->all();
+        } catch (QueryException $e) {
+            if ($this->isDatabaseBusy($e)) {
+                throw $e;
+            }
+            Log::warning('presentUser domain data unavailable', [
+                'user_id' => $user->id,
+                'domain_user_id' => $domainUserId,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return [
             'id'             => $domainUserId,
@@ -181,13 +209,17 @@ class AuthController extends Controller
             'company_id'     => $profile->company_id      ?? null,
             'is_verified'    => (bool) ($profile->is_verified ?? false),
             'requested_role' => $profile->requested_role  ?? null,
-            'role'           => $user->domainRole(),
-            'roles'          => DB::table('user_roles')
-                ->where('user_id', $domainUserId)
-                ->pluck('role')
-                ->values()
-                ->all(),
+            'role'           => $roles[0] ?? null,
+            'roles'          => $roles,
             'meta'           => $user->meta,
         ];
+    }
+
+    private function isDatabaseBusy(QueryException $e): bool
+    {
+        return (bool) preg_match(
+            '/max_user_connections|max_connections_per_hour|Too many connections|too many clients|SQLSTATE\[0800[46]\]|server has gone away|Connection refused/i',
+            $e->getMessage(),
+        );
     }
 }
