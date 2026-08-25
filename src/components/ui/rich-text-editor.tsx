@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Node, mergeAttributes } from "@tiptap/core";
 import { useEditor, EditorContent } from "@tiptap/react";
-import { TextSelection } from "@tiptap/pm/state";
+import { AllSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { TextStyle } from "@tiptap/extension-text-style";
@@ -75,7 +75,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Начните 
       },
       handleKeyDown: (view, event) => {
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
-          const all = TextSelection.create(view.state.doc, 0, view.state.doc.content.size);
+          const all = new AllSelection(view.state.doc);
           view.dispatch(view.state.tr.setSelection(all));
           return true;
         }

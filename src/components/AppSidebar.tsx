@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -382,10 +382,10 @@ const AppSidebar = ({ collapsed, onToggle, onHide, isMobile }: AppSidebarProps) 
     const scope = `section:${sectionKey}`;
     const key = entryKey(entry);
     const dropProps = {
-      onDragOver: (event: React.DragEvent) => {
+      onDragOver: (event: DragEvent) => {
         if (draggedEntry.current?.scope === scope) event.preventDefault();
       },
-      onDrop: (event: React.DragEvent) => {
+      onDrop: (event: DragEvent) => {
         event.preventDefault();
         const dragged = draggedEntry.current;
         if (!dragged || dragged.scope !== scope) return;

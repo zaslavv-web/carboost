@@ -1863,14 +1863,23 @@ class SeedDemoCompany extends Command
             }
         });
 
-        $this->info('6/6  Задачи трекера…');
-        $this->runContentStep('трекер задач', fn () => $this->seedTrackerContent());
-
-        $this->info('6.1/6  Профили, OKR, воркфлоу и сообщества…');
+        $this->info('6/6  Профили, OKR, воркфлоу и сообщества…');
         $this->runContentStep('профили, OKR и сообщества', function () {
             $code = $this->call('demo:seed-extras', ['--company' => $this->companyId]);
             if ($code !== self::SUCCESS) {
                 throw new \RuntimeException("demo:seed-extras завершился с кодом {$code}.");
+            }
+        });
+
+        $this->info('6.1/6  Задачи трекера…');
+        $this->runContentStep('трекер задач', fn () => $this->seedTrackerContent());
+
+        // Повторный идемпотентный проход связывает созданные задачи со статусами
+        // и выполняет строгую проверку конкретной демо-учётки уже после трекера.
+        $this->runContentStep('финальная проверка OKR и воркфлоу', function () {
+            $code = $this->call('demo:seed-extras', ['--company' => $this->companyId]);
+            if ($code !== self::SUCCESS) {
+                throw new \RuntimeException("финальный demo:seed-extras завершился с кодом {$code}.");
             }
         });
         $this->validateContentResult();
