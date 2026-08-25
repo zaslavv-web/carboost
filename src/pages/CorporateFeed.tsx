@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { laravel } from "@/integrations/laravel/client";
+import { resolveUrl } from "@/lib/utils";
 
 type Post = {
   id: string;
@@ -184,7 +185,7 @@ export default function CorporateFeed() {
                 <ul className="space-y-1">
                   {p.attachments.map((a, i) => (
                     <li key={i}>
-                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
+                      <a href={resolveUrl(a.url) ?? a.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
                         <Paperclip className="w-3.5 h-3.5" />{a.name}
                       </a>
                     </li>
@@ -230,7 +231,7 @@ export default function CorporateFeed() {
                 <ul className="space-y-1">
                   {detail.attachments.map((a, i) => (
                     <li key={i}>
-                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
+                        <a href={resolveUrl(a.url) ?? a.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
                         <Paperclip className="w-3.5 h-3.5" />{a.name}
                       </a>
                     </li>

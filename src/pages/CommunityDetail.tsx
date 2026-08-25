@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { RichContent } from "@/components/ui/rich-content";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { toast } from "sonner";
+import { resolveUrl } from "@/lib/utils";
 
 const PRIVACY_ICON = { open: Globe, closed: Lock, secret: EyeOff } as const;
 const PRIVACY_LABEL = { open: "Открытое", closed: "Закрытое", secret: "Скрытое" } as const;
@@ -154,6 +155,8 @@ export default function CommunityDetail() {
   if (!community) return <div className="p-6 text-sm text-muted-foreground">Сообщество не найдено</div>;
 
   const Icon = PRIVACY_ICON[(community.privacy as keyof typeof PRIVACY_ICON) ?? "open"];
+  const communityCoverUrl = resolveUrl(community.cover_url);
+  const communityAvatarUrl = resolveUrl(community.avatar_url);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
@@ -162,15 +165,15 @@ export default function CommunityDetail() {
       </Button>
 
       <Card className="overflow-hidden">
-        {community.cover_url ? (
-          <img src={community.cover_url} alt={`Обложка сообщества ${community.title}`} className="h-40 w-full object-cover" loading="lazy" />
+        {communityCoverUrl ? (
+          <img src={communityCoverUrl} alt={`Обложка сообщества ${community.title}`} className="h-40 w-full object-cover" loading="lazy" />
         ) : (
           <div className="flex h-40 items-center justify-center bg-muted"><Users className="h-12 w-12 text-muted-foreground" /></div>
         )}
         <CardHeader>
           <div className="flex flex-wrap items-center gap-3">
-            {community.avatar_url
-              ? <img src={community.avatar_url} alt="" className="h-12 w-12 rounded-full object-cover" />
+            {communityAvatarUrl
+              ? <img src={communityAvatarUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
               : <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10"><Users className="h-5 w-5 text-primary" /></span>}
             <div className="min-w-0 flex-1">
               <CardTitle className="truncate text-xl">{community.title}</CardTitle>
@@ -213,7 +216,7 @@ export default function CommunityDetail() {
                   <ul className="space-y-1">
                     {p.attachments.map((a: Attachment, i: number) => (
                       <li key={i}>
-                        <a href={a.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
+                        <a href={resolveUrl(a.url) ?? a.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
                           <Paperclip className="h-3.5 w-3.5" />{a.name || "Файл"}
                         </a>
                       </li>
@@ -232,8 +235,8 @@ export default function CommunityDetail() {
               <Card key={m.user_id}>
                 <CardContent className="flex items-center gap-3 py-4">
                   <Link to={`/users/${m.user_id}`} className="flex-shrink-0">
-                    {m.avatar_url
-                      ? <img src={m.avatar_url} alt={m.full_name} className="h-10 w-10 rounded-full object-cover" />
+                    {resolveUrl(m.avatar_url)
+                      ? <img src={resolveUrl(m.avatar_url)} alt={m.full_name} className="h-10 w-10 rounded-full object-cover" />
                       : <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm">{(m.full_name || "?").slice(0, 1)}</span>}
                   </Link>
                   <div className="min-w-0 flex-1">
@@ -258,7 +261,7 @@ export default function CommunityDetail() {
             {files.map((f, i) => (
               <li key={i} className="flex items-center gap-2 rounded-md border p-3 text-sm">
                 <FileText className="h-4 w-4 text-muted-foreground" />
-                <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{f.name || "Файл"}</a>
+                <a href={resolveUrl(f.url) ?? f.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{f.name || "Файл"}</a>
               </li>
             ))}
           </ul>

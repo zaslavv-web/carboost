@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { laravelStorage } from "@/integrations/laravel/storage";
 import { laravel } from "@/integrations/laravel/client";
+import { resolveUrl } from "@/lib/utils";
 
 type Community = {
   id: string;
@@ -178,16 +179,18 @@ export default function Communities() {
         {visible.map((c) => {
           const Icon = PRIVACY_ICON[c.privacy];
           const membershipId = memberOf.get(c.id);
+          const coverUrl = resolveUrl(c.cover_url);
+          const avatarUrl = resolveUrl(c.avatar_url);
           return (
             <Card key={c.id}>
-              {c.cover_url ? (
-                <img src={c.cover_url} alt={`Обложка сообщества ${c.title}`} className="h-32 w-full cursor-pointer object-cover rounded-t-lg" loading="lazy" onClick={() => navigate(`/communities/${c.id}`)} />
+              {coverUrl ? (
+                <img src={coverUrl} alt={`Обложка сообщества ${c.title}`} className="h-32 w-full cursor-pointer object-cover rounded-t-lg" loading="lazy" onClick={() => navigate(`/communities/${c.id}`)} />
               ) : (
                 <div className="h-32 bg-muted flex items-center justify-center rounded-t-lg cursor-pointer" onClick={() => navigate(`/communities/${c.id}`)}><Users className="h-10 w-10 text-muted-foreground" /></div>
               )}
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
-                  {c.avatar_url ? <img src={c.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" /> : <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10"><Users className="h-4 w-4 text-primary" /></span>}
+                  {avatarUrl ? <img src={avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover" /> : <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10"><Users className="h-4 w-4 text-primary" /></span>}
                   <CardTitle
                     className="text-base flex-1 truncate cursor-pointer transition-colors hover:text-primary"
                     onClick={() => navigate(`/communities/${c.id}`)}
