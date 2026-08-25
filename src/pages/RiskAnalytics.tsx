@@ -1,4 +1,6 @@
 import { laravelDb } from "@/integrations/laravel/db";
+import { laravel } from "@/integrations/laravel/client";
+
 import { tooltipProps } from "@/lib/chartTooltip";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
