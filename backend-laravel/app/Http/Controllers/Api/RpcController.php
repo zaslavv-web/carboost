@@ -56,9 +56,13 @@ class RpcController extends Controller
             '_submission_id' => 'uuid', '_approve' => 'bool', '_reason' => 'text',
         ],
         'create_shop_order'              => ['_items' => 'jsonb'],
+        'activate_order_item'            => [
+            '_item_id' => 'uuid', '_details' => 'jsonb',
+        ],
         'fulfill_shop_order'             => [
             '_order_id' => 'uuid', '_approve' => 'bool', '_reason' => 'text',
         ],
+
         'award_currency'                 => [
             '_user_id' => 'uuid', '_company_id' => 'uuid', '_amount' => 'int',
             '_kind' => 'text', '_description' => 'text', '_reference_id' => 'uuid',
