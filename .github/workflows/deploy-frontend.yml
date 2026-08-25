@@ -42,11 +42,19 @@ jobs:
       - name: Build (vite → dist/)
         run: bun run build
 
-      - name: Stamp version.json
+      - name: Stamp deploy markers
         run: |
           SHA="${GITHUB_SHA::7}"
-          printf '{"version":"%s","built_at":"%s"}\n' "$SHA" "$(date -u +%FT%TZ)" > dist/version.json
+          TS="$(date -u +%FT%TZ)"
+          printf '{"version":"%s","built_at":"%s"}\n' "$SHA" "$TS" > dist/version.json
+          {
+            echo "commit=${GITHUB_SHA}"
+            echo "short_commit=${SHA}"
+            echo "ref=${GITHUB_REF_NAME}"
+            echo "time=${TS}"
+          } > dist/deploy-version.txt
           cat dist/version.json
+          cat dist/deploy-version.txt
 
       - name: Собрать .htaccess для сервера
         run: |
@@ -65,6 +73,9 @@ jobs:
         run: |
           test -f dist/index.html || { echo "❌ dist/index.html не собран"; exit 1; }
           test -f dist/version.json || { echo "❌ dist/version.json не создан"; exit 1; }
+          test -f dist/deploy-version.txt || { echo "❌ dist/deploy-version.txt не создан"; exit 1; }
+          test -d dist/assets || { echo "❌ dist/assets отсутствует"; exit 1; }
+          test -n "$(find dist/assets -maxdepth 1 -name 'index-*.js' -print -quit)" || { echo "❌ главный JS-бандл dist/assets/index-*.js не найден"; exit 1; }
           echo "✅ dist собран, размер:"
           du -sh dist
 
@@ -156,19 +167,30 @@ jobs:
           fi
           REMOTE
 
-      - name: Гарантировать version.json в веб-руте (SSH)
+      - name: Гарантировать deploy markers в веб-руте (SSH)
         run: |
           SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
           SHA="${GITHUB_SHA::7}"
           TS="$(date -u +%FT%TZ)"
-          $SSH "$DEPLOY_USER@$DEPLOY_HOST" "WEB_ROOT='$WEB_ROOT' SHA='$SHA' TS='$TS' bash -s" <<'REMOTE'
+          FULL_SHA="${GITHUB_SHA}"
+          REF_NAME="${GITHUB_REF_NAME}"
+          $SSH "$DEPLOY_USER@$DEPLOY_HOST" "WEB_ROOT='$WEB_ROOT' SHA='$SHA' FULL_SHA='$FULL_SHA' REF_NAME='$REF_NAME' TS='$TS' bash -s" <<'REMOTE'
           set -e
           cd "$WEB_ROOT"
           # Если rsync не доехал или файл был в frontend/, пересоздаём напрямую.
           printf '{"version":"%s","built_at":"%s"}\n' "$SHA" "$TS" > version.json
+          {
+            echo "commit=$FULL_SHA"
+            echo "short_commit=$SHA"
+            echo "ref=$REF_NAME"
+            echo "time=$TS"
+          } > deploy-version.txt
           echo "✅ version.json записан в $WEB_ROOT:"
           cat version.json
+          echo "✅ deploy-version.txt записан в $WEB_ROOT:"
+          cat deploy-version.txt
           ls -l version.json
+          ls -l deploy-version.txt
           REMOTE
 
       - name: Применить .htaccess на сервере
@@ -222,8 +244,10 @@ jobs:
           SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
           SHA="${GITHUB_SHA::7}"
           OUT="$($SSH "$DEPLOY_USER@$DEPLOY_HOST" "
-            echo '== web root:'; ls -l '$WEB_ROOT/version.json' '$WEB_ROOT/index.html' 2>&1;
+            echo '== web root:'; ls -l '$WEB_ROOT/version.json' '$WEB_ROOT/deploy-version.txt' '$WEB_ROOT/index.html' 2>&1;
             echo '== version.json:'; cat '$WEB_ROOT/version.json' 2>&1;
+            echo '== deploy-version.txt:'; cat '$WEB_ROOT/deploy-version.txt' 2>&1;
+            echo '== assets:'; find '$WEB_ROOT/assets' -maxdepth 1 -type f -name 'index-*.js' -printf '%f %s bytes\n' 2>&1 | head -10;
             echo '== frontend/ (частая причина петли редиректов, если это симлинк на корень):';
             ls -ld '$WEB_ROOT/frontend' 2>&1; readlink -f '$WEB_ROOT/frontend' 2>&1;
             echo '== tail error_log:'; tail -n 20 '$WEB_ROOT/../logs/error_log' 2>/dev/null || tail -n 20 '$WEB_ROOT/error_log' 2>/dev/null || echo 'error_log не найден'
@@ -264,6 +288,30 @@ jobs:
             case "$C" in 5*) FAIL=1;; esac
           done
           curl -sI --max-time 20 "https://growth-peak.pro/" | tr -d '\r' | grep -i '^cache-control' || true
+
+          echo "— проверка главного JS-бандла —"
+          HTML="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "https://growth-peak.pro/?t=$(date +%s)")"
+          ASSET="$(echo "$HTML" | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -n1 || true)"
+          if [ -z "$ASSET" ]; then
+            echo "::error::в live index.html не найден /assets/index-*.js"
+            exit 1
+          fi
+          HEADER_FILE="$(mktemp)"
+          BODY_FILE="$(mktemp)"
+          ASSET_CODE="$(curl -sS -D "$HEADER_FILE" -o "$BODY_FILE" -w '%{http_code}' --max-time 20 "https://growth-peak.pro$ASSET?t=$(date +%s)")"
+          ASSET_TYPE="$(tr -d '\r' < "$HEADER_FILE" | awk 'BEGIN{IGNORECASE=1} /^content-type:/ {print $0}' | tail -n1)"
+          echo "$ASSET → HTTP $ASSET_CODE, $ASSET_TYPE, $(wc -c < "$BODY_FILE") bytes"
+          if [ "$ASSET_CODE" != "200" ] || grep -qi '<!doctype html\|<html' "$BODY_FILE"; then
+            echo "::error::главный JS-бандл не отдан как файл — сервер вернул не JS, а fallback/ошибку"
+            exit 1
+          fi
+
+          AUTH_ME_CODE="$(curl -s -o /tmp/auth-me.json -w '%{http_code}' --max-time 20 "https://growth-peak.pro/api/auth/me" || true)"
+          echo "/api/auth/me без токена → HTTP $AUTH_ME_CODE, тело: $(tr -d '\r\n' < /tmp/auth-me.json | head -c 160)"
+          if [ "$AUTH_ME_CODE" != "401" ]; then
+            echo "::error::/api/auth/me без токена должен отдавать 401 JSON, а не $AUTH_ME_CODE"
+            exit 1
+          fi
 
           case "$STATUS" in
             ok)
