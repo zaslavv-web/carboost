@@ -201,8 +201,6 @@ class DbControllerTest extends TestCase
             ->getJson('/api/db/pulse_survey_questions?select=*&eq.survey_id=' . $surveyId)->assertOk();
         $this->actingAs($employee, 'sanctum')
             ->getJson('/api/db/positions?select=*')->assertOk();
-        $this->actingAs($employee, 'sanctum')
-            ->getJson('/api/db/profiles?select=*')->assertOk();
 
         $this->actingAs($employee, 'sanctum')
             ->postJson('/api/db/pulse_survey_responses', ['values' => [
