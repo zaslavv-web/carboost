@@ -67,6 +67,20 @@ class SeedDemoExtras extends Command
         $community = $this->ensureCommunityContent();
         $this->line("  записей в сообществах: {$community}");
 
+        $tests = $this->ensureTestsAndScenarios();
+        $this->line("  тестов и сценариев оценки: {$tests}");
+
+        $invites = $this->ensureInvitations();
+        $this->line("  приглашений сотрудников: {$invites}");
+
+        $perf = $this->ensurePerformance();
+        $this->line("  performance-ревью: {$perf}");
+
+        $docs = $this->ensurePersonalDocuments();
+        $this->line("  персональных документов: {$docs}");
+
+
+
 
         $this->verify();
 
@@ -95,8 +109,30 @@ class SeedDemoExtras extends Command
                 ->value('profiles.company_id');
         }
 
+        // Финальный фолбэк: самая населённая компания стенда. Без него команда
+        // падала на любом окружении, где демо-учётки называются иначе
+        // (например, demo_doom), хотя данные для наполнения есть.
+        if (! $companyId) {
+            $companyId = DB::table('profiles')
+                ->whereNotNull('company_id')
+                ->select('company_id', DB::raw('COUNT(*) as cnt'))
+                ->groupBy('company_id')
+                ->orderByDesc('cnt')
+                ->value('company_id');
+            if ($companyId) {
+                $name = DB::table('companies')->where('id', $companyId)->value('name');
+                $this->warn("Компания не задана — беру самую населённую: «{$name}». Для другой укажите --company=<id|название>.");
+            }
+        }
+
+        if (! $companyId) {
+            $available = DB::table('companies')->orderBy('name')->limit(20)->pluck('name')->all();
+            if ($available) $this->line('Доступные компании: ' . implode(', ', $available));
+        }
+
         return $companyId ? DB::table('companies')->where('id', $companyId)->first() : null;
     }
+
 
     /** Дозаполняет пустые поля профилей: ФИО, отдел, должность, грейд, аватар, даты. */
     private function fillProfiles(): int
@@ -154,18 +190,33 @@ class SeedDemoExtras extends Command
         return $updated;
     }
 
+    /**
+     * Компетенции сотрудников. Догоняем не только пустые профили, но и
+     * частично заполненные: у каждого сотрудника должна быть оценка по всем
+     * навыкам эталона, иначе сравнение «сотрудник vs эталон» показывает
+     * однобокие строки и бессмысленные проценты.
+     */
     private function fillCompetencies(): int
     {
         if (! Schema::hasTable('competencies')) return 0;
 
         $userIds = DB::table('profiles')->where('company_id', $this->companyId)->pluck('user_id')->all();
-        $withSkills = DB::table('competencies')->where('company_id', $this->companyId)->distinct()->pluck('user_id')->map('strval')->all();
-        $created = 0;
+        if (! $userIds) return 0;
 
+        $existing = [];
+        DB::table('competencies')->where('company_id', $this->companyId)
+            ->select('user_id', 'skill_name')
+            ->orderBy('user_id')
+            ->chunk(2000, function ($rows) use (&$existing) {
+                foreach ($rows as $row) $existing[(string) $row->user_id][(string) $row->skill_name] = true;
+            });
+
+        $created = 0;
         foreach ($userIds as $i => $userId) {
-            if (in_array((string) $userId, $withSkills, true)) continue;
+            $have = $existing[(string) $userId] ?? [];
             $rows = [];
             foreach (self::SKILLS as $k => $skill) {
+                if (isset($have[$skill])) continue;
                 $rows[] = [
                     'id' => (string) Str::uuid(),
                     'user_id' => $userId,
@@ -176,12 +227,14 @@ class SeedDemoExtras extends Command
                     'updated_at' => now(),
                 ];
             }
+            if (! $rows) continue;
             DB::table('competencies')->insert($rows);
             $created += count($rows);
         }
 
         return $created;
     }
+
 
     /** Воркфлоу по умолчанию + привязка проектов и задач к его статусам. */
     private function ensureWorkflow(): string
@@ -656,6 +709,443 @@ HTML;
 
         return $created;
     }
+
+    /**
+     * Раздел «Сценарии и тесты»: закрытые тесты с осмысленными вопросами и
+     * наполненные сценарии ассессмента. Без этого раздел выглядит пустым.
+     */
+    private function ensureTestsAndScenarios(): int
+    {
+        $admin = $this->adminUserId();
+        if (! $admin) return 0;
+        $created = 0;
+
+        if (Schema::hasTable('closed_question_tests')) {
+            $positions = DB::table('positions')->where('company_id', $this->companyId)->pluck('id', 'title')->all();
+            foreach ($this->testBlueprints() as $blueprint) {
+                $exists = DB::table('closed_question_tests')
+                    ->where('company_id', $this->companyId)->where('title', $blueprint['title'])->exists();
+                if ($exists) continue;
+
+                DB::table('closed_question_tests')->insert([
+                    'id' => (string) Str::uuid(),
+                    'company_id' => $this->companyId,
+                    'position_id' => $positions[$blueprint['position']] ?? null,
+                    'title' => $blueprint['title'],
+                    'description' => $blueprint['description'],
+                    'questions' => json_encode($blueprint['questions'], JSON_UNESCAPED_UNICODE),
+                    'is_active' => true,
+                    'created_by' => $admin,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $created++;
+            }
+        }
+
+        if (Schema::hasTable('assessment_scenarios')) {
+            foreach ($this->scenarioBlueprints() as $scenario) {
+                $existing = DB::table('assessment_scenarios')
+                    ->where('company_id', $this->companyId)->where('title', $scenario['title'])->first();
+
+                $payload = [
+                    'description' => $scenario['description'],
+                    'scenario_data' => json_encode($scenario['data'], JSON_UNESCAPED_UNICODE),
+                    'is_active' => true,
+                    'updated_at' => now(),
+                ];
+
+                if ($existing) {
+                    // Пустые сценарии (без шагов) дозаполняем, а не пропускаем.
+                    $data = json_decode((string) $existing->scenario_data, true);
+                    if (is_array($data) && ! empty($data['steps'])) continue;
+                    DB::table('assessment_scenarios')->where('id', $existing->id)->update($payload);
+                    $created++;
+                    continue;
+                }
+
+                DB::table('assessment_scenarios')->insert($payload + [
+                    'id' => (string) Str::uuid(),
+                    'company_id' => $this->companyId,
+                    'title' => $scenario['title'],
+                    'created_by' => $admin,
+                    'created_at' => now(),
+                ]);
+                $created++;
+            }
+
+            // Оставшиеся пустые сценарии из старых прогонов тоже наполняем.
+            $blank = DB::table('assessment_scenarios')->where('company_id', $this->companyId)->get(['id', 'title', 'scenario_data']);
+            $fallback = $this->scenarioBlueprints()[0];
+            foreach ($blank as $i => $row) {
+                $data = json_decode((string) $row->scenario_data, true);
+                if (is_array($data) && ! empty($data['steps'])) continue;
+                $template = $this->scenarioBlueprints()[$i % count($this->scenarioBlueprints())] ?? $fallback;
+                $template['data']['title'] = (string) $row->title;
+                DB::table('assessment_scenarios')->where('id', $row->id)->update([
+                    'description' => $template['description'],
+                    'scenario_data' => json_encode($template['data'], JSON_UNESCAPED_UNICODE),
+                    'is_active' => true,
+                    'updated_at' => now(),
+                ]);
+                $created++;
+            }
+        }
+
+        return $created;
+    }
+
+    /** @return array<int, array{title:string, position:string, description:string, questions:array}> */
+    private function testBlueprints(): array
+    {
+        $make = function (array $rows): array {
+            $questions = [];
+            foreach ($rows as $i => [$text, $competency, $options, $correct]) {
+                $questions[] = [
+                    'id' => 'q' . ($i + 1),
+                    'text' => $text,
+                    'competency' => $competency,
+                    'weight' => 1,
+                    'options' => array_map(fn ($opt, $k) => ['id' => chr(97 + $k), 'text' => $opt], $options, array_keys($options)),
+                    'correct_option_id' => chr(97 + $correct),
+                ];
+            }
+            return $questions;
+        };
+
+        return [
+            [
+                'title' => 'Входной тест: корпоративные стандарты',
+                'position' => '—',
+                'description' => 'Базовые правила работы в компании: коммуникация, безопасность данных, эскалация проблем.',
+                'questions' => $make([
+                    ['Коллега просит переслать ему персональные данные сотрудника в мессенджер. Как поступить?', 'Ответственность',
+                        ['Переслать — это же коллега', 'Отказать и направить его в HR через официальный запрос', 'Переслать частично'], 1],
+                    ['Вы поняли, что не успеваете к дедлайну. Когда сообщить руководителю?', 'Коммуникация',
+                        ['В день дедлайна', 'Как только увидели риск', 'После дедлайна с объяснением'], 1],
+                    ['Что делать с задачей, у которой нет явного владельца?', 'Планирование',
+                        ['Игнорировать', 'Взять и зафиксировать владельца в трекере', 'Ждать указаний'], 1],
+                    ['Как правильно дать обратную связь коллеге?', 'Коммуникация',
+                        ['Публично и эмоционально', 'Наедине, по фактам и с конкретным предложением', 'Через руководителя анонимно'], 1],
+                    ['Что относится к конфиденциальной информации?', 'Ответственность',
+                        ['Публичный пресс-релиз', 'Зарплатные данные и клиентские договоры', 'Расписание корпоратива'], 1],
+                ]),
+            ],
+            [
+                'title' => 'Тест: коммуникация и работа с клиентом',
+                'position' => 'Sales Manager',
+                'description' => 'Проверка навыков клиентской коммуникации, работы с возражениями и приоритизации.',
+                'questions' => $make([
+                    ['Клиент недоволен сроками. Первый шаг?', 'Клиентоориентированность',
+                        ['Оправдываться', 'Признать проблему и предложить план с новой датой', 'Передать другому менеджеру'], 1],
+                    ['Как выявить настоящую потребность клиента?', 'Коммуникация',
+                        ['Сразу презентовать продукт', 'Задать открытые вопросы и резюмировать', 'Прислать прайс'], 1],
+                    ['Два срочных клиента одновременно. Что делаете?', 'Планирование',
+                        ['Берёте того, кто громче', 'Оцениваете влияние и сообщаете обоим реальные сроки', 'Откладываете оба'], 1],
+                    ['Возражение «дорого» — это чаще всего...', 'Переговоры',
+                        ['Отказ', 'Сигнал о непонятой ценности', 'Повод дать максимальную скидку'], 1],
+                    ['Что фиксировать после встречи с клиентом?', 'Ответственность',
+                        ['Ничего', 'Договорённости, сроки и ответственных — письмом', 'Только сумму сделки'], 1],
+                ]),
+            ],
+            [
+                'title' => 'Тест: управление командой',
+                'position' => 'Product Manager',
+                'description' => 'Делегирование, обратная связь, работа с конфликтами и приоритетами команды.',
+                'questions' => $make([
+                    ['Сотрудник второй раз срывает срок. Ваши действия?', 'Наставничество',
+                        ['Сделать задачу самому', 'Разобрать причины 1:1 и договориться о контрольных точках', 'Публично отчитать'], 1],
+                    ['Что делегировать в первую очередь?', 'Делегирование',
+                        ['Самое сложное и рискованное', 'Повторяющиеся задачи с понятным результатом', 'Ничего'], 1],
+                    ['Конфликт двух сильных специалистов. Что делаете?', 'Работа в команде',
+                        ['Ждёте, пока сами разберутся', 'Модерируете обсуждение по фактам и фиксируете правила', 'Разводите по разным проектам сразу'], 1],
+                    ['Как измерять эффективность команды?', 'Аналитика',
+                        ['По количеству часов в офисе', 'По достигнутым результатам и предсказуемости поставки', 'По числу закрытых чатов'], 1],
+                    ['Приоритеты изменились в середине спринта. Что делать?', 'Адаптивность',
+                        ['Игнорировать изменения', 'Пересобрать объём с командой и явно снять часть задач', 'Добавить новые задачи сверх плана'], 1],
+                ]),
+            ],
+        ];
+    }
+
+    /** @return array<int, array{title:string, description:string, data:array}> */
+    private function scenarioBlueprints(): array
+    {
+        $steps = fn (array $rows) => array_map(
+            fn ($r) => ['title' => $r[0], 'duration' => $r[1], 'description' => $r[2]],
+            $rows,
+        );
+
+        return [
+            [
+                'title' => 'Ассессмент руководителя команды',
+                'description' => 'Ситуационные задачи на обратную связь, делегирование и принятие решений.',
+                'data' => [
+                    'title' => 'Ассессмент руководителя команды',
+                    'brief' => 'Кандидат управляет командой из 6 человек в условиях сдвинутых сроков.',
+                    'duration' => '60 минут',
+                    'audience' => 'Руководители и кадровый резерв',
+                    'competencies' => ['Лидерство', 'Делегирование', 'Обратная связь', 'Принятие решений'],
+                    'steps' => $steps([
+                        ['Введение и контекст', '5 минут', 'Ведущий описывает ситуацию: срыв срока по ключевому проекту.'],
+                        ['Анализ вводных', '15 минут', 'Участник изучает данные команды и формулирует корневую причину.'],
+                        ['План действий', '20 минут', 'Участник предлагает план восстановления сроков и распределяет роли.'],
+                        ['Ролевая игра', '10 минут', 'Разговор 1:1 с демотивированным сотрудником.'],
+                        ['Рефлексия', '10 минут', 'Самооценка и обратная связь наблюдателей.'],
+                    ]),
+                    'questions' => [
+                        ['question' => 'Как вы определили ключевую проблему?', 'criteria' => 'структурность анализа', 'max_score' => 5],
+                        ['question' => 'Какие альтернативы рассматривали?', 'criteria' => 'аргументация', 'max_score' => 5],
+                        ['question' => 'Как донесёте решение до команды?', 'criteria' => 'коммуникация', 'max_score' => 5],
+                        ['question' => 'Какие риски видите и как снизите?', 'criteria' => 'управление рисками', 'max_score' => 5],
+                    ],
+                ],
+            ],
+            [
+                'title' => 'Оценка клиентского мышления',
+                'description' => 'Практический сценарий работы со сложным запросом внутреннего клиента.',
+                'data' => [
+                    'title' => 'Оценка клиентского мышления',
+                    'brief' => 'Внутренний заказчик требует функциональность вне дорожной карты.',
+                    'duration' => '45 минут',
+                    'audience' => 'Специалисты и менеджеры',
+                    'competencies' => ['Клиентоориентированность', 'Коммуникация', 'Переговоры'],
+                    'steps' => $steps([
+                        ['Знакомство с запросом', '5 минут', 'Участник читает переписку с заказчиком.'],
+                        ['Уточняющие вопросы', '10 минут', 'Диалог с ведущим в роли заказчика.'],
+                        ['Предложение решения', '20 минут', 'Формулирование компромисса и сроков.'],
+                        ['Обратная связь', '10 минут', 'Разбор наблюдателями.'],
+                    ]),
+                    'questions' => [
+                        ['question' => 'Какую задачу заказчика вы решаете на самом деле?', 'criteria' => 'выявление потребности', 'max_score' => 5],
+                        ['question' => 'Как вы говорите «нет» и сохраняете отношения?', 'criteria' => 'переговоры', 'max_score' => 5],
+                        ['question' => 'Как зафиксируете договорённости?', 'criteria' => 'ответственность', 'max_score' => 5],
+                    ],
+                ],
+            ],
+            [
+                'title' => 'Центр оценки кадрового резерва',
+                'description' => 'Комплексный кейс для участников программы развития.',
+                'data' => [
+                    'title' => 'Центр оценки кадрового резерва',
+                    'brief' => 'Групповой кейс: распределение ограниченного бюджета между тремя инициативами.',
+                    'duration' => '90 минут',
+                    'audience' => 'Кадровый резерв',
+                    'competencies' => ['Стратегическое мышление', 'Работа в команде', 'Развитие людей'],
+                    'steps' => $steps([
+                        ['Индивидуальная подготовка', '15 минут', 'Каждый участник изучает свои вводные.'],
+                        ['Групповая дискуссия', '35 минут', 'Команда согласует единое решение.'],
+                        ['Презентация решения', '20 минут', 'Защита перед «правлением».'],
+                        ['Индивидуальное интервью', '10 минут', 'Вопросы по вкладу участника.'],
+                        ['Обратная связь', '10 минут', 'Разбор по каждой компетенции.'],
+                    ]),
+                    'questions' => [
+                        ['question' => 'Какой вклад вы внесли в решение группы?', 'criteria' => 'работа в команде', 'max_score' => 5],
+                        ['question' => 'На каких данных строился ваш выбор?', 'criteria' => 'аналитика', 'max_score' => 5],
+                        ['question' => 'Как решение повлияет на людей?', 'criteria' => 'развитие людей', 'max_score' => 5],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /** Приглашения сотрудников: раздел не должен быть пустым на демо-стенде. */
+    private function ensureInvitations(): int
+    {
+        if (! Schema::hasTable('employee_invitations')) return 0;
+        $admin = $this->adminUserId();
+        if (! $admin) return 0;
+
+        $have = DB::table('employee_invitations')->where('company_id', $this->companyId)->count();
+        if ($have >= 5) return 0;
+
+        $positions = DB::table('positions')->where('company_id', $this->companyId)->pluck('id')->all();
+        $rows = [
+            ['anna.orlova@candidate.demo', 'Анна Орлова', 'Маркетинг', 'employee', 'pending', 2],
+            ['pavel.kim@candidate.demo', 'Павел Ким', 'Разработка', 'employee', 'pending', 6],
+            ['irina.smirnova@candidate.demo', 'Ирина Смирнова', 'Продажи', 'manager', 'accepted', 14],
+            ['oleg.petrov@candidate.demo', 'Олег Петров', 'Поддержка', 'employee', 'accepted', 21],
+            ['maria.lviv@candidate.demo', 'Мария Львова', 'Финансы', 'employee', 'expired', 45],
+        ];
+
+        $created = 0;
+        foreach ($rows as $i => [$email, $name, $department, $role, $status, $daysAgo]) {
+            if (DB::table('employee_invitations')->where('company_id', $this->companyId)->where('email', $email)->exists()) continue;
+            $created_at = now()->subDays($daysAgo);
+            DB::table('employee_invitations')->insert([
+                'id' => (string) Str::uuid(),
+                'company_id' => $this->companyId,
+                'email' => $email,
+                'full_name' => $name,
+                'position_id' => $positions[$i % max(1, count($positions))] ?? null,
+                'department' => $department,
+                'requested_role' => $role,
+                'status' => $status,
+                'invited_by' => $admin,
+                'token' => Str::random(48),
+                'created_at' => $created_at,
+                'updated_at' => $created_at,
+            ]);
+            $created++;
+        }
+
+        return $created;
+    }
+
+    /** Performance: активный цикл с ревью, самооценкой и оценкой руководителя. */
+    private function ensurePerformance(): int
+    {
+        if (! Schema::hasTable('performance_cycles') || ! Schema::hasTable('performance_reviews')) return 0;
+        $admin = $this->adminUserId();
+        if (! $admin) return 0;
+
+        $cycle = DB::table('performance_cycles')->where('company_id', $this->companyId)
+            ->orderByDesc('created_at')->first();
+        if (! $cycle) {
+            $cycleId = (string) Str::uuid();
+            DB::table('performance_cycles')->insert([
+                'id' => $cycleId,
+                'company_id' => $this->companyId,
+                'title' => 'Полугодовой ревью ' . now()->year . ' H' . (now()->month <= 6 ? '1' : '2'),
+                'period_start' => now()->startOfMonth()->subMonths(5)->toDateString(),
+                'period_end' => now()->endOfMonth()->toDateString(),
+                'deadline' => now()->addDays(21)->toDateString(),
+                'status' => 'active',
+                'weights' => json_encode(['self' => 0.2, 'manager' => 0.5, 'peer' => 0.3], JSON_UNESCAPED_UNICODE),
+                'created_by' => $admin,
+                'created_at' => now()->subDays(20),
+                'updated_at' => now(),
+            ]);
+        } else {
+            $cycleId = (string) $cycle->id;
+            if (($cycle->status ?? '') === 'draft') {
+                DB::table('performance_cycles')->where('id', $cycleId)->update(['status' => 'active', 'updated_at' => now()]);
+            }
+        }
+
+        $profiles = DB::table('profiles')->where('company_id', $this->companyId)
+            ->limit(40)->get(['user_id', 'department']);
+        if ($profiles->isEmpty()) return 0;
+
+        $created = 0;
+        foreach ($profiles as $i => $p) {
+            $exists = DB::table('performance_reviews')->where('cycle_id', $cycleId)->where('user_id', $p->user_id)->exists();
+            if ($exists) continue;
+
+            $self = round(3.2 + (($i % 7) * 0.2), 2);
+            $manager = round(3.0 + (($i % 6) * 0.25), 2);
+            $peer = round(3.1 + (($i % 5) * 0.22), 2);
+            $final = round($self * 0.2 + $manager * 0.5 + $peer * 0.3, 2);
+            $status = ['self_review', 'manager_review', 'completed', 'completed'][$i % 4];
+
+            $reviewId = (string) Str::uuid();
+            DB::table('performance_reviews')->insert([
+                'id' => $reviewId,
+                'cycle_id' => $cycleId,
+                'user_id' => $p->user_id,
+                'company_id' => $this->companyId,
+                'manager_id' => null,
+                'status' => $status,
+                'self_score' => $self,
+                'manager_score' => $status === 'self_review' ? null : $manager,
+                'peer_score' => $status === 'completed' ? $peer : null,
+                'final_score' => $status === 'completed' ? $final : null,
+                'summary' => $status === 'completed'
+                    ? 'Стабильно выполняет план, сильные стороны — коммуникация и ответственность. Зона роста — планирование.'
+                    : null,
+                'finalized_at' => $status === 'completed' ? now()->subDays(3) : null,
+                'created_at' => now()->subDays(18),
+                'updated_at' => now(),
+            ]);
+            $created++;
+
+            if (Schema::hasTable('performance_review_feedback') && $status !== 'self_review') {
+                DB::table('performance_review_feedback')->insert([
+                    'id' => (string) Str::uuid(),
+                    'review_id' => $reviewId,
+                    'reviewer_id' => $admin,
+                    'role' => 'manager',
+                    'competency_scores' => json_encode([
+                        'Коммуникация' => 4, 'Ответственность' => 4, 'Планирование' => 3, 'Аналитика' => 4,
+                    ], JSON_UNESCAPED_UNICODE),
+                    'overall_score' => $manager,
+                    'strengths' => 'Берёт ответственность за результат, хорошо работает с коллегами.',
+                    'improvements' => 'Точнее оценивать сроки и заранее подсвечивать риски.',
+                    'comments' => 'Рекомендую взять наставничество над новичком.',
+                    'submitted_at' => now()->subDays(5),
+                    'created_at' => now()->subDays(6),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+
+        return $created;
+    }
+
+    /** Персональные документы: раздел «Мои документы» не должен быть пустым. */
+    private function ensurePersonalDocuments(): int
+    {
+        if (! Schema::hasTable('hr_documents') || ! Schema::hasColumn('hr_documents', 'owner_user_id')) return 0;
+        $admin = $this->adminUserId();
+        if (! $admin) return 0;
+
+        $profiles = DB::table('profiles')->where('company_id', $this->companyId)
+            ->limit(60)->get(['user_id', 'full_name']);
+        if ($profiles->isEmpty()) return 0;
+
+        $hasValidUntil = Schema::hasColumn('hr_documents', 'valid_until');
+        $hasValidFrom = Schema::hasColumn('hr_documents', 'valid_from');
+        $hasConfidential = Schema::hasColumn('hr_documents', 'is_confidential');
+
+        $templates = [
+            ['contract', 'Трудовой договор', 'Бессрочный трудовой договор с приложениями.', null],
+            ['order', 'Приказ о приёме на работу', 'Приказ по унифицированной форме Т-1.', null],
+            ['medical', 'Медицинская книжка', 'Действует до указанной даты, требует продления.', 45],
+        ];
+
+        $created = 0;
+        foreach ($profiles as $p) {
+            $have = DB::table('hr_documents')->where('company_id', $this->companyId)
+                ->where('owner_user_id', $p->user_id)->count();
+            if ($have >= 2) continue;
+
+            foreach (array_slice($templates, $have) as $index => [$type, $title, $description, $expiresInDays]) {
+                $row = [
+                    'id' => (string) Str::uuid(),
+                    'company_id' => $this->companyId,
+                    'document_type' => $type,
+                    'title' => $title,
+                    'description' => $description,
+                    'owner_user_id' => $p->user_id,
+                    'file_url' => null,
+                    'file_name' => null,
+                    'processing_status' => 'completed',
+                    'created_by' => $admin,
+                    'created_at' => now()->subDays(30 + $index),
+                    'updated_at' => now(),
+                ];
+                if ($hasValidFrom) $row['valid_from'] = now()->subMonths(6)->toDateString();
+                if ($hasValidUntil) $row['valid_until'] = $expiresInDays ? now()->addDays($expiresInDays)->toDateString() : null;
+                if ($hasConfidential) $row['is_confidential'] = $type === 'contract';
+
+                DB::table('hr_documents')->insert($row);
+                $created++;
+            }
+        }
+
+        return $created;
+    }
+
+    /** Автор демо-контента: HRD/админ компании, иначе любой сотрудник. */
+    private function adminUserId(): ?string
+    {
+        $id = DB::table('profiles')->where('company_id', $this->companyId)
+            ->whereIn('requested_role', ['hrd', 'company_admin', 'hr'])
+            ->value('user_id');
+        if (! $id) $id = DB::table('profiles')->where('company_id', $this->companyId)->value('user_id');
+        return $id ? (string) $id : null;
+    }
+
 
     /** Проверка результата: команда не должна «успешно» завершаться, ничего не наполнив. */
     private function verify(): void
