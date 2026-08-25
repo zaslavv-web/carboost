@@ -8,6 +8,7 @@ use App\Policies\CompanyPolicy;
 use App\Policies\CompanyScopedPolicy;
 use App\Policies\DemoRequestPolicy;
 use App\Policies\GoalChecklistItemPolicy;
+use App\Policies\HrDocumentPolicy;
 use App\Policies\OwnedRecordPolicy;
 use App\Policies\PortalCommentPolicy;
 use App\Policies\PulseSurveyResponsePolicy;
