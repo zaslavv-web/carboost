@@ -279,4 +279,45 @@ class DbControllerTest extends TestCase
             ]])
             ->assertSuccessful();
     }
+
+    public function test_employee_can_read_own_test_attempts(): void
+    {
+        $company = $this->makeCompany();
+        $employee = $this->makeUser('employee', $company->id);
+        $otherEmployee = $this->makeUser('employee', $company->id);
+        $ownAttemptId = (string) \Illuminate\Support\Str::uuid();
+
+        DB::table('test_attempts')->insert([
+            [
+                'id' => $ownAttemptId,
+                'company_id' => $company->id,
+                'user_id' => $employee->id,
+                'test_source' => 'hrd',
+                'answers' => json_encode([]),
+                'competency_breakdown' => json_encode([]),
+                'score' => 80,
+                'total' => 100,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'company_id' => $company->id,
+                'user_id' => $otherEmployee->id,
+                'test_source' => 'hrd',
+                'answers' => json_encode([]),
+                'competency_breakdown' => json_encode([]),
+                'score' => 10,
+                'total' => 100,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $this->actingAs($employee, 'sanctum')
+            ->getJson('/api/db/test_attempts?select=id,score,total&in.id=' . $ownAttemptId)
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.score', 80);
+    }
 }

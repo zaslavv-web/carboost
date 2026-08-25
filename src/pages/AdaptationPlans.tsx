@@ -77,6 +77,34 @@ const RESPONSIBLES = [
   { value: "hr", label: "HR" },
 ];
 
+const parseStoredMaterial = (url?: string | null): { bucket: string; path: string } | null => {
+  if (!url) return null;
+  const direct = url.match(/^storage:\/\/([^/]+)\/(.+)$/);
+  if (direct) return { bucket: direct[1], path: direct[2] };
+  try {
+    const parsed = new URL(url, window.location.origin);
+    const legacy = parsed.pathname.match(/^\/storage\/([^/]+)\/(.+)$/);
+    if (legacy) return { bucket: legacy[1], path: decodeURIComponent(legacy[2]) };
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+const openMaterial = async (url?: string | null) => {
+  if (!url) return;
+  const stored = parseStoredMaterial(url);
+  if (!stored) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+  const { data, error } = await laravelStorage.from(stored.bucket).createSignedUrl(stored.path, 600);
+  if (error || !data?.signedUrl) throw new Error(error?.message ?? "Не удалось открыть материал");
+  window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+};
+
+const materialHref = (url?: string | null) => (parseStoredMaterial(url) ? "#" : (url ?? "#"));
+
 const AdaptationPlans = () => {
   const { data: profile } = useUserProfile();
   const companyId = profile?.company_id;
@@ -166,7 +194,7 @@ const AdaptationPlans = () => {
           .upload(`onboarding-materials/${companyId}/${Date.now()}_${safeName}`, patch.material_file);
         if (upload.error) throw new Error(upload.error.message);
         if (upload.data?.path) {
-          materialUrl = laravelStorage.from("hr-documents").getPublicUrl(upload.data.path).data.publicUrl;
+          materialUrl = `storage://hr-documents/${upload.data.path}`;
         }
       }
       const { material_file: _materialFile, ...stepPatch } = patch;
@@ -300,9 +328,13 @@ const AdaptationPlans = () => {
                           </p>
                           {s.material_url && (
                             <a
-                              href={s.material_url}
+                              href={materialHref(s.material_url)}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={(e) => {
+                                if (parseStoredMaterial(s.material_url)) e.preventDefault();
+                                openMaterial(s.material_url).catch((error) => toast.error(error?.message ?? "Не удалось открыть материал"));
+                              }}
                               className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
                             >
                               <Paperclip className="w-3 h-3" /> Материал к шагу
@@ -507,10 +539,14 @@ const AssignmentDetailDialog = ({
                   {s.description && <p className="text-xs text-muted-foreground mt-1">{s.description}</p>}
                   {s.material_url && (
                     <a
-                      href={s.material_url}
+                      href={materialHref(s.material_url)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (parseStoredMaterial(s.material_url)) e.preventDefault();
+                        openMaterial(s.material_url).catch((error) => toast.error(error?.message ?? "Не удалось открыть материал"));
+                      }}
                       className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
                     >
                       <Paperclip className="w-3 h-3" /> Открыть материал

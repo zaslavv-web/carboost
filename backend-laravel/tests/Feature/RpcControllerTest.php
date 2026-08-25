@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 use Tests\WithDomainUsers;
 
@@ -41,6 +42,76 @@ class RpcControllerTest extends TestCase
         ]);
         $res->assertOk()->assertJsonStructure(['data' => ['id']]);
         $this->assertDatabaseHas('pricing_inquiries', ['email' => 'i@v.an', 'plan' => 'pro']);
+    }
+
+    public function test_submit_test_attempt_scores_on_server_and_persists_attempt(): void
+    {
+        $company = $this->makeCompany();
+        $hrd = $this->makeUser('hrd', $company->id);
+        $employee = $this->makeUser('employee', $company->id);
+        $testId = (string) Str::uuid();
+
+        DB::table('closed_question_tests')->insert([
+            'id' => $testId,
+            'company_id' => $company->id,
+            'title' => 'Тест коммуникации',
+            'questions' => json_encode([
+                ['id' => 'q1', 'text' => '1', 'competency' => 'Коммуникация', 'weight' => 1, 'options' => [], 'correct_option_id' => 'a'],
+                ['id' => 'q2', 'text' => '2', 'competency' => 'Коммуникация', 'weight' => 1, 'options' => [], 'correct_option_id' => 'b'],
+            ]),
+            'is_active' => true,
+            'created_by' => $hrd->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($employee, 'sanctum')
+            ->postJson('/api/rpc/submit_test_attempt', ['params' => [
+                '_test_id' => $testId,
+                '_source' => 'hrd',
+                '_answers' => ['q1' => 'a', 'q2' => 'c'],
+            ]])
+            ->assertOk()
+            ->assertJsonPath('data.score', 50)
+            ->assertJsonPath('data.total', 100)
+            ->assertJsonPath('data.breakdown.0.score', 50);
+
+        $this->assertDatabaseHas('test_attempts', [
+            'user_id' => $employee->id,
+            'company_id' => $company->id,
+            'test_id' => $testId,
+            'score' => 50,
+            'total' => 100,
+        ]);
+    }
+
+    public function test_submit_test_attempt_rejects_other_company_test(): void
+    {
+        $ownCompany = $this->makeCompany();
+        $otherCompany = $this->makeCompany();
+        $hrd = $this->makeUser('hrd', $otherCompany->id);
+        $employee = $this->makeUser('employee', $ownCompany->id);
+        $testId = (string) Str::uuid();
+
+        DB::table('closed_question_tests')->insert([
+            'id' => $testId,
+            'company_id' => $otherCompany->id,
+            'title' => 'Чужой тест',
+            'questions' => json_encode([]),
+            'is_active' => true,
+            'created_by' => $hrd->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($employee, 'sanctum')
+            ->postJson('/api/rpc/submit_test_attempt', ['params' => [
+                '_test_id' => $testId,
+                '_source' => 'hrd',
+                '_answers' => [],
+            ]])
+            ->assertStatus(422)
+            ->assertJsonPath('error', 'Недостаточно прав');
     }
 
 
