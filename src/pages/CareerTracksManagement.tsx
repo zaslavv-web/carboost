@@ -41,6 +41,27 @@ const emptyForm: TemplateForm = {
   steps: [],
 };
 
+const IN_QUERY_BATCH_SIZE = 40;
+
+const uniqueIds = (values: Array<string | null | undefined>) =>
+  Array.from(new Set(values.filter((value): value is string => Boolean(value))));
+
+async function fetchInBatches(table: string, column: string, ids: string[], select = "*", orderColumn?: string) {
+  const unique = uniqueIds(ids);
+  const rows: any[] = [];
+
+  for (let i = 0; i < unique.length; i += IN_QUERY_BATCH_SIZE) {
+    const batch = unique.slice(i, i + IN_QUERY_BATCH_SIZE);
+    const query = laravelDb.from(table).select(select).in(column, batch);
+    if (orderColumn) query.order(orderColumn);
+    const { data, error } = await query;
+    if (error) throw error;
+    rows.push(...(data || []));
+  }
+
+  return rows;
+}
+
 const CareerTracksManagement = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -95,15 +116,10 @@ const CareerTracksManagement = () => {
   const { data: actions = [] } = useQuery({
     queryKey: ["career_level_actions", companyId],
     queryFn: async () => {
-      const templateIds = templates.map(tpl => tpl.id);
+      const templateIds = uniqueIds(templates.map(tpl => tpl.id));
       if (!templateIds.length) return [];
-      const { data, error } = await laravelDb
-        .from("career_level_actions")
-        .select("*")
-        .in("template_id", templateIds)
-        .order("action_order");
-      if (error) throw error;
-      return data || [];
+      return (await fetchInBatches("career_level_actions", "template_id", templateIds, "*", "action_order"))
+        .sort((a, b) => (a.action_order || 0) - (b.action_order || 0));
     },
     enabled: templates.length > 0,
   });
