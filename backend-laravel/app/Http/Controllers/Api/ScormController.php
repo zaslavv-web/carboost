@@ -348,14 +348,31 @@ class ScormController extends Controller
         } catch (\Throwable $exception) {
             $payload = null;
         }
-        if (! is_array($payload) || (int) ($payload['exp'] ?? 0) < time()) {
+        if (! is_array($payload)) {
             \Log::warning('scorm_launch_ticket_gone', [
-                'reason' => is_array($payload) ? 'expired' : 'invalid',
-                'course_id' => is_array($payload) ? ($payload['course_id'] ?? null) : null,
-                'lesson_id' => is_array($payload) ? ($payload['lesson_id'] ?? null) : null,
-                'expired_at' => is_array($payload) ? ($payload['exp'] ?? null) : null,
+                'reason' => 'invalid',
+                'course_id' => null,
+                'lesson_id' => null,
+                'expired_at' => null,
             ]);
             return new Response('Ссылка устарела, откройте урок заново.', 410, ['Content-Type' => 'text/plain; charset=utf-8']);
+        }
+        if ((int) ($payload['exp'] ?? 0) < time()) {
+            $session = $this->sessionPayload($r);
+            $sessionMatches = $session
+                && (string) ($session['uid'] ?? '') === (string) ($payload['user_id'] ?? '')
+                && (string) ($session['course_id'] ?? '') === (string) ($payload['course_id'] ?? '')
+                && (string) ($session['enrollment_id'] ?? '') === (string) ($payload['enrollment_id'] ?? '')
+                && (string) ($session['package_path'] ?? '') === (string) ($payload['package_path'] ?? '');
+            if (! $sessionMatches) {
+                \Log::warning('scorm_launch_ticket_gone', [
+                    'reason' => 'expired',
+                    'course_id' => $payload['course_id'] ?? null,
+                    'lesson_id' => $payload['lesson_id'] ?? null,
+                    'expired_at' => $payload['exp'] ?? null,
+                ]);
+                return new Response('Ссылка устарела, откройте урок заново.', 410, ['Content-Type' => 'text/plain; charset=utf-8']);
+            }
         }
         // Тикет допускает повторный GET в течение двух минут: браузер, антивирус
         // или прокси могут предварительно открыть URL до iframe.
