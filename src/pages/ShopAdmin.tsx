@@ -329,7 +329,7 @@ export default function ShopAdmin() {
                 <div className="flex justify-between flex-wrap gap-2">
                   <div>
                     {o.user_id ? (
-                      <Link to={`/profile/${o.user_id}`} className="font-semibold hover:underline underline-offset-2">
+                      <Link to={`/users/${o.user_id}`} className="font-semibold hover:underline underline-offset-2">
                         {o.user_name}
                       </Link>
                     ) : (
