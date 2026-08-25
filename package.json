@@ -63,7 +63,7 @@
     "@tiptap/pm": "^3.30.2",
     "@tiptap/react": "^3.30.2",
     "@tiptap/starter-kit": "^3.30.2",
-    "@xyflow/react": "12.10.2",
+    "@xyflow/react": "12.10.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -95,8 +95,8 @@
     "zod": "^3.25.76"
   },
   "overrides": {
-    "@xyflow/react": "12.10.2",
-    "@xyflow/system": "0.0.76"
+    "@xyflow/react": "12.10.1",
+    "@xyflow/system": "0.0.75"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
