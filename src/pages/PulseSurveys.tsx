@@ -99,6 +99,30 @@ export default function PulseSurveys() {
     },
   });
 
+  // Разрез по отделам возможен только для неанонимных опросов —
+  // подтягиваем профили тех, кто ответил.
+  const respondentIds = useMemo(
+    () => Array.from(new Set(responses.map((r) => r.user_id).filter((id): id is string => !!id))),
+    [responses],
+  );
+
+  const { data: respondents = {} } = useQuery({
+    queryKey: ["pulse-respondents", selected, respondentIds.join(",")],
+    enabled: isHR && respondentIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await laravelDb
+        .from("profiles")
+        .select("user_id, full_name, department")
+        .in("user_id", respondentIds);
+      if (error) throw error;
+      const map: Record<string, { full_name: string; department: string | null }> = {};
+      for (const row of (data as any[]) ?? []) {
+        map[row.user_id] = { full_name: row.full_name, department: row.department ?? null };
+      }
+      return map;
+    },
+  });
+
   const create = useMutation({
     mutationFn: async (patch: Partial<Survey>) => {
       const { data, error } = await laravelDb.from("pulse_surveys" as any).insert({
@@ -255,11 +279,13 @@ export default function PulseSurveys() {
                   <Badge variant="outline" className="ml-auto">{KIND_LABEL[q.kind]}</Badge>
                 </div>
                 {isHR ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <BarChart3 className="w-3 h-3" />
-                    {stats[q.id]?.count ?? 0} ответов
-                    {stats[q.id]?.avg !== null && <span>· среднее {stats[q.id].avg!.toFixed(1)}</span>}
-                  </div>
+                  <QuestionBreakdown
+                    q={q}
+                    responses={responses.filter((r) => r.question_id === q.id)}
+                    avg={stats[q.id]?.avg ?? null}
+                    respondents={respondents}
+                    anonymous={!!currentSurvey?.is_anonymous}
+                  />
                 ) : currentSurvey?.status === "running" ? (
                   <AnswerControl q={q} onSubmit={(v) => submitAnswer.mutate({ questionId: q.id, value: v })} />
                 ) : (
@@ -370,5 +396,131 @@ function AddQuestionDialog({ onSubmit }: { onSubmit: (v: Partial<Question>) => v
         })}>Добавить</Button>
       </DialogFooter>
     </DialogContent>
+  );
+}
+
+/**
+ * Детальный разрез ответов на вопрос: распределение, среднее,
+ * срез по отделам (для неанонимных) и текстовые ответы.
+ */
+function QuestionBreakdown({
+  q,
+  responses,
+  avg,
+  respondents,
+  anonymous,
+}: {
+  q: Question;
+  responses: Response[];
+  avg: number | null;
+  respondents: Record<string, { full_name: string; department: string | null }>;
+  anonymous: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const distribution = useMemo(() => {
+    const buckets = new Map<string, number>();
+    for (const r of responses) {
+      const key =
+        typeof r.value_number === "number" ? String(r.value_number) : (r.value_text ?? "").trim();
+      if (!key) continue;
+      buckets.set(key, (buckets.get(key) ?? 0) + 1);
+    }
+    return Array.from(buckets.entries())
+      .sort((a, b) => (Number(a[0]) && Number(b[0]) ? Number(a[0]) - Number(b[0]) : b[1] - a[1]))
+      .slice(0, 12);
+  }, [responses]);
+
+  const byDepartment = useMemo(() => {
+    if (anonymous) return [];
+    const acc = new Map<string, { count: number; sum: number; nums: number }>();
+    for (const r of responses) {
+      const dep = (r.user_id && respondents[r.user_id]?.department) || "Без отдела";
+      const cur = acc.get(dep) ?? { count: 0, sum: 0, nums: 0 };
+      cur.count += 1;
+      if (typeof r.value_number === "number") {
+        cur.sum += r.value_number;
+        cur.nums += 1;
+      }
+      acc.set(dep, cur);
+    }
+    return Array.from(acc.entries())
+      .map(([dep, v]) => ({ dep, count: v.count, avg: v.nums ? v.sum / v.nums : null }))
+      .sort((a, b) => b.count - a.count);
+  }, [responses, respondents, anonymous]);
+
+  const texts = responses
+    .map((r) => (r.value_text ?? "").trim())
+    .filter((v) => v.length > 0)
+    .slice(0, 20);
+
+  const total = responses.length;
+  const maxBucket = distribution.reduce((m, [, n]) => Math.max(m, n), 0) || 1;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <BarChart3 className="w-3 h-3" />
+        {total} ответов
+        {avg !== null && <span>· среднее {avg.toFixed(1)}</span>}
+        {total > 0 && (
+          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setOpen((v) => !v)}>
+            {open ? "Свернуть разрез" : "Разрез"}
+          </Button>
+        )}
+      </div>
+
+      {open && total > 0 && (
+        <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-3 text-sm">
+          {distribution.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Распределение</p>
+              {distribution.map(([label, n]) => (
+                <div key={label} className="flex items-center gap-2">
+                  <span className="w-28 shrink-0 truncate text-xs text-foreground">{label}</span>
+                  <div className="h-2 flex-1 rounded-full bg-border/60 overflow-hidden">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${(n / maxBucket) * 100}%` }} />
+                  </div>
+                  <span className="w-16 text-right text-xs text-muted-foreground">
+                    {n} · {Math.round((n / total) * 100)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {anonymous ? (
+            <p className="text-xs text-muted-foreground">
+              Опрос анонимный — разрез по отделам и авторам недоступен.
+            </p>
+          ) : (
+            byDepartment.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">По отделам</p>
+                {byDepartment.map((d) => (
+                  <div key={d.dep} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="truncate text-foreground">{d.dep}</span>
+                    <span className="text-muted-foreground shrink-0">
+                      {d.count} ответ(ов){d.avg !== null ? ` · среднее ${d.avg.toFixed(1)}` : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+
+          {texts.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Комментарии</p>
+              {texts.map((txt, i) => (
+                <p key={i} className="text-xs text-foreground/90 border-l-2 border-primary/40 pl-2">
+                  {txt}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
