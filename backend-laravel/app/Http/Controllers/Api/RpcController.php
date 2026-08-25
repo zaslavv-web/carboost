@@ -113,6 +113,10 @@ class RpcController extends Controller
         if ($name === 'create_shop_order') {
             return $this->createShopOrder($request, $payload);
         }
+        if ($name === 'activate_order_item') {
+            return $this->activateOrderItem($request, $payload);
+        }
+
         if ($name === 'fulfill_shop_order') {
             return $this->fulfillShopOrder($request, $payload);
         }
