@@ -131,6 +131,7 @@
       "colRole": "Role",
       "colScore": "Score",
       "colMatch": "Match",
+      "colTenure": "Tenure",
       "noPosition": "Not assigned",
       "removePosition": "— Remove position",
       "noPositions": "No positions. Create one in the Positions section.",
