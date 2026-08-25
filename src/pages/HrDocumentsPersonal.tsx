@@ -69,10 +69,11 @@ const HrDocumentsPersonal = () => {
   const { data: mine = [], isLoading: loadingMine } = useQuery({
     queryKey: ["hr-docs", "mine", profile?.user_id],
     queryFn: async () => {
+      if (!profile?.user_id) return [] as Doc[];
       const { data } = await laravelDb
         .from("hr_documents")
         .select("*")
-        .eq("owner_user_id", profile!.user_id)
+        .eq("owner_user_id", profile.user_id)
         .order("created_at", { ascending: false });
       return (data ?? []) as Doc[];
     },
@@ -80,25 +81,31 @@ const HrDocumentsPersonal = () => {
   });
 
   const { data: all = [], isLoading: loadingAll } = useQuery({
-    queryKey: ["hr-docs", "all"],
+    queryKey: ["hr-docs", "all", profile?.company_id],
     queryFn: async () => {
+      if (!profile?.company_id) return [] as Doc[];
       const { data } = await laravelDb
         .from("hr_documents")
         .select("*")
+        .eq("company_id", profile.company_id)
         .not("owner_user_id", "is", null)
         .order("created_at", { ascending: false });
       return (data ?? []) as Doc[];
     },
-    enabled: isHr,
+    enabled: isHr && !!profile?.company_id,
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ["hr-docs", "employees"],
+    queryKey: ["hr-docs", "employees", profile?.company_id],
     queryFn: async () => {
-      const { data } = await laravelDb.from("profiles").select("user_id,full_name");
+      if (!profile?.company_id) return [] as Employee[];
+      const { data } = await laravelDb
+        .from("profiles")
+        .select("user_id,full_name")
+        .eq("company_id", profile.company_id);
       return (data ?? []) as Employee[];
     },
-    enabled: isHr,
+    enabled: isHr && !!profile?.company_id,
   });
 
   const expiringSoon = useMemo(() => {
@@ -115,7 +122,12 @@ const HrDocumentsPersonal = () => {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await laravelDb.from("hr_documents").delete().eq("id", id);
+      if (!profile?.company_id) throw new Error("Не указана компания");
+      const { error } = await laravelDb
+        .from("hr_documents")
+        .delete()
+        .eq("id", id)
+        .eq("company_id", profile.company_id);
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
@@ -329,6 +341,10 @@ const UploadDialog = ({
       toast.error("Название и владелец обязательны");
       return;
     }
+    if (!profile?.user_id || !profile.company_id) {
+      toast.error("Не указана компания");
+      return;
+    }
     setSaving(true);
     try {
       let fileUrl = "";
@@ -348,13 +364,14 @@ const UploadDialog = ({
         title,
         description: description || null,
         document_type: docType,
+        company_id: profile.company_id,
         owner_user_id: ownerId,
         valid_from: validFrom || null,
         valid_until: validUntil || null,
         is_confidential: confidential,
         file_url: fileUrl || null,
         file_name: fileName || null,
-        created_by: profile!.user_id,
+        created_by: profile.user_id,
         processing_status: "completed",
       });
       if (error) throw new Error(error.message);

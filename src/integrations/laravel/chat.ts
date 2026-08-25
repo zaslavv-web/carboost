@@ -33,6 +33,12 @@ export interface ChatConversation {
   unread_count: number;
 }
 
+export interface ChatListResponse {
+  data: ChatConversation[];
+  degraded?: boolean;
+  error_id?: string;
+}
+
 export interface ChatMessageReactionGroup {
   emoji: string;
   count: number;
@@ -61,7 +67,7 @@ export interface ChatContact {
 
 
 export const chatApi = {
-  list: () => laravel.get<{ data: ChatConversation[] }>("/chats"),
+  list: () => laravel.get<ChatListResponse>("/chats"),
   unreadCount: () => laravel.get<{ unread: number }>("/chats/unread-count"),
   contacts: (q: string) =>
     laravel.get<{ data: ChatContact[] }>(
