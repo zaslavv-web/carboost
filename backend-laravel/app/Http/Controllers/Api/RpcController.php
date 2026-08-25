@@ -294,9 +294,12 @@ class RpcController extends Controller
                     'created_at'   => now(),
                     'updated_at'   => now(),
                 ]);
+                $hasFulfillmentColumns = Schema::hasColumn('shop_order_items', 'fulfillment_kind');
                 foreach ($rows as $r) {
-                    DB::table('shop_order_items')->insert([
-                        'id'            => (string) Str::uuid(),
+                    $itemId = (string) Str::uuid();
+                    $kind = $this->productFulfillmentKind($r['product']);
+                    $row = [
+                        'id'            => $itemId,
                         'order_id'      => $orderId,
                         'product_id'    => (string) $r['product']->id,
                         'quantity'      => $r['quantity'],
@@ -305,7 +308,17 @@ class RpcController extends Controller
                         'product_title' => (string) $r['product']->title,
                         'created_at'    => now(),
                         'updated_at'    => now(),
-                    ]);
+                    ];
+                    if ($hasFulfillmentColumns) {
+                        $row['fulfillment_kind'] = $kind;
+                        $row['activation_status'] = $kind === 'partner' ? 'processing' : 'pending';
+                    }
+                    DB::table('shop_order_items')->insert($row);
+
+                    if ($kind === 'partner') {
+                        $this->createPartnerPurchaseTask($companyId, $uid, $orderId, $itemId, $r['product'], $r['quantity'], $hasFulfillmentColumns);
+                    }
+
                     if ($r['product']->stock !== null) {
                         DB::table('shop_products')->where('id', $r['product']->id)
                             ->update(['stock' => max(0, (int) $r['product']->stock - $r['quantity']), 'updated_at' => now()]);
@@ -316,6 +329,8 @@ class RpcController extends Controller
                 $this->logTransaction($uid, $companyId, -$total, 'purchase', 'Покупка в магазине', $orderId);
                 DB::table('shop_cart_items')->where('user_id', $uid)->delete();
 
+                $this->notifyShopManagers($companyId, $uid, $orderId, $total, $rows);
+
                 return $orderId;
             });
         } catch (Throwable $e) {
@@ -324,6 +339,225 @@ class RpcController extends Controller
 
         return response()->json(['data' => ['order_id' => $orderId]]);
     }
+
+    /** Тип выдачи товара; по умолчанию — материальный. */
+    private function productFulfillmentKind($product): string
+    {
+        $kind = isset($product->fulfillment_kind) ? (string) $product->fulfillment_kind : 'material';
+        return in_array($kind, ['material', 'workflow', 'partner', 'digital'], true) ? $kind : 'material';
+    }
+
+    /** ФИО покупателя для уведомлений и документов. */
+    private function userDisplayName(string $userId): string
+    {
+        $name = DB::table('profiles')->where('user_id', $userId)->value('full_name');
+        return $name ? (string) $name : 'Сотрудник';
+    }
+
+    /** Пользователи компании, отвечающие за магазин (HR/HRD/админ компании). */
+    private function shopManagerIds(string $companyId): array
+    {
+        $ids = [];
+        try {
+            $ids = DB::table('profiles')
+                ->join('user_roles', 'user_roles.user_id', '=', 'profiles.user_id')
+                ->where('profiles.company_id', $companyId)
+                ->whereIn('user_roles.role', ['hr', 'hrd', 'company_admin'])
+                ->pluck('profiles.user_id')->map(fn ($id) => (string) $id)->unique()->values()->all();
+        } catch (Throwable $e) {
+            $ids = [];
+        }
+        if (! $ids) {
+            $ids = DB::table('profiles')
+                ->where('company_id', $companyId)
+                ->whereIn('requested_role', ['hr', 'hrd', 'company_admin'])
+                ->pluck('user_id')->map(fn ($id) => (string) $id)->unique()->values()->all();
+        }
+        return $ids;
+    }
+
+    private function pushNotification(string $userId, ?string $companyId, string $title, string $description, string $type): void
+    {
+        try {
+            DB::table('notifications')->insert([
+                'id'                => (string) Str::uuid(),
+                'user_id'           => $userId,
+                'company_id'        => $companyId,
+                'title'             => $title,
+                'description'       => $description,
+                'notification_type' => $type,
+                'is_read'           => false,
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
+        } catch (Throwable $e) {
+            // уведомления не должны ломать покупку
+        }
+    }
+
+    /** Уведомление HR о новой покупке. */
+    private function notifyShopManagers(string $companyId, string $buyerId, string $orderId, int $total, array $rows): void
+    {
+        $titles = array_map(fn ($r) => (string) $r['product']->title . ' × ' . $r['quantity'], $rows);
+        $description = $this->userDisplayName($buyerId) . ' оформил заказ на ' . $total . ' баллов: ' . implode(', ', $titles);
+        foreach ($this->shopManagerIds($companyId) as $managerId) {
+            if ($managerId === $buyerId) continue;
+            $this->pushNotification($managerId, $companyId, 'Новая покупка в магазине', $description, 'shop_order_created');
+        }
+    }
+
+    /** Закупка у партнёра: задача ответственному сотруднику. */
+    private function createPartnerPurchaseTask(string $companyId, string $buyerId, string $orderId, string $itemId, $product, int $qty, bool $hasFulfillmentColumns): void
+    {
+        $managers = $this->shopManagerIds($companyId);
+        $responsible = $managers[0] ?? null;
+        if (! $responsible) return;
+
+        $taskId = (string) Str::uuid();
+        $buyer = $this->userDisplayName($buyerId);
+        DB::table('hr_tasks')->insert([
+            'id'           => $taskId,
+            'company_id'   => $companyId,
+            'created_by'   => $responsible,
+            'title'        => 'Закупка: ' . $product->title,
+            'description'  => "Заказ #" . substr($orderId, 0, 8) . ". Сотрудник {$buyer} приобрёл «{$product->title}» × {$qty}. "
+                . 'Нужно оформить закупку товара или услуги у партнёра и подтвердить выдачу.',
+            'category'     => 'procurement',
+            'reward_coins' => 0,
+            'deadline'     => now()->addDays(7)->toDateString(),
+            'status'       => 'assigned',
+            'created_at'   => now(),
+            'updated_at'   => now(),
+        ]);
+        DB::table('hr_task_assignees')->insert([
+            'id'                => (string) Str::uuid(),
+            'task_id'           => $taskId,
+            'user_id'           => $responsible,
+            'individual_status' => 'assigned',
+            'reward_paid'       => false,
+            'created_at'        => now(),
+            'updated_at'        => now(),
+        ]);
+        if ($hasFulfillmentColumns) {
+            DB::table('shop_order_items')->where('id', $itemId)->update([
+                'fulfillment_ref_type' => 'hr_task',
+                'fulfillment_ref_id'   => $taskId,
+                'updated_at'           => now(),
+            ]);
+        }
+        $this->pushNotification(
+            $responsible,
+            $companyId,
+            'Закупка у партнёра',
+            "По заказу #" . substr($orderId, 0, 8) . " требуется закупка «{$product->title}» × {$qty}.",
+            'shop_procurement_task'
+        );
+    }
+
+    /**
+     * Активация купленной позиции сотрудником.
+     * material → реквизиты получения, workflow → автодокумент, digital → мгновенно.
+     */
+    private function activateOrderItem(Request $request, array $payload)
+    {
+        $actor = $request->user();
+        $uid = $this->actorDomainId($actor);
+        if (! $uid) return response()->json(['error' => 'Не авторизован'], 401);
+        if (! Schema::hasColumn('shop_order_items', 'activation_status')) {
+            return response()->json(['error' => 'Активация покупок не настроена: примените миграции'], 422);
+        }
+
+        $itemId = (string) ($payload['_item_id'] ?? $payload['item_id'] ?? '');
+        $details = $payload['_details'] ?? $payload['details'] ?? [];
+        if (is_string($details)) $details = json_decode($details, true) ?: [];
+        if (! is_array($details)) $details = [];
+        if ($itemId === '') return response()->json(['error' => 'Не указана позиция заказа'], 422);
+
+        try {
+            $result = DB::transaction(function () use ($itemId, $details, $uid) {
+                $item = DB::table('shop_order_items')->where('id', $itemId)->first();
+                if (! $item) throw new \RuntimeException('Позиция заказа не найдена');
+                $order = DB::table('shop_orders')->where('id', $item->order_id)->first();
+                if (! $order) throw new \RuntimeException('Заказ не найден');
+                if ((string) $order->user_id !== $uid) throw new \RuntimeException('Это не ваша покупка');
+                if ($order->status === 'cancelled') throw new \RuntimeException('Заказ отменён');
+                if (($item->activation_status ?? 'pending') === 'activated') {
+                    throw new \RuntimeException('Позиция уже активирована');
+                }
+
+                $kind = isset($item->fulfillment_kind) ? (string) $item->fulfillment_kind : 'material';
+                $companyId = (string) $order->company_id;
+                $refType = null;
+                $refId = null;
+
+                if ($kind === 'material') {
+                    $place = trim((string) ($details['place'] ?? ''));
+                    $time = trim((string) ($details['time'] ?? ''));
+                    if ($place === '' || $time === '') {
+                        throw new \RuntimeException('Укажите место и время получения');
+                    }
+                    $this->notifyManagersAboutActivation(
+                        $companyId,
+                        $uid,
+                        'Выдача товара',
+                        $this->userDisplayName($uid) . " ждёт «{$item->product_title}»: {$place}, {$time}."
+                    );
+                } elseif ($kind === 'workflow') {
+                    $docId = (string) Str::uuid();
+                    $row = [
+                        'id'                => $docId,
+                        'company_id'        => $companyId,
+                        'document_type'     => 'shop_workflow_benefit',
+                        'title'             => 'Согласование: ' . $item->product_title,
+                        'description'       => 'Документ сформирован автоматически по покупке в магазине. '
+                            . 'Сотрудник: ' . $this->userDisplayName($uid) . '. '
+                            . 'Комментарий: ' . (trim((string) ($details['comment'] ?? '')) ?: 'не указан') . '. '
+                            . 'Желаемая дата: ' . (trim((string) ($details['date'] ?? '')) ?: 'не указана') . '.',
+                        'processing_status' => 'completed',
+                        'created_by'        => $uid,
+                        'created_at'        => now(),
+                        'updated_at'        => now(),
+                    ];
+                    if (Schema::hasColumn('hr_documents', 'owner_user_id')) {
+                        $row['owner_user_id'] = $uid;
+                    }
+                    DB::table('hr_documents')->insert($row);
+                    $refType = 'hr_document';
+                    $refId = $docId;
+                    $this->notifyManagersAboutActivation(
+                        $companyId,
+                        $uid,
+                        'Документ по покупке сформирован',
+                        $this->userDisplayName($uid) . " активировал «{$item->product_title}», документ создан в личном деле."
+                    );
+                }
+
+                DB::table('shop_order_items')->where('id', $itemId)->update(array_filter([
+                    'activation_status'    => 'activated',
+                    'activation_data'      => json_encode($details, JSON_UNESCAPED_UNICODE),
+                    'activated_at'         => now(),
+                    'fulfillment_ref_type' => $refType,
+                    'fulfillment_ref_id'   => $refId,
+                    'updated_at'           => now(),
+                ], fn ($v) => $v !== null));
+
+                return ['item_id' => $itemId, 'ref_type' => $refType, 'ref_id' => $refId];
+            });
+        } catch (Throwable $e) {
+            return response()->json(['error' => self::localize($e->getMessage())], 422);
+        }
+
+        return response()->json(['data' => $result]);
+    }
+
+    private function notifyManagersAboutActivation(string $companyId, string $buyerId, string $title, string $description): void
+    {
+        foreach ($this->shopManagerIds($companyId) as $managerId) {
+            if ($managerId === $buyerId) continue;
+            $this->pushNotification($managerId, $companyId, $title, $description, 'shop_item_activated');
+        }
+    }
+
 
     private function fulfillShopOrder(Request $request, array $payload)
     {
