@@ -95,8 +95,30 @@ class SeedDemoExtras extends Command
                 ->value('profiles.company_id');
         }
 
+        // Финальный фолбэк: самая населённая компания стенда. Без него команда
+        // падала на любом окружении, где демо-учётки называются иначе
+        // (например, demo_doom), хотя данные для наполнения есть.
+        if (! $companyId) {
+            $companyId = DB::table('profiles')
+                ->whereNotNull('company_id')
+                ->select('company_id', DB::raw('COUNT(*) as cnt'))
+                ->groupBy('company_id')
+                ->orderByDesc('cnt')
+                ->value('company_id');
+            if ($companyId) {
+                $name = DB::table('companies')->where('id', $companyId)->value('name');
+                $this->warn("Компания не задана — беру самую населённую: «{$name}». Для другой укажите --company=<id|название>.");
+            }
+        }
+
+        if (! $companyId) {
+            $available = DB::table('companies')->orderBy('name')->limit(20)->pluck('name')->all();
+            if ($available) $this->line('Доступные компании: ' . implode(', ', $available));
+        }
+
         return $companyId ? DB::table('companies')->where('id', $companyId)->first() : null;
     }
+
 
     /** Дозаполняет пустые поля профилей: ФИО, отдел, должность, грейд, аватар, даты. */
     private function fillProfiles(): int
