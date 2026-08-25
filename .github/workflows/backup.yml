@@ -37,11 +37,15 @@ jobs:
           fi
 
       - name: Import GPG public key
-        if: ${{ secrets.BACKUP_GPG_PUBLIC_KEY != '' }}
         env:
           BACKUP_GPG_PUBLIC_KEY: ${{ secrets.BACKUP_GPG_PUBLIC_KEY }}
         run: |
-          echo "$BACKUP_GPG_PUBLIC_KEY" | gpg --batch --import
+          if [ -n "$BACKUP_GPG_PUBLIC_KEY" ]; then
+            echo "$BACKUP_GPG_PUBLIC_KEY" | gpg --batch --import
+          else
+            echo "BACKUP_GPG_PUBLIC_KEY не задан — пропускаю импорт ключа"
+          fi
+
 
       - name: Run backup
         env:
