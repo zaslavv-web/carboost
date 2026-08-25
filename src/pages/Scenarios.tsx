@@ -118,7 +118,10 @@ const Scenarios = () => {
         .from("assessment_scenarios")
         .select("*")
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        console.warn("assessment_scenarios fallback", error);
+        return DEFAULT_ASSESSMENT_SCENARIOS;
+      }
       return data?.length ? data : DEFAULT_ASSESSMENT_SCENARIOS;
     },
   });
