@@ -85,6 +85,25 @@ export default function Cart() {
     });
   }, [items, balance]);
   const total = cartRows.reduce((s: number, row: any) => s + row.subtotal, 0);
+  const shortageRows = useMemo(() => cartRows.filter((r: any) => r.shortage), [cartRows]);
+
+  const [shortageOpen, setShortageOpen] = useState(false);
+
+  const trimCart = useMutation({
+    mutationFn: async () => {
+      for (const row of shortageRows) {
+        await laravelDb.from("shop_cart_items").delete().eq("id", row.item.id);
+      }
+    },
+    onSuccess: () => {
+      setShortageOpen(false);
+      toast.success("Корзина сокращена до доступного баланса");
+      qc.invalidateQueries({ queryKey: ["shop_cart"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
