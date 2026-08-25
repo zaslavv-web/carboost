@@ -199,9 +199,12 @@ jobs:
             echo "REMOTE_SHA=unknown"
           fi
           REMOTE
-          )"
+          )" || RC=$?
           echo "$OUT"
-          REMOTE_SHA="$(echo "$OUT" | sed -n 's/^REMOTE_SHA=//p' | tail -n1)"
+          if [ "$RC" != "0" ]; then
+            echo "::error::шаг применения .htaccess на сервере завершился с кодом $RC"
+            exit "$RC"
+          fi
           if [ "$REMOTE_SHA" = "unknown" ] || [ -z "$REMOTE_SHA" ]; then
             echo "⚠️  Не удалось посчитать контрольную сумму на сервере — пропускаю сверку"
           elif [ "$REMOTE_SHA" != "$HTACCESS_SHA" ]; then
