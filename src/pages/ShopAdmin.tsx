@@ -155,7 +155,9 @@ export default function ShopAdmin() {
         max_per_user: form.max_per_user || null,
         max_per_period: form.max_per_period || null,
         period_kind: form.period_kind || "none",
+        fulfillment_kind: form.fulfillment_kind || "material",
         is_active: form.is_active,
+
       };
       if (editing === "new") {
         payload.created_by = user.id;
