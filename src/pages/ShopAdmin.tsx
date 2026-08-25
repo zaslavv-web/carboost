@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Edit2, Trash2, Package, Coins, ShoppingBag, Check, X, Upload, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
-import { productImageSrc } from "@/lib/productImage";
+import { ProductImage } from "@/components/shop/ProductImage";
 
 const emptyProduct = {
   title: "", description: "", price: 100, image_url: "",
@@ -302,7 +302,7 @@ export default function ShopAdmin() {
             {products.map((p: any) => (
               <Card key={p.id} className={!p.is_active ? "opacity-60" : ""}>
                 <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
-                  <img src={productImageSrc(p.image_url, p.title)} alt={p.title} className="w-full h-full object-cover" />
+                  <ProductImage imageUrl={p.image_url} title={p.title} className="w-full h-full object-cover" />
                 </div>
                 <CardContent className="p-4 space-y-2">
                   <div className="flex justify-between items-start">
@@ -417,7 +417,7 @@ export default function ShopAdmin() {
           <div className="space-y-3">
             <div>
               <Label>{t("shopAdmin.labelImage")}</Label>
-              {form.image_url && <img src={form.image_url} alt="" className="w-32 h-32 object-cover rounded mb-2" />}
+              {form.image_url && <ProductImage imageUrl={form.image_url} title={form.title || "Товар"} className="w-32 h-32 object-cover rounded mb-2" />}
               <Input type="file" accept="image/jpeg,image/png" onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])} disabled={uploading} />
             </div>
             <div><Label>{t("shopAdmin.labelTitle")}</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>

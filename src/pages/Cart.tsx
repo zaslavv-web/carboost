@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Trash2, Package, ShoppingCart, AlertTriangle } from "lucide-react";
+import { ProductImage } from "@/components/shop/ProductImage";
 import { toast } from "sonner";
 
 export default function Cart() {
@@ -86,7 +87,7 @@ export default function Cart() {
               <Card key={i.id}>
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="w-16 h-16 bg-muted rounded flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {i.product.image_url ? <img src={i.product.image_url} alt="" className="w-full h-full object-cover" /> : <Package className="w-8 h-8 text-muted-foreground" />}
+                    <ProductImage imageUrl={i.product.image_url} title={i.product.title} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate">{i.product.title}</p>
