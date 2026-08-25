@@ -127,7 +127,7 @@ export default function Slide5cPlan() {
         />
         <div className="mt-1 flex items-center justify-between text-[17px] text-[#1B1D22]/60">
           <Editable id="s5c.foot.brand" defaultValue="Пик роста · 2026" />
-          <Editable id="s5c.foot.page" defaultValue="07 / 10" />
+          <Editable id="s5c.foot.page" defaultValue="07 / 11" />
         </div>
       </div>
     </SlideLayout>

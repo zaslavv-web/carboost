@@ -112,7 +112,7 @@ export default function Slide4AI() {
 
         <div className="mt-4 flex items-center justify-between text-[17px] text-[#1B1D22]/60">
           <Editable id="s4.foot.brand" defaultValue="Пик роста · 2026" />
-          <Editable id="s4.foot.page" defaultValue="04 / 10" />
+          <Editable id="s4.foot.page" defaultValue="04 / 11" />
         </div>
       </div>
     </SlideLayout>

@@ -162,7 +162,7 @@ export default function Slide2Market() {
 
         <div className="mt-4 flex items-center justify-between text-[17px] text-[#1B1D22]/60">
           <Editable id="s2.foot.brand" defaultValue="Пик роста · 2026" />
-          <Editable id="s2.foot.page" defaultValue="02 / 10" />
+          <Editable id="s2.foot.page" defaultValue="02 / 11" />
         </div>
       </div>
     </SlideLayout>

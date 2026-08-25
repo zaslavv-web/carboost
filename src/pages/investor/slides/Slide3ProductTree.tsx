@@ -162,7 +162,7 @@ export default function Slide3ProductTree() {
 
         <div className="mt-5 flex items-center justify-between text-[17px] text-[#1B1D22]/60">
           <Editable id="s3.foot.brand" defaultValue="Пик роста · 2026" />
-          <Editable id="s3.foot.page" defaultValue="03 / 10" />
+          <Editable id="s3.foot.page" defaultValue="03 / 11" />
         </div>
       </div>
     </SlideLayout>
