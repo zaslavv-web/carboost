@@ -33,6 +33,7 @@ const MessageBubble = ({
 }) => {
   const { t } = useTranslation("chat");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [avatarBroken, setAvatarBroken] = useState(false);
   const dateLocale = i18n.language === "en" ? enUS : ru;
   const time = formatDistanceToNowStrict(new Date(message.created_at), { locale: dateLocale, addSuffix: true });
   const avatarSrc = resolveUrl(senderAvatar);
@@ -41,8 +42,13 @@ const MessageBubble = ({
     <div className={`group flex ${isOwn ? "justify-end" : "justify-start"}`}>
       {!isOwn && (
         <Link to={`/users/${message.sender_id}`} className="mr-2 mt-1 flex-shrink-0" title={senderName}>
-          {avatarSrc ? (
-            <img src={avatarSrc} alt={senderName || ""} className="w-7 h-7 rounded-full object-cover" />
+          {avatarSrc && !avatarBroken ? (
+            <img
+              src={avatarSrc}
+              alt={senderName || ""}
+              className="w-7 h-7 rounded-full object-cover"
+              onError={() => setAvatarBroken(true)}
+            />
           ) : (
             <span className="w-7 h-7 rounded-full bg-secondary text-[11px] flex items-center justify-center text-muted-foreground">
               {(senderName || "?").trim().charAt(0).toUpperCase()}
@@ -50,6 +56,7 @@ const MessageBubble = ({
           )}
         </Link>
       )}
+
       <div className={`max-w-[80%] flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
         {!isOwn && senderName && (
           <Link
