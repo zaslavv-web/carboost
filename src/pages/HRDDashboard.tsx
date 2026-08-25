@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { tooltipProps } from "@/lib/chartTooltip";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravel } from "@/integrations/laravel/client";
@@ -271,7 +271,53 @@ const HRDDashboard = () => {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string | null>(null);
+  const [positionFilter, setPositionFilter] = useState<string | null>(null);
+  const [tenureFilter, setTenureFilter] = useState<string | null>(null);
+  const [hiredMonthFilter, setHiredMonthFilter] = useState<string | null>(null);
+  const [probationFilter, setProbationFilter] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const tableRef = useRef<HTMLDivElement>(null);
+
+  // Drill-down из аналитики приходит в URL. Каждый переход — ЧИСТЫЙ фильтр:
+  // старые условия сбрасываются, иначе пересечение давало пустую таблицу.
+  const urlKey = searchParams.toString();
+  useEffect(() => {
+    const p = new URLSearchParams(urlKey);
+    const dep = p.get("department");
+    const pos = p.get("position");
+    const ten = p.get("tenure");
+    const hired = p.get("hiredMonth");
+    const prob = p.get("probation") === "1";
+    if (!dep && !pos && !ten && !hired && !prob) return;
+    setSearch("");
+    setRoleFilter("all");
+    setDepartmentFilter(dep === "none" ? "Без отдела" : dep);
+    setPositionFilter(pos === "none" ? "" : pos);
+    setTenureFilter(ten);
+    setHiredMonthFilter(hired);
+    setProbationFilter(prob);
+    setActivePanel("employees");
+    requestAnimationFrame(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, [urlKey]);
+
+  const tenureMonths = (hireDate?: string | null) =>
+    hireDate ? (Date.now() - new Date(hireDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44) : null;
+  const inTenureBucket = (months: number | null, bucket: string) => {
+    if (months === null) return false;
+    if (bucket === "< 3 мес") return months < 3;
+    if (bucket === "3–12 мес") return months >= 3 && months < 12;
+    if (bucket === "1–3 года") return months >= 12 && months < 36;
+    if (bucket === "3–5 лет") return months >= 36 && months < 60;
+    if (bucket === "> 5 лет") return months >= 60;
+    return true;
+  };
+  const clearDrillFilters = () => {
+    setPositionFilter(null);
+    setTenureFilter(null);
+    setHiredMonthFilter(null);
+    setProbationFilter(false);
+    if (urlKey) setSearchParams(new URLSearchParams(), { replace: true });
+  };
   const { move: moveBlock, position: blockPosition } = useBlockOrder("hrd-dashboard", DASHBOARD_BLOCKS);
   const blockProps = (id: string, label: string) => {
     const p = blockPosition(id);
@@ -279,8 +325,12 @@ const HRDDashboard = () => {
   };
   // Клик по KPI/графику работает как быстрый фильтр таблицы ниже, а не как переход.
   const applyQuickFilter = (next: { role?: RoleFilter; department?: string | null }) => {
-    if (next.role !== undefined) setRoleFilter(next.role);
-    if (next.department !== undefined) setDepartmentFilter(next.department);
+    // Клик по любому дашборду = новый чистый срез: сбрасываем прошлые фильтры,
+    // иначе комбинация «роль + должность» давала пустой список.
+    clearDrillFilters();
+    setSearch("");
+    setRoleFilter(next.role ?? "all");
+    setDepartmentFilter(next.department ?? null);
     setActivePanel("employees");
     requestAnimationFrame(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
@@ -427,7 +477,19 @@ const HRDDashboard = () => {
       (e.department || "").toLowerCase().includes(search.toLowerCase());
     const matchRole = roleFilter === "all" || e.role === roleFilter;
     const matchDepartment = !departmentFilter || (e.department || "Без отдела") === departmentFilter;
-    return matchSearch && matchRole && matchDepartment;
+    const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
+    const matchPosition =
+      positionFilter === null
+        ? true
+        : positionFilter === ""
+        ? !String(e.position ?? "").trim()
+        : norm(e.position) === norm(positionFilter);
+    const months = tenureMonths((e as any).hire_date);
+    const matchTenure = !tenureFilter || inTenureBucket(months, tenureFilter);
+    const matchProbation = !probationFilter || (months !== null && months < 3);
+    const matchHired =
+      !hiredMonthFilter || String((e as any).hire_date ?? "").slice(0, 7) === hiredMonthFilter;
+    return matchSearch && matchRole && matchDepartment && matchPosition && matchTenure && matchProbation && matchHired;
   });
 
   const roleCounts = {
