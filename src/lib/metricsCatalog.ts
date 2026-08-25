@@ -214,7 +214,7 @@ export const metricsCatalog = M({
       ru: "Откройте риск-профиль и назначьте HR-действия для «красной» зоны.",
       en: "Open the risk profile and assign HR actions to the red zone.",
     },
-    href: "/risk-analytics",
+    href: "/risk-analytics?level=high",
   },
   attrition_forecast: {
     key: "attrition_forecast",
@@ -232,7 +232,7 @@ export const metricsCatalog = M({
       ru: "Сформируйте retention-план для топ-риск-группы.",
       en: "Build a retention plan for the top-risk cohort.",
     },
-    href: "/risk-analytics",
+    href: "/risk-analytics?level=medium",
   },
   engagement_index: {
     key: "engagement_index",
@@ -444,7 +444,7 @@ export const metricsCatalog = M({
       ru: "Проведите 1:1, назначьте retention-действия и обновите IDP.",
       en: "Run a 1:1, assign retention actions, refresh the IDP.",
     },
-    href: "/risk-analytics",
+    href: "/risk-analytics?level=high",
   },
   burnout_risk: {
     key: "burnout_risk",
@@ -498,7 +498,7 @@ export const metricsCatalog = M({
       ru: "Кликните по уровню, чтобы отфильтровать таблицу и назначить действия.",
       en: "Click a level to filter the table and assign actions.",
     },
-    href: "/risk-analytics",
+    href: "/risk-analytics?level=high",
   },
 });
 

@@ -59,7 +59,7 @@ const RiskAnalytics = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selected, setSelected] = useState<string | null>(null);
   const [selectionMode, setSelectionMode] = useState<"auto" | "manual">("auto");
-  const initialLevel = searchParams.get("level");
+  const initialLevel = searchParams.get("level") ?? searchParams.get("risk");
   const [levelFilter, setLevelFilter] = useState<"all" | "low" | "medium" | "high">(
     initialLevel === "low" || initialLevel === "medium" || initialLevel === "high" ? initialLevel : "all",
   );
@@ -77,7 +77,7 @@ const RiskAnalytics = () => {
     setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   };
   useEffect(() => {
-    const level = searchParams.get("level");
+    const level = searchParams.get("level") ?? searchParams.get("risk");
     setLevelFilter(level === "low" || level === "medium" || level === "high" ? level : "all");
     setDeptFilter(searchParams.get("department"));
   }, [searchParams]);
@@ -337,8 +337,8 @@ const RiskAnalytics = () => {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => navigate("/dashboard")}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate("/dashboard")}
+          onClick={() => navigate("/pulse-surveys")}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate("/pulse-surveys")}
           className="text-left transition-all cursor-pointer"
         >
           <Card className="glass p-4 hover-lift border-success/30 h-full">

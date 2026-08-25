@@ -8,6 +8,7 @@
   "typeMessage": "Write a message…",
   "send": "Send",
   "reply": "Reply",
+  "directMessage": "Direct message",
   "cancelReply": "Cancel reply",
   "replyingTo": "Replying to",
   "react": "React",
