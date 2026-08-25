@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { GraduationCap, Plus, Clock, Award, Lock, PlayCircle, Pencil, FileArchive, BarChart3 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ScormUploadDialog } from "@/components/university/ScormUploadDialog";
+import { resolveUrl } from "@/lib/utils";
 
 interface Course {
   id: string; title: string; description: string | null;
@@ -174,11 +175,13 @@ export default function University() {
             </ToggleGroup>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {courses.map((c) => (
+            {courses.map((c) => {
+              const coverUrl = resolveUrl(c.cover_url);
+              return (
               <Card key={c.id} className="overflow-hidden flex flex-col">
-                {c.cover_url ? (
+                {coverUrl ? (
                   <img
-                    src={c.cover_url}
+                    src={coverUrl}
                     alt={c.title}
                     loading="lazy"
                     referrerPolicy="no-referrer"
@@ -193,7 +196,7 @@ export default function University() {
                 ) : null}
                 <div
                   className="h-32 bg-gradient-to-br from-primary/20 to-primary/5 items-center justify-center"
-                  style={{ display: c.cover_url ? "none" : "flex" }}
+                  style={{ display: coverUrl ? "none" : "flex" }}
                 >
                   <GraduationCap className="w-10 h-10 text-primary/40" />
                 </div>
@@ -229,7 +232,8 @@ export default function University() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
             {courses.length === 0 && (
               <Card className="col-span-full"><CardContent className="p-8 text-center text-muted-foreground">Курсов пока нет</CardContent></Card>
             )}

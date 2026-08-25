@@ -19,6 +19,7 @@ import UserBusinessEnvironment from "@/components/UserBusinessEnvironment";
 import UserSimilarEmployees from "@/components/UserSimilarEmployees";
 import UserProductAnalytics from "@/components/UserProductAnalytics";
 import { toast } from "sonner";
+import { resolveUrl } from "@/lib/utils";
 
 type ProfileFull = {
   user_id: string;
@@ -83,6 +84,8 @@ const UserProfileFull = () => {
     }
   };
 
+  const avatarUrl = resolveUrl(profile.avatar_url);
+
   return (
     <div className="space-y-6 animate-fade-in">
       <button
@@ -94,8 +97,8 @@ const UserProfileFull = () => {
 
       <div className="bg-card rounded-xl border border-border p-6 flex items-start gap-4 flex-wrap">
         <div className="w-16 h-16 rounded-full bg-primary/10 text-primary text-xl font-semibold flex items-center justify-center shrink-0">
-          {profile.avatar_url ? (
-            <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full rounded-full object-cover" />
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={profile.full_name} className="w-full h-full rounded-full object-cover" />
           ) : (
             initials
           )}

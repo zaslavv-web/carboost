@@ -8,6 +8,7 @@ import { Loader2, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { laravel } from "@/integrations/laravel/client";
 import { useRealPrimaryRole } from "@/hooks/useUserProfile";
+import { resolveUrl } from "@/lib/utils";
 
 type SimilarItem = {
   user_id: string;
@@ -65,7 +66,9 @@ const UserSimilarEmployees = ({ userId }: { userId: string }) => {
 
       {data && data.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {data.map((s) => (
+          {data.map((s) => {
+            const avatarUrl = resolveUrl(s.avatar_url);
+            return (
             <Link
               key={s.user_id}
               to={`/users/${s.user_id}`}
@@ -73,8 +76,8 @@ const UserSimilarEmployees = ({ userId }: { userId: string }) => {
             >
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 text-primary text-sm font-semibold flex items-center justify-center shrink-0">
-                  {s.avatar_url ? (
-                    <img src={s.avatar_url} alt={s.full_name} className="w-full h-full rounded-full object-cover" />
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={s.full_name} className="w-full h-full rounded-full object-cover" />
                   ) : (
                     s.full_name.split(" ").slice(0, 2).map((x) => x[0]).join("").toUpperCase()
                   )}
@@ -102,7 +105,8 @@ const UserSimilarEmployees = ({ userId }: { userId: string }) => {
                 </div>
               </div>
             </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
