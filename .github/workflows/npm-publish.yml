@@ -10,6 +10,9 @@ jobs:
   # ─── ФРОНТЕНД ───────────────────────────────────────────
   build-frontend:
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-frontend
+      cancel-in-progress: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -29,15 +32,19 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Write frontend deploy marker
+      - name: Write frontend deploy markers
         run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           {
             echo "commit=${GITHUB_SHA}"
-            echo "short_commit=${GITHUB_SHA::7}"
+            echo "short_commit=${SHORT_SHA}"
             echo "ref=${GITHUB_REF_NAME}"
-            echo "time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "time=${BUILT_AT}"
           } > dist/deploy-version.txt
+          printf '{"version":"%s","built_at":"%s"}\n' "$SHORT_SHA" "$BUILT_AT" > dist/version.json
           cat dist/deploy-version.txt
+          cat dist/version.json
 
       - name: Setup SSH agent (нативный, без Node-экшенов)
         env:
@@ -76,8 +83,11 @@ jobs:
               "set -e; \
                test -f ${{ secrets.TARGET_DIR }}/index.html; \
                test -f ${{ secrets.TARGET_DIR }}/deploy-version.txt; \
+               test -f ${{ secrets.TARGET_DIR }}/version.json; \
                echo 'Remote deploy marker:'; \
-               cat ${{ secrets.TARGET_DIR }}/deploy-version.txt"
+               cat ${{ secrets.TARGET_DIR }}/deploy-version.txt; \
+               echo 'Remote version.json:'; \
+               cat ${{ secrets.TARGET_DIR }}/version.json"
 
           APP_URL="$APP_URL_SECRET"
           if [[ -z "$APP_URL" ]]; then
@@ -89,10 +99,17 @@ jobs:
           fi
           APP_URL="${APP_URL%/}"
           PUBLIC_MARKER="$(curl -fsSL "$APP_URL/deploy-version.txt?ts=$(date +%s)")"
+          PUBLIC_VERSION="$(curl -fsSL "$APP_URL/version.json?ts=$(date +%s)")"
           echo "Public deploy marker:"
           echo "$PUBLIC_MARKER"
+          echo "Public version.json:"
+          echo "$PUBLIC_VERSION"
           if ! grep -q "commit=${GITHUB_SHA}" <<< "$PUBLIC_MARKER"; then
             echo "::error::Production URL does not serve the deployed commit. Check TARGET_DIR/document root or caching/CDN."
+            exit 1
+          fi
+          if ! grep -q "${GITHUB_SHA::7}" <<< "$PUBLIC_VERSION"; then
+            echo "::error::Production URL does not serve version.json for the deployed commit. Check TARGET_DIR/document root or caching/CDN."
             exit 1
           fi
 
