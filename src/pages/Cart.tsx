@@ -145,11 +145,49 @@ export default function Cart() {
                   <AlertDescription>{t("cart.impersonationBlocked")}</AlertDescription>
                 </Alert>
               )}
-              <Button className="w-full" size="lg" disabled={checkout.isPending || balance < total || isImpersonating} onClick={() => checkout.mutate()}>
+              <Button
+                className="w-full"
+                size="lg"
+                disabled={checkout.isPending || isImpersonating}
+                onClick={() => (balance < total ? setShortageOpen(true) : checkout.mutate())}
+              >
                 {balance < total ? t("cart.insufficient") : t("cart.checkout")}
               </Button>
             </CardContent>
           </Card>
+
+          <Dialog open={shortageOpen} onOpenChange={setShortageOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Недостаточно баланса</DialogTitle>
+                <DialogDescription>
+                  К оплате {formatCoins(total)} {icon}, на балансе {formatCoins(balance)} {icon}.
+                  Не хватает {formatCoins(total - balance)} {icon}. Сократите корзину или накопите баллы.
+                </DialogDescription>
+              </DialogHeader>
+              {shortageRows.length > 0 && (
+                <div className="space-y-2 text-sm">
+                  <p className="text-muted-foreground">Не проходят по балансу:</p>
+                  {shortageRows.map(({ item, subtotal }: any) => (
+                    <div key={item.id} className="flex justify-between gap-3">
+                      <span className="truncate">{item.product.title} × {item.quantity}</span>
+                      <span className="whitespace-nowrap">{formatCoins(subtotal)} {icon}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setShortageOpen(false)}>Оставить как есть</Button>
+                <Button
+                  disabled={shortageRows.length === 0 || trimCart.isPending}
+                  onClick={() => trimCart.mutate()}
+                >
+                  Убрать лишнее ({shortageRows.length})
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
         </>
       )}
     </div>
