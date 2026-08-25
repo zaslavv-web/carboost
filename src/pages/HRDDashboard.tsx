@@ -555,14 +555,22 @@ const HRDDashboard = () => {
           <div className="mt-2 text-3xl font-bold text-foreground">{employees.length}</div>
           <div className="text-xs text-muted-foreground mt-1">{t("hrdDashboard.metrics.managersCount", { count: roleCounts.manager })}</div>
         </button>
-        <button type="button" onClick={() => applyQuickFilter({})} className="glass rounded-xl p-4 hover-lift text-left">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => applyQuickFilter({})}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") applyQuickFilter({});
+          }}
+          className="glass rounded-xl p-4 hover-lift text-left cursor-pointer"
+        >
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <TrendingUp className="w-4 h-4 text-info" />
             <MetricLabel metricKey="avg_competency_score" labelOverride={t("hrdDashboard.metrics.avgScore")} />
           </div>
           <div className="mt-2 text-3xl font-bold text-foreground">{avgScore}</div>
           <div className="text-[11px] text-muted-foreground mt-1">0–5 по компании</div>
-        </button>
+        </div>
         <button type="button" onClick={() => applyQuickFilter({ role: "manager", department: null })} className="glass rounded-xl p-4 hover-lift text-left">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <Shield className="w-4 h-4 text-warning" /> {t("hrdDashboard.metrics.managersLabel")}

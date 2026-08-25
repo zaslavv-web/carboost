@@ -6,6 +6,7 @@ import {
   type TrackerGoal, type GoalStatus,
 } from "@/hooks/tracker";
 import { useEffectiveUserId } from "@/hooks/useUserProfile";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -253,12 +254,25 @@ const GoalCard = ({ goal }: { goal: TrackerGoal }) => {
 
 const TrackerGoals = () => {
   const uid = useEffectiveUserId();
+  const { data: profile } = useUserProfile();
   const [scope, setScope] = useState<"mine" | "all">("mine");
   const [scopeType, setScopeType] = useState<"all" | GoalScopeType>("all");
-  const { data: allGoals = [], isLoading } = useGoals(scope === "mine" ? { holder_id: uid ?? undefined } : undefined);
+  const { data: allGoals = [], isLoading } = useGoals();
+  const visibleGoals = scope === "mine"
+    ? allGoals.filter((g) => {
+        const type = g.scope_type ?? "employee";
+        if (g.holder_id === uid) return true;
+        if (g.author_id === uid) return true;
+        if (type === "company") return true;
+        if ((type === "department" || type === "division") && profile?.department) {
+          return String(g.scope_label ?? "").trim().toLowerCase() === profile.department.trim().toLowerCase();
+        }
+        return false;
+      })
+    : allGoals;
   const goals = scopeType === "all"
-    ? allGoals
-    : allGoals.filter((g) => (g.scope_type ?? "employee") === scopeType);
+    ? visibleGoals
+    : visibleGoals.filter((g) => (g.scope_type ?? "employee") === scopeType);
 
   return (
     <div className="space-y-4">

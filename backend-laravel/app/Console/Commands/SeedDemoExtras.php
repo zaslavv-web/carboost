@@ -393,7 +393,7 @@ class SeedDemoExtras extends Command
             $deptGoal = DB::table('tracker_goals')->where('company_id', $this->companyId)->where('title', $title)->first();
             if (! $deptGoal) {
                 $deptGoalId = $this->insertGoal($periodId, $holder, $companyGoalId, $title,
-                    "Цель отдела «{$department}» — вклад в стратегическую цель компании.", 55, 'department', null, (string) $department);
+                    "Цель отдела «{$department}» — вклад в стратегическую цель компании.", 55, 'department', $holder, (string) $department);
                 $created++;
                 $this->insertKeyResults($deptGoalId, [
                     ['Выполнение плана отдела, %', '%', 0, 100, 58],
@@ -401,7 +401,7 @@ class SeedDemoExtras extends Command
                 ]);
             } else {
                 $deptGoalId = (string) $deptGoal->id;
-                $this->backfillGoalScope($deptGoalId, 'department', null, (string) $department);
+                $this->backfillGoalScope($deptGoalId, 'department', $holder, (string) $department);
             }
 
             // Цель нужна каждому сотруднику отдела. Лимит в 40 оставлял
@@ -414,7 +414,7 @@ class SeedDemoExtras extends Command
 
                 $goalId = $this->insertGoal($periodId, $holderId, $deptGoalId,
                     'Личная цель: повысить качество результата на своём участке',
-                    'Индивидуальная цель на квартал, связана с целью отдела.', 30 + (($index * 13) % 60), 'employee', null, (string) $member->full_name);
+                    'Индивидуальная цель на квартал, связана с целью отдела.', 30 + (($index * 13) % 60), 'employee', $holderId, (string) $member->full_name);
                 $created++;
                 $this->insertKeyResults($goalId, [
                     ['Закрытые задачи в срок, %', '%', 60, 90, 72 + ($index % 10)],
@@ -1233,6 +1233,24 @@ HTML;
                 ->where('start_date', '>=', now()->startOfMonth()->subMonths(5)->toDateString())
                 ->count();
             if ($months < 6) $problems[] = 'мало согласованных отсутствий за последние 6 месяцев';
+        }
+
+        if (Schema::hasTable('closed_question_tests')) {
+            $filledTests = DB::table('closed_question_tests')->where('company_id', $this->companyId)->get(['questions'])
+                ->filter(function ($row) {
+                    $questions = json_decode((string) $row->questions, true);
+                    return is_array($questions) && count($questions) >= 3;
+                })->count();
+            if ($filledTests < 3) $problems[] = "наполненных закрытых тестов только {$filledTests}";
+        }
+
+        if (Schema::hasTable('assessment_scenarios')) {
+            $filledScenarios = DB::table('assessment_scenarios')->where('company_id', $this->companyId)->get(['scenario_data'])
+                ->filter(function ($row) {
+                    $data = json_decode((string) $row->scenario_data, true);
+                    return is_array($data) && ! empty($data['steps']) && count($data['steps']) >= 3;
+                })->count();
+            if ($filledScenarios < 3) $problems[] = "наполненных сценариев оценки только {$filledScenarios}";
         }
 
 
