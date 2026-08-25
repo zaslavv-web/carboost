@@ -117,9 +117,16 @@ const CompetencyComparisonModal = ({
     },
   });
 
-  const posProfile: { name: string; required_level: number }[] = Array.isArray(position.competency_profile)
-    ? position.competency_profile
-    : [];
+  // Эталон может лежать строкой (JSON) и хранить ключ как name или skill.
+  const rawProfile: any = typeof position.competency_profile === "string"
+    ? (() => { try { return JSON.parse(position.competency_profile as any); } catch { return []; } })()
+    : position.competency_profile;
+  const posProfile: { name: string; required_level: number }[] = (Array.isArray(rawProfile) ? rawProfile : [])
+    .map((item: any) => ({
+      name: String(item?.name ?? item?.skill ?? "").trim(),
+      required_level: Number(item?.required_level ?? item?.target_value ?? 0),
+    }))
+    .filter((item) => item.name !== "" && item.required_level > 0);
 
   // Build comparison data
   const allSkills = new Set<string>();
@@ -132,9 +139,15 @@ const CompetencyComparisonModal = ({
     return { skill, required, actual };
   });
 
-  const totalRequired = radarData.reduce((s, d) => s + d.required, 0);
-  const totalActual = radarData.reduce((s, d) => s + d.actual, 0);
-  const matchPercent = totalRequired > 0 ? Math.round((totalActual / totalRequired) * 100) : 0;
+  // Соответствие считаем ТОЛЬКО по компетенциям, у которых задан эталон,
+  // и по каждой ограничиваем вклад 100% — иначе получались проценты в тысячах.
+  const scored = radarData.filter((d) => d.required > 0);
+  const hasBenchmark = scored.length > 0;
+  const matchPercent = hasBenchmark
+    ? Math.round(
+        (scored.reduce((sum, d) => sum + Math.min(1, d.actual / d.required), 0) / scored.length) * 100,
+      )
+    : 0;
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
@@ -155,13 +168,19 @@ const CompetencyComparisonModal = ({
         </div>
 
         {/* Match score */}
+        {!hasBenchmark && (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
+            Для должности «{position.title}» не заполнен эталонный профиль компетенций — процент соответствия не рассчитывается.
+            Заполните эталон в разделе «Должности».
+          </div>
+        )}
         <div className="flex items-center gap-4">
           <div
             className={`text-3xl font-bold ${
               matchPercent >= 80 ? "text-success" : matchPercent >= 50 ? "text-warning" : "text-destructive"
             }`}
           >
-            {matchPercent}%
+            {hasBenchmark ? `${matchPercent}%` : "—"}
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">{t("hrdDashboard.comparison.match")}</p>
@@ -846,7 +865,7 @@ const HRDDashboard = () => {
                           <Link to={`/users/${emp.user_id}`} className="font-medium text-foreground hover:text-primary hover:underline">
                             {emp.full_name}
                           </Link>
-                          <p className="text-xs text-muted-foreground">{emp.position || "—"}</p>
+                          {/* Должность показываем только в отдельном столбце — без дубля под ФИО. */}
                           {emp.email && (
                             <a href={`mailto:${emp.email}`} className="text-xs text-primary hover:underline block truncate max-w-[220px]">{emp.email}</a>
                           )}

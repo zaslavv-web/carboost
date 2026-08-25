@@ -41,10 +41,17 @@ export default function PeopleAnalytics() {
   const [absence, setAbsence] = useState<AbsencePoint[]>([]);
   const [risk, setRisk] = useState<Bucket[]>([]);
   const activeSlice = searchParams.get("slice");
+  // Drill-down всегда строит ЧИСТЫЙ набор параметров: предыдущие фильтры
+  // (роль, департамент, риск) не должны «залипать» и давать пустой список.
   const openEmployees = (params: Record<string, string>) => {
-    const query = new URLSearchParams(params);
+    const query = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""),
+    );
     navigate(`/users?${query.toString()}`);
   };
+  // Recharts отдаёт в onClick служебный объект: реальная строка лежит в payload.
+  const rowLabel = (row: any): string => String(row?.payload?.label ?? row?.label ?? "").trim();
+
 
   useEffect(() => {
     let cancelled = false;
@@ -121,7 +128,7 @@ export default function PeopleAnalytics() {
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={60} />
                 <YAxis allowDecimals={false} />
                 <Tooltip {...tooltipProps("bar")} />
-                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(row: Bucket) => openEmployees({ department: row.label })} />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(row: any) => openEmployees({ department: rowLabel(row) === "Без департамента" ? "none" : rowLabel(row) })} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -132,7 +139,7 @@ export default function PeopleAnalytics() {
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
-                <Pie data={tenure} dataKey="value" nameKey="label" outerRadius={100} label cursor="pointer" onClick={(row: Bucket) => openEmployees({ tenure: row.label })}>
+                <Pie data={tenure} dataKey="value" nameKey="label" outerRadius={100} label cursor="pointer" onClick={(row: any) => openEmployees({ tenure: rowLabel(row), probation: rowLabel(row) === "< 3 мес" ? "1" : "" })}>
                   {tenure.map((_, i) => (<Cell key={i} fill={COLORS[i % COLORS.length]} />))}
                 </Pie>
                 <Legend />
@@ -160,16 +167,24 @@ export default function PeopleAnalytics() {
         <Card>
           <CardHeader><CardTitle className="text-base"><ChartExplainer metricKey="absence_rate" hint="Рост — сигнал нагрузки или сезонности; смотрите разбивку по отделам." /></CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={absence}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} />
-                <Tooltip {...tooltipProps("bar")} />
-                <Bar dataKey="rate" name="Доля отсутствий, %" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(row: AbsencePoint) => navigate(`/leaves?month=${encodeURIComponent(row.month)}&status=approved`)} />
-              </BarChart>
-            </ResponsiveContainer>
+            {absence.every((a) => !a.days) ? (
+              <div className="h-[260px] flex flex-col items-center justify-center gap-1 text-sm text-muted-foreground">
+                <CalendarDays className="h-6 w-6 opacity-50" />
+                Нет согласованных отсутствий за последние 6 месяцев
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={absence}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip {...tooltipProps("bar")} />
+                  <Bar dataKey="rate" name="Доля отсутствий, %" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(row: any) => navigate(`/leaves?month=${encodeURIComponent(row?.payload?.month ?? row?.month ?? "")}&status=approved`)} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
+
         </Card>
 
         <Card className="lg:col-span-2">
@@ -181,7 +196,7 @@ export default function PeopleAnalytics() {
                 <XAxis type="number" allowDecimals={false} />
                 <YAxis type="category" dataKey="label" tick={{ fontSize: 11 }} width={160} />
                 <Tooltip {...tooltipProps("bar")} />
-                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(row: Bucket) => openEmployees({ position: row.label })} />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(row: any) => openEmployees({ position: rowLabel(row) === "Не задано" ? "none" : rowLabel(row) })} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
