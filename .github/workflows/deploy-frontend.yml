@@ -175,7 +175,8 @@ jobs:
           SSH="ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new"
           # Содержимое передаём прямо в SSH-сессию (base64), не полагаясь на rsync.
           B64="$(base64 -w0 dist/.htaccess.cache)"
-          OUT="$($SSH "$DEPLOY_USER@$DEPLOY_HOST" "WEB_ROOT='$WEB_ROOT' B64='$B64' bash -s" <<'REMOTE'
+          RC=0
+          OUT="$($SSH "$DEPLOY_USER@$DEPLOY_HOST" "WEB_ROOT='$WEB_ROOT' B64='$B64' bash -s" 2>&1 <<'REMOTE'
           set -e
           cd "$WEB_ROOT"
           printf '%s' "$B64" | base64 -d > .htaccess.new
