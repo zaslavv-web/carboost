@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Upload, Loader2, FileText, Trash2, Power, PowerOff, Eye, Plus, Pencil, RefreshCw } from "lucide-react";
+import { Upload, Loader2, FileText, Trash2, Power, PowerOff, Eye, Plus, Pencil, RefreshCw, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
@@ -39,6 +39,7 @@ const HRDTests = () => {
   const [previewTestId, setPreviewTestId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualQuestions, setManualQuestions] = useState<ParsedQuestion[]>([]);
+  const [statsTestId, setStatsTestId] = useState<string | null>(null);
 
   const { data: tests = [] } = useQuery({
     queryKey: ["hrd_tests", profile?.company_id],
@@ -80,6 +81,30 @@ const HRDTests = () => {
     enabled: !!profile?.company_id,
   });
   const departments = Array.from(new Set(employees.map((employee: any) => employee.department).filter(Boolean))) as string[];
+
+  const { data: attempts = [] } = useQuery({
+    queryKey: ["hrd_test_attempts", profile?.company_id],
+    queryFn: async () => {
+      if (!profile?.company_id) return [];
+      const { data, error } = await laravelDb
+        .from("test_attempts")
+        .select("id, user_id, test_id, score, total, created_at")
+        .eq("company_id", profile.company_id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!profile?.company_id,
+  });
+
+  const employeeById = useMemo(() => {
+    const map: Record<string, { full_name: string; department: string | null }> = {};
+    for (const employee of employees as any[]) {
+      map[employee.user_id] = { full_name: employee.full_name, department: employee.department ?? null };
+    }
+    return map;
+  }, [employees]);
+
 
   const positionTitle = useMemo(
     () => (id: string | null) => positions.find((p) => p.id === id)?.title || t("hrdTests.allPositions"),
@@ -334,7 +359,8 @@ const HRDTests = () => {
         ) : (
           <div className="divide-y divide-border">
             {tests.map((item: any) => (
-              <div key={item.id} className="px-5 py-3 flex items-center gap-3">
+              <div key={item.id} className="divide-y divide-border/60">
+              <div className="px-5 py-3 flex items-center gap-3">
                 <FileText className={`w-5 h-5 ${item.is_active ? "text-primary" : "text-muted-foreground"}`} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
@@ -369,6 +395,13 @@ const HRDTests = () => {
                   {item.is_active ? <PowerOff className="w-4 h-4 text-muted-foreground" /> : <Power className="w-4 h-4 text-success" />}
                 </button>
                 <button
+                  onClick={() => setStatsTestId((current) => (current === item.id ? null : item.id))}
+                  title="Статистика ответов"
+                  className="p-2 rounded-lg hover:bg-secondary"
+                >
+                  <BarChart3 className={`w-4 h-4 ${statsTestId === item.id ? "text-primary" : "text-muted-foreground"}`} />
+                </button>
+                <button
                   onClick={() => { if (confirm(t("hrdTests.confirmDelete"))) deleteTest.mutate(item.id); }}
                   title={t("hrdTests.deleteBtn")}
                   className="p-2 rounded-lg hover:bg-destructive/10"
@@ -376,6 +409,14 @@ const HRDTests = () => {
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </button>
               </div>
+              {statsTestId === item.id && (
+                <TestStatsPanel
+                  test={item}
+                  attempts={attempts.filter((a: any) => a.test_id === item.id)}
+                  employeeById={employeeById}
+                />
+              )}
+            </div>
             ))}
           </div>
         )}
@@ -456,5 +497,50 @@ function AudienceGroup({ title, options, selected, onToggle }: { title: string; 
   return <fieldset><legend className="mb-1 font-medium text-foreground">{title}</legend><div className="max-h-40 space-y-1 overflow-y-auto rounded border border-border p-2">{options.length === 0 ? <p className="text-xs text-muted-foreground">Нет доступных вариантов</p> : options.map((option) => <label key={option.value} className="flex cursor-pointer items-center gap-2"><input type="checkbox" checked={selected.includes(option.value)} onChange={() => onToggle(option.value)} />{option.label}</label>)}</div></fieldset>;
 }
 
+
+function TestStatsPanel({ test, attempts, employeeById }: { test: any; attempts: any[]; employeeById: Record<string, { full_name: string; department: string | null }> }) {
+  const total = attempts.length;
+  const totalQuestions = test.questions?.length || 0;
+  const avgPercent = total
+    ? Math.round((attempts.reduce((sum, a) => sum + (a.total ? a.score / a.total : 0), 0) / total) * 100)
+    : null;
+
+  return (
+    <div className="px-5 py-4 bg-muted/30 space-y-3">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <BarChart3 className="w-4 h-4" />
+        {total} прохожд. {avgPercent !== null && <span>· средний результат {avgPercent}%</span>}
+        {totalQuestions > 0 && <span>· вопросов: {totalQuestions}</span>}
+      </div>
+      {total === 0 ? (
+        <p className="text-xs text-muted-foreground">Пока никто не прошёл тест.</p>
+      ) : (
+        <div className="max-h-64 overflow-y-auto rounded-md border bg-background/70">
+          <div className="grid grid-cols-[minmax(0,1.2fr),minmax(0,0.8fr),minmax(4rem,0.6fr),minmax(4rem,0.6fr)] gap-2 border-b bg-muted/40 px-2 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+            <span>Сотрудник</span>
+            <span>Отдел</span>
+            <span className="text-right">Результат</span>
+            <span className="text-right">Дата</span>
+          </div>
+          {attempts
+            .slice()
+            .sort((a, b) => (b.score / (b.total || 1)) - (a.score / (a.total || 1)))
+            .map((attempt) => {
+              const person = employeeById[attempt.user_id];
+              const pct = attempt.total ? Math.round((attempt.score / attempt.total) * 100) : 0;
+              return (
+                <div key={attempt.id} className="grid grid-cols-[minmax(0,1.2fr),minmax(0,0.8fr),minmax(4rem,0.6fr),minmax(4rem,0.6fr)] gap-2 border-b px-2 py-1.5 text-xs last:border-b-0">
+                  <span className="truncate text-foreground">{person?.full_name || "Сотрудник"}</span>
+                  <span className="truncate text-muted-foreground">{person?.department || "—"}</span>
+                  <span className="text-right text-foreground">{attempt.score}/{attempt.total} · {pct}%</span>
+                  <span className="text-right text-muted-foreground">{attempt.created_at ? new Date(attempt.created_at).toLocaleDateString() : "—"}</span>
+                </div>
+              );
+            })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default HRDTests;

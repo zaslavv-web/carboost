@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Link } from "react-router-dom";
+import { resolveUrl } from "@/lib/utils";
 import { useChat } from "@/contexts/ChatContext";
 import ContactSearch from "./ContactSearch";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -37,10 +39,24 @@ const ConversationList = ({ onSelect }: { onSelect: (id: string) => void }) => {
                   onClick={() => onSelect(c.id)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-secondary/60 transition-colors text-left"
                 >
-                  <Avatar className="h-10 w-10 flex-shrink-0">
-                    <AvatarImage src={c.peer?.avatar_url ?? undefined} />
-                    <AvatarFallback>{initialsFor(name)}</AvatarFallback>
-                  </Avatar>
+                  {c.peer?.user_id ? (
+                    <Link
+                      to={`/users/${c.peer.user_id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-shrink-0"
+                      title={name}
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={resolveUrl(c.peer?.avatar_url)} />
+                        <AvatarFallback>{initialsFor(name)}</AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  ) : (
+                    <Avatar className="h-10 w-10 flex-shrink-0">
+                      <AvatarImage src={resolveUrl(c.peer?.avatar_url)} />
+                      <AvatarFallback>{initialsFor(name)}</AvatarFallback>
+                    </Avatar>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-sm truncate">{name}</span>

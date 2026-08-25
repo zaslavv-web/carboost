@@ -58,7 +58,7 @@ class AccessControlController extends Controller
         'hrd'           => '*',
         'hr'            => ['employees', 'invitations', 'adaptation', 'hr_documents', 'kedo', 'leaves', 'university', 'knowledge_base', 'probation', 'pulse'],
         'manager'       => ['tracker', 'performance', 'adaptation', 'leaves'],
-        'employee'      => ['tracker'],
+        'employee'      => ['tracker', 'performance'],
     ];
 
     private const VIEW_BY_ROLE = [
@@ -66,7 +66,7 @@ class AccessControlController extends Controller
         'hrd'           => '*',
         'hr'            => '*',
         'manager'       => ['employees', 'tracker', 'adaptation', 'positions', 'performance', 'skills_matrix', 'probation', 'analytics', 'pulse', 'hr_policies', 'leaves', 'university', 'knowledge_base', 'shop'],
-        'employee'      => ['tracker', 'hr_policies', 'leaves', 'university', 'knowledge_base', 'shop', 'hr_documents', 'kedo'],
+        'employee'      => ['tracker', 'performance', 'hr_policies', 'leaves', 'university', 'knowledge_base', 'shop', 'hr_documents', 'kedo'],
     ];
 
     /** Разделы администрирования доступны только company_admin. */
