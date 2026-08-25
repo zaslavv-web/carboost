@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Rocket, Plus, Trash2, Users, ClipboardList, CheckCircle2, Clock, GripVertical } from "lucide-react";
+import { Rocket, Plus, Trash2, Users, ClipboardList, CheckCircle2, Clock, GripVertical, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +36,7 @@ type Step = {
   order_index: number;
   due_offset_days: number;
   is_required: boolean;
+  material_url?: string | null;
 };
 
 type Assignment = {
@@ -283,6 +284,16 @@ const AdaptationPlans = () => {
                           <p className="text-xs text-muted-foreground">
                             {STAGES.find((x) => x.value === s.stage)?.label} • {STEP_TYPES.find((x) => x.value === s.step_type)?.label} • {RESPONSIBLES.find((x) => x.value === s.responsible)?.label} • +{s.due_offset_days} дн.
                           </p>
+                          {s.material_url && (
+                            <a
+                              href={s.material_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+                            >
+                              <Paperclip className="w-3 h-3" /> Материал к шагу
+                            </a>
+                          )}
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => removeStep.mutate(s.id)}>
                           <Trash2 className="w-4 h-4" />
@@ -459,6 +470,17 @@ const AssignmentDetailDialog = ({
                     {STAGES.find((x) => x.value === s.stage)?.label} • {STEP_TYPES.find((x) => x.value === s.step_type)?.label} • +{s.due_offset_days} дн.
                   </p>
                   {s.description && <p className="text-xs text-muted-foreground mt-1">{s.description}</p>}
+                  {s.material_url && (
+                    <a
+                      href={s.material_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+                    >
+                      <Paperclip className="w-3 h-3" /> Открыть материал
+                    </a>
+                  )}
                 </div>
               </label>
             );
@@ -503,15 +525,15 @@ const NewPlanForm = ({ onSubmit, loading }: { onSubmit: (v: any) => void; loadin
 };
 
 const NewStepForm = ({ onSubmit, loading }: { onSubmit: (v: any) => void; loading: boolean }) => {
-  const [v, setV] = useState({ title: "", stage: "first_week", step_type: "task", responsible: "employee", due_offset_days: 0 });
+  const [v, setV] = useState({ title: "", stage: "first_week", step_type: "task", responsible: "employee", due_offset_days: 0, material_url: "" });
   return (
     <form
       className="grid grid-cols-1 md:grid-cols-6 gap-2 p-3 rounded-lg border border-dashed border-border"
       onSubmit={(e) => {
         e.preventDefault();
         if (!v.title.trim()) return;
-        onSubmit(v);
-        setV({ ...v, title: "" });
+        onSubmit({ ...v, material_url: v.material_url.trim() || null });
+        setV({ ...v, title: "", material_url: "" });
       }}
     >
       <Input className="md:col-span-2" placeholder="Название шага" value={v.title} onChange={(e) => setV({ ...v, title: e.target.value })} />
@@ -527,6 +549,12 @@ const NewStepForm = ({ onSubmit, loading }: { onSubmit: (v: any) => void; loadin
         <SelectTrigger><SelectValue /></SelectTrigger>
         <SelectContent>{RESPONSIBLES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
       </Select>
+      <Input
+        className="md:col-span-5"
+        placeholder="Ссылка на материал (регламент, курс, форма) — необязательно"
+        value={v.material_url}
+        onChange={(e) => setV({ ...v, material_url: e.target.value })}
+      />
       <Button type="submit" disabled={loading}><Plus className="w-4 h-4" /></Button>
     </form>
   );

@@ -243,6 +243,11 @@ class DbController extends Controller
 
             $query = $model::query();
             $this->applyFilters($query, $request);
+            $this->applyRowLevelScope(
+                $query,
+                (new $model())->getTable(),
+                \Illuminate\Support\Facades\Schema::getColumnListing((new $model())->getTable()),
+            );
             $this->applySelect($query, $request);
             $this->applyOrder($query, $request);
 
@@ -382,6 +387,7 @@ class DbController extends Controller
         $query = \Illuminate\Support\Facades\DB::table($tableName);
         $this->applyFilters($query, $request);
         $this->applyCompanyScope($query, $instance, $tableName, $columns);
+        $this->applyRowLevelScope($query, $tableName, $columns);
         $this->applyOrder($query, $request, $columns);
 
         // Проекция колонок: берём только те, что реально есть в схеме — иначе
@@ -543,6 +549,34 @@ class DbController extends Controller
             return;
         }
         $query->where($tableName . '.company_id', $companyId);
+    }
+
+    /**
+     * Построчные ограничения, которые нельзя выразить одним company_id.
+     * Сейчас это персональные HR-документы: сотрудник видит только свои,
+     * общие регламенты компании (owner_user_id IS NULL) видны всем.
+     */
+    private function applyRowLevelScope($query, string $tableName, array $columns): void
+    {
+        if ($tableName !== 'hr_documents' || ! in_array('owner_user_id', $columns, true)) {
+            return;
+        }
+        $user = auth()->user();
+        if (! $user) {
+            return;
+        }
+        if (method_exists($user, 'hasRole')
+            && $user->hasRole(['superadmin', 'company_admin', 'hrd', 'hr'])) {
+            return;
+        }
+        $impersonator = method_exists($user, 'getAttribute') ? $user->getAttribute('impersonator') : null;
+        if ($impersonator && method_exists($impersonator, 'hasRole') && $impersonator->hasRole('superadmin')) {
+            return;
+        }
+        $query->where(function ($q) use ($tableName, $user) {
+            $q->whereNull($tableName . '.owner_user_id')
+              ->orWhere($tableName . '.owner_user_id', (string) $user->id);
+        });
     }
 
     /**

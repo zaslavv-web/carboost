@@ -3,8 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravel } from "@/integrations/laravel/client";
+import { chatApi } from "@/integrations/laravel/chat";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { ArrowLeft, Users, Lock, Globe, EyeOff, UserPlus, UserMinus, Plus, Paperclip, FileText } from "lucide-react";
+import { ArrowLeft, Users, Lock, Globe, EyeOff, UserPlus, UserMinus, Plus, Paperclip, FileText, MessageSquare, Trash2, Send } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -137,6 +140,16 @@ export default function CommunityDetail() {
     onError: (e: any) => toast.error(e?.message ?? "Не удалось опубликовать"),
   });
 
+  const startDirectChat = async (targetUserId: string) => {
+    const { data, error } = await chatApi.createDirect(String(targetUserId));
+    if (error) {
+      toast.error(error.message ?? "Не удалось открыть диалог");
+      return;
+    }
+    const conversationId = (data as any)?.data?.id ?? (data as any)?.id;
+    navigate(conversationId ? `/chats/${conversationId}` : "/chats");
+  };
+
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Загрузка сообщества…</div>;
   if (!community) return <div className="p-6 text-sm text-muted-foreground">Сообщество не найдено</div>;
 
@@ -207,6 +220,7 @@ export default function CommunityDetail() {
                     ))}
                   </ul>
                 )}
+                <PostComments postId={p.id} companyId={companyId} userId={userId} canComment={isMember} people={memberProfiles as any[]} />
               </CardContent>
             </Card>
           ))}
@@ -217,13 +231,20 @@ export default function CommunityDetail() {
             {memberProfiles.map((m: any) => (
               <Card key={m.user_id}>
                 <CardContent className="flex items-center gap-3 py-4">
-                  {m.avatar_url
-                    ? <img src={m.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
-                    : <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm">{(m.full_name || "?").slice(0, 1)}</span>}
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">{m.full_name}</div>
+                  <Link to={`/users/${m.user_id}`} className="flex-shrink-0">
+                    {m.avatar_url
+                      ? <img src={m.avatar_url} alt={m.full_name} className="h-10 w-10 rounded-full object-cover" />
+                      : <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm">{(m.full_name || "?").slice(0, 1)}</span>}
+                  </Link>
+                  <div className="min-w-0 flex-1">
+                    <Link to={`/users/${m.user_id}`} className="block truncate text-sm font-medium hover:underline">{m.full_name}</Link>
                     <div className="truncate text-xs text-muted-foreground">{m.department || "—"}</div>
                   </div>
+                  {String(m.user_id) !== String(userId) && (
+                    <Button size="icon" variant="ghost" title="Написать в личку" onClick={() => startDirectChat(m.user_id)}>
+                      <MessageSquare className="h-4 w-4" />
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -266,5 +287,214 @@ function CommunityPostDialog({ onSubmit, pending }: { onSubmit: (v: { title: str
         <Button disabled={!hasBody || pending} onClick={() => onSubmit({ title, body_md: body })}>Опубликовать</Button>
       </DialogFooter>
     </DialogContent>
+  );
+}
+
+function PostComments({
+  postId,
+  companyId,
+  userId,
+  canComment,
+  people,
+}: {
+  postId: string;
+  companyId: string | null;
+  userId: string | null;
+  canComment: boolean;
+  people: any[];
+}) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+
+  // Упоминания: «@» + начало ФИО/e-mail открывает список коллег.
+  const mentionMatches = (() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.trim().toLowerCase();
+    return (people ?? [])
+      .filter((p) => !q || String(p.full_name ?? "").toLowerCase().includes(q) || String(p.email ?? "").toLowerCase().includes(q))
+      .slice(0, 6);
+  })();
+
+  const handleTextChange = (value: string) => {
+    setText(value);
+    const m = value.match(/(?:^|\s)@([^@\n]{0,30})$/);
+    setMentionQuery(m ? m[1] : null);
+  };
+
+  const insertMention = (person: any) => {
+    const next = text.replace(/(?:^|\s)@([^@\n]{0,30})$/, (full) => {
+      const prefix = full.startsWith("@") ? "" : full[0];
+      return `${prefix}@[${person.full_name}](${person.user_id}) `;
+    });
+    setText(next);
+    setMentionQuery(null);
+  };
+
+  const { data: comments = [] } = useQuery({
+    queryKey: ["portal-post-comments", postId],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await laravelDb
+        .from("portal_post_comments" as any)
+        .select("*")
+        .eq("post_id", postId)
+        .order("created_at", { ascending: true })
+        .limit(200);
+      if (error) throw error;
+      return (data as any[]) ?? [];
+    },
+  });
+
+  const authorIds = [...new Set(comments.map((c: any) => String(c.author_id)).filter(Boolean))];
+  const { data: authors = [] } = useQuery({
+    queryKey: ["portal-comment-authors", postId, authorIds.join(",")],
+    enabled: authorIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await laravelDb
+        .from("profiles" as any)
+        .select("user_id,full_name,avatar_url")
+        .in("user_id", authorIds)
+        .limit(200);
+      if (error) throw error;
+      return (data as any[]) ?? [];
+    },
+  });
+  const authorMap = new Map(authors.map((a: any) => [String(a.user_id), a]));
+
+  const addComment = useMutation({
+    mutationFn: async (body: string) => {
+      const { error } = await laravelDb.from("portal_post_comments" as any).insert({
+        company_id: companyId,
+        post_id: postId,
+        author_id: userId,
+        body,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setText("");
+      qc.invalidateQueries({ queryKey: ["portal-post-comments", postId] });
+      qc.invalidateQueries({ queryKey: ["portal-community-posts"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Не удалось отправить комментарий"),
+  });
+
+  const removeComment = useMutation({
+    mutationFn: async (commentId: string) => {
+      const { error } = await laravelDb.from("portal_post_comments" as any).delete().eq("id", commentId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["portal-post-comments", postId] }),
+    onError: (e: any) => toast.error(e?.message ?? "Не удалось удалить комментарий"),
+  });
+
+  return (
+    <div className="border-t pt-3">
+      <Button variant="ghost" size="sm" onClick={() => setOpen((v) => !v)}>
+        <MessageSquare className="mr-2 h-4 w-4" />
+        {open ? "Скрыть комментарии" : "Комментарии"}
+        {comments.length > 0 && <span className="ml-1 text-muted-foreground">({comments.length})</span>}
+      </Button>
+
+      {open && (
+        <div className="space-y-3 pt-3">
+          {comments.length === 0 && <p className="text-sm text-muted-foreground">Комментариев пока нет</p>}
+          {comments.map((c: any) => {
+            const author = authorMap.get(String(c.author_id));
+            return (
+              <div key={c.id} className="flex items-start gap-2">
+                <Link to={`/users/${c.author_id}`} className="flex-shrink-0">
+                  {author?.avatar_url
+                    ? <img src={author.avatar_url} alt={author.full_name} className="h-8 w-8 rounded-full object-cover" />
+                    : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs">{(author?.full_name || "?").slice(0, 1)}</span>}
+                </Link>
+                <div className="min-w-0 flex-1 rounded-lg bg-muted/50 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Link to={`/users/${c.author_id}`} className="text-xs font-medium hover:underline">
+                      {author?.full_name || "Сотрудник"}
+                    </Link>
+                    <span className="text-[11px] text-muted-foreground">{new Date(c.created_at).toLocaleString("ru-RU")}</span>
+                  </div>
+                  <CommentBody body={String(c.body ?? "")} />
+                </div>
+                {String(c.author_id) === String(userId) && (
+                  <Button size="icon" variant="ghost" onClick={() => removeComment.mutate(c.id)} title="Удалить">
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+
+          {canComment ? (
+            <div className="relative flex items-end gap-2">
+              {mentionQuery !== null && mentionMatches.length > 0 && (
+                <div className="absolute bottom-full left-0 z-50 mb-1 w-72 rounded-md border bg-popover p-1 shadow-lg">
+                  {mentionMatches.map((person: any) => (
+                    <button
+                      key={person.user_id}
+                      type="button"
+                      onClick={() => insertMention(person)}
+                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-secondary"
+                    >
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[11px]">
+                        {(person.full_name || "?").slice(0, 1)}
+                      </span>
+                      <span className="truncate">{person.full_name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <Textarea
+                value={text}
+                onChange={(e) => handleTextChange(e.target.value)}
+                placeholder="Написать комментарий… (@ — упомянуть коллегу)"
+                rows={2}
+                className="min-h-0 flex-1"
+              />
+              <Button
+                size="icon"
+                disabled={!text.trim() || addComment.isPending}
+                onClick={() => addComment.mutate(text.trim())}
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Вступите в сообщество, чтобы комментировать</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Рендер текста комментария: @[Имя](user_id) превращается в ссылку на профиль. */
+function CommentBody({ body }: { body: string }) {
+  const parts: (string | { name: string; id: string })[] = [];
+  const re = /@\[([^\]]+)\]\(([^)]+)\)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    if (m.index > last) parts.push(body.slice(last, m.index));
+    parts.push({ name: m[1], id: m[2] });
+    last = m.index + m[0].length;
+  }
+  if (last < body.length) parts.push(body.slice(last));
+
+  return (
+    <p className="whitespace-pre-wrap break-words text-sm">
+      {parts.map((part, i) =>
+        typeof part === "string" ? (
+          <span key={i}>{part}</span>
+        ) : (
+          <Link key={i} to={`/users/${part.id}`} className="text-primary hover:underline">
+            @{part.name}
+          </Link>
+        ),
+      )}
+    </p>
   );
 }

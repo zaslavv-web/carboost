@@ -9,6 +9,7 @@ use App\Policies\CompanyScopedPolicy;
 use App\Policies\DemoRequestPolicy;
 use App\Policies\GoalChecklistItemPolicy;
 use App\Policies\OwnedRecordPolicy;
+use App\Policies\PortalCommentPolicy;
 use App\Policies\PulseSurveyResponsePolicy;
 use App\Policies\ProfilePolicy;
 use App\Policies\TeamMemberPolicy;
@@ -39,7 +40,7 @@ class AuthServiceProvider extends ServiceProvider
         Models\Department::class               => CompanyScopedPolicy::class,
         Models\Position::class                 => CompanyScopedPolicy::class,
         Models\PositionCareerPath::class       => CompanyScopedPolicy::class,
-        Models\HrDocument::class               => CompanyScopedPolicy::class,
+        Models\HrDocument::class               => HrDocumentPolicy::class,
         Models\AssessmentScenario::class       => CompanyScopedPolicy::class,
         Models\CareerTrackTemplate::class      => CompanyScopedPolicy::class,
         Models\CareerStepScenario::class       => CompanyScopedPolicy::class,
@@ -132,7 +133,7 @@ class AuthServiceProvider extends ServiceProvider
         // Portal & Communications (Волна 4)
         Models\PortalPost::class            => CompanyScopedPolicy::class,
         Models\PortalPostReaction::class    => OwnedRecordPolicy::class,
-        Models\PortalPostComment::class     => CompanyScopedPolicy::class,
+        Models\PortalPostComment::class     => PortalCommentPolicy::class,
         Models\PortalCommunity::class       => CompanyScopedPolicy::class,
         Models\PortalCommunityMember::class => CompanyScopedPolicy::class,
         Models\PulseSurvey::class           => CompanyScopedPolicy::class,

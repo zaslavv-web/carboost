@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { tooltipProps } from "@/lib/chartTooltip";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { parseCompetencyProfile, buildCompetencyRows, competencyMatchPercent } from "@/lib/competencyMatch";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravel } from "@/integrations/laravel/client";
 import { laravelRpc } from "@/integrations/laravel/rpc";
@@ -117,37 +118,15 @@ const CompetencyComparisonModal = ({
     },
   });
 
-  // Эталон может лежать строкой (JSON) и хранить ключ как name или skill.
-  const rawProfile: any = typeof position.competency_profile === "string"
-    ? (() => { try { return JSON.parse(position.competency_profile as any); } catch { return []; } })()
-    : position.competency_profile;
-  const posProfile: { name: string; required_level: number }[] = (Array.isArray(rawProfile) ? rawProfile : [])
-    .map((item: any) => ({
-      name: String(item?.name ?? item?.skill ?? "").trim(),
-      required_level: Number(item?.required_level ?? item?.target_value ?? 0),
-    }))
-    .filter((item) => item.name !== "" && item.required_level > 0);
-
-  // Build comparison data
-  const allSkills = new Set<string>();
-  posProfile.forEach((p) => allSkills.add(p.name));
-  competencies.forEach((c) => allSkills.add(c.skill_name));
-
-  const radarData = Array.from(allSkills).map((skill) => {
-    const required = posProfile.find((p) => p.name === skill)?.required_level || 0;
-    const actual = competencies.find((c) => c.skill_name === skill)?.skill_value || 0;
-    return { skill, required, actual };
-  });
-
-  // Соответствие считаем ТОЛЬКО по компетенциям, у которых задан эталон,
-  // и по каждой ограничиваем вклад 100% — иначе получались проценты в тысячах.
-  const scored = radarData.filter((d) => d.required > 0);
-  const hasBenchmark = scored.length > 0;
-  const matchPercent = hasBenchmark
-    ? Math.round(
-        (scored.reduce((sum, d) => sum + Math.min(1, d.actual / d.required), 0) / scored.length) * 100,
-      )
-    : 0;
+  const posProfile = parseCompetencyProfile(position.competency_profile);
+  const radarData = buildCompetencyRows(posProfile, competencies as any[]).map((r) => ({
+    ...r,
+    // Radar не умеет рисовать null — для графика пустая оценка = 0.
+    actualChart: r.actual ?? 0,
+  }));
+  const matchPercentValue = competencyMatchPercent(radarData);
+  const hasBenchmark = posProfile.length > 0;
+  const matchPercent = matchPercentValue ?? 0;
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
@@ -177,10 +156,10 @@ const CompetencyComparisonModal = ({
         <div className="flex items-center gap-4">
           <div
             className={`text-3xl font-bold ${
-              matchPercent >= 80 ? "text-success" : matchPercent >= 50 ? "text-warning" : "text-destructive"
+              matchPercentValue === null ? "text-muted-foreground" : matchPercent >= 80 ? "text-success" : matchPercent >= 50 ? "text-warning" : "text-destructive"
             }`}
           >
-            {hasBenchmark ? `${matchPercent}%` : "—"}
+            {matchPercentValue !== null ? `${matchPercentValue}%` : "—"}
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">{t("hrdDashboard.comparison.match")}</p>
@@ -212,7 +191,7 @@ const CompetencyComparisonModal = ({
                   <PolarAngleAxis dataKey="skill" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
                   <PolarRadiusAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} domain={[0, 10]} />
                   <Radar name={t("hrdDashboard.comparison.positionBenchmark")} dataKey="required" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} strokeWidth={2} />
-                  <Radar name={t("hrdDashboard.comparison.employee")} dataKey="actual" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.2} strokeWidth={2} />
+                  <Radar name={t("hrdDashboard.comparison.employee")} dataKey="actualChart" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.2} strokeWidth={2} />
                   <Legend />
                   <Tooltip {...tooltipProps("bar")} />
                 </RadarChart>
@@ -231,26 +210,28 @@ const CompetencyComparisonModal = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {radarData.map((d) => {
-                    const diff = d.actual - d.required;
-                    return (
-                      <tr key={d.skill} className="border-b border-border/50">
-                        <td className="py-2 px-4 font-medium text-foreground">{d.skill}</td>
-                        <td className="py-2 px-4 text-center text-muted-foreground">{d.required}</td>
-                        <td className="py-2 px-4 text-center text-foreground">{d.actual}</td>
-                        <td className="py-2 px-4 text-center">
-                          <span
-                            className={`font-semibold ${
-                              diff >= 0 ? "text-success" : "text-destructive"
-                            }`}
-                          >
-                            {diff > 0 ? "+" : ""}
-                            {diff}
+                  {radarData.map((d) => (
+                    <tr
+                      key={d.skill}
+                      className={`border-b border-border/50 ${d.status !== "matched" ? "text-muted-foreground" : ""}`}
+                    >
+                      <td className="py-2 px-4 font-medium">{d.skill}</td>
+                      <td className="py-2 px-4 text-center text-muted-foreground">{d.required > 0 ? d.required : "—"}</td>
+                      <td className="py-2 px-4 text-center">{d.actual ?? "—"}</td>
+                      <td className="py-2 px-4 text-center">
+                        {d.status === "matched" ? (
+                          <span className={`font-semibold ${(d.diff ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>
+                            {(d.diff ?? 0) > 0 ? "+" : ""}
+                            {d.diff}
                           </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                        ) : (
+                          <span className="text-xs">
+                            {d.status === "no_benchmark" ? "нет эталона" : "нет оценки"}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
