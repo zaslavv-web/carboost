@@ -335,7 +335,7 @@ export default function ShopAdmin() {
                     ) : (
                       <p className="font-semibold">{o.user_name}</p>
                     )}
-                    <Link to={`/orders/${o.id}`} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground block">
+                    <Link to={`/orders/${o.id}?from=admin`} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground block">
                       #{o.id.substring(0, 8)} · {new Date(o.created_at).toLocaleString("ru-RU")}
                     </Link>
                   </div>
@@ -345,7 +345,7 @@ export default function ShopAdmin() {
                       {o.status === "pending_fulfillment" ? t("shopAdmin.statusPendingFulfillment") : o.status === "fulfilled" ? t("shopAdmin.statusFulfilled") : t("shopAdmin.statusCancelled")}
                     </Badge>
                     <Button asChild size="sm" variant="outline">
-                      <Link to={`/orders/${o.id}`}>Открыть заказ</Link>
+                      <Link to={`/orders/${o.id}?from=admin`}>Открыть заказ</Link>
                     </Button>
                   </div>
                 </div>
