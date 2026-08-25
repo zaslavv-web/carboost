@@ -7,6 +7,7 @@ import { aiInvoke } from "@/integrations/laravel/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
+import { parseCompetencyProfile as parseSharedProfile } from "@/lib/competencyMatch";
 import {
   ReactFlow, Background, Controls, addEdge,
   useNodesState, useEdgesState,
@@ -253,10 +254,24 @@ const OKRKPIEditor = ({ value, onChange }: { value: OKRKPIItem[]; onChange: (v: 
 };
 
 // ── Parse helpers for profiles ──
+/**
+ * competency_profile приходит из БД либо массивом, либо JSON-строкой.
+ * Используем единый парсер (тот же, что в сравнении с эталоном), иначе редактор
+ * молча показывал пустой список и «терял» эталон при сохранении.
+ */
 const parseCompetencyProfile = (raw: any): CompetencyItem[] => {
-  if (Array.isArray(raw)) return raw.filter((r: any) => r.name);
-  return [];
+  const rows = Array.isArray(raw) ? raw : parseSharedProfile(raw);
+  return rows
+    .map((r: any) => ({
+      name: String(r?.name ?? r?.skill ?? "").trim(),
+      required_level: Number(r?.required_level ?? r?.target_value ?? 0),
+      category: r?.category,
+      critical_threshold: r?.critical_threshold,
+      behavioral_indicators: r?.behavioral_indicators,
+    }))
+    .filter((r) => r.name !== "");
 };
+
 
 const parsePsychProfile = (raw: any): PsychItem[] => {
   if (Array.isArray(raw)) return raw.filter((r: any) => r.trait);

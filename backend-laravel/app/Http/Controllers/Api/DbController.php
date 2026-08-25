@@ -605,12 +605,23 @@ class DbController extends Controller
             return;
         }
         if ($tableName === 'hr_documents' && in_array('owner_user_id', $columns, true)) {
-            $query->where(function ($q) use ($tableName, $user) {
+            $isManager = method_exists($user, 'hasRole') && $user->hasRole('manager');
+            $teamIds = $isManager
+                ? \App\Models\TeamMember::query()->withoutGlobalScopes()
+                    ->where('manager_id', $user->id)->pluck('employee_id')
+                    ->map(fn ($id) => (string) $id)->all()
+                : [];
+
+            $query->where(function ($q) use ($tableName, $user, $teamIds) {
                 $q->whereNull($tableName . '.owner_user_id')
                   ->orWhere($tableName . '.owner_user_id', (string) $user->id);
+                if ($teamIds !== []) {
+                    $q->orWhereIn($tableName . '.owner_user_id', $teamIds);
+                }
             });
             return;
         }
+
         if (in_array($tableName, ['test_attempts', 'shop_cart_items', 'shop_orders'], true)
             && in_array('user_id', $columns, true)) {
             $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;

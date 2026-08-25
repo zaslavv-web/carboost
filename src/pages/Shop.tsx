@@ -1,7 +1,7 @@
 import { ProductImage } from "@/components/shop/ProductImage";
 import { laravelDb } from "@/integrations/laravel/db";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useMyBalance, useCurrencySettings, formatCoins } from "@/hooks/useCurrency";
@@ -9,12 +9,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Package, ClipboardList } from "lucide-react";
+import { toast } from "sonner";
+import { useAddToCart } from "@/hooks/useCart";
 
 export default function Shop() {
   const { t } = useTranslation("employee");
   const { data: profile } = useUserProfile();
   const { data: balance = 0 } = useMyBalance();
   const { data: settings } = useCurrencySettings();
+  const navigate = useNavigate();
+  const addToCart = useAddToCart();
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["shop_products", profile?.company_id],
@@ -65,23 +69,47 @@ export default function Shop() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {products.map((p: any) => (
-            <Link key={p.id} to={`/shop/${p.id}`}>
-              <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full">
+            <Card key={p.id} className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col">
+              <Link to={`/shop/${p.id}`} className="block">
                 <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
                   <ProductImage imageUrl={p.image_url} title={p.title} className="w-full h-full object-cover" />
                 </div>
-                <CardContent className="p-4 space-y-2">
+              </Link>
+              <CardContent className="p-4 space-y-2 flex-1 flex flex-col">
+                <Link to={`/shop/${p.id}`} className="space-y-2 block">
                   <h3 className="font-semibold line-clamp-2">{p.title}</h3>
                   {p.description && <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>}
-                  <div className="flex items-center justify-between pt-2">
-                    <span className="font-bold text-primary text-lg">{formatCoins(p.price)} {icon}</span>
-                    {p.max_per_user && <Badge variant="outline" className="text-xs">{t("shop.maxShort", { count: p.max_per_user })}</Badge>}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+                </Link>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="font-bold text-primary text-lg">{formatCoins(p.price)} {icon}</span>
+                  {p.max_per_user && <Badge variant="outline" className="text-xs">{t("shop.maxShort", { count: p.max_per_user })}</Badge>}
+                </div>
+                <Button
+                  className="w-full mt-auto"
+                  size="sm"
+                  disabled={addToCart.isPending || balance < Number(p.price ?? 0)}
+                  onClick={() =>
+                    addToCart.mutate(
+                      { productId: p.id },
+                      {
+                        onSuccess: () => {
+                          toast.success(`«${p.title}» в корзине`, {
+                            action: { label: "Открыть корзину", onClick: () => navigate(`/cart?added=${p.id}`) },
+                          });
+                        },
+                        onError: (e: any) => toast.error(e.message),
+                      },
+                    )
+                  }
+                >
+                  <ShoppingCart className="mr-1 h-4 w-4" />
+                  {balance < Number(p.price ?? 0) ? "Недостаточно средств" : "В корзину"}
+                </Button>
+              </CardContent>
+            </Card>
           ))}
         </div>
+
       )}
     </div>
   );
