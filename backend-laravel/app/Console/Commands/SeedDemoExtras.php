@@ -119,12 +119,25 @@ class SeedDemoExtras extends Command
         // падала на любом окружении, где демо-учётки называются иначе
         // (например, demo_doom), хотя данные для наполнения есть.
         if (! $companyId) {
-            $companyId = DB::table('profiles')
+            $rankedCompanies = DB::table('profiles')
                 ->whereNotNull('company_id')
                 ->select('company_id', DB::raw('COUNT(*) as cnt'))
                 ->groupBy('company_id')
                 ->orderByDesc('cnt')
-                ->value('company_id');
+                ->limit(10)
+                ->get();
+
+            if ($rankedCompanies->count() > 1) {
+                $names = DB::table('companies')
+                    ->whereIn('id', $rankedCompanies->pluck('company_id')->all())
+                    ->pluck('name', 'id');
+                $available = $rankedCompanies
+                    ->map(fn ($row) => sprintf('%s (%d)', $names[$row->company_id] ?? $row->company_id, $row->cnt))
+                    ->implode(', ');
+                $this->line('Найдено несколько компаний с сотрудниками: ' . $available);
+            }
+
+            $companyId = $rankedCompanies->first()->company_id ?? null;
             if ($companyId) {
                 $name = DB::table('companies')->where('id', $companyId)->value('name');
                 $this->warn("Компания не задана — беру самую населённую: «{$name}». Для другой укажите --company=<id|название>.");
@@ -1538,6 +1551,13 @@ HTML;
         if (Schema::hasTable('pulse_surveys')) {
             $runningPulse = DB::table('pulse_surveys')->where('company_id', $this->companyId)->where('status', 'running')->count();
             if ($runningPulse < 1) $problems[] = 'нет активных pulse-опросов';
+        }
+        if (Schema::hasTable('performance_cycles') && Schema::hasTable('performance_reviews')) {
+            $activeCycles = DB::table('performance_cycles')->where('company_id', $this->companyId)
+                ->where('status', 'active')->count();
+            $reviews = DB::table('performance_reviews')->where('company_id', $this->companyId)->count();
+            if ($activeCycles < 1) $problems[] = 'нет активного performance-цикла';
+            if ($reviews < 10) $problems[] = "performance-ревью только {$reviews}";
         }
         if (Schema::hasTable('onboarding_plans') && Schema::hasTable('onboarding_assignments')) {
             $plans = DB::table('onboarding_plans')->where('company_id', $this->companyId)->count();

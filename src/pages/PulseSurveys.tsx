@@ -454,6 +454,23 @@ function QuestionBreakdown({
     .filter((v) => v.length > 0)
     .slice(0, 20);
 
+  const respondentRows = useMemo(() => {
+    if (anonymous) return [];
+    return responses
+      .filter((r) => !!r.user_id)
+      .map((r) => {
+        const person = r.user_id ? respondents[r.user_id] : undefined;
+        const answer = typeof r.value_number === "number" ? String(r.value_number) : (r.value_text ?? "—");
+        return {
+          id: r.id,
+          name: person?.full_name || "Сотрудник",
+          department: person?.department || "Без отдела",
+          answer,
+        };
+      })
+      .slice(0, 50);
+  }, [responses, respondents, anonymous]);
+
   const total = responses.length;
   const maxBucket = distribution.reduce((m, [, n]) => Math.max(m, n), 0) || 1;
 
@@ -495,16 +512,32 @@ function QuestionBreakdown({
             </p>
           ) : (
             byDepartment.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">По отделам</p>
-                {byDepartment.map((d) => (
-                  <div key={d.dep} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="truncate text-foreground">{d.dep}</span>
-                    <span className="text-muted-foreground shrink-0">
-                      {d.count} ответ(ов){d.avg !== null ? ` · среднее ${d.avg.toFixed(1)}` : ""}
-                    </span>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">По отделам</p>
+                  {byDepartment.map((d) => (
+                    <div key={d.dep} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="truncate text-foreground">{d.dep}</span>
+                      <span className="text-muted-foreground shrink-0">
+                        {d.count} ответ(ов){d.avg !== null ? ` · среднее ${d.avg.toFixed(1)}` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {respondentRows.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">По сотрудникам</p>
+                    <div className="max-h-56 overflow-auto rounded-md border bg-background/70">
+                      {respondentRows.map((row) => (
+                        <div key={row.id} className="grid grid-cols-[minmax(0,1fr),minmax(0,1fr),minmax(4rem,0.8fr)] gap-2 border-b px-2 py-1.5 text-xs last:border-b-0">
+                          <span className="truncate text-foreground">{row.name}</span>
+                          <span className="truncate text-muted-foreground">{row.department}</span>
+                          <span className="truncate text-right text-foreground">{row.answer}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                )}
               </div>
             )
           )}

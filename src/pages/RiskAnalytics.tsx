@@ -65,6 +65,12 @@ const RiskAnalytics = () => {
   );
   const [deptFilter, setDeptFilter] = useState<string | null>(searchParams.get("department"));
   const tableRef = useRef<HTMLDivElement>(null);
+  const openPeopleAnalyticsSlice = () => {
+    const next = new URLSearchParams({ slice: "risk" });
+    if (levelFilter !== "all") next.set("risk", levelFilter);
+    if (deptFilter) next.set("department", deptFilter);
+    navigate(`/people-analytics?${next.toString()}`);
+  };
   const applyFilter = (dept: string | null, level: "all" | "low" | "medium" | "high") => {
     setDeptFilter(dept);
     setLevelFilter(level);
@@ -389,7 +395,7 @@ const RiskAnalytics = () => {
                           type="button"
                           key={lvl}
                           onClick={() => applyFilter(row.dept, lvl)}
-                          className={`${bg} flex items-center justify-center text-xs font-semibold text-white transition-all cursor-pointer`}
+                          className={`${bg} flex items-center justify-center text-xs font-semibold text-primary-foreground transition-all cursor-pointer`}
                           style={{ width: `${pct}%` }}
                           title={`${row.dept} · ${lvl}: ${count} — ${t("riskAnalytics.heatmap.clickToFilter", { defaultValue: "клик — фильтр таблицы" })}`}
                         >
@@ -552,6 +558,9 @@ const RiskAnalytics = () => {
       <Card className="glass p-5" ref={tableRef}>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h3 className="text-sm font-semibold text-foreground">{t("riskAnalytics.table.title")}</h3>
+          <Button size="sm" variant="outline" onClick={openPeopleAnalyticsSlice}>
+            Открыть в People Analytics
+          </Button>
           {(deptFilter || levelFilter !== "all") && (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-muted-foreground">

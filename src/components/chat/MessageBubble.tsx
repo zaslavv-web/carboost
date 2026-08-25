@@ -52,15 +52,13 @@ const MessageBubble = ({
       )}
       <div className={`max-w-[80%] flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
         {!isOwn && senderName && (
-          <button
-            type="button"
-            onClick={onDirectMessage}
-            className="text-[11px] text-muted-foreground hover:underline mb-0.5 text-left disabled:cursor-default disabled:no-underline"
-            disabled={!onDirectMessage}
-            title={t("directMessage")}
+          <Link
+            to={`/users/${message.sender_id}`}
+            className="text-[11px] text-muted-foreground hover:underline mb-0.5 text-left"
+            title={senderName}
           >
             {senderName}
-          </button>
+          </Link>
         )}
         <div
           className={`rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap ${

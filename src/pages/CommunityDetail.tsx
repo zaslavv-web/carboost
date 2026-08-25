@@ -19,6 +19,7 @@ import { RichContent } from "@/components/ui/rich-content";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { toast } from "sonner";
 import { resolveUrl } from "@/lib/utils";
+import { fetchHrdDirectory } from "@/lib/hrdDirectory";
 
 const PRIVACY_ICON = { open: Globe, closed: Lock, secret: EyeOff } as const;
 const PRIVACY_LABEL = { open: "Открытое", closed: "Закрытое", secret: "Скрытое" } as const;
@@ -82,6 +83,12 @@ export default function CommunityDetail() {
       if (error) throw error;
       return (data as any[]) ?? [];
     },
+  });
+
+  const { data: mentionPeople = [] } = useQuery({
+    queryKey: ["portal-community-mention-people", companyId],
+    enabled: !!companyId,
+    queryFn: async () => fetchHrdDirectory(),
   });
 
   const files = useMemo(() => {
@@ -223,7 +230,13 @@ export default function CommunityDetail() {
                     ))}
                   </ul>
                 )}
-                <PostComments postId={p.id} companyId={companyId} userId={userId} canComment={isMember} people={memberProfiles as any[]} />
+                <PostComments
+                  postId={p.id}
+                  companyId={companyId}
+                  userId={userId}
+                  canComment={isMember}
+                  people={(mentionPeople.length ? mentionPeople : memberProfiles) as any[]}
+                />
               </CardContent>
             </Card>
           ))}
