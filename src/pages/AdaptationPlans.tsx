@@ -470,6 +470,17 @@ const AssignmentDetailDialog = ({
                     {STAGES.find((x) => x.value === s.stage)?.label} • {STEP_TYPES.find((x) => x.value === s.step_type)?.label} • +{s.due_offset_days} дн.
                   </p>
                   {s.description && <p className="text-xs text-muted-foreground mt-1">{s.description}</p>}
+                  {s.material_url && (
+                    <a
+                      href={s.material_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+                    >
+                      <Paperclip className="w-3 h-3" /> Открыть материал
+                    </a>
+                  )}
                 </div>
               </label>
             );
