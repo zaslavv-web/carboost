@@ -71,6 +71,15 @@ const LaravelAuthContext = createContext<LaravelAuthContextType>({
   clearSession: async () => {},
 });
 
+const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+function isTransientAuthError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const typed = error as Error & { status?: number; code?: string };
+  if (typed.status && typed.status >= 500) return true;
+  return typed.code === "db_busy" || typed.code === "backend_timeout" || typed.code === "backend_network";
+}
+
 export const useLaravelAuth = () => useContext(LaravelAuthContext);
 
 export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
@@ -118,7 +127,20 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
         failSession("malformed_token", "Сохранённая сессия повреждена.");
         return;
       }
-      const me = await laravelAuthApi.me();
+      let me: LaravelUser | null = null;
+      let lastAuthError: unknown = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          me = await laravelAuthApi.me();
+          lastAuthError = null;
+          break;
+        } catch (e) {
+          lastAuthError = e;
+          if (!isTransientAuthError(e) || attempt === 2) break;
+          await wait(700 * (attempt + 1));
+        }
+      }
+      if (lastAuthError) throw lastAuthError;
       if (!me) {
         clearStoredAuthState({ includeToken: true, reason: "auth_me_empty" });
         setUser(null);
@@ -128,11 +150,11 @@ export const LaravelAuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(me);
       setAuthStatus("authenticated");
     } catch (e) {
-      console.error("Laravel auth refresh failed", e);
       const message = e instanceof Error ? e.message : "Не удалось восстановить сохранённую сессию.";
       // 5xx, перегрузка БД и сетевой таймаут не означают, что токен истёк.
       // Сохраняем его, чтобы временный сбой сервиса не выбрасывал пользователя
       // на форму входа. Реальные 401/419 уже очищаются внутри laravelAuthApi.me().
+      if (!isTransientAuthError(e)) console.error("Laravel auth refresh failed", e);
       setUser(null);
       setAuthStatus("failed");
       setAuthError(message);
