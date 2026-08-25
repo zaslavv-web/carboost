@@ -328,16 +328,28 @@ export default function ShopAdmin() {
               <CardContent className="p-4 space-y-3">
                 <div className="flex justify-between flex-wrap gap-2">
                   <div>
-                    <p className="font-semibold">{o.user_name}</p>
-                    <Link to={`/orders/${o.id}`} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
+                    {o.user_id ? (
+                      <Link to={`/profile/${o.user_id}`} className="font-semibold hover:underline underline-offset-2">
+                        {o.user_name}
+                      </Link>
+                    ) : (
+                      <p className="font-semibold">{o.user_name}</p>
+                    )}
+                    <Link to={`/orders/${o.id}`} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground block">
                       #{o.id.substring(0, 8)} · {new Date(o.created_at).toLocaleString("ru-RU")}
                     </Link>
                   </div>
 
-                  <Badge variant={o.status === "pending_fulfillment" ? "secondary" : o.status === "fulfilled" ? "default" : "destructive"}>
-                    {o.status === "pending_fulfillment" ? t("shopAdmin.statusPendingFulfillment") : o.status === "fulfilled" ? t("shopAdmin.statusFulfilled") : t("shopAdmin.statusCancelled")}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={o.status === "pending_fulfillment" ? "secondary" : o.status === "fulfilled" ? "default" : "destructive"}>
+                      {o.status === "pending_fulfillment" ? t("shopAdmin.statusPendingFulfillment") : o.status === "fulfilled" ? t("shopAdmin.statusFulfilled") : t("shopAdmin.statusCancelled")}
+                    </Badge>
+                    <Button asChild size="sm" variant="outline">
+                      <Link to={`/orders/${o.id}`}>Открыть заказ</Link>
+                    </Button>
+                  </div>
                 </div>
+
                 <div className="text-sm space-y-1">
                   {o.items?.map((it: any) => <div key={it.id}>• {it.product_title} × {it.quantity} = {formatCoins(it.subtotal)} {icon}</div>)}
                 </div>
