@@ -102,6 +102,16 @@ export default function OrderDetail() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader><CardTitle className="text-base">Получение и активация</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {(order.items ?? []).map((it: any) => (
+                <OrderItemActivation key={it.id} item={it} canActivate={!fromAdmin && isOwner} />
+              ))}
+            </CardContent>
+          </Card>
+
+
           {(order.cancel_reason || order.fulfilled_at) && (
             <Card>
               <CardHeader><CardTitle className="text-base">Обработка</CardTitle></CardHeader>
