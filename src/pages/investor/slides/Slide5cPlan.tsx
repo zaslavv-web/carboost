@@ -81,13 +81,13 @@ export default function Slide5cPlan() {
         </div>
 
         <div
-          className="mt-5 flex-1 rounded-2xl bg-white p-5"
+          className="mt-5 flex-1 min-h-0 rounded-2xl bg-white p-5"
           style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.08), 0 1px 3px 1px rgba(0,0,0,0.04)" }}
         >
           <div className="mb-2 text-[13px] font-semibold uppercase tracking-[0.16em] text-[#8C6A1A]">
             Выручка · расходы · прибыль, тыс. руб. / мес.
           </div>
-          <div className="h-[330px]">
+          <div className="h-[calc(100%-28px)]">
             <ResponsiveContainer>
               <ComposedChart data={plan} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
                 <CartesianGrid stroke="#D5A52A" strokeOpacity={0.18} vertical={false} />
