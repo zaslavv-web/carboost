@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Smile, Reply } from "lucide-react";
+import { MessageCircle, Smile, Reply } from "lucide-react";
 import { ChatMessage } from "@/integrations/laravel/chat";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
@@ -15,6 +15,7 @@ const MessageBubble = ({
   currentUserId,
   onReply,
   onReact,
+  onDirectMessage,
   replyToBody,
   senderName,
   senderAvatar,
@@ -24,6 +25,7 @@ const MessageBubble = ({
   currentUserId?: string;
   onReply: () => void;
   onReact: (emoji: string) => void;
+  onDirectMessage?: () => void;
   replyToBody: string | null;
   senderName?: string;
   senderAvatar?: string;
@@ -91,6 +93,11 @@ const MessageBubble = ({
             <button onClick={onReply} className="p-1 rounded hover:bg-secondary" aria-label={t("reply")}>
               <Reply className="w-3 h-3 text-muted-foreground" />
             </button>
+            {!isOwn && onDirectMessage && (
+              <button onClick={onDirectMessage} className="p-1 rounded hover:bg-secondary" aria-label={t("directMessage")} title={t("directMessage")}>
+                <MessageCircle className="w-3 h-3 text-muted-foreground" />
+              </button>
+            )}
             <button onClick={() => setPickerOpen((v) => !v)} className="p-1 rounded hover:bg-secondary" aria-label={t("react")}>
               <Smile className="w-3 h-3 text-muted-foreground" />
             </button>

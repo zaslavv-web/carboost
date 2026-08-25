@@ -8,11 +8,13 @@ import MessageBubble from "./MessageBubble";
 import MessageComposer from "./MessageComposer";
 import { Reply, X } from "lucide-react";
 import { laravelDb } from "@/integrations/laravel/db";
+import { useNavigate } from "react-router-dom";
 
 const ConversationView = ({ conversationId }: { conversationId: string }) => {
   const { t } = useTranslation("chat");
   const { user } = useAuth();
-  const { refresh } = useChat();
+  const { refresh, openOrCreateDirect } = useChat();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const lastReadMessageIdRef = useRef<string | null>(null);
@@ -122,6 +124,11 @@ const ConversationView = ({ conversationId }: { conversationId: string }) => {
     );
   };
 
+  const handleDirectMessage = async (peerUserId: string) => {
+    const directId = await openOrCreateDirect(peerUserId);
+    if (directId) navigate(`/chats/${directId}`);
+  };
+
   const senderIds = useMemo(
     () => [...new Set(messages.map((m) => m.sender_id).filter(Boolean))],
     [messages],
@@ -160,6 +167,7 @@ const ConversationView = ({ conversationId }: { conversationId: string }) => {
             senderAvatar={(senders as any)[m.sender_id]?.avatar_url}
             onReply={() => setReplyTo(m)}
             onReact={(emoji) => handleReact(m.id, emoji)}
+            onDirectMessage={m.sender_id !== user?.id ? () => handleDirectMessage(m.sender_id) : undefined}
             replyToBody={
               m.reply_to_id ? messages.find((x) => x.id === m.reply_to_id)?.body ?? null : null
             }

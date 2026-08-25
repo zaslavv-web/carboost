@@ -371,10 +371,10 @@ class SeedDemoExtras extends Command
         $created = 0;
 
         $companyGoal = DB::table('tracker_goals')->where('company_id', $this->companyId)
-            ->whereNull('parent_goal_id')->first();
+            ->where('title', 'Вырасти в выручке на 30% за квартал')->first();
         if (! $companyGoal) {
             $companyGoalId = $this->insertGoal($periodId, $owner, null, 'Вырасти в выручке на 30% за квартал',
-                'Стратегическая цель компании на квартал: рост выручки, удержание команды и качество сервиса.', 42);
+                'Стратегическая цель компании на квартал: рост выручки, удержание команды и качество сервиса.', 42, 'company', null, null);
             $created++;
             $this->insertKeyResults($companyGoalId, [
                 ['Выручка, млн ₽', 'млн ₽', 120, 156, 132],
@@ -383,6 +383,7 @@ class SeedDemoExtras extends Command
             ]);
         } else {
             $companyGoalId = (string) $companyGoal->id;
+            $this->backfillGoalScope($companyGoalId, 'company', null, null);
         }
 
         $byDepartment = $profiles->groupBy(fn ($p) => $p->department ?: 'Без отдела');
@@ -392,7 +393,7 @@ class SeedDemoExtras extends Command
             $deptGoal = DB::table('tracker_goals')->where('company_id', $this->companyId)->where('title', $title)->first();
             if (! $deptGoal) {
                 $deptGoalId = $this->insertGoal($periodId, $holder, $companyGoalId, $title,
-                    "Цель отдела «{$department}» — вклад в стратегическую цель компании.", 55);
+                    "Цель отдела «{$department}» — вклад в стратегическую цель компании.", 55, 'department', null, (string) $department);
                 $created++;
                 $this->insertKeyResults($deptGoalId, [
                     ['Выполнение плана отдела, %', '%', 0, 100, 58],
@@ -400,6 +401,7 @@ class SeedDemoExtras extends Command
                 ]);
             } else {
                 $deptGoalId = (string) $deptGoal->id;
+                $this->backfillGoalScope($deptGoalId, 'department', null, (string) $department);
             }
 
             // Цель нужна каждому сотруднику отдела. Лимит в 40 оставлял
@@ -412,7 +414,7 @@ class SeedDemoExtras extends Command
 
                 $goalId = $this->insertGoal($periodId, $holderId, $deptGoalId,
                     'Личная цель: повысить качество результата на своём участке',
-                    'Индивидуальная цель на квартал, связана с целью отдела.', 30 + (($index * 13) % 60));
+                    'Индивидуальная цель на квартал, связана с целью отдела.', 30 + (($index * 13) % 60), 'employee', null, (string) $member->full_name);
                 $created++;
                 $this->insertKeyResults($goalId, [
                     ['Закрытые задачи в срок, %', '%', 60, 90, 72 + ($index % 10)],
@@ -424,10 +426,10 @@ class SeedDemoExtras extends Command
         return $created;
     }
 
-    private function insertGoal(?string $periodId, string $holderId, ?string $parentId, string $title, string $description, float $progress): string
+    private function insertGoal(?string $periodId, string $holderId, ?string $parentId, string $title, string $description, float $progress, string $scopeType = 'employee', ?string $scopeRef = null, ?string $scopeLabel = null): string
     {
         $id = (string) Str::uuid();
-        DB::table('tracker_goals')->insert([
+        $payload = [
             'id' => $id,
             'company_id' => $this->companyId,
             'period_id' => $periodId,
@@ -441,9 +443,22 @@ class SeedDemoExtras extends Command
             'published_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ];
+        if (Schema::hasColumn('tracker_goals', 'scope_type')) $payload['scope_type'] = $scopeType;
+        if (Schema::hasColumn('tracker_goals', 'scope_ref')) $payload['scope_ref'] = $scopeRef;
+        if (Schema::hasColumn('tracker_goals', 'scope_label')) $payload['scope_label'] = $scopeLabel;
+        DB::table('tracker_goals')->insert($payload);
 
         return $id;
+    }
+
+    private function backfillGoalScope(string $goalId, string $scopeType, ?string $scopeRef, ?string $scopeLabel): void
+    {
+        $patch = ['updated_at' => now()];
+        if (Schema::hasColumn('tracker_goals', 'scope_type')) $patch['scope_type'] = $scopeType;
+        if (Schema::hasColumn('tracker_goals', 'scope_ref')) $patch['scope_ref'] = $scopeRef;
+        if (Schema::hasColumn('tracker_goals', 'scope_label')) $patch['scope_label'] = $scopeLabel;
+        DB::table('tracker_goals')->where('id', $goalId)->update($patch);
     }
 
     /** @param array<int, array{0:string,1:string,2:float,3:float,4:float}> $rows */
@@ -686,7 +701,7 @@ HTML;
 
             $templates = [
                 ['post', "Правила сообщества «{$community->title}»", '<h3>О чём это сообщество</h3><p>Делимся практикой, задаём вопросы и помогаем друг другу. Публикации без рекламы и спама.</p><ul><li>Уважаем время коллег</li><li>Пишем по делу</li><li>Помогаем новичкам</li></ul>'],
-                ['announcement', 'Встреча сообщества на этой неделе', '<p>В четверг в 17:00 собираемся онлайн: разбираем кейсы участников и планируем следующие темы.</p><p><img src="https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=1000&q=80" alt="Встреча сообщества"></p>'],
+                ['announcement', 'Встреча сообщества на этой неделе', '<p>В четверг в 17:00 собираемся онлайн: разбираем кейсы участников и планируем следующие темы.</p><p><img src="/demo/community-cover.jpg" alt="Встреча сообщества"></p>'],
                 ['event', 'Открытый воркшоп для всех желающих', '<h3>Что будет</h3><p>Практика в мини-группах и разбор ошибок. Регистрация — в комментариях.</p>'],
             ];
             foreach (array_slice($templates, $posts) as $index => [$kind, $postTitle, $postBody]) {
@@ -723,21 +738,31 @@ HTML;
         if (Schema::hasTable('closed_question_tests')) {
             $positions = DB::table('positions')->where('company_id', $this->companyId)->pluck('id', 'title')->all();
             foreach ($this->testBlueprints() as $blueprint) {
-                $exists = DB::table('closed_question_tests')
-                    ->where('company_id', $this->companyId)->where('title', $blueprint['title'])->exists();
-                if ($exists) continue;
+                $existing = DB::table('closed_question_tests')
+                    ->where('company_id', $this->companyId)->where('title', $blueprint['title'])->first();
 
-                DB::table('closed_question_tests')->insert([
-                    'id' => (string) Str::uuid(),
-                    'company_id' => $this->companyId,
+                $payload = [
                     'position_id' => $positions[$blueprint['position']] ?? null,
-                    'title' => $blueprint['title'],
                     'description' => $blueprint['description'],
                     'questions' => json_encode($blueprint['questions'], JSON_UNESCAPED_UNICODE),
                     'is_active' => true,
+                    'updated_at' => now(),
+                ];
+
+                if ($existing) {
+                    $questions = json_decode((string) ($existing->questions ?? '[]'), true);
+                    if (is_array($questions) && count($questions) >= 3) continue;
+                    DB::table('closed_question_tests')->where('id', $existing->id)->update($payload);
+                    $created++;
+                    continue;
+                }
+
+                DB::table('closed_question_tests')->insert($payload + [
+                    'id' => (string) Str::uuid(),
+                    'company_id' => $this->companyId,
+                    'title' => $blueprint['title'],
                     'created_by' => $admin,
                     'created_at' => now(),
-                    'updated_at' => now(),
                 ]);
                 $created++;
             }

@@ -27,8 +27,10 @@ const RoleAwareLayout = () => {
   const location = useLocation();
   const { user } = useAuth();
 
-  // Restrict /users to platform admins. HRD now manages people via /dashboard.
-  const isAdminOnly = location.pathname.startsWith("/users");
+  // Restrict the employee directory to platform admins, but allow direct profile cards
+  // (/users/:id) from chats, analytics and task drill-downs.
+  const isUserProfileRoute = /^\/users\/[^/]+$/.test(location.pathname);
+  const isAdminOnly = location.pathname.startsWith("/users") && !isUserProfileRoute;
   if (rolesReady && isAdminOnly && role && role !== "superadmin" && role !== "company_admin") {
     // Сохраняем query: drill-down из аналитики несёт фильтры (department/position/tenure...).
     return <Navigate to={`/dashboard${location.search}`} replace />;
