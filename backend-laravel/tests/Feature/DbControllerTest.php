@@ -171,6 +171,73 @@ class DbControllerTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.title', 'Скрытый');
     }
+
+    public function test_embedded_select_uses_alias_as_eloquent_relation(): void
+    {
+        $company = $this->makeCompany();
+        $employee = $this->makeUser('employee', $company->id);
+        $productId = (string) \Illuminate\Support\Str::uuid();
+
+        DB::table('shop_products')->insert([
+            'id' => $productId,
+            'company_id' => $company->id,
+            'title' => 'Подарочный сертификат',
+            'price' => 250,
+            'is_active' => true,
+            'created_by' => $employee->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('shop_cart_items')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'user_id' => $employee->id,
+            'company_id' => $company->id,
+            'product_id' => $productId,
+            'quantity' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($employee, 'sanctum')
+            ->getJson('/api/db/shop_cart_items?select=*,product:shop_products(*)&eq.user_id=' . $employee->id)
+            ->assertOk()
+            ->assertJsonPath('data.0.product.title', 'Подарочный сертификат');
+    }
+
+    public function test_embedded_select_alias_loads_order_items_relation(): void
+    {
+        $company = $this->makeCompany();
+        $employee = $this->makeUser('employee', $company->id);
+        $orderId = (string) \Illuminate\Support\Str::uuid();
+        $productId = (string) \Illuminate\Support\Str::uuid();
+
+        DB::table('shop_orders')->insert([
+            'id' => $orderId,
+            'user_id' => $employee->id,
+            'company_id' => $company->id,
+            'total_amount' => 250,
+            'status' => 'pending_fulfillment',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('shop_order_items')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'order_id' => $orderId,
+            'product_id' => $productId,
+            'quantity' => 1,
+            'unit_price' => 250,
+            'subtotal' => 250,
+            'product_title' => 'Подарочный сертификат',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($employee, 'sanctum')
+            ->getJson('/api/db/shop_orders?select=*,items:shop_order_items(*)&eq.user_id=' . $employee->id)
+            ->assertOk()
+            ->assertJsonPath('data.0.items.0.product_title', 'Подарочный сертификат');
+    }
+
     /**
      * Регрессия: матрица разделов описывает админ-разделы, а не личные данные.
      * Сотрудник обязан видеть опросы/должности/профили и отправлять ответы.

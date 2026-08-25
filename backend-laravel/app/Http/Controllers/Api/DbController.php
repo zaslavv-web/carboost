@@ -938,17 +938,19 @@ class DbController extends Controller
             $p = trim($part);
             if ($p === '' || $p === '*') continue;
             if (preg_match('/^([A-Za-z0-9_]+)(?::([A-Za-z0-9_]+))?\((.*)\)$/', $p, $m)) {
-                // alias:relation(cols)  OR  relation(cols)
+                // PostgREST syntax is usually alias:table(cols), while Eloquent
+                // needs the model relation method. In this codebase aliases are
+                // the relation names: product:shop_products(*) -> product().
                 $alias    = $m[2] !== '' ? $m[1] : null;
-                $relation = $m[2] !== '' ? $m[2] : $m[1];
+                $requested = $m[2] !== '' ? $m[2] : $m[1];
+                $relation = $alias ?: $requested;
                 $inner    = trim($m[3]);
                 // Рассинхрон фронта и моделей не должен ронять сервис в 500:
                 // неизвестную связь просто пропускаем и пишем предупреждение.
                 if ($model && ! method_exists($model, $relation)) {
-                    $skipped[] = $relation;
+                    $skipped[] = $requested;
                     continue;
                 }
-                $key = $alias ? "$alias as $relation" : $relation;
                 if ($inner === '' || $inner === '*') {
                     $eager[] = $relation;
                 } else {
