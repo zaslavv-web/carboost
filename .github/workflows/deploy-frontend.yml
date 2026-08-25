@@ -77,9 +77,11 @@ jobs:
           HOST="${SERVER_IP:-$FALLBACK_HOST}"
           USER_NAME="${SERVER_USER:-$FALLBACK_USER}"
           ROOT="${TARGET_DIR:-$FALLBACK_ROOT}"
-          echo "DEPLOY_HOST=$HOST" >> "$GITHUB_ENV"
-          echo "DEPLOY_USER=$USER_NAME" >> "$GITHUB_ENV"
-          echo "WEB_ROOT=$ROOT" >> "$GITHUB_ENV"
+          {
+            echo "DEPLOY_HOST=$HOST"
+            echo "DEPLOY_USER=$USER_NAME"
+            echo "WEB_ROOT=$ROOT"
+          } >> "$GITHUB_ENV"
           echo "Target: $USER_NAME@$HOST:$ROOT"
 
       - name: Setup SSH (нативный ssh-agent, без Node-экшенов)
@@ -123,16 +125,16 @@ jobs:
 
       - name: Deploy (rsync, backend/ исключён)
         run: |
-          DELETE_FLAG=""
+          RSYNC_DELETE_ARGS=()
           if [ "${{ github.event.inputs.enable_delete }}" = "true" ]; then
-            DELETE_FLAG="--delete --delete-excluded"
+            RSYNC_DELETE_ARGS=(--delete --delete-excluded)
             echo "⚠️  Режим --delete включён"
           else
             echo "ℹ️  --delete выключен (безопасный режим первого прогона)"
           fi
           rsync -avz \
             -e "ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa -o CASignatureAlgorithms=+ssh-rsa -o RequiredRSASize=1024 -o UpdateHostKeys=no -o StrictHostKeyChecking=accept-new" \
-            $DELETE_FLAG \
+            "${RSYNC_DELETE_ARGS[@]}" \
             --exclude 'backend' \
             --exclude 'backend/' \
             --exclude '.htaccess' \
