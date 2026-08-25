@@ -60,6 +60,9 @@ export default function OrderDetail() {
     enabled: !!order?.user_id,
   });
 
+  const isOwner = !!viewerId && String(order?.user_id ?? "") === String(viewerId);
+
+
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6">
       <Button asChild variant="ghost" size="sm">
