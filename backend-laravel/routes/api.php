@@ -82,33 +82,56 @@ Route::get('/health', function () {
     // Маркер версии. VERSION пишет CI; при ручном git pull файла нет — тогда
     // берём хэш последнего коммита, иначе не отличить «код не выкатился» от
     // «код выкатился, но падает». Значение кэшируем на 5 минут: git — процесс.
-    $checks['version'] = trim((string) @file_get_contents(base_path('VERSION'))) ?: (function () {
-        try {
-            return \Illuminate\Support\Facades\Cache::remember('app_git_version', 300, function () {
-                $head = @file_get_contents(base_path('.git/HEAD'));
-                if (!$head) {
-                    return 'unknown';
-                }
-                if (preg_match('/^ref:\s*(\S+)/', $head, $m)) {
-                    $sha = @file_get_contents(base_path('.git/' . $m[1]));
-                    if (!$sha) {
-                        // packed-refs (после clone --depth или gc)
-                        $packed = @file_get_contents(base_path('.git/packed-refs')) ?: '';
-                        if (preg_match('/^([0-9a-f]{40})\s+' . preg_quote($m[1], '/') . '$/m', $packed, $p)) {
-                            $sha = $p[1];
-                        }
+    //
+    // version_source отвечает на главный вопрос деплоя: файл VERSION вообще
+    // виден веб-процессу или ответ построен на git-фолбэке (значит, доставка
+    // ушла не в тот каталог, который исполняет Apache).
+    $versionFile   = base_path('VERSION');
+    $versionFromCi = is_readable($versionFile) ? trim((string) @file_get_contents($versionFile)) : '';
+
+    if ($versionFromCi !== '') {
+        $checks['version']        = $versionFromCi;
+        $checks['version_source'] = 'file';
+        $mtime = @filemtime($versionFile);
+        $checks['version_mtime']  = $mtime ? gmdate('c', $mtime) : null;
+    } else {
+        $checks['version'] = (function () {
+            try {
+                return \Illuminate\Support\Facades\Cache::remember('app_git_version', 300, function () {
+                    $head = @file_get_contents(base_path('.git/HEAD'));
+                    if (!$head) {
+                        return 'unknown';
                     }
-                } else {
-                    $sha = $head;
-                }
-                $sha = trim((string) $sha);
-                return $sha ? substr($sha, 0, 7) : 'unknown';
-            });
-        } catch (\Throwable $e) {
-            return 'unknown';
-        }
-    })();
+                    if (preg_match('/^ref:\s*(\S+)/', $head, $m)) {
+                        $sha = @file_get_contents(base_path('.git/' . $m[1]));
+                        if (!$sha) {
+                            // packed-refs (после clone --depth или gc)
+                            $packed = @file_get_contents(base_path('.git/packed-refs')) ?: '';
+                            if (preg_match('/^([0-9a-f]{40})\s+' . preg_quote($m[1], '/') . '$/m', $packed, $p)) {
+                                $sha = $p[1];
+                            }
+                        }
+                    } else {
+                        $sha = $head;
+                    }
+                    $sha = trim((string) $sha);
+                    return $sha ? substr($sha, 0, 7) : 'unknown';
+                });
+            } catch (\Throwable $e) {
+                return 'unknown';
+            }
+        })();
+        $checks['version_source'] = 'git';
+        $checks['version_mtime']  = null;
+    }
+
+    // Идентификатор активного корня приложения: короткий хэш абсолютного пути.
+    // Сам путь наружу не отдаём — по хэшу CI сверяет, тот ли каталог исполняет
+    // веб, куда положил файлы rsync.
+    $checks['root_id'] = substr(sha1((string) base_path()), 0, 8);
+
     $checks['db_read_path'] = 'raw-chunked-v3';
+
 
     // Сводка по фаталам за последний час — чтобы проверять состояние одной
     // командой, без grep по laravel.log. Файл пишет shutdown-обработчик.
