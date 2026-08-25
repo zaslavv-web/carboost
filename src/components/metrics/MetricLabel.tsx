@@ -6,6 +6,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { getMetric, type MetricKey, type MetricLang } from "@/lib/metricsCatalog";
 import { cn } from "@/lib/utils";
 
@@ -57,12 +58,11 @@ export const MetricLabel = ({ metricKey, className, iconOnly, labelOverride }: P
           <Section title={h.read} body={m.interpretation[lang]} />
           <Section title={h.do} body={m.action[lang]} />
           {href && (
-            <Link
-              to={href}
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-            >
-              {h.open} <ArrowRight className="w-3 h-3" />
-            </Link>
+            <Button asChild variant="link" size="sm" className="h-auto p-0 text-xs">
+              <Link to={href} onClick={(event) => event.stopPropagation()}>
+                {h.open} <ArrowRight className="w-3 h-3" />
+              </Link>
+            </Button>
           )}
         </PopoverContent>
       </Popover>

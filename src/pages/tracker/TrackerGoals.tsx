@@ -1,12 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useGoals, useCreateGoal, useUpdateGoal,
   useKeyResults, useUpsertKeyResult, useDeleteKeyResult,
   useKrTaskLinks, useTasks, useLinkTaskToGoal, useUnlinkTaskFromGoal,
   type TrackerGoal, type GoalStatus,
 } from "@/hooks/tracker";
-import { useEffectiveUserId } from "@/hooks/useUserProfile";
-import { useUserProfile } from "@/hooks/useUserProfile";
+import { isHrLevelRole, useEffectiveUserId, usePrimaryRole, useUserProfile } from "@/hooks/useUserProfile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -255,9 +254,15 @@ const GoalCard = ({ goal }: { goal: TrackerGoal }) => {
 const TrackerGoals = () => {
   const uid = useEffectiveUserId();
   const { data: profile } = useUserProfile();
-  const [scope, setScope] = useState<"mine" | "all">("mine");
+  const role = usePrimaryRole();
+  const defaultScope = isHrLevelRole(role) ? "all" : "mine";
+  const [scope, setScope] = useState<"mine" | "all">(defaultScope);
   const [scopeType, setScopeType] = useState<"all" | GoalScopeType>("all");
   const { data: allGoals = [], isLoading } = useGoals();
+
+  useEffect(() => {
+    setScope(defaultScope);
+  }, [defaultScope]);
   const visibleGoals = scope === "mine"
     ? allGoals.filter((g) => {
         const type = g.scope_type ?? "employee";

@@ -25,6 +25,7 @@ class AccessControlController extends Controller
     /** Разделы продукта: ключ => [название, группа]. */
     public const RESOURCES = [
         'employees'        => ['Сотрудники и профили', 'Персонал'],
+        'tracker'          => ['Трекер задач и OKR', 'Персонал'],
         'invitations'      => ['Приглашения', 'Персонал'],
         'adaptation'       => ['Планы адаптации', 'Персонал'],
         'positions'        => ['Должности и карьерные треки', 'Персонал'],
@@ -56,16 +57,16 @@ class AccessControlController extends Controller
         'company_admin' => '*',
         'hrd'           => '*',
         'hr'            => ['employees', 'invitations', 'adaptation', 'hr_documents', 'kedo', 'leaves', 'university', 'knowledge_base', 'probation', 'pulse'],
-        'manager'       => ['performance', 'adaptation', 'leaves'],
-        'employee'      => [],
+        'manager'       => ['tracker', 'performance', 'adaptation', 'leaves'],
+        'employee'      => ['tracker'],
     ];
 
     private const VIEW_BY_ROLE = [
         'company_admin' => '*',
         'hrd'           => '*',
         'hr'            => '*',
-        'manager'       => ['employees', 'adaptation', 'positions', 'performance', 'skills_matrix', 'probation', 'analytics', 'pulse', 'hr_policies', 'leaves', 'university', 'knowledge_base', 'shop'],
-        'employee'      => ['hr_policies', 'leaves', 'university', 'knowledge_base', 'shop', 'hr_documents', 'kedo'],
+        'manager'       => ['employees', 'tracker', 'adaptation', 'positions', 'performance', 'skills_matrix', 'probation', 'analytics', 'pulse', 'hr_policies', 'leaves', 'university', 'knowledge_base', 'shop'],
+        'employee'      => ['tracker', 'hr_policies', 'leaves', 'university', 'knowledge_base', 'shop', 'hr_documents', 'kedo'],
     ];
 
     /** Разделы администрирования доступны только company_admin. */

@@ -3,7 +3,7 @@ import { X, Maximize2, ArrowLeft } from "lucide-react";
 import { useChat } from "@/contexts/ChatContext";
 import ConversationList from "./ConversationList";
 import ConversationView from "./ConversationView";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const ChatPanel = () => {
   const { t } = useTranslation("chat");
@@ -25,9 +25,15 @@ const ChatPanel = () => {
               <ArrowLeft className="w-4 h-4" />
             </button>
           )}
-          <h2 className="font-semibold text-sm truncate">
-            {active?.peer?.full_name || active?.title || t("title")}
-          </h2>
+          {active?.peer?.user_id ? (
+            <Link to={`/users/${active.peer.user_id}`} className="font-semibold text-sm truncate hover:text-primary hover:underline">
+              {active.peer.full_name || active.title || t("title")}
+            </Link>
+          ) : (
+            <h2 className="font-semibold text-sm truncate">
+              {active?.title || t("title")}
+            </h2>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <button
