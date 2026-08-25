@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { chatApi, ChatContact } from "@/integrations/laravel/chat";
+import { resolveUrl } from "@/lib/utils";
 import { useChat } from "@/contexts/ChatContext";
 import { toast } from "sonner";
 
@@ -90,7 +91,7 @@ const ContactSearch = ({
                 }`}
               >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={c.avatar_url ?? undefined} />
+                  <AvatarImage src={resolveUrl(c.avatar_url)} />
                   <AvatarFallback>
                     {c.is_support ? (
                       <LifeBuoy className="w-4 h-4 text-primary" />

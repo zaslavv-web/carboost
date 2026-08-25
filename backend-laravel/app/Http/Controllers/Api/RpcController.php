@@ -319,6 +319,10 @@ class RpcController extends Controller
                         $this->createPartnerPurchaseTask($companyId, $uid, $orderId, $itemId, $r['product'], $r['quantity'], $hasFulfillmentColumns);
                     }
 
+                    if ($kind === 'workflow') {
+                        $this->createWorkflowOrderTask($companyId, $uid, $orderId, $itemId, $r['product'], $r['quantity'], $hasFulfillmentColumns);
+                    }
+
                     if ($r['product']->stock !== null) {
                         DB::table('shop_products')->where('id', $r['product']->id)
                             ->update(['stock' => max(0, (int) $r['product']->stock - $r['quantity']), 'updated_at' => now()]);
@@ -451,6 +455,54 @@ class RpcController extends Controller
             'Закупка у партнёра',
             "По заказу #" . substr($orderId, 0, 8) . " требуется закупка «{$product->title}» × {$qty}.",
             'shop_procurement_task'
+        );
+    }
+
+    /** Товар с типом «рабочий процесс»: HR-задача создаётся сразу при оформлении заказа. */
+    private function createWorkflowOrderTask(string $companyId, string $buyerId, string $orderId, string $itemId, $product, int $qty, bool $hasFulfillmentColumns): void
+    {
+        $managers = $this->shopManagerIds($companyId);
+        $responsible = $managers[0] ?? null;
+        if (! $responsible) return;
+
+        $taskId = (string) Str::uuid();
+        $buyer = $this->userDisplayName($buyerId);
+        DB::table('hr_tasks')->insert([
+            'id'           => $taskId,
+            'company_id'   => $companyId,
+            'created_by'   => $responsible,
+            'title'        => 'Согласование: ' . $product->title,
+            'description'  => "Заказ #" . substr($orderId, 0, 8) . ". Сотрудник {$buyer} приобрёл «{$product->title}» × {$qty}. "
+                . 'Нужно согласовать и оформить рабочий процесс после активации сотрудником.',
+            'category'     => 'workflow',
+            'reward_coins' => 0,
+            'deadline'     => now()->addDays(7)->toDateString(),
+            'status'       => 'assigned',
+            'created_at'   => now(),
+            'updated_at'   => now(),
+        ]);
+        DB::table('hr_task_assignees')->insert([
+            'id'                => (string) Str::uuid(),
+            'task_id'           => $taskId,
+            'user_id'           => $responsible,
+            'individual_status' => 'assigned',
+            'reward_paid'       => false,
+            'created_at'        => now(),
+            'updated_at'        => now(),
+        ]);
+        if ($hasFulfillmentColumns) {
+            DB::table('shop_order_items')->where('id', $itemId)->update([
+                'fulfillment_ref_type' => 'hr_task',
+                'fulfillment_ref_id'   => $taskId,
+                'updated_at'           => now(),
+            ]);
+        }
+        $this->pushNotification(
+            $responsible,
+            $companyId,
+            'Новая заявка на рабочий процесс',
+            "По заказу #" . substr($orderId, 0, 8) . " требуется согласование «{$product->title}» × {$qty}.",
+            'shop_workflow_task'
         );
     }
 
@@ -807,7 +859,7 @@ class RpcController extends Controller
             return response()->json(['error' => 'Не авторизован'], 401);
         }
 
-        if (!$actor->hasRole(['hrd', 'company_admin', 'superadmin', 'manager'])) {
+        if (!$actor->hasRole(['hrd', 'hr', 'company_admin', 'superadmin', 'manager'])) {
             return response()->json(['error' => 'Недостаточно прав'], 403);
         }
 
@@ -897,13 +949,9 @@ class RpcController extends Controller
                     $results[] = ['row' => $i + 1, 'email' => $email ?: null, 'status' => 'invalid_email', 'error' => $msg];
                     continue;
                 }
-                if (!($dnsValidity[$i] ?? false)) {
-                    $skipped++;
-                    $msg = 'Вы ошиблись при написании электронной почты, проверьте правильность написания и повторите попытку';
-                    $errors[] = ['row' => $i + 1, 'email' => $email, 'error' => $msg];
-                    $results[] = ['row' => $i + 1, 'email' => $email, 'status' => 'invalid_email', 'error' => $msg];
-                    continue;
-                }
+                // DNS-проверка — мягкая: не блокируем создание приглашения,
+                // но отмечаем что email может быть недоставляем.
+                $dnsOk = $dnsValidity[$i] ?? true;
 
                 $existing = DB::table('employee_invitations')
                     ->where('company_id', $companyId)
@@ -1028,7 +1076,7 @@ class RpcController extends Controller
         if (!$actor) {
             return response()->json(['error' => 'Не авторизован'], 401);
         }
-        if (!$actor->hasRole(['hrd', 'company_admin', 'superadmin', 'manager'])) {
+        if (!$actor->hasRole(['hrd', 'hr', 'company_admin', 'superadmin', 'manager'])) {
             return response()->json(['error' => 'Недостаточно прав'], 403);
         }
 

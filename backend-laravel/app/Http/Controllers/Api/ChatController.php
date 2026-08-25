@@ -365,7 +365,7 @@ class ChatController extends Controller
                 ?? ($peerProfile->company_id ? (string) $peerProfile->company_id : null);
 
             // Идемпотентно: ищем существующий direct между этими двумя.
-            $existing = ChatConversation::query()
+            $existing = ChatConversation::withoutGlobalScope(\App\Models\Scopes\CompanyScope::class)
                 ->where('type', 'direct')
                 ->whereIn('id', function ($q) use ($userId) {
                     $q->select('conversation_id')->from('chat_participants')->where('user_id', $userId);
@@ -554,7 +554,14 @@ class ChatController extends Controller
     private function ensureMember(string $conversationId): ChatConversation
     {
         $userId = auth()->id();
-        $conv = ChatConversation::findOrFail($conversationId);
+        // withoutGlobalScope: CompanyScope фильтрует по company_id ТЕКУЩЕГО
+        // пользователя, но диалог мог быть создан с company_id второй стороны
+        // (например, у пользователя нет компании, а у собеседника есть, или
+        // это переписка с техподдержкой/суперадмином). Доступ уже проверяется
+        // явно ниже через членство в chat_participants — это достаточно и
+        // корректно даже для кросс-компанийных диалогов.
+        $conv = ChatConversation::withoutGlobalScope(\App\Models\Scopes\CompanyScope::class)
+            ->findOrFail($conversationId);
         $member = ChatParticipant::where('conversation_id', $conversationId)
             ->where('user_id', $userId)->exists();
         abort_unless($member, 403, 'Нет доступа к этому диалогу');

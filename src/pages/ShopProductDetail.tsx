@@ -148,8 +148,7 @@ export default function ShopProductDetail() {
             <div className="flex gap-2 pt-4">
               <Button
                 onClick={() => addToCart.mutate()}
-                disabled={addToCart.isPending || isImpersonating || !canAfford}
-                title={!canAfford ? `Не хватает ${formatCoins(total - balance)}` : undefined}
+                disabled={addToCart.isPending || isImpersonating}
                 variant="outline"
                 className="flex-1"
               >

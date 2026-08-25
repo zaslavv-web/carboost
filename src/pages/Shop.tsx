@@ -87,7 +87,7 @@ export default function Shop() {
                 <Button
                   className="w-full mt-auto"
                   size="sm"
-                  disabled={addToCart.isPending || balance < Number(p.price ?? 0)}
+                  disabled={addToCart.isPending}
                   onClick={() =>
                     addToCart.mutate(
                       { productId: p.id },
@@ -103,7 +103,7 @@ export default function Shop() {
                   }
                 >
                   <ShoppingCart className="mr-1 h-4 w-4" />
-                  {balance < Number(p.price ?? 0) ? "Недостаточно средств" : "В корзину"}
+                  В корзину
                 </Button>
               </CardContent>
             </Card>
