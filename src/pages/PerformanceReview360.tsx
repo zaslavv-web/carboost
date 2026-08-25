@@ -67,10 +67,11 @@ export default function PerformanceReview360() {
     queryKey: ["360-reviewers", selectedReview],
     enabled: !!selectedReview,
     queryFn: async () => {
+      if (!selectedReview) return [];
       const { data, error } = await laravelDb
         .from("performance_review_reviewers" as any)
         .select("*")
-        .eq("review_id", selectedReview!);
+        .eq("review_id", selectedReview);
       if (error) throw error;
       return (data as any[] as Reviewer[]) ?? [];
     },
@@ -110,6 +111,7 @@ export default function PerformanceReview360() {
 
   const nameOf = (uid: string) => profiles.find((p) => p.user_id === uid)?.full_name || uid.slice(0, 8);
   const reviewee = useMemo(() => reviews.find((r) => r.id === selectedReview) ?? null, [reviews, selectedReview]);
+  const isReviewLocked = reviewee?.status === "closed" || reviewee?.status === "completed";
   const stats = useMemo(() => {
     const s = { invited: 0, submitted: 0, declined: 0 };
     for (const r of reviewers) s[r.status] = (s[r.status] ?? 0) + 1;
@@ -151,7 +153,7 @@ export default function PerformanceReview360() {
             <CardTitle className="text-base">
               {reviewee ? `Ревьюеры для: ${nameOf(reviewee.user_id)}` : "Выберите ревью"}
             </CardTitle>
-            {selectedReview && reviewee?.status !== "closed" && reviewee?.status !== "completed" && (
+            {selectedReview && !isReviewLocked && (
               <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm"><UserPlus className="w-4 h-4 mr-2" />Пригласить</Button>
@@ -167,10 +169,13 @@ export default function PerformanceReview360() {
           <CardContent>
             {!selectedReview ? (
               <div className="text-sm text-muted-foreground py-8 text-center">Выберите ревью слева</div>
-            ) : reviewee?.status === "closed" || reviewee?.status === "completed" ? (
-              <div className="text-sm text-muted-foreground py-8 text-center">Ревью завершено — новых ревьюеров приглашать нельзя</div>
             ) : (
               <>
+                {isReviewLocked && (
+                  <div className="mb-4 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                    Ревью завершено — новых ревьюеров приглашать нельзя
+                  </div>
+                )}
                 <div className="flex gap-2 mb-4">
                   <Badge variant="secondary">Приглашено: {stats.invited}</Badge>
                   <Badge className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-transparent">Готово: {stats.submitted}</Badge>
@@ -191,7 +196,9 @@ export default function PerformanceReview360() {
                               <div className="text-xs text-muted-foreground">{ROLE_LABEL[r.role]}</div>
                             </div>
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => remove.mutate(r.id)}>Удалить</Button>
+                          {!isReviewLocked && (
+                            <Button variant="ghost" size="sm" onClick={() => remove.mutate(r.id)}>Удалить</Button>
+                          )}
                         </div>
                       );
                     })}

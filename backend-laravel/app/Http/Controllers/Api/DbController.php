@@ -574,12 +574,34 @@ class DbController extends Controller
         if (! $user) {
             return;
         }
-        if (method_exists($user, 'hasRole')
-            && $user->hasRole(['superadmin', 'company_admin', 'hrd', 'hr'])) {
+        $impersonator = method_exists($user, 'getAttribute') ? $user->getAttribute('impersonator') : null;
+        if ((method_exists($user, 'hasRole') && $user->hasRole('superadmin'))
+            || ($impersonator && method_exists($impersonator, 'hasRole') && $impersonator->hasRole('superadmin'))) {
             return;
         }
-        $impersonator = method_exists($user, 'getAttribute') ? $user->getAttribute('impersonator') : null;
-        if ($impersonator && method_exists($impersonator, 'hasRole') && $impersonator->hasRole('superadmin')) {
+        if ($tableName === 'shop_order_items' && in_array('order_id', $columns, true)) {
+            $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
+            $companyId = method_exists($user, 'companyId') ? $user->companyId() : null;
+            $isStaff = method_exists($user, 'hasRole') && $user->hasRole(['company_admin', 'hrd', 'hr']);
+
+            $query->whereExists(function ($sub) use ($tableName, $domainUserId, $companyId, $isStaff) {
+                $sub->selectRaw('1')
+                    ->from('shop_orders')
+                    ->whereColumn('shop_orders.id', $tableName . '.order_id');
+                if ($isStaff) {
+                    if (! $companyId) {
+                        $sub->whereRaw('1 = 0');
+                    } else {
+                        $sub->where('shop_orders.company_id', (string) $companyId);
+                    }
+                } else {
+                    $sub->where('shop_orders.user_id', (string) $domainUserId);
+                }
+            });
+            return;
+        }
+        if (method_exists($user, 'hasRole')
+            && $user->hasRole(['superadmin', 'company_admin', 'hrd', 'hr'])) {
             return;
         }
         if ($tableName === 'hr_documents' && in_array('owner_user_id', $columns, true)) {
@@ -643,24 +665,13 @@ class DbController extends Controller
         try {
             /** @var \Illuminate\Database\Eloquent\Model $instance */
             $instance = new $model();
-            $query = \Illuminate\Support\Facades\DB::table($instance->getTable());
+            $tableName = $instance->getTable();
+            $columns = self::HOT_TABLE_COLUMNS[$tableName]
+                ?? \Illuminate\Support\Facades\Schema::getColumnListing($tableName);
+            $query = \Illuminate\Support\Facades\DB::table($tableName);
             $this->applyFilters($query, $request);
-
-            // Мультитенантность: повторяем поведение CompanyScope вручную.
-            $user = auth()->user();
-            $isSuperadmin = $user && method_exists($user, 'hasRole') && $user->hasRole('superadmin');
-            $hasCompanyColumn = in_array(
-                'company_id',
-                \Illuminate\Support\Facades\Schema::getColumnListing($instance->getTable()),
-                true,
-            );
-            if (! $isSuperadmin && $hasCompanyColumn) {
-                $companyId = $user && method_exists($user, 'companyId') ? $user->companyId() : null;
-                if (! $companyId) {
-                    return response()->json(['data' => [], 'count' => 0]);
-                }
-                $query->where($instance->getTable() . '.company_id', $companyId);
-            }
+            $this->applyCompanyScope($query, $instance, $tableName, $columns);
+            $this->applyRowLevelScope($query, $tableName, $columns);
 
             return response()->json(['data' => [], 'count' => (int) $query->count()]);
         } catch (\Illuminate\Database\QueryException $e) {
