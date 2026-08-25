@@ -27,7 +27,7 @@ jobs:
           echo 'VITE_LARAVEL_API_URL=/api' > .env
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Build frontend
         run: npm run build
