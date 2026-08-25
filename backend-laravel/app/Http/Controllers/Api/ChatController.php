@@ -168,8 +168,20 @@ class ChatController extends Controller
 
         $this->memoryCheckpoint('messages', $lastMessages->count());
 
+        // Приоритет — собеседники личных чатов: именно их аватар и имя рисуются
+        // в списке. Раньше срез MAX_PROFILE_ROWS мог отсечь их из-за участников
+        // больших групповых чатов — и юзерпики «пропадали».
+        $directConversationIds = $conversations->where('type', 'direct')->pluck('id')->all();
+        $directPeerIds = $participants
+            ->filter(fn ($rows, $convId) => in_array($convId, $directConversationIds, true))
+            ->collapse()->pluck('user_id')->filter()
+            ->reject(fn ($id) => (string) $id === (string) $userId)
+            ->unique()->values()->all();
+        $otherIds = $participants->collapse()->pluck('user_id')->filter()
+            ->unique()->values()->all();
+
         $peerUserIds = array_slice(
-            $participants->collapse()->pluck('user_id')->filter()->unique()->values()->all(),
+            array_values(array_unique(array_merge($directPeerIds, $otherIds))),
             0,
             self::MAX_PROFILE_ROWS
         );
@@ -179,6 +191,7 @@ class ChatController extends Controller
                 ->limit(self::MAX_PROFILE_ROWS)
                 ->get(['user_id', 'full_name', 'avatar_url', 'is_support'])
                 ->keyBy('user_id');
+
 
         $this->memoryCheckpoint('profiles', $profiles->count());
 
