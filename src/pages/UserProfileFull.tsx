@@ -5,16 +5,20 @@
  *  - Похожие сотрудники (в компании / глобально)
  *  - Продуктовая аналитика (только superadmin)
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Mail, ArrowLeft } from "lucide-react";
+import { Loader2, Mail, ArrowLeft, MessageCircle } from "lucide-react";
 import { laravel } from "@/integrations/laravel/client";
 import { useRealPrimaryRole } from "@/hooks/useUserProfile";
+import { useAuth } from "@/contexts/AuthContext";
+import { useChat } from "@/contexts/ChatContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import UserBusinessEnvironment from "@/components/UserBusinessEnvironment";
 import UserSimilarEmployees from "@/components/UserSimilarEmployees";
 import UserProductAnalytics from "@/components/UserProductAnalytics";
+import { toast } from "sonner";
 
 type ProfileFull = {
   user_id: string;
@@ -31,6 +35,9 @@ const UserProfileFull = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const realRole = useRealPrimaryRole();
+  const { user } = useAuth();
+  const { openOrCreateDirect } = useChat();
+  const [openingChat, setOpeningChat] = useState(false);
   const isSuperadmin = realRole === "superadmin";
 
   const { data: profile, isLoading } = useQuery({
@@ -59,6 +66,22 @@ const UserProfileFull = () => {
   if (!profile) {
     return <div className="text-center py-20 text-muted-foreground">Профиль не найден</div>;
   }
+
+  const canMessage = profile.user_id !== user?.id;
+  const handleDirectMessage = async () => {
+    if (!canMessage) return;
+    setOpeningChat(true);
+    try {
+      const id = await openOrCreateDirect(profile.user_id);
+      if (!id) {
+        toast.error("Не удалось открыть чат");
+        return;
+      }
+      navigate(`/chats/${id}`);
+    } finally {
+      setOpeningChat(false);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -100,6 +123,12 @@ const UserProfileFull = () => {
               </span>
             ))}
           </div>
+        )}
+        {canMessage && (
+          <Button type="button" variant="outline" onClick={handleDirectMessage} disabled={openingChat}>
+            {openingChat ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
+            Написать
+          </Button>
         )}
       </div>
 

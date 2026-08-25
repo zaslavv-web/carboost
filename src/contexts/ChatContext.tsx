@@ -7,6 +7,7 @@ import { useImpersonation } from "@/contexts/ImpersonationContext";
 type ChatContextType = {
   conversations: ChatConversation[];
   isLoading: boolean;
+  chatError: string | null;
   unreadTotal: number;
   activeConversationId: string | null;
   setActiveConversationId: (id: string | null) => void;
@@ -63,9 +64,22 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     queryKey: ["chats", "list", user?.id],
     queryFn: async () => {
       const res = await chatApi.list();
-      // Ошибка списка чатов не должна ронять страницу: отдаём пустой список.
-      if (res.error) return [];
-      return res.data?.data ?? [];
+      // Ошибка списка чатов не должна маскироваться под штатное пустое состояние.
+      if (res.error) {
+        return {
+          conversations: [],
+          error: res.error.message || "Не удалось загрузить список чатов.",
+        };
+      }
+      if (res.data?.degraded) {
+        return {
+          conversations: [],
+          error: res.data.error_id
+            ? `Список чатов временно недоступен. Код: ${res.data.error_id}`
+            : "Список чатов временно недоступен.",
+        };
+      }
+      return { conversations: res.data?.data ?? [], error: null };
     },
     enabled: listEnabled,
     retry: false,
@@ -110,7 +124,8 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   });
 
 
-  const conversations = data ?? [];
+  const conversations = data?.conversations ?? [];
+  const chatError = data?.error ?? null;
   const unreadFromList = useMemo(
     () => conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0),
     [conversations],
@@ -157,6 +172,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const value: ChatContextType = {
     conversations,
     isLoading: listEnabled ? isLoading : false,
+    chatError,
     unreadTotal,
     activeConversationId,
     setActiveConversationId,

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { resolveUrl } from "@/lib/utils";
 import { useChat } from "@/contexts/ChatContext";
@@ -14,7 +15,7 @@ const initialsFor = (name: string | null | undefined) =>
 
 const ConversationList = ({ onSelect }: { onSelect: (id: string) => void }) => {
   const { t } = useTranslation("chat");
-  const { conversations, isLoading } = useChat();
+  const { conversations, isLoading, chatError, refresh } = useChat();
   const [query, setQuery] = useState("");
   const dateLocale = i18n.language === "en" ? enUS : ru;
 
@@ -23,7 +24,15 @@ const ConversationList = ({ onSelect }: { onSelect: (id: string) => void }) => {
       <ContactSearch query={query} setQuery={setQuery} onPicked={(id) => onSelect(id)} />
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {!isLoading && conversations.length === 0 && (
+        {!isLoading && chatError && (
+          <div className="m-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-center">
+            <p className="text-sm text-destructive">{chatError}</p>
+            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={refresh}>
+              Повторить
+            </Button>
+          </div>
+        )}
+        {!isLoading && !chatError && conversations.length === 0 && (
           <p className="p-6 text-sm text-muted-foreground text-center">{t("noConversations")}</p>
         )}
         <ul className="divide-y divide-border">

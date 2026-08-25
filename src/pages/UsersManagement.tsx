@@ -6,7 +6,7 @@ import { laravelRpc } from "@/integrations/laravel/rpc";
 import { fetchHrdDirectory } from "@/lib/hrdDirectory";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2, UserPlus, X, KeyRound, IdCard } from "lucide-react";
+import { Eye, Loader2, Search, CheckCircle, XCircle, Trash2, UserPlus, X, KeyRound, IdCard, MessageCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import type { AppRole } from "@/hooks/useUserProfile";
 import { useRealPrimaryRole } from "@/hooks/useUserProfile";
 import { useTranslation } from "react-i18next";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
+import { useChat } from "@/contexts/ChatContext";
 
 type StatusFilter = "all" | "verified" | "pending";
 
@@ -23,6 +24,7 @@ const UsersManagement = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const realRole = useRealPrimaryRole();
+  const { openOrCreateDirect } = useChat();
   const isSuperadmin = realRole === "superadmin";
 
   const roleLabelMap: Record<string, string> = {
@@ -342,6 +344,16 @@ const UsersManagement = () => {
     } catch {
       /* toast shown inside startImpersonation */
     }
+  };
+
+  const handleDirectMessage = async (user: any) => {
+    if (user.user_id === currentUser?.id) return;
+    const id = await openOrCreateDirect(user.user_id);
+    if (!id) {
+      toast.error("Не удалось открыть чат");
+      return;
+    }
+    navigate(`/chats/${id}`);
   };
 
   const statusFilters: { value: StatusFilter; label: string; count?: number }[] = [
@@ -763,6 +775,14 @@ const UsersManagement = () => {
                           >
                             <IdCard className="w-3.5 h-3.5" /> Карточка
                           </Link>
+                          {u.user_id !== currentUser?.id && (
+                            <button
+                              onClick={() => handleDirectMessage(u)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 transition-colors"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" /> Написать
+                            </button>
+                          )}
                           <button
                             onClick={() => handleImpersonate(u)}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
@@ -907,6 +927,14 @@ const UsersManagement = () => {
                   >
                     <IdCard className="w-3.5 h-3.5" /> Карточка
                   </Link>
+                  {u.user_id !== currentUser?.id && (
+                    <button
+                      onClick={() => handleDirectMessage(u)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 transition-colors"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" /> Написать
+                    </button>
+                  )}
                   <button
                     onClick={() => handleImpersonate(u)}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
