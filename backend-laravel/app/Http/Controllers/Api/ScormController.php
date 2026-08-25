@@ -319,7 +319,10 @@ class ScormController extends Controller
             'lesson_id'     => $lessonId,
             'enrollment_id' => $ctx['enrollment_id'],
             'package_path'  => $ctx['package_path'],
-            'exp'           => time() + 120,
+            // SCORM-пакеты часто грузятся дольше обычной страницы: iframe,
+            // антивирус или прокси могут открыть ссылку с задержкой. 10 минут
+            // достаточно для запуска, а дальнейшая работа идёт по scorm_sess.
+            'exp'           => time() + 600,
             'nonce'         => Str::random(16),
         ]));
         $ticket = rtrim(strtr(base64_encode($encryptedTicket), '+/', '-_'), '=');
@@ -346,6 +349,12 @@ class ScormController extends Controller
             $payload = null;
         }
         if (! is_array($payload) || (int) ($payload['exp'] ?? 0) < time()) {
+            \Log::warning('scorm_launch_ticket_gone', [
+                'reason' => is_array($payload) ? 'expired' : 'invalid',
+                'course_id' => is_array($payload) ? ($payload['course_id'] ?? null) : null,
+                'lesson_id' => is_array($payload) ? ($payload['lesson_id'] ?? null) : null,
+                'expired_at' => is_array($payload) ? ($payload['exp'] ?? null) : null,
+            ]);
             return new Response('Ссылка устарела, откройте урок заново.', 410, ['Content-Type' => 'text/plain; charset=utf-8']);
         }
         // Тикет допускает повторный GET в течение двух минут: браузер, антивирус
@@ -360,6 +369,13 @@ class ScormController extends Controller
         $version = $course->scorm_version === '2004' ? '2004' : '1.2';
         $base = $this->healPackagePath($course, (string) $lesson->launch_url);
         if (! $this->findAssetOnDisk(Storage::disk('scorm-packages'), $base, (string) $lesson->launch_url)) {
+            \Log::warning('scorm_launch_package_gone', [
+                'course_id' => $course->id ?? null,
+                'lesson_id' => $lesson->id ?? null,
+                'package_path' => $base,
+                'launch_url' => $lesson->launch_url ?? null,
+                'reason' => 'launch_asset_missing',
+            ]);
             return new Response($this->missingPackageHtml(), 410, ['Content-Type' => 'text/html; charset=utf-8']);
         }
         $launchUrl = $this->courseAssetUrl((string) $course->id, (string) $lesson->launch_url);
@@ -483,6 +499,13 @@ class ScormController extends Controller
 
         $base = $this->healPackagePath($course, (string) $lesson->launch_url);
         if (! $this->findAssetOnDisk(Storage::disk('scorm-packages'), $base, (string) $lesson->launch_url)) {
+            \Log::warning('scorm_launch_context_package_gone', [
+                'course_id' => $course->id ?? null,
+                'lesson_id' => $lesson->id ?? null,
+                'package_path' => $base,
+                'launch_url' => $lesson->launch_url ?? null,
+                'reason' => 'launch_asset_missing',
+            ]);
             return response()->json([
                 'error' => 'Файлы курса отсутствуют в хранилище. Загрузите SCORM ZIP повторно.',
                 'code' => 'scorm_package_missing',
