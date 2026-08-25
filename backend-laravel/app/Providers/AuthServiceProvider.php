@@ -132,7 +132,7 @@ class AuthServiceProvider extends ServiceProvider
         // Portal & Communications (Волна 4)
         Models\PortalPost::class            => CompanyScopedPolicy::class,
         Models\PortalPostReaction::class    => OwnedRecordPolicy::class,
-        Models\PortalPostComment::class     => CompanyScopedPolicy::class,
+        Models\PortalPostComment::class     => PortalCommentPolicy::class,
         Models\PortalCommunity::class       => CompanyScopedPolicy::class,
         Models\PortalCommunityMember::class => CompanyScopedPolicy::class,
         Models\PulseSurvey::class           => CompanyScopedPolicy::class,
