@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\TeamMember;
 use App\Models\User;
 
 /**
@@ -33,8 +34,24 @@ class HrDocumentPolicy extends BasePolicy
 
         return $this->ownsRecord($user, $model, 'owner_user_id')
             || $this->isHrd($user)
-            || $this->isCompanyAdmin($user);
+            || $this->isCompanyAdmin($user)
+            || $this->isManagerOfOwner($user, $owner);
     }
+
+    /** Руководитель видит персональные документы сотрудников своей команды. */
+    protected function isManagerOfOwner(User $user, $ownerId): bool
+    {
+        if (! $this->isManager($user) || $ownerId === null || $ownerId === '') {
+            return false;
+        }
+
+        return TeamMember::query()
+            ->withoutGlobalScopes()
+            ->where('manager_id', $user->id)
+            ->where('employee_id', $ownerId)
+            ->exists();
+    }
+
 
     public function create(User $user): bool
     {

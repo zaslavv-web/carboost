@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
@@ -21,6 +21,8 @@ export default function Cart() {
   const { impersonatedUserId } = useImpersonation();
   const isImpersonating = !!impersonatedUserId;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const addedProductId = searchParams.get("added");
   const qc = useQueryClient();
   const { data: balance = 0 } = useMyBalance();
   const { data: settings } = useCurrencySettings();
@@ -94,13 +96,25 @@ export default function Cart() {
         <>
           <div className="space-y-3">
             {cartRows.map(({ item: i, subtotal, deficit, shortage }: any) => (
-              <Card key={i.id} className={shortage ? "border-destructive/50 bg-destructive/5" : undefined}>
+              <Card
+                key={i.id}
+                className={
+                  i.product_id === addedProductId
+                    ? "border-primary ring-2 ring-primary/40"
+                    : shortage
+                      ? "border-destructive/50 bg-destructive/5"
+                      : undefined
+                }
+              >
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="w-16 h-16 bg-muted rounded flex items-center justify-center overflow-hidden flex-shrink-0">
                     <ProductImage imageUrl={i.product.image_url} title={i.product.title} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate">{i.product.title}</p>
+                    {i.product_id === addedProductId && (
+                      <p className="text-xs text-primary">Только что добавлено</p>
+                    )}
                     {shortage && (
                       <p className="text-xs text-destructive">Не хватает {formatCoins(deficit)} {icon}</p>
                     )}

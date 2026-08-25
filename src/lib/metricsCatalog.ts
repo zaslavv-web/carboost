@@ -48,7 +48,7 @@ export const metricsCatalog = M({
       ru: "Откройте цифровой паспорт и добавьте развивающие цели в IDP.",
       en: "Open your digital passport and add development goals to your IDP.",
     },
-    href: "/digital-passport",
+    href: "/passport",
   },
   idp_completion: {
     key: "idp_completion",
@@ -84,7 +84,7 @@ export const metricsCatalog = M({
       ru: "Откройте карьерный трек и сдайте следующий этап на согласование.",
       en: "Open your career track and submit the next step for approval.",
     },
-    href: "/career",
+    href: "/career-track",
   },
   gamification_points: {
     key: "gamification_points",
@@ -102,7 +102,7 @@ export const metricsCatalog = M({
       ru: "Загляните в «Магазин» и выберите награду.",
       en: "Visit the Shop to redeem a reward.",
     },
-    href: "/rewards",
+    href: "/shop",
   },
   assessment_freshness: {
     key: "assessment_freshness",
@@ -120,7 +120,7 @@ export const metricsCatalog = M({
       ru: "Запустите AI-оценку, чтобы обновить профиль компетенций.",
       en: "Run an AI assessment to refresh your competency profile.",
     },
-    href: "/ai-assessment",
+    href: "/assessment",
   },
 
   // ─────── Руководитель ───────
@@ -194,7 +194,7 @@ export const metricsCatalog = M({
       ru: "Откройте вкладку задач и закройте/переназначьте просрочки.",
       en: "Open the tasks tab and close or reassign overdue items.",
     },
-    href: "/tasks",
+    href: "/tracker/my-backlog",
   },
 
   // ─────── HRD Analytics ───────
@@ -268,7 +268,7 @@ export const metricsCatalog = M({
       ru: "Изучите разбивку по факторам и запланируйте HR-действия.",
       en: "Review factor breakdown and plan HR actions.",
     },
-    href: "/analytics/comfort/company",
+    href: "/analytics/comfort",
   },
   headcount_delta: {
     key: "headcount_delta",
@@ -396,7 +396,7 @@ export const metricsCatalog = M({
       ru: "Откройте шаблоны треков и обновите этапы с низкой конверсией.",
       en: "Open track templates and refresh low-converting steps.",
     },
-    href: "/career-strategies",
+    href: "/career-tracks",
   },
   step_success_rate: {
     key: "step_success_rate",
@@ -468,7 +468,7 @@ export const metricsCatalog = M({
       ru: "Снимите нагрузку, назначьте отпуск, проведите wellbeing-чек-ин.",
       en: "Reduce load, schedule leave, run a wellbeing check-in.",
     },
-    href: "/analytics/comfort/company",
+    href: "/analytics/comfort",
   },
   employee_engagement: {
     key: "employee_engagement",
