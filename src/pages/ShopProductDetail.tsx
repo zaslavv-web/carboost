@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Package, ShoppingCart, Zap, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { productImageSrc } from "@/lib/productImage";
+import { ProductImage } from "@/components/shop/ProductImage";
 
 export default function ShopProductDetail() {
   const { t } = useTranslation("employee");
@@ -97,11 +97,7 @@ export default function ShopProductDetail() {
       <div className="grid md:grid-cols-2 gap-6">
         <Card className="overflow-hidden">
           <div className="aspect-square bg-muted flex items-center justify-center">
-            <img
-              src={productImageSrc(product.image_url, product.title)}
-              alt={product.title}
-              className="w-full h-full object-cover"
-            />
+            <ProductImage imageUrl={product.image_url} title={product.title} className="w-full h-full object-cover" />
           </div>
         </Card>
 
@@ -143,8 +139,20 @@ export default function ShopProductDetail() {
               </Alert>
             )}
 
+            {!canAfford && (
+              <p className="text-xs text-destructive">
+                Не хватает {formatCoins(total - balance)} {icon}
+              </p>
+            )}
+
             <div className="flex gap-2 pt-4">
-              <Button onClick={() => addToCart.mutate()} disabled={addToCart.isPending || isImpersonating} variant="outline" className="flex-1">
+              <Button
+                onClick={() => addToCart.mutate()}
+                disabled={addToCart.isPending || isImpersonating || !canAfford}
+                title={!canAfford ? `Не хватает ${formatCoins(total - balance)}` : undefined}
+                variant="outline"
+                className="flex-1"
+              >
                 <ShoppingCart className="mr-2" /> {t("shopProduct.addToCart")}
               </Button>
               <Button onClick={() => buyNow.mutate()} disabled={buyNow.isPending || !canAfford || isImpersonating} className="flex-1">

@@ -7,6 +7,7 @@ import { useChat } from "@/contexts/ChatContext";
 import MessageBubble from "./MessageBubble";
 import MessageComposer from "./MessageComposer";
 import { Reply, X } from "lucide-react";
+import { laravelDb } from "@/integrations/laravel/db";
 
 const ConversationView = ({ conversationId }: { conversationId: string }) => {
   const { t } = useTranslation("chat");
@@ -121,6 +122,28 @@ const ConversationView = ({ conversationId }: { conversationId: string }) => {
     );
   };
 
+  const senderIds = useMemo(
+    () => [...new Set(messages.map((m) => m.sender_id).filter(Boolean))],
+    [messages],
+  );
+
+  // Профили отправителей (имя + аватар) для шапки сообщения.
+  const { data: senders = {} } = useQuery({
+    queryKey: ["chat", "senders", senderIds.join(",")],
+    queryFn: async () => {
+      if (senderIds.length === 0) return {};
+      const { data } = await laravelDb
+        .from("profiles")
+        .select("user_id, full_name, avatar_url")
+        .in("user_id", senderIds);
+      const map: Record<string, { full_name?: string; avatar_url?: string }> = {};
+      (data ?? []).forEach((p: any) => { map[p.user_id] = p; });
+      return map;
+    },
+    enabled: senderIds.length > 0,
+    staleTime: 5 * 60_000,
+  });
+
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-background">
       <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-2">
@@ -133,6 +156,8 @@ const ConversationView = ({ conversationId }: { conversationId: string }) => {
             message={m}
             isOwn={m.sender_id === user?.id}
             currentUserId={user?.id}
+            senderName={(senders as any)[m.sender_id]?.full_name}
+            senderAvatar={(senders as any)[m.sender_id]?.avatar_url}
             onReply={() => setReplyTo(m)}
             onReact={(emoji) => handleReact(m.id, emoji)}
             replyToBody={

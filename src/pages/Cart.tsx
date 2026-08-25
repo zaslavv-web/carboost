@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Trash2, Package, ShoppingCart, AlertTriangle } from "lucide-react";
+import { ProductImage } from "@/components/shop/ProductImage";
 import { toast } from "sonner";
 
 export default function Cart() {
@@ -86,10 +87,13 @@ export default function Cart() {
               <Card key={i.id}>
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="w-16 h-16 bg-muted rounded flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {i.product.image_url ? <img src={i.product.image_url} alt="" className="w-full h-full object-cover" /> : <Package className="w-8 h-8 text-muted-foreground" />}
+                    <ProductImage imageUrl={i.product.image_url} title={i.product.title} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate">{i.product.title}</p>
+                    {i.product.price * i.quantity > balance && (
+                      <p className="text-xs text-destructive">Не хватает {formatCoins(i.product.price * i.quantity - balance)} {icon}</p>
+                    )}
                     <p className="text-sm text-primary font-medium">{formatCoins(i.product.price)} {icon}</p>
                   </div>
                   <Input type="number" min={1} value={i.quantity}
@@ -108,6 +112,9 @@ export default function Cart() {
             <CardContent className="p-6 space-y-3">
               <div className="flex justify-between"><span>{t("cart.total")}</span><span className="font-bold text-xl">{formatCoins(total)} {icon}</span></div>
               <div className="flex justify-between text-sm text-muted-foreground"><span>{t("cart.balance")}</span><span>{formatCoins(balance)} {icon}</span></div>
+              {balance < total && (
+                <p className="text-sm text-destructive">Не хватает {formatCoins(total - balance)} {icon}</p>
+              )}
               {isImpersonating && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
