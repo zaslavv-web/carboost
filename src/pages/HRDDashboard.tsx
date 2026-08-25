@@ -156,7 +156,7 @@ const CompetencyComparisonModal = ({
         <div className="flex items-center gap-4">
           <div
             className={`text-3xl font-bold ${
-              matchPercent >= 80 ? "text-success" : matchPercent >= 50 ? "text-warning" : "text-destructive"
+              matchPercentValue === null ? "text-muted-foreground" : matchPercent >= 80 ? "text-success" : matchPercent >= 50 ? "text-warning" : "text-destructive"
             }`}
           >
             {matchPercentValue !== null ? `${matchPercentValue}%` : "—"}
