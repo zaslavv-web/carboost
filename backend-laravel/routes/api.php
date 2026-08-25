@@ -821,6 +821,7 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         // ---- Generic CRUD bridge (Phase 10, replaces legacy.from(...)) ----
 
         Route::get   ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'index']);
+        Route::post  ('/db/{table}/query', [\App\Http\Controllers\Api\DbController::class, 'query']);
         Route::post  ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'store']);
         Route::patch ('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'update']);
         Route::delete('/db/{table}', [\App\Http\Controllers\Api\DbController::class, 'destroy']);

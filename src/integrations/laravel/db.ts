@@ -104,7 +104,9 @@ class QueryBuilder<T = any> implements PromiseLike<LaravelInvokeResult<T> & { co
   }
 
   private async execute(): Promise<LaravelInvokeResult<T> & { count: number | null }> {
-    const path = `/db/${this.table}${this.buildQuery()}`;
+    const qs = this.buildQuery();
+    const path = `/db/${this.table}${qs}`;
+    const useBodyQuery = this.mode === "select" && path.length > 1800;
     const unwrap = (r: LaravelInvokeResult<any>): LaravelInvokeResult<T> & { count: number | null } => {
       if (r.error) return { data: null, error: r.error, count: null };
       const body = r.data as any;
@@ -117,7 +119,9 @@ class QueryBuilder<T = any> implements PromiseLike<LaravelInvokeResult<T> & { co
 
     switch (this.mode) {
       case "select":
-        return unwrap(await laravel.get(path));
+        return unwrap(useBodyQuery
+          ? await laravel.post(`/db/${this.table}/query`, { query: qs })
+          : await laravel.get(path));
       case "insert":
       case "upsert":
         return unwrap(await laravel.post(path, {
