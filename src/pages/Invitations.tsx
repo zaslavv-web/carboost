@@ -45,7 +45,7 @@ const Invitations = () => {
 
   const [draft, setDraft] = useState<InviteRow[]>([{ email: "" }]);
   const [parsing, setParsing] = useState(false);
-  const [pendingConfirm, setPendingConfirm] = useState<{ emails: string[] } | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{ emails: string[]; invites: InviteRow[] } | null>(null);
 
   const { data: positions = [] } = useQuery({
     queryKey: ["positions_for_invite", companyId],
@@ -139,7 +139,11 @@ const Invitations = () => {
 
       // 2) уже есть pending — показываем confirm-диалог (только если это не повторный вызов)
       if (!force && pendingExists.length > 0) {
-        setPendingConfirm({ emails: pendingExists.map((r) => r.email!).filter(Boolean) });
+        const emails = pendingExists.map((r) => r.email?.trim().toLowerCase()).filter((email): email is string => !!email);
+        setPendingConfirm({
+          emails,
+          invites: draft.filter((d) => emails.includes(d.email.trim().toLowerCase())),
+        });
       } else {
         // Очищаем черновик только если это финальный ответ и нет открытого диалога
         if (created.length + resent.length + mailFailed.length > 0) {
@@ -154,9 +158,7 @@ const Invitations = () => {
 
   const confirmResend = () => {
     if (!pendingConfirm) return;
-    const invites = draft.filter((d) =>
-      pendingConfirm.emails.includes(d.email.trim().toLowerCase())
-    );
+    const invites = pendingConfirm.invites;
     setPendingConfirm(null);
     if (invites.length > 0) {
       sendMutation.mutate({ invites, force: true });

@@ -184,13 +184,13 @@ class DbControllerTest extends TestCase
             'title' => 'Подарочный сертификат',
             'price' => 250,
             'is_active' => true,
-            'created_by' => $employee->id,
+            'created_by' => $employee->domainUserId(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
         DB::table('shop_cart_items')->insert([
             'id' => (string) \Illuminate\Support\Str::uuid(),
-            'user_id' => $employee->id,
+            'user_id' => $employee->domainUserId(),
             'company_id' => $company->id,
             'product_id' => $productId,
             'quantity' => 1,
@@ -199,7 +199,7 @@ class DbControllerTest extends TestCase
         ]);
 
         $this->actingAs($employee, 'sanctum')
-            ->getJson('/api/db/shop_cart_items?select=*,product:shop_products(*)&eq.user_id=' . $employee->id)
+            ->getJson('/api/db/shop_cart_items?select=*,product:shop_products(*)&eq.user_id=' . $employee->domainUserId())
             ->assertOk()
             ->assertJsonPath('data.0.product.title', 'Подарочный сертификат');
     }
@@ -213,7 +213,7 @@ class DbControllerTest extends TestCase
 
         DB::table('shop_orders')->insert([
             'id' => $orderId,
-            'user_id' => $employee->id,
+            'user_id' => $employee->domainUserId(),
             'company_id' => $company->id,
             'total_amount' => 250,
             'status' => 'pending_fulfillment',
@@ -233,7 +233,7 @@ class DbControllerTest extends TestCase
         ]);
 
         $this->actingAs($employee, 'sanctum')
-            ->getJson('/api/db/shop_orders?select=*,items:shop_order_items(*)&eq.user_id=' . $employee->id)
+            ->getJson('/api/db/shop_orders?select=*,items:shop_order_items(*)&eq.user_id=' . $employee->domainUserId())
             ->assertOk()
             ->assertJsonPath('data.0.items.0.product_title', 'Подарочный сертификат');
     }
@@ -324,16 +324,15 @@ class DbControllerTest extends TestCase
 
     public function test_employee_can_add_and_read_own_shop_cart_items(): void
     {
-        $companyId = (string) Str::uuid();
-        $employee = User::factory()->create(['meta' => ['sub' => (string) Str::uuid()]]);
-        $otherEmployee = User::factory()->create(['meta' => ['sub' => (string) Str::uuid()]]);
-        $this->seedProfile($employee, $companyId, 'employee');
-        $this->seedProfile($otherEmployee, $companyId, 'employee');
+        $company = $this->makeCompany();
+        $employee = $this->makeUser('employee', $company->id);
+        $otherEmployee = $this->makeUser('employee', $company->id);
+        $attackerCompany = $this->makeCompany();
 
-        $productId = (string) Str::uuid();
+        $productId = (string) \Illuminate\Support\Str::uuid();
         DB::table('shop_products')->insert([
             'id' => $productId,
-            'company_id' => $companyId,
+            'company_id' => $company->id,
             'title' => 'Книга',
             'description' => 'Тестовый товар',
             'price' => 100,
@@ -347,9 +346,9 @@ class DbControllerTest extends TestCase
             'updated_at' => now(),
         ]);
         DB::table('shop_cart_items')->insert([
-            'id' => (string) Str::uuid(),
+            'id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $otherEmployee->domainUserId(),
-            'company_id' => $companyId,
+            'company_id' => $company->id,
             'product_id' => $productId,
             'quantity' => 3,
             'created_at' => now(),
@@ -359,8 +358,8 @@ class DbControllerTest extends TestCase
         $this->actingAs($employee, 'sanctum')
             ->postJson('/api/db/shop_cart_items', [
                 'values' => [
-                    'user_id' => $employee->domainUserId(),
-                    'company_id' => $companyId,
+                    'user_id' => $otherEmployee->domainUserId(),
+                    'company_id' => $attackerCompany->id,
                     'product_id' => $productId,
                     'quantity' => 1,
                 ],
@@ -373,6 +372,8 @@ class DbControllerTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.quantity', 1)
+            ->assertJsonPath('data.0.user_id', $employee->domainUserId())
+            ->assertJsonPath('data.0.company_id', $company->id)
             ->assertJsonPath('data.0.product.title', 'Книга');
     }
 }

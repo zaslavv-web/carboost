@@ -16,6 +16,7 @@ import { ImportQuestionsDialog } from "@/components/pulse/ImportQuestionsDialog"
 import { AssignAudienceDialog } from "@/components/pulse/AssignAudienceDialog";
 import { useAudience } from "@/hooks/usePulseTargeting";
 import { useNavigate, useParams } from "react-router-dom";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type Survey = {
   id: string;
@@ -313,6 +314,7 @@ export default function PulseSurveys() {
 
 function AnswerControl({ q, onSubmit }: { q: Question; onSubmit: (v: number | string) => void }) {
   const [text, setText] = useState("");
+  const [multi, setMulti] = useState<string[]>([]);
   if (q.kind === "scale" || q.kind === "nps") {
     const max = q.kind === "nps" ? 10 : 5;
     const min = q.kind === "nps" ? 0 : 1;
@@ -325,12 +327,40 @@ function AnswerControl({ q, onSubmit }: { q: Question; onSubmit: (v: number | st
       </div>
     );
   }
-  if (q.kind === "single" || q.kind === "multi") {
+  if (q.kind === "single") {
     return (
       <div className="space-y-1">
         {(q.options ?? []).map((opt, i) => (
           <Button key={i} size="sm" variant="outline" className="w-full justify-start" onClick={() => onSubmit(opt)}>{opt}</Button>
         ))}
+      </div>
+    );
+  }
+  if (q.kind === "multi") {
+    const options = q.options ?? [];
+    return (
+      <div className="space-y-2">
+        <div className="space-y-1">
+          {options.map((opt, i) => {
+            const checked = multi.includes(opt);
+            return (
+              <label key={i} className="flex items-start gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground">
+                <Checkbox
+                  checked={checked}
+                  onCheckedChange={(value) => {
+                    setMulti((prev) => value
+                      ? [...prev, opt].filter((item, index, arr) => arr.indexOf(item) === index)
+                      : prev.filter((item) => item !== opt));
+                  }}
+                />
+                <span>{opt}</span>
+              </label>
+            );
+          })}
+        </div>
+        <Button size="sm" disabled={multi.length === 0} onClick={() => { onSubmit(JSON.stringify(multi)); setMulti([]); }}>
+          Ответить
+        </Button>
       </div>
     );
   }
@@ -421,10 +451,11 @@ function QuestionBreakdown({
   const distribution = useMemo(() => {
     const buckets = new Map<string, number>();
     for (const r of responses) {
-      const key =
-        typeof r.value_number === "number" ? String(r.value_number) : (r.value_text ?? "").trim();
-      if (!key) continue;
-      buckets.set(key, (buckets.get(key) ?? 0) + 1);
+      const values = answerValues(r);
+      for (const key of values) {
+        if (!key) continue;
+        buckets.set(key, (buckets.get(key) ?? 0) + 1);
+      }
     }
     return Array.from(buckets.entries())
       .sort((a, b) => (Number(a[0]) && Number(b[0]) ? Number(a[0]) - Number(b[0]) : b[1] - a[1]))
@@ -450,7 +481,7 @@ function QuestionBreakdown({
   }, [responses, respondents, anonymous]);
 
   const texts = responses
-    .map((r) => (r.value_text ?? "").trim())
+    .flatMap((r) => answerValues(r))
     .filter((v) => v.length > 0)
     .slice(0, 20);
 
@@ -460,7 +491,7 @@ function QuestionBreakdown({
       .filter((r) => !!r.user_id)
       .map((r) => {
         const person = r.user_id ? respondents[r.user_id] : undefined;
-        const answer = typeof r.value_number === "number" ? String(r.value_number) : (r.value_text ?? "—");
+        const answer = answerValues(r).join(", ") || "—";
         return {
           id: r.id,
           name: person?.full_name || "Сотрудник",
@@ -556,4 +587,19 @@ function QuestionBreakdown({
       )}
     </div>
   );
+}
+
+function answerValues(response: Response): string[] {
+  if (typeof response.value_number === "number") return [String(response.value_number)];
+  const raw = (response.value_text ?? "").trim();
+  if (!raw) return [];
+  if (raw.startsWith("[") && raw.endsWith("]")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map((item) => String(item).trim()).filter(Boolean);
+    } catch {
+      return [raw];
+    }
+  }
+  return [raw];
 }

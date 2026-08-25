@@ -39,6 +39,7 @@ class DbController extends Controller
         'performance_review_reviewers' => 'performance', 'competencies' => 'skills_matrix',
         'hr_documents' => 'hr_documents', 'knowledge_articles' => 'knowledge_base',
         'knowledge_categories' => 'knowledge_base', 'shop_products' => 'shop', 'shop_orders' => 'shop',
+        'shop_order_items' => 'shop', 'shop_cart_items' => 'shop',
         'pulse_surveys' => 'pulse', 'pulse_survey_questions' => 'pulse', 'pulse_survey_responses' => 'pulse',
         'tracker_projects' => 'tracker', 'tracker_okr_periods' => 'tracker', 'tracker_goals' => 'tracker',
         'tracker_key_results' => 'tracker', 'tracker_tasks' => 'tracker', 'tracker_task_goal_links' => 'tracker',
@@ -64,6 +65,7 @@ class DbController extends Controller
         'pulse_survey_responses' => ['view', 'edit'],
         'shop_cart_items'        => ['view', 'edit'],
         'shop_orders'            => ['view'],
+        'shop_order_items'       => ['view'],
     ];
 
     /** Размер порции сырого чтения: ограничивает пик памяти до сборки ответа. */
@@ -572,12 +574,34 @@ class DbController extends Controller
         if (! $user) {
             return;
         }
-        if (method_exists($user, 'hasRole')
-            && $user->hasRole(['superadmin', 'company_admin', 'hrd', 'hr'])) {
+        $impersonator = method_exists($user, 'getAttribute') ? $user->getAttribute('impersonator') : null;
+        if ((method_exists($user, 'hasRole') && $user->hasRole('superadmin'))
+            || ($impersonator && method_exists($impersonator, 'hasRole') && $impersonator->hasRole('superadmin'))) {
             return;
         }
-        $impersonator = method_exists($user, 'getAttribute') ? $user->getAttribute('impersonator') : null;
-        if ($impersonator && method_exists($impersonator, 'hasRole') && $impersonator->hasRole('superadmin')) {
+        if ($tableName === 'shop_order_items' && in_array('order_id', $columns, true)) {
+            $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
+            $companyId = method_exists($user, 'companyId') ? $user->companyId() : null;
+            $isStaff = method_exists($user, 'hasRole') && $user->hasRole(['company_admin', 'hrd', 'hr']);
+
+            $query->whereExists(function ($sub) use ($tableName, $domainUserId, $companyId, $isStaff) {
+                $sub->selectRaw('1')
+                    ->from('shop_orders')
+                    ->whereColumn('shop_orders.id', $tableName . '.order_id');
+                if ($isStaff) {
+                    if (! $companyId) {
+                        $sub->whereRaw('1 = 0');
+                    } else {
+                        $sub->where('shop_orders.company_id', (string) $companyId);
+                    }
+                } else {
+                    $sub->where('shop_orders.user_id', (string) $domainUserId);
+                }
+            });
+            return;
+        }
+        if (method_exists($user, 'hasRole')
+            && $user->hasRole(['superadmin', 'company_admin', 'hrd', 'hr'])) {
             return;
         }
         if ($tableName === 'hr_documents' && in_array('owner_user_id', $columns, true)) {
@@ -641,24 +665,13 @@ class DbController extends Controller
         try {
             /** @var \Illuminate\Database\Eloquent\Model $instance */
             $instance = new $model();
-            $query = \Illuminate\Support\Facades\DB::table($instance->getTable());
+            $tableName = $instance->getTable();
+            $columns = self::HOT_TABLE_COLUMNS[$tableName]
+                ?? \Illuminate\Support\Facades\Schema::getColumnListing($tableName);
+            $query = \Illuminate\Support\Facades\DB::table($tableName);
             $this->applyFilters($query, $request);
-
-            // Мультитенантность: повторяем поведение CompanyScope вручную.
-            $user = auth()->user();
-            $isSuperadmin = $user && method_exists($user, 'hasRole') && $user->hasRole('superadmin');
-            $hasCompanyColumn = in_array(
-                'company_id',
-                \Illuminate\Support\Facades\Schema::getColumnListing($instance->getTable()),
-                true,
-            );
-            if (! $isSuperadmin && $hasCompanyColumn) {
-                $companyId = $user && method_exists($user, 'companyId') ? $user->companyId() : null;
-                if (! $companyId) {
-                    return response()->json(['data' => [], 'count' => 0]);
-                }
-                $query->where($instance->getTable() . '.company_id', $companyId);
-            }
+            $this->applyCompanyScope($query, $instance, $tableName, $columns);
+            $this->applyRowLevelScope($query, $tableName, $columns);
 
             return response()->json(['data' => [], 'count' => (int) $query->count()]);
         } catch (\Illuminate\Database\QueryException $e) {
@@ -691,6 +704,21 @@ class DbController extends Controller
                 if (array_key_exists('body_md', $row)) $row['body_md'] = \App\Support\RichTextSanitizer::clean($row['body_md']);
             }
             unset($row);
+        }
+        if ($table === 'shop_cart_items') {
+            $user = $request->user();
+            $isStaff = $user && method_exists($user, 'hasRole') && $user->hasRole(['superadmin', 'company_admin', 'hrd', 'hr']);
+            if ($user && ! $isStaff) {
+                $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
+                $companyId = method_exists($user, 'companyId') ? $user->companyId() : null;
+                foreach ($rows as &$row) {
+                    $row['user_id'] = (string) $domainUserId;
+                    if ($companyId) {
+                        $row['company_id'] = (string) $companyId;
+                    }
+                }
+                unset($row);
+            }
         }
         $upsert = $request->boolean('upsert');
         $onConflict = $request->input('onConflict');
@@ -742,6 +770,11 @@ class DbController extends Controller
             $model = self::resolve($table);
             $query = $model::query();
             $applied = $this->applyFilters($query, $request);
+            $this->applyRowLevelScope(
+                $query,
+                (new $model())->getTable(),
+                \Illuminate\Support\Facades\Schema::getColumnListing((new $model())->getTable()),
+            );
             $values = $request->input('values', []);
             if ($table === 'portal_posts' && array_key_exists('body_md', $values)) {
                 $values['body_md'] = \App\Support\RichTextSanitizer::clean($values['body_md']);
@@ -801,6 +834,11 @@ class DbController extends Controller
             $model = self::resolve($table);
             $query = $model::query();
             $applied = $this->applyFilters($query, $request);
+            $this->applyRowLevelScope(
+                $query,
+                (new $model())->getTable(),
+                \Illuminate\Support\Facades\Schema::getColumnListing((new $model())->getTable()),
+            );
             if ($applied === 0 || empty($query->getQuery()->wheres)) {
                 \Illuminate\Support\Facades\Log::warning('DbController mass delete blocked', [
                     'table' => $table, 'query' => $request->server('QUERY_STRING'),
@@ -891,14 +929,25 @@ class DbController extends Controller
 
         $applied = 0;
         foreach ($pairs as [$key, $value]) {
-            if (! str_contains($key, '.')) continue;
-            [$op, $col] = explode('.', $key, 2);
+            $op = null;
+            $col = null;
+            if (str_contains($key, '.')) {
+                [$op, $col] = explode('.', $key, 2);
+            } elseif (str_contains($value, '.')) {
+                [$op, $value] = explode('.', $value, 2);
+                $col = $key;
+            }
+            if (! $op || ! $col) continue;
             // Guard against empty values that would otherwise expand to
             // `where col = ''` and quietly match nothing (or, for text cols,
             // everything on some ORMs). Treat as "no filter applied".
             if ($value === '' && $op !== 'is') continue;
 
             if ($op === 'in') {
+                $value = trim($value);
+                if (str_starts_with($value, '(') && str_ends_with($value, ')')) {
+                    $value = substr($value, 1, -1);
+                }
                 $items = array_values(array_filter(explode(',', $value), fn ($x) => $x !== ''));
                 if (! $items) continue;
                 $query->whereIn($col, $items);

@@ -599,6 +599,11 @@ const UsersManagement = () => {
           <ResponsiveTable
             items={filtered}
             tableMinWidth={920}
+            empty={(
+              <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+                Сотрудники не найдены. Измените фильтры или сбросьте поиск.
+              </div>
+            )}
             table={
               <>
                 <thead>

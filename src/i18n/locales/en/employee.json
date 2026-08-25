@@ -139,7 +139,8 @@
     "aiSource": "AI-generated test for your position",
     "questionsCount": "{{count}} questions",
     "saveError": "Failed to save results: {{msg}}",
-    "completed": "Test completed: {{score}}/100"
+    "completed": "Test completed: {{score}}/100",
+    "noQuestions": "This test has no questions yet"
   },
   "shop": {
     "title": "🛍️ Shop",
