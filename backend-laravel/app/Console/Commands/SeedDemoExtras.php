@@ -176,18 +176,33 @@ class SeedDemoExtras extends Command
         return $updated;
     }
 
+    /**
+     * Компетенции сотрудников. Догоняем не только пустые профили, но и
+     * частично заполненные: у каждого сотрудника должна быть оценка по всем
+     * навыкам эталона, иначе сравнение «сотрудник vs эталон» показывает
+     * однобокие строки и бессмысленные проценты.
+     */
     private function fillCompetencies(): int
     {
         if (! Schema::hasTable('competencies')) return 0;
 
         $userIds = DB::table('profiles')->where('company_id', $this->companyId)->pluck('user_id')->all();
-        $withSkills = DB::table('competencies')->where('company_id', $this->companyId)->distinct()->pluck('user_id')->map('strval')->all();
-        $created = 0;
+        if (! $userIds) return 0;
 
+        $existing = [];
+        DB::table('competencies')->where('company_id', $this->companyId)
+            ->select('user_id', 'skill_name')
+            ->orderBy('user_id')
+            ->chunk(2000, function ($rows) use (&$existing) {
+                foreach ($rows as $row) $existing[(string) $row->user_id][(string) $row->skill_name] = true;
+            });
+
+        $created = 0;
         foreach ($userIds as $i => $userId) {
-            if (in_array((string) $userId, $withSkills, true)) continue;
+            $have = $existing[(string) $userId] ?? [];
             $rows = [];
             foreach (self::SKILLS as $k => $skill) {
+                if (isset($have[$skill])) continue;
                 $rows[] = [
                     'id' => (string) Str::uuid(),
                     'user_id' => $userId,
@@ -198,12 +213,14 @@ class SeedDemoExtras extends Command
                     'updated_at' => now(),
                 ];
             }
+            if (! $rows) continue;
             DB::table('competencies')->insert($rows);
             $created += count($rows);
         }
 
         return $created;
     }
+
 
     /** Воркфлоу по умолчанию + привязка проектов и задач к его статусам. */
     private function ensureWorkflow(): string
