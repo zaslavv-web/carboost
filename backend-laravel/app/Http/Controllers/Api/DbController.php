@@ -566,9 +566,6 @@ class DbController extends Controller
      */
     private function applyRowLevelScope($query, string $tableName, array $columns): void
     {
-        if ($tableName !== 'hr_documents' || ! in_array('owner_user_id', $columns, true)) {
-            return;
-        }
         $user = auth()->user();
         if (! $user) {
             return;
@@ -581,10 +578,17 @@ class DbController extends Controller
         if ($impersonator && method_exists($impersonator, 'hasRole') && $impersonator->hasRole('superadmin')) {
             return;
         }
-        $query->where(function ($q) use ($tableName, $user) {
-            $q->whereNull($tableName . '.owner_user_id')
-              ->orWhere($tableName . '.owner_user_id', (string) $user->id);
-        });
+        if ($tableName === 'hr_documents' && in_array('owner_user_id', $columns, true)) {
+            $query->where(function ($q) use ($tableName, $user) {
+                $q->whereNull($tableName . '.owner_user_id')
+                  ->orWhere($tableName . '.owner_user_id', (string) $user->id);
+            });
+            return;
+        }
+        if ($tableName === 'test_attempts' && in_array('user_id', $columns, true)) {
+            $domainUserId = method_exists($user, 'domainUserId') ? $user->domainUserId() : $user->id;
+            $query->where($tableName . '.user_id', (string) $domainUserId);
+        }
     }
 
     /**

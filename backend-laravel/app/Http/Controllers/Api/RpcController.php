@@ -1207,6 +1207,12 @@ class RpcController extends Controller
         if (preg_match('/foreign key constraint/i', $raw)) {
             return 'Связанная запись не найдена';
         }
+        if (preg_match('/Недостаточно прав|forbidden/i', $raw)) {
+            return 'Недостаточно прав';
+        }
+        if (preg_match('/Тест не найден|test not found/i', $raw)) {
+            return 'Тест не найден';
+        }
         // Postgres `RAISE EXCEPTION 'msg'` arrives as: SQLSTATE[P0001]: ... ERROR:  msg  CONTEXT: ...
         if (preg_match('/ERROR:\s*([^\n]+?)(?:\s+CONTEXT:|$)/u', $raw, $m)) {
             return trim($m[1]);

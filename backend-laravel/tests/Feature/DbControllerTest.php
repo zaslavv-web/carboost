@@ -315,9 +315,10 @@ class DbControllerTest extends TestCase
         ]);
 
         $this->actingAs($employee, 'sanctum')
-            ->getJson('/api/db/test_attempts?select=id,score,total&in.id=' . $ownAttemptId)
+            ->getJson('/api/db/test_attempts?select=id,score,total&order=score.desc')
             ->assertOk()
             ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $ownAttemptId)
             ->assertJsonPath('data.0.score', 80);
     }
 }
