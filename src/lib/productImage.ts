@@ -49,8 +49,5 @@ export function productPlaceholder(title: string): string {
 
 /** Итоговый src картинки товара: своя картинка либо заглушка. */
 export function productImageSrc(imageUrl: string | null | undefined, title: string): string {
-  const src = imageUrl?.trim();
-  if (!src) return productPlaceholder(title);
-  if (/^https?:\/\//i.test(src)) return productPlaceholder(title);
-  return resolveUrl(src) ?? productPlaceholder(title);
+  return resolveUrl(imageUrl) ?? productPlaceholder(title);
 }

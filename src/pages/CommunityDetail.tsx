@@ -422,8 +422,8 @@ function PostComments({
             return (
               <div key={c.id} className="flex items-start gap-2">
                 <Link to={`/users/${c.author_id}`} className="flex-shrink-0">
-                  {author?.avatar_url
-                    ? <img src={author.avatar_url} alt={author.full_name} className="h-8 w-8 rounded-full object-cover" />
+                  {resolveUrl(author?.avatar_url)
+                    ? <img src={resolveUrl(author?.avatar_url)} alt={author.full_name} className="h-8 w-8 rounded-full object-cover" />
                     : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs">{(author?.full_name || "?").slice(0, 1)}</span>}
                 </Link>
                 <div className="min-w-0 flex-1 rounded-lg bg-muted/50 px-3 py-2">

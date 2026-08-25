@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { getDateLocale } from "@/lib/dateLocale";
+import { resolveUrl } from "@/lib/utils";
 import {
   Award, Trophy, Gift, Banknote, Package, Image as ImageIcon, Upload, Trash2,
   Loader2, Calendar, Mail, Briefcase, MapPin, Route as RouteIcon, FileBadge, Sparkles,
@@ -185,6 +186,8 @@ const MyProfile = () => {
 
 
   const level = levelQ.data;
+  const profileAvatarUrl = resolveUrl(profile?.avatar_url);
+  const chatStickerUrl = resolveUrl(chatSticker);
 
   return (
     <div className="space-y-6 animate-fade-in max-w-[1200px] mx-auto">
@@ -195,8 +198,8 @@ const MyProfile = () => {
           <div className="flex items-end gap-5 flex-wrap">
             <div className="relative">
               <div className="w-24 h-24 rounded-2xl bg-card border-4 border-card overflow-hidden flex items-center justify-center text-2xl font-bold gradient-primary text-primary-foreground">
-                {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover" />
+                {profileAvatarUrl ? (
+                  <img src={profileAvatarUrl} alt={profile?.full_name} className="w-full h-full object-cover" />
                 ) : initials}
               </div>
               <button
@@ -298,8 +301,8 @@ const MyProfile = () => {
             </p>
             <div className="flex items-center gap-3">
               <div className="w-20 h-20 rounded-lg border border-dashed border-border flex items-center justify-center overflow-hidden bg-secondary/30">
-                {chatSticker ? (
-                  <img src={chatSticker} alt="sticker" className="w-full h-full object-cover" />
+                {chatStickerUrl ? (
+                  <img src={chatStickerUrl} alt="sticker" className="w-full h-full object-cover" />
                 ) : (
                   <ImageIcon className="w-6 h-6 text-muted-foreground" />
                 )}
@@ -337,10 +340,11 @@ const MyProfile = () => {
                 {rewards.slice(0, 9).map((r: any) => {
                   const rt: any = typeMap.get(r.reward_type_id);
                   const Icon = REWARD_KIND_ICON[rt?.reward_kind || "achievement"] || Trophy;
+                  const rewardImageUrl = resolveUrl(rt?.image_url);
                   return (
                     <div key={r.id} className="rounded-lg border border-border p-3 flex flex-col items-center text-center gap-1.5">
-                      {rt?.image_url ? (
-                        <img src={rt.image_url} alt={rt?.title} className="w-12 h-12 rounded-md object-cover" />
+                      {rewardImageUrl ? (
+                        <img src={rewardImageUrl} alt={rt?.title} className="w-12 h-12 rounded-md object-cover" />
                       ) : (
                         <div className="w-12 h-12 rounded-md bg-accent flex items-center justify-center text-primary"><Icon className="w-6 h-6" /></div>
                       )}

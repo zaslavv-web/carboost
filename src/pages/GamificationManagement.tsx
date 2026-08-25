@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { readLevels, writeLevels, DEFAULT_GAMIFICATION_LEVELS, type GamificationLevel } from "@/hooks/useEmployeeLevel";
 import { LevelBadge } from "@/components/gamification/LevelBadge";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { resolveUrl } from "@/lib/utils";
 
 const categoryConfig: Record<string, { icon: any; color: string }> = {
   tenure: { icon: Clock, color: "text-info" },
@@ -98,6 +99,7 @@ const GamificationManagement = () => {
     non_monetary: t("gamification.kindNonMonetary"),
     monetary: t("gamification.kindMonetary"),
   };
+  const formImageUrl = resolveUrl(form.image_url);
 
   const getDefaultEvents = () =>
     DEFAULT_EVENT_CODES.map(code => ({ code, label: t(`gamification.event_${code}`) }));
@@ -411,8 +413,8 @@ const GamificationManagement = () => {
           <div className="space-y-2">
             <label className="text-xs text-muted-foreground block">{t("gamification.labelImageUpload")}</label>
             <div className="flex items-center gap-3">
-              {form.image_url ? (
-                <img src={form.image_url} alt="reward" className="w-20 h-20 rounded-lg object-cover border border-border" />
+              {formImageUrl ? (
+                <img src={formImageUrl} alt="reward" className="w-20 h-20 rounded-lg object-cover border border-border" />
               ) : (
                 <div className="w-20 h-20 rounded-lg border border-dashed border-border flex items-center justify-center text-muted-foreground">
                   <ImageIcon className="w-6 h-6" />
@@ -487,10 +489,11 @@ const GamificationManagement = () => {
             const Icon = cfg.icon;
             const KindIcon = (rewardKindConfig[r.reward_kind || "achievement"] || rewardKindConfig.achievement).icon;
             const awarded = employeeRewards.filter(er => er.reward_type_id === r.id).length;
+            const rewardImageUrl = resolveUrl(r.image_url);
             return (
               <div key={r.id} className="bg-card rounded-xl p-5 shadow-card border border-border flex flex-col">
-                {r.image_url && (
-                  <img src={r.image_url} alt={r.title} className="w-full h-32 object-cover rounded-lg mb-3" />
+                {rewardImageUrl && (
+                  <img src={rewardImageUrl} alt={r.title} className="w-full h-32 object-cover rounded-lg mb-3" />
                 )}
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -555,10 +558,11 @@ const GamificationManagement = () => {
             const rt = rewardTypeMap[er.reward_type_id];
             const p = profileMap[er.user_id];
             const cfg = categoryConfig[rt?.category || "custom"] || categoryConfig.custom;
+            const rewardImageUrl = resolveUrl(rt?.image_url);
             return (
               <div key={er.id} className="bg-card rounded-xl p-4 shadow-card border border-border flex items-center gap-4 flex-wrap">
-                {rt?.image_url ? (
-                  <img src={rt.image_url} alt="" className="w-10 h-10 rounded object-cover" />
+                {rewardImageUrl ? (
+                  <img src={rewardImageUrl} alt="" className="w-10 h-10 rounded object-cover" />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-medium">
                     {p?.full_name?.charAt(0) || "?"}
