@@ -46,8 +46,14 @@ echo "    ВНИМАНИЕ: вернуть policy.advisories.block=true посл
 $COMPOSER_BIN config --global --no-plugins policy.advisories.block false || true
 export COMPOSER_NO_AUDIT=1
 
+echo "==> сброс bootstrap/cache до установки (иначе манифест dev-пакетов ломает провайдеры: 'Class view does not exist')"
+rm -f bootstrap/cache/*.php
+
 echo "==> composer install (no-dev, optimized, no-audit)"
-$COMPOSER_BIN install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-audit
+$COMPOSER_BIN install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-audit --no-scripts
+$COMPOSER_BIN dump-autoload --no-dev --optimize --no-interaction
+$PHP_BIN artisan package:discover --ansi
+
 
 echo "==> .env проверка"
 [ -f .env ] || { echo "FATAL: .env отсутствует в $APP_DIR"; exit 1; }
