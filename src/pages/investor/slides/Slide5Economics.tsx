@@ -204,7 +204,7 @@ export default function Slide5Economics() {
         />
         <div className="mt-1 flex items-center justify-between text-[17px] text-[#1B1D22]/60">
           <Editable id="s5.foot.brand" defaultValue="Пик роста · 2026" />
-          <Editable id="s5.foot.page" defaultValue="05 / 08" />
+          <Editable id="s5.foot.page" defaultValue="05 / 10" />
         </div>
       </div>
     </SlideLayout>

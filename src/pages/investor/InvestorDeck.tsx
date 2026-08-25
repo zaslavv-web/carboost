@@ -9,7 +9,9 @@ import Slide3ProductTree from "./slides/Slide3ProductTree";
 import Slide4AI from "./slides/Slide4AI";
 import Slide5Economics from "./slides/Slide5Economics";
 import Slide5bRevenue from "./slides/Slide5bRevenue";
+import Slide5cPlan from "./slides/Slide5cPlan";
 import Slide6Sales from "./slides/Slide6Sales";
+import Slide8Asia from "./slides/Slide8Asia";
 import Slide7Status from "./slides/Slide7Status";
 
 const slides = [
@@ -19,10 +21,24 @@ const slides = [
   Slide4AI,
   Slide5Economics,
   Slide5bRevenue,
+  Slide5cPlan,
   Slide6Sales,
+  Slide8Asia,
   Slide7Status,
 ];
-const titles = ["Продукт", "Рынок", "Архитектура", "ИИ", "Затраты", "Доход", "Оплата", "Статус"];
+const titles = [
+  "Продукт",
+  "Рынок",
+  "Архитектура",
+  "ИИ",
+  "Затраты",
+  "Доход",
+  "План развития",
+  "Оплата",
+  "Азия",
+  "Статус",
+];
+
 
 function DeckInner() {
   const [params, setParams] = useSearchParams();
