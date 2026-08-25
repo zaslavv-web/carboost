@@ -55,11 +55,18 @@ class SeedDemoExtras extends Command
         $okr = $this->ensureOkr();
         $this->line("  целей OKR: {$okr}");
 
+        $benchmarks = $this->ensurePositionBenchmarks();
+        $this->line("  эталонов должностей заполнено: {$benchmarks}");
+
+        $absence = $this->ensureAbsences();
+        $this->line("  согласованных отсутствий за 6 мес: {$absence}");
+
         $post = $this->ensureShowcasePost();
         $this->line("  показательная новость: {$post}");
 
         $community = $this->ensureCommunityContent();
         $this->line("  записей в сообществах: {$community}");
+
 
         $this->verify();
 
@@ -410,6 +417,126 @@ class SeedDemoExtras extends Command
         DB::table('tracker_key_results')->insert($payload);
     }
 
+    /**
+     * Эталонные профили компетенций у должностей.
+     * Без них сравнение «сотрудник ↔ должность» бессмысленно и раньше давало
+     * проценты в тысячах (делили сумму факта на почти нулевой эталон).
+     */
+    private function ensurePositionBenchmarks(): int
+    {
+        if (! Schema::hasTable('positions') || ! Schema::hasColumn('positions', 'competency_profile')) return 0;
+
+        $positions = DB::table('positions')->where('company_id', $this->companyId)->get(['id', 'title', 'competency_profile']);
+        $filled = 0;
+
+        foreach ($positions as $i => $position) {
+            $existing = $position->competency_profile;
+            if (is_string($existing)) {
+                $decoded = json_decode($existing, true);
+            } else {
+                $decoded = $existing;
+            }
+            $valid = is_array($decoded) && count(array_filter($decoded, fn ($row) => (float) ($row['required_level'] ?? 0) > 0)) > 0;
+            if ($valid) continue;
+
+            $profile = [];
+            foreach (self::SKILLS as $k => $skill) {
+                $required = 3 + (($i + $k) % 3); // 3..5 по той же шкале, что и competencies
+                $profile[] = [
+                    'name' => $skill,
+                    'skill' => $skill,
+                    'required_level' => $required,
+                    'weight' => 1,
+                ];
+            }
+            DB::table('positions')->where('id', $position->id)->update([
+                'competency_profile' => json_encode($profile, JSON_UNESCAPED_UNICODE),
+                'updated_at' => now(),
+            ]);
+            $filled++;
+        }
+
+        return $filled;
+    }
+
+    /**
+     * Отсутствия за последние 6 месяцев: график «Доля отсутствий» строится
+     * по approved-заявкам в окне 6 месяцев, поэтому в каждом месяце должна
+     * быть хотя бы одна согласованная заявка.
+     */
+    private function ensureAbsences(): int
+    {
+        if (! Schema::hasTable('leave_requests') || ! Schema::hasTable('leave_types')) return 0;
+
+        $profiles = DB::table('profiles')->where('company_id', $this->companyId)->pluck('user_id')->all();
+        if (! $profiles) return 0;
+
+        $types = [
+            ['annual', 'Ежегодный отпуск', true, 28, false],
+            ['sick', 'Больничный', true, 0, true],
+            ['unpaid', 'Отпуск за свой счёт', false, 0, false],
+        ];
+        $typeIds = [];
+        foreach ($types as [$code, $title, $paid, $accrual, $cert]) {
+            $existing = DB::table('leave_types')->where('company_id', $this->companyId)->where('code', $code)->first();
+            $id = $existing->id ?? (string) Str::uuid();
+            DB::table('leave_types')->updateOrInsert(
+                ['company_id' => $this->companyId, 'code' => $code],
+                [
+                    'id' => $id, 'title' => $title, 'paid' => $paid, 'accrual_days_per_year' => $accrual,
+                    'requires_medical_cert' => $cert, 'is_active' => true,
+                    'created_at' => now(), 'updated_at' => now(),
+                ],
+            );
+            $typeIds[$code] = (string) $id;
+        }
+
+        $codes = array_keys($typeIds);
+        $created = 0;
+
+        for ($m = 5; $m >= 0; $m--) {
+            $monthStart = now()->startOfMonth()->subMonths($m);
+            $monthEnd = $monthStart->copy()->endOfMonth();
+
+            $approved = DB::table('leave_requests')
+                ->where('company_id', $this->companyId)
+                ->where('status', 'approved')
+                ->whereBetween('start_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                ->count();
+            if ($approved >= 3) continue;
+
+            for ($k = $approved; $k < 3; $k++) {
+                $userId = $profiles[($m * 3 + $k) % count($profiles)];
+                $code = $codes[($m + $k) % count($codes)];
+                $start = $monthStart->copy()->addDays(3 + (($m + $k) * 4) % 20);
+                if ($start->greaterThan($monthEnd)) $start = $monthEnd->copy()->subDays(2);
+                $days = 2 + (($m + $k) % 5);
+
+                DB::table('leave_requests')->insert([
+                    'id' => (string) Str::uuid(),
+                    'company_id' => $this->companyId,
+                    'user_id' => $userId,
+                    'leave_type_id' => $typeIds[$code],
+                    'start_date' => $start->toDateString(),
+                    'end_date' => $start->copy()->addDays($days - 1)->toDateString(),
+                    'days_count' => $days,
+                    'reason' => $code === 'sick' ? 'Больничный лист' : 'Плановый отдых',
+                    'status' => 'approved',
+                    'manager_decision_at' => $start->copy()->subDays(3),
+                    'manager_comment' => 'Согласовано',
+                    'hr_decision_at' => $start->copy()->subDays(2),
+                    'paid_days' => $code === 'unpaid' ? 0 : $days,
+                    'unpaid_days' => $code === 'unpaid' ? $days : 0,
+                    'created_at' => $start->copy()->subDays(5),
+                    'updated_at' => now(),
+                ]);
+                $created++;
+            }
+        }
+
+        return $created;
+    }
+
     /** Пост-образец: заголовки, списки, изображения, видео, ссылка и вложения. */
     private function ensureShowcasePost(): string
     {
@@ -573,6 +700,26 @@ HTML;
                 $problems[] = 'показательная новость создана не полностью';
             }
         }
+
+        // Эталоны должностей: без них процент соответствия не считается.
+        if (Schema::hasTable('positions') && Schema::hasColumn('positions', 'competency_profile')) {
+            $withBenchmark = DB::table('positions')->where('company_id', $this->companyId)
+                ->whereNotNull('competency_profile')->where('competency_profile', '<>', '[]')->count();
+            $total = DB::table('positions')->where('company_id', $this->companyId)->count();
+            if ($total > 0 && $withBenchmark < $total) {
+                $problems[] = "эталон компетенций заполнен только у {$withBenchmark} из {$total} должностей";
+            }
+        }
+
+        // Отсутствия: график «Доля отсутствий» строится за 6 месяцев.
+        if (Schema::hasTable('leave_requests')) {
+            $months = DB::table('leave_requests')->where('company_id', $this->companyId)
+                ->where('status', 'approved')
+                ->where('start_date', '>=', now()->startOfMonth()->subMonths(5)->toDateString())
+                ->count();
+            if ($months < 6) $problems[] = 'мало согласованных отсутствий за последние 6 месяцев';
+        }
+
 
         if ($problems) {
             throw new \RuntimeException('demo:seed-extras: ' . implode('; ', $problems) . '.');

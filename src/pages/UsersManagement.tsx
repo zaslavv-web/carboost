@@ -55,6 +55,7 @@ const UsersManagement = () => {
   const [tenureFilter, setTenureFilter] = useState<string>(() => searchParams.get("tenure") || "all");
   const [hiredMonthFilter, setHiredMonthFilter] = useState<string>(() => searchParams.get("hiredMonth") || "all");
   const [riskFilter, setRiskFilter] = useState<string>(() => searchParams.get("risk") || "all");
+  const [probationFilter, setProbationFilter] = useState<boolean>(() => searchParams.get("probation") === "1");
 
   // Sync company filter from URL (?companyId=...) — enables quick-filter deep-linking from Companies list.
   useEffect(() => {
@@ -68,6 +69,12 @@ const UsersManagement = () => {
     setRoleFilter(searchParams.get("role") || "all");
     setHiredMonthFilter(searchParams.get("hiredMonth") || "all");
     setRiskFilter(searchParams.get("risk") || "all");
+    setProbationFilter(searchParams.get("probation") === "1");
+    // Новый drill-down = чистый фильтр: локальные (не URL) фильтры сбрасываем,
+    // иначе роль/статус из прошлого перехода дают пустую таблицу.
+    if (!searchParams.get("companyId")) setCompanyFilter("all");
+    setStatusFilter("all");
+    setSearch("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -222,11 +229,26 @@ const UsersManagement = () => {
   });
 
   const departments = Array.from(
-    new Set(users.map((u: any) => (u.department || "").trim()).filter(Boolean)),
+    new Set([
+      ...users.map((u: any) => (u.department || "").trim()).filter(Boolean),
+      ...(departmentFilter !== "all" && departmentFilter !== "none" ? [departmentFilter] : []),
+    ]),
   ).sort() as string[];
   const positions = Array.from(
-    new Set(users.map((u: any) => (u.position || "").trim()).filter(Boolean)),
+    new Set([
+      ...users.map((u: any) => (u.position || "").trim()).filter(Boolean),
+      ...(positionFilter !== "all" ? [positionFilter] : []),
+    ]),
   ).sort() as string[];
+
+  const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
+
+  // Стажировка / испытательный срок: меньше 3 месяцев с даты найма.
+  const isProbation = (u: any) => {
+    if (!u.hire_date) return false;
+    const months = (Date.now() - new Date(u.hire_date).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+    return months < 3;
+  };
 
   const filtered = users.filter((u: any) => {
     const q = search.toLowerCase();
@@ -249,8 +271,11 @@ const UsersManagement = () => {
     const matchesDepartment =
       departmentFilter === "all" ||
       (departmentFilter === "none" && !(u.department || "").trim()) ||
-      (u.department || "").trim() === departmentFilter;
-    const matchesPosition = positionFilter === "all" || (u.position || "").trim() === positionFilter;
+      norm(u.department) === norm(departmentFilter);
+    // Сопоставление нормализованное: значения из графиков People Analytics
+    // могут отличаться регистром/пробелами от справочника профилей.
+    const matchesPosition = positionFilter === "all"
+      || (positionFilter === "none" ? !String(u.position ?? "").trim() : norm(u.position) === norm(positionFilter));
     const hireDate = u.hire_date ? new Date(u.hire_date) : null;
     const months = hireDate ? (Date.now() - hireDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44) : null;
     const matchesTenure = tenureFilter === "all" || (months !== null && (
@@ -264,7 +289,8 @@ const UsersManagement = () => {
     const hiredMonth = hireDate ? hireDate.toLocaleString("ru-RU", { month: "short" }).replace(".", "") : "";
     const matchesHiredMonth = hiredMonthFilter === "all" || hiredMonth.toLowerCase() === hiredMonthFilter.replace(".", "").toLowerCase();
     const matchesRisk = riskFilter === "all" || riskLevels[u.user_id] === riskFilter;
-    return matchesSearch && matchesStatus && matchesCompany && matchesRole && matchesDepartment && matchesPosition && matchesTenure && matchesHiredMonth && matchesRisk;
+    const matchesProbation = !probationFilter || (months !== null && months < 3);
+    return matchesProbation && matchesSearch && matchesStatus && matchesCompany && matchesRole && matchesDepartment && matchesPosition && matchesTenure && matchesHiredMonth && matchesRisk;
 
   });
 
@@ -431,6 +457,16 @@ const UsersManagement = () => {
               Приняты: {hiredMonthFilter} ×
             </button>
           )}
+          {probationFilter && (
+            <button type="button" onClick={() => {
+              setProbationFilter(false);
+              const next = new URLSearchParams(searchParams);
+              next.delete("probation");
+              setSearchParams(next, { replace: true });
+            }} className="px-3 py-2 rounded-lg bg-warning/10 text-warning text-xs font-medium">
+              Стажировка / испытательный срок ×
+            </button>
+          )}
           {riskFilter !== "all" && (
             <button type="button" onClick={() => {
               setRiskFilter("all");
@@ -458,19 +494,21 @@ const UsersManagement = () => {
             </select>
           )}
 
-          {(roleFilter !== "all" || departmentFilter !== "all" || positionFilter !== "all" || tenureFilter !== "all" || companyFilter !== "all" || statusFilter !== "all" || search) && (
+          {(roleFilter !== "all" || departmentFilter !== "all" || positionFilter !== "all" || tenureFilter !== "all" || companyFilter !== "all" || statusFilter !== "all" || riskFilter !== "all" || hiredMonthFilter !== "all" || probationFilter || search) && (
             <button
               onClick={() => {
                 setSearch("");
                 setStatusFilter("all");
                 setCompanyFilter("all");
-                const next = new URLSearchParams(searchParams);
-                next.delete("companyId");
-                setSearchParams(next, { replace: true });
+                // Полный сброс: чистим и URL, и локальные фильтры.
+                setSearchParams(new URLSearchParams(), { replace: true });
                 setRoleFilter("all");
                 setDepartmentFilter("all");
                 setPositionFilter("all");
                 setTenureFilter("all");
+                setHiredMonthFilter("all");
+                setRiskFilter("all");
+                setProbationFilter(false);
               }}
               className="px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
             >
@@ -493,6 +531,7 @@ const UsersManagement = () => {
                   <tr className="border-b border-border bg-muted/30">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colUser")}</th>
                     {isSuperadmin && <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colCompany")}</th>}
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Должность</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colDept")}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colRole")}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("users.colStatus")}</th>
@@ -504,7 +543,6 @@ const UsersManagement = () => {
                     <tr key={u.id} className="border-b border-border last:border-0 hover:bg-secondary/20 transition-colors">
                       <td className="px-4 py-3">
                         <p className="font-medium text-foreground">{u.full_name}</p>
-                        <p className="text-xs text-muted-foreground">{u.position || "—"}</p>
                         {u.email && (
                           <a href={`mailto:${u.email}`} className="text-xs text-primary hover:underline">
                             {u.email}
@@ -531,6 +569,14 @@ const UsersManagement = () => {
                           </select>
                         </td>
                       )}
+                      <td className="px-4 py-3 text-foreground">
+                        {u.position || "—"}
+                        {isProbation(u) && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning align-middle">
+                            стажировка
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-foreground">{u.department || "—"}</td>
                       <td className="px-4 py-3">
                         <select
@@ -632,7 +678,10 @@ const UsersManagement = () => {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-medium text-foreground truncate">{u.full_name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{u.position || "—"}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {u.position || "—"}
+                      {isProbation(u) && <span className="ml-1 text-warning">· стажировка</span>}
+                    </p>
                     {u.email && (
                       <a href={`mailto:${u.email}`} className="text-xs text-primary hover:underline break-all">
                         {u.email}

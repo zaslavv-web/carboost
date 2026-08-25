@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { tooltipProps } from "@/lib/chartTooltip";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
 import { laravel } from "@/integrations/laravel/client";
@@ -117,9 +117,16 @@ const CompetencyComparisonModal = ({
     },
   });
 
-  const posProfile: { name: string; required_level: number }[] = Array.isArray(position.competency_profile)
-    ? position.competency_profile
-    : [];
+  // Эталон может лежать строкой (JSON) и хранить ключ как name или skill.
+  const rawProfile: any = typeof position.competency_profile === "string"
+    ? (() => { try { return JSON.parse(position.competency_profile as any); } catch { return []; } })()
+    : position.competency_profile;
+  const posProfile: { name: string; required_level: number }[] = (Array.isArray(rawProfile) ? rawProfile : [])
+    .map((item: any) => ({
+      name: String(item?.name ?? item?.skill ?? "").trim(),
+      required_level: Number(item?.required_level ?? item?.target_value ?? 0),
+    }))
+    .filter((item) => item.name !== "" && item.required_level > 0);
 
   // Build comparison data
   const allSkills = new Set<string>();
@@ -132,9 +139,15 @@ const CompetencyComparisonModal = ({
     return { skill, required, actual };
   });
 
-  const totalRequired = radarData.reduce((s, d) => s + d.required, 0);
-  const totalActual = radarData.reduce((s, d) => s + d.actual, 0);
-  const matchPercent = totalRequired > 0 ? Math.round((totalActual / totalRequired) * 100) : 0;
+  // Соответствие считаем ТОЛЬКО по компетенциям, у которых задан эталон,
+  // и по каждой ограничиваем вклад 100% — иначе получались проценты в тысячах.
+  const scored = radarData.filter((d) => d.required > 0);
+  const hasBenchmark = scored.length > 0;
+  const matchPercent = hasBenchmark
+    ? Math.round(
+        (scored.reduce((sum, d) => sum + Math.min(1, d.actual / d.required), 0) / scored.length) * 100,
+      )
+    : 0;
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
@@ -155,13 +168,19 @@ const CompetencyComparisonModal = ({
         </div>
 
         {/* Match score */}
+        {!hasBenchmark && (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
+            Для должности «{position.title}» не заполнен эталонный профиль компетенций — процент соответствия не рассчитывается.
+            Заполните эталон в разделе «Должности».
+          </div>
+        )}
         <div className="flex items-center gap-4">
           <div
             className={`text-3xl font-bold ${
               matchPercent >= 80 ? "text-success" : matchPercent >= 50 ? "text-warning" : "text-destructive"
             }`}
           >
-            {matchPercent}%
+            {hasBenchmark ? `${matchPercent}%` : "—"}
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">{t("hrdDashboard.comparison.match")}</p>
@@ -252,7 +271,53 @@ const HRDDashboard = () => {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string | null>(null);
+  const [positionFilter, setPositionFilter] = useState<string | null>(null);
+  const [tenureFilter, setTenureFilter] = useState<string | null>(null);
+  const [hiredMonthFilter, setHiredMonthFilter] = useState<string | null>(null);
+  const [probationFilter, setProbationFilter] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const tableRef = useRef<HTMLDivElement>(null);
+
+  // Drill-down из аналитики приходит в URL. Каждый переход — ЧИСТЫЙ фильтр:
+  // старые условия сбрасываются, иначе пересечение давало пустую таблицу.
+  const urlKey = searchParams.toString();
+  useEffect(() => {
+    const p = new URLSearchParams(urlKey);
+    const dep = p.get("department");
+    const pos = p.get("position");
+    const ten = p.get("tenure");
+    const hired = p.get("hiredMonth");
+    const prob = p.get("probation") === "1";
+    if (!dep && !pos && !ten && !hired && !prob) return;
+    setSearch("");
+    setRoleFilter("all");
+    setDepartmentFilter(dep === "none" ? "Без отдела" : dep);
+    setPositionFilter(pos === "none" ? "" : pos);
+    setTenureFilter(ten);
+    setHiredMonthFilter(hired);
+    setProbationFilter(prob);
+    setActivePanel("employees");
+    requestAnimationFrame(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, [urlKey]);
+
+  const tenureMonths = (hireDate?: string | null) =>
+    hireDate ? (Date.now() - new Date(hireDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44) : null;
+  const inTenureBucket = (months: number | null, bucket: string) => {
+    if (months === null) return false;
+    if (bucket === "< 3 мес") return months < 3;
+    if (bucket === "3–12 мес") return months >= 3 && months < 12;
+    if (bucket === "1–3 года") return months >= 12 && months < 36;
+    if (bucket === "3–5 лет") return months >= 36 && months < 60;
+    if (bucket === "> 5 лет") return months >= 60;
+    return true;
+  };
+  const clearDrillFilters = () => {
+    setPositionFilter(null);
+    setTenureFilter(null);
+    setHiredMonthFilter(null);
+    setProbationFilter(false);
+    if (urlKey) setSearchParams(new URLSearchParams(), { replace: true });
+  };
   const { move: moveBlock, position: blockPosition } = useBlockOrder("hrd-dashboard", DASHBOARD_BLOCKS);
   const blockProps = (id: string, label: string) => {
     const p = blockPosition(id);
@@ -260,8 +325,12 @@ const HRDDashboard = () => {
   };
   // Клик по KPI/графику работает как быстрый фильтр таблицы ниже, а не как переход.
   const applyQuickFilter = (next: { role?: RoleFilter; department?: string | null }) => {
-    if (next.role !== undefined) setRoleFilter(next.role);
-    if (next.department !== undefined) setDepartmentFilter(next.department);
+    // Клик по любому дашборду = новый чистый срез: сбрасываем прошлые фильтры,
+    // иначе комбинация «роль + должность» давала пустой список.
+    clearDrillFilters();
+    setSearch("");
+    setRoleFilter(next.role ?? "all");
+    setDepartmentFilter(next.department ?? null);
     setActivePanel("employees");
     requestAnimationFrame(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
@@ -408,7 +477,19 @@ const HRDDashboard = () => {
       (e.department || "").toLowerCase().includes(search.toLowerCase());
     const matchRole = roleFilter === "all" || e.role === roleFilter;
     const matchDepartment = !departmentFilter || (e.department || "Без отдела") === departmentFilter;
-    return matchSearch && matchRole && matchDepartment;
+    const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
+    const matchPosition =
+      positionFilter === null
+        ? true
+        : positionFilter === ""
+        ? !String(e.position ?? "").trim()
+        : norm(e.position) === norm(positionFilter);
+    const months = tenureMonths((e as any).hire_date);
+    const matchTenure = !tenureFilter || inTenureBucket(months, tenureFilter);
+    const matchProbation = !probationFilter || (months !== null && months < 3);
+    const matchHired =
+      !hiredMonthFilter || String((e as any).hire_date ?? "").slice(0, 7) === hiredMonthFilter;
+    return matchSearch && matchRole && matchDepartment && matchPosition && matchTenure && matchProbation && matchHired;
   });
 
   const roleCounts = {
@@ -801,6 +882,21 @@ const HRDDashboard = () => {
                   className="pl-10 pr-4 py-2 w-64 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                 />
               </div>
+              {(positionFilter !== null || tenureFilter || hiredMonthFilter || probationFilter || departmentFilter) && (
+                <button
+                  type="button"
+                  onClick={() => { clearDrillFilters(); setDepartmentFilter(null); }}
+                  className="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium"
+                >
+                  {[
+                    departmentFilter && `Отдел: ${departmentFilter}`,
+                    positionFilter !== null && `Должность: ${positionFilter || "не задана"}`,
+                    tenureFilter && `Стаж: ${tenureFilter}`,
+                    probationFilter && "Стажировка / испытательный срок",
+                    hiredMonthFilter && `Найм: ${hiredMonthFilter}`,
+                  ].filter(Boolean).join(" · ")} ×
+                </button>
+              )}
               <div className="flex rounded-lg border border-border overflow-hidden">
                 {(["all", "employee", "manager", "hrd"] as RoleFilter[]).map((r) => (
                   <button
@@ -846,7 +942,7 @@ const HRDDashboard = () => {
                           <Link to={`/users/${emp.user_id}`} className="font-medium text-foreground hover:text-primary hover:underline">
                             {emp.full_name}
                           </Link>
-                          <p className="text-xs text-muted-foreground">{emp.position || "—"}</p>
+                          {/* Должность показываем только в отдельном столбце — без дубля под ФИО. */}
                           {emp.email && (
                             <a href={`mailto:${emp.email}`} className="text-xs text-primary hover:underline block truncate max-w-[220px]">{emp.email}</a>
                           )}
