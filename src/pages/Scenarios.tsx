@@ -12,6 +12,94 @@ import { getDateLocale } from "@/lib/dateLocale";
 import * as XLSX from "xlsx";
 import ScenarioSchemaViewer from "@/components/ScenarioSchemaViewer";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+
+const scenarioSteps = (rows: Array<[string, string, string]>) =>
+  rows.map(([stepTitle, duration, stepDescription]) => ({
+    title: stepTitle,
+    duration,
+    description: stepDescription,
+  }));
+
+const DEFAULT_ASSESSMENT_SCENARIOS = [
+  {
+    id: "default-team-lead-assessment",
+    title: "Ассессмент руководителя команды",
+    description: "Ситуационные задачи на обратную связь, делегирование и принятие решений.",
+    is_active: true,
+    created_at: new Date().toISOString(),
+    scenario_data: {
+      title: "Ассессмент руководителя команды",
+      brief: "Кандидат управляет командой из 6 человек в условиях сдвинутых сроков.",
+      duration: "60 минут",
+      audience: "Руководители и кадровый резерв",
+      competencies: ["Лидерство", "Делегирование", "Обратная связь", "Принятие решений"],
+      steps: scenarioSteps([
+        ["Введение и контекст", "5 минут", "Ведущий описывает ситуацию: срыв срока по ключевому проекту."],
+        ["Анализ вводных", "15 минут", "Участник изучает данные команды и формулирует корневую причину."],
+        ["План действий", "20 минут", "Участник предлагает план восстановления сроков и распределяет роли."],
+        ["Ролевая игра", "10 минут", "Разговор 1:1 с демотивированным сотрудником."],
+        ["Рефлексия", "10 минут", "Самооценка и обратная связь наблюдателей."],
+      ]),
+      questions: [
+        { question: "Как вы определили ключевую проблему?", criteria: "структурность анализа", max_score: 5 },
+        { question: "Какие альтернативы рассматривали?", criteria: "аргументация", max_score: 5 },
+        { question: "Как донесёте решение до команды?", criteria: "коммуникация", max_score: 5 },
+      ],
+    },
+  },
+  {
+    id: "default-client-thinking-assessment",
+    title: "Оценка клиентского мышления",
+    description: "Практический сценарий работы со сложным запросом внутреннего клиента.",
+    is_active: true,
+    created_at: new Date().toISOString(),
+    scenario_data: {
+      title: "Оценка клиентского мышления",
+      brief: "Внутренний заказчик требует функциональность вне дорожной карты.",
+      duration: "45 минут",
+      audience: "Специалисты и менеджеры",
+      competencies: ["Клиентоориентированность", "Коммуникация", "Переговоры"],
+      steps: scenarioSteps([
+        ["Знакомство с запросом", "5 минут", "Участник читает переписку с заказчиком."],
+        ["Уточняющие вопросы", "10 минут", "Диалог с ведущим в роли заказчика."],
+        ["Предложение решения", "20 минут", "Формулирование компромисса и сроков."],
+        ["Обратная связь", "10 минут", "Разбор наблюдателями."],
+      ]),
+      questions: [
+        { question: "Какую задачу заказчика вы решаете на самом деле?", criteria: "выявление потребности", max_score: 5 },
+        { question: "Как вы говорите «нет» и сохраняете отношения?", criteria: "переговоры", max_score: 5 },
+        { question: "Как зафиксируете договорённости?", criteria: "ответственность", max_score: 5 },
+      ],
+    },
+  },
+  {
+    id: "default-talent-pool-assessment",
+    title: "Центр оценки кадрового резерва",
+    description: "Комплексный кейс для участников программы развития.",
+    is_active: true,
+    created_at: new Date().toISOString(),
+    scenario_data: {
+      title: "Центр оценки кадрового резерва",
+      brief: "Участники проектируют инициативу роста выручки и защищают её перед комитетом.",
+      duration: "90 минут",
+      audience: "HiPo и кадровый резерв",
+      competencies: ["Стратегическое мышление", "Работа в команде", "Развитие людей"],
+      steps: scenarioSteps([
+        ["Командный брифинг", "10 минут", "Распределение ролей и уточнение цели кейса."],
+        ["Анализ данных", "25 минут", "Поиск ограничений, рисков и точек роста."],
+        ["Проектирование инициативы", "30 минут", "Сборка плана, метрик успеха и ресурсов."],
+        ["Защита решения", "15 минут", "Презентация перед наблюдателями и ответы на вопросы."],
+        ["Индивидуальная обратная связь", "10 минут", "Фиксация сильных сторон и зон развития."],
+      ]),
+      questions: [
+        { question: "Какие метрики докажут успех инициативы?", criteria: "ориентация на результат", max_score: 5 },
+        { question: "Как распределили роли в команде?", criteria: "командность", max_score: 5 },
+        { question: "Какие риски требуют эскалации?", criteria: "управление рисками", max_score: 5 },
+      ],
+    },
+  },
+];
 
 const Scenarios = () => {
   const { user } = useAuth();
@@ -31,7 +119,7 @@ const Scenarios = () => {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      return data?.length ? data : DEFAULT_ASSESSMENT_SCENARIOS;
     },
   });
 
@@ -153,14 +241,13 @@ const Scenarios = () => {
         </div>
         <div className="flex items-center gap-4">
           <input ref={fileRef} type="file" accept=".json,.csv,.xlsx,.xls,.docx,.pdf" className="text-sm text-muted-foreground file:mr-3 file:px-4 file:py-2 file:rounded-lg file:bg-secondary file:text-foreground file:text-sm file:font-medium file:border-0 file:cursor-pointer" />
-          <button
+          <Button
             onClick={() => uploadMutation.mutate()}
             disabled={uploadMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {uploadMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             {t("scenarios.uploadBtn")}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -186,26 +273,33 @@ const Scenarios = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <button
+                <Button
                   onClick={() => setViewingSchema(s)}
-                  className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                  variant="ghost"
+                  size="icon"
                   title={t("common:view", { defaultValue: "View" })}
                 >
                   <Eye className="w-5 h-5" />
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => toggleMutation.mutate({ id: s.id, active: !s.is_active })}
-                  className={`p-1.5 rounded-lg transition-colors ${s.is_active ? "text-success hover:bg-success/10" : "text-muted-foreground hover:bg-secondary"}`}
+                  variant="ghost"
+                  size="icon"
+                  disabled={String(s.id).startsWith("default-")}
+                  className={s.is_active ? "text-success hover:bg-success/10" : "text-muted-foreground hover:bg-secondary"}
                   title={s.is_active ? t("common:active", { defaultValue: "Active" }) : t("common:inactive", { defaultValue: "Inactive" })}
                 >
                   {s.is_active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => deleteMutation.mutate(s.id)}
-                  className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
+                  variant="ghost"
+                  size="icon"
+                  disabled={String(s.id).startsWith("default-")}
+                  className="text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
             </div>
           ))}
