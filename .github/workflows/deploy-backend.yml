@@ -244,7 +244,12 @@ jobs:
 
           # Дымовой тест контейнера уже с прогретыми кешами: если сервис-провайдеры
           # собраны неполно (как было с "view"), падаем здесь, а не в проде.
+          # vendor/autoload.php обязателен: bootstrap/app.php сам автолоадер не
+          # подключает — это делают artisan и public/index.php. Без него php -r
+          # падает на Application::configure с «class not found», и деплой
+          # останавливается на исправном приложении.
           php -d memory_limit=1024M -r '
+            require "vendor/autoload.php";
             $app = require "bootstrap/app.php";
             $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
             foreach (["view", "files", "db", "router", "hash"] as $svc) {
