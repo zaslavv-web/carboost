@@ -60,12 +60,20 @@ const emptyForm = {
   is_active: true,
 };
 
+/** Тело PUT /admin/email-settings: форма с приведённым к null пустым Reply-To. */
+type SavePayload = Omit<typeof emptyForm, "reply_to_address"> & { reply_to_address: string | null };
+
 const normalizeYandexSmtp = (next: typeof emptyForm) => {
   const host = next.host.trim().toLowerCase() === "smtp.yandex.com" || next.provider === "yandex" ? "smtp.yandex.ru" : next.host.trim();
   return host.toLowerCase() === "smtp.yandex.ru"
     ? { ...next, host, port: 465, encryption: "ssl" as const, username: next.username.trim(), password: next.password.replace(/[\s\u00A0\u200B-\u200D\uFEFF]+/g, "") }
     : { ...next, host };
 };
+
+const buildSavePayload = (next: typeof emptyForm): SavePayload => ({
+  ...normalizeYandexSmtp(next),
+  reply_to_address: next.reply_to_address || null,
+});
 
 const EmailSettingsManagement = () => {
   const queryClient = useQueryClient();
@@ -105,8 +113,7 @@ const EmailSettingsManagement = () => {
   }, [setting]);
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const payload = { ...normalizeYandexSmtp(form), reply_to_address: form.reply_to_address || null };
+    mutationFn: async (payload: SavePayload) => {
       const { data, error } = await laravel.put<{ setting: EmailSetting }>("/admin/email-settings", payload);
       if (error) throw new Error(error.message);
       return data;
@@ -120,8 +127,8 @@ const EmailSettingsManagement = () => {
   });
 
   const testMutation = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await laravel.post<{ ok: boolean; setting: EmailSetting }>("/admin/email-settings/test", { to: testTo });
+    mutationFn: async (to: string) => {
+      const { data, error } = await laravel.post<{ ok: boolean; setting: EmailSetting }>("/admin/email-settings/test", { to });
       if (error) throw new Error(error.message);
       return data;
     },
@@ -295,7 +302,7 @@ const EmailSettingsManagement = () => {
           )}
 
           <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between border-t border-border pt-5">
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+            <Button onClick={() => saveMutation.mutate(buildSavePayload(form))} disabled={saveMutation.isPending}>
               {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />} {t("emailSettings.saveSmtp")}
             </Button>
             <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
@@ -303,7 +310,7 @@ const EmailSettingsManagement = () => {
                 {preflightMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlugZap className="w-4 h-4" />} {t("emailSettings.checkConnection")}
               </Button>
               <Input className="sm:w-72" type="email" value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder={t("emailSettings.testEmailPlaceholder")} />
-              <Button variant="secondary" onClick={() => testMutation.mutate()} disabled={testMutation.isPending || !setting}>
+              <Button variant="secondary" onClick={() => testMutation.mutate(testTo)} disabled={testMutation.isPending || !setting}>
                 {testMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} {t("emailSettings.sendTest")}
               </Button>
             </div>

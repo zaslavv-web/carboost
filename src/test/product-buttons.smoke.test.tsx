@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   signOut: vi.fn(async () => undefined),
   startImpersonation: vi.fn(async () => undefined),
+  openOrCreateDirect: vi.fn(async () => "conv-1"),
   rpc: vi.fn(async () => ({ data: { ok: true }, error: null })),
   adminCreateUser: vi.fn(async () => ({ data: { user: { id: "u-new" } }, error: null })),
   laravelGet: vi.fn(async () => ({ data: null, error: null })),
@@ -36,6 +37,10 @@ vi.mock("@/contexts/AuthContext", () => ({
 
 vi.mock("@/contexts/ImpersonationContext", () => ({
   useImpersonation: () => ({ startImpersonation: mocks.startImpersonation }),
+}));
+
+vi.mock("@/contexts/ChatContext", () => ({
+  useChat: () => ({ openOrCreateDirect: mocks.openOrCreateDirect }),
 }));
 
 vi.mock("@/hooks/useUserProfile", () => ({
@@ -116,27 +121,6 @@ describe("смоук-тесты критичных кнопок продукта
       }
       return SMTP_RESPONSE;
     });
-    void {
-      data: {
-        setting: {
-          id: "smtp-1",
-          provider: "custom",
-          host: "smtp.example.com",
-          port: 587,
-          encryption: "tls",
-          username: "mailer@example.com",
-          from_address: "no-reply@example.com",
-          from_name: "Career Track",
-          reply_to_address: null,
-          is_active: true,
-          has_password: true,
-          last_tested_at: null,
-          last_test_error: null,
-        },
-        presets: { custom: { label: "Custom", host: "", port: 587, encryption: "tls", hint: "Введите параметры SMTP-сервера." } },
-      },
-      error: null,
-    };
   });
 
   afterEach(() => cleanup());
