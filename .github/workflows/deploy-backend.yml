@@ -230,8 +230,16 @@ jobs:
           $ARTISAN config:clear || true
           $ARTISAN cache:clear || true
 
+          # Преднастроечная проверка БД: при пустом или неверном backend/.env
+          # даёт внятное сообщение с именами переменных вместо невнятного
+          # отказа миграции. Перенесено из workflow «Deploy to server».
+          php scripts/db-preflight.php
+
           if [ "$RUN_MIGRATIONS" = "true" ]; then
             $ARTISAN migrate --force
+            # Базовые роли: сидер идемпотентен (updateOrInsert), поэтому
+            # безопасен на каждой выкатке и обязателен на свежей базе.
+            $ARTISAN db:seed --class=RoleSeeder --force
           else
             echo "ℹ️  migrations skipped"
           fi
@@ -244,7 +252,12 @@ jobs:
 
           # Дымовой тест контейнера уже с прогретыми кешами: если сервис-провайдеры
           # собраны неполно (как было с "view"), падаем здесь, а не в проде.
+          # vendor/autoload.php обязателен: bootstrap/app.php сам автолоадер не
+          # подключает — это делают artisan и public/index.php. Без него php -r
+          # падает на Application::configure с «class not found», и деплой
+          # останавливается на исправном приложении.
           php -d memory_limit=1024M -r '
+            require "vendor/autoload.php";
             $app = require "bootstrap/app.php";
             $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
             foreach (["view", "files", "db", "router", "hash"] as $svc) {
@@ -318,13 +331,23 @@ jobs:
 
       - name: Public health check
         run: |
-          BODY="$(curl -fsS -H 'Accept: application/json' https://growth-peak.pro/api/health)"
+          # Без -f: на 5xx curl с этим флагом выходит с кодом 22 и НЕ отдаёт
+          # тело, поэтому шаг падал на самом присваивании, а диагностика ниже
+          # была недостижима ровно в том случае, ради которого написана.
+          HEALTH_BODY="$(mktemp)"
+          HEALTH_CODE="$(curl -sS -o "$HEALTH_BODY" -w '%{http_code}' -H 'Accept: application/json' https://growth-peak.pro/api/health)" || HEALTH_CODE="000"
+          BODY="$(cat "$HEALTH_BODY")"
+          echo "HTTP $HEALTH_CODE"
           echo "$BODY"
           case "$BODY" in
             *"Fatal error"*|*"<br"*|*"<html"*)
               echo "::error::Backend вернул HTML вместо JSON — сломан autoload/vendor на сервере"
               exit 1;;
           esac
+          if [ "$HEALTH_CODE" != "200" ]; then
+            echo "::error::/api/health отдал HTTP $HEALTH_CODE. Тело выше: у Laravel там error_code и error_id, по которым строка ищется в логе (storage/logs/laravel.log, api-fatals.jsonl)."
+            exit 1
+          fi
           if echo "$BODY" | grep -q '"memory_limit":"256M"'; then
             echo "::error::memory_limit всё ещё 256M (на этом хостинге Zend MM режет память кусками по 64M — нужен 1024M): $BODY"
             exit 1
@@ -343,7 +366,7 @@ jobs:
           VERSION_SOURCE=""
           SERVED_ROOT_ID=""
           for attempt in $(seq 1 12); do
-            BODY="$(curl -fsS -H 'Accept: application/json' "https://growth-peak.pro/api/health?deploy_check=${GITHUB_SHA}&attempt=${attempt}")"
+            BODY="$(curl -sS -H 'Accept: application/json' "https://growth-peak.pro/api/health?deploy_check=${GITHUB_SHA}&attempt=${attempt}")" || BODY=""
             ACTUAL_VERSION="$(printf '%s' "$BODY" | php -r '$d=json_decode(stream_get_contents(STDIN), true); echo (string)($d["checks"]["version"] ?? "");')"
             VERSION_SOURCE="$(printf '%s' "$BODY" | php -r '$d=json_decode(stream_get_contents(STDIN), true); echo (string)($d["checks"]["version_source"] ?? "");')"
             SERVED_ROOT_ID="$(printf '%s' "$BODY" | php -r '$d=json_decode(stream_get_contents(STDIN), true); echo (string)($d["checks"]["root_id"] ?? "");')"

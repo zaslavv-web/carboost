@@ -99,7 +99,9 @@ $PHP_BIN artisan view:cache
 $PHP_BIN artisan event:cache
 
 echo "==> дымовой тест контейнера (view/files/db/router/hash)"
+# vendor/autoload.php обязателен: bootstrap/app.php сам автолоадер не подключает.
 $PHP_BIN -r '
+  require "vendor/autoload.php";
   $app = require "bootstrap/app.php";
   $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
   foreach (["view", "files", "db", "router", "hash"] as $svc) { $app->make($svc); }
