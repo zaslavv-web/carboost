@@ -282,10 +282,19 @@ jobs:
 
           echo "— смоук боевых урлов —"
           FAIL=0
+          SMOKE_BODY="$(mktemp)"
           for u in "/" "/api/health" "/manifest.json" "/robots.txt" "/dashboard"; do
-            C="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "https://growth-peak.pro$u" || true)"
+            C="$(curl -s -o "$SMOKE_BODY" -w '%{http_code}' --max-time 20 "https://growth-peak.pro$u" || true)"
             echo "  $u → $C"
-            case "$C" in 5*) FAIL=1;; esac
+            # На 5xx печатаем тело: Laravel кладёт туда error_code и error_id, по
+            # которым строка находится в логе. Без этого в отчёте остаётся голый
+            # код ответа, и причину приходится искать вручную на сервере.
+            case "$C" in
+              5*)
+                FAIL=1
+                echo "    тело: $(tr -d '\r\n' < "$SMOKE_BODY" | head -c 400)"
+                ;;
+            esac
           done
           curl -sI --max-time 20 "https://growth-peak.pro/" | tr -d '\r' | grep -i '^cache-control' || true
 
@@ -301,8 +310,24 @@ jobs:
           ASSET_CODE="$(curl -sS -D "$HEADER_FILE" -o "$BODY_FILE" -w '%{http_code}' --max-time 20 "https://growth-peak.pro$ASSET?t=$(date +%s)")"
           ASSET_TYPE="$(tr -d '\r' < "$HEADER_FILE" | awk 'BEGIN{IGNORECASE=1} /^content-type:/ {print $0}' | tail -n1)"
           echo "$ASSET → HTTP $ASSET_CODE, $ASSET_TYPE, $(wc -c < "$BODY_FILE") bytes"
-          if [ "$ASSET_CODE" != "200" ] || grep -qi '<!doctype html\|<html' "$BODY_FILE"; then
+
+          # Признак подмены — HTML в НАЧАЛЕ ответа: фолбэк отдаёт index.html.
+          # Искать разметку по всему файлу нельзя: минифицированный бандл
+          # штатно содержит '<html' внутри строк библиотек (xlsx собирает
+          # HTML-таблицу для экспорта, dompurify — пространство имён XHTML).
+          ASSET_HEAD="$(head -c 512 "$BODY_FILE" | tr -d '\r\n\t ' | tr 'A-Z' 'a-z')"
+          case "$ASSET_HEAD" in
+            '<!doctype'*|'<html'*|*'<head>'*) ASSET_IS_HTML=1;; *) ASSET_IS_HTML=0;;
+          esac
+          # Content-Type — второй независимый признак: фолбэк придёт как text/html.
+          case "$ASSET_TYPE" in
+            *javascript*|*ecmascript*) ASSET_TYPE_OK=1;; *) ASSET_TYPE_OK=0;;
+          esac
+
+          if [ "$ASSET_CODE" != "200" ] || [ "$ASSET_IS_HTML" = "1" ] || [ "$ASSET_TYPE_OK" = "0" ]; then
             echo "::error::главный JS-бандл не отдан как файл — сервер вернул не JS, а fallback/ошибку"
+            echo "  HTTP=$ASSET_CODE, $ASSET_TYPE"
+            echo "  начало ответа: $(head -c 200 "$BODY_FILE")"
             exit 1
           fi
 
