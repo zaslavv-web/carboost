@@ -18,7 +18,7 @@ class WebhookController extends Controller
 {
     public function events(): JsonResponse
     {
-        return response()->json(['events' => WebhookDispatcher::EVENTS]);
+        return response()->json(['events' => WebhookDispatcher::events()]);
     }
 
     public function index(Request $request): JsonResponse

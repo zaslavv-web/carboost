@@ -774,6 +774,12 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
 
         // ---- Wave 6: Integrations (webhooks + iCal) ----
         Route::get   ('/webhooks/events',              [\App\Http\Controllers\Api\WebhookController::class, 'events']);
+
+        // ---- Ключи интеграционного API (машинный доступ внешних систем) ----
+        Route::get   ('/integrations/api-keys/scopes', [\App\Http\Controllers\Api\ApiKeyController::class, 'scopes']);
+        Route::get   ('/integrations/api-keys',        [\App\Http\Controllers\Api\ApiKeyController::class, 'index']);
+        Route::post  ('/integrations/api-keys',        [\App\Http\Controllers\Api\ApiKeyController::class, 'store']);
+        Route::delete('/integrations/api-keys/{id}',   [\App\Http\Controllers\Api\ApiKeyController::class, 'revoke']);
         Route::get   ('/webhooks',                     [\App\Http\Controllers\Api\WebhookController::class, 'index']);
         Route::post  ('/webhooks',                     [\App\Http\Controllers\Api\WebhookController::class, 'store']);
         Route::patch ('/webhooks/{id}',                [\App\Http\Controllers\Api\WebhookController::class, 'update']);

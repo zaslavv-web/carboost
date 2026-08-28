@@ -150,6 +150,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withProviders([
         \App\Providers\AppServiceProvider::class,
         \App\Providers\AuthServiceProvider::class,
+        \App\Providers\IntegrationServiceProvider::class,
     ])
     ->withRouting(
         web:      __DIR__ . '/../routes/web.php',
@@ -166,6 +167,14 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->middleware('api')
                 ->name('v1.')
                 ->group(__DIR__ . '/../routes/api.php');
+
+            // Интеграционное API для внешних систем. Отдельным файлом, потому
+            // что группа выше монтирует routes/api.php повторно — общий
+            // префикс дал бы дубли маршрутов.
+            \Illuminate\Support\Facades\Route::prefix('api/integration/v1')
+                ->middleware('api')
+                ->name('integration.v1.')
+                ->group(__DIR__ . '/../routes/integration.php');
 
         },
     )
@@ -202,6 +211,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified.user'  => \App\Http\Middleware\EnsureVerified::class,
             'has.company'    => \App\Http\Middleware\EnsureHasCompany::class,
             'effective.user' => \App\Http\Middleware\EffectiveUser::class,
+            'api.key'        => \App\Http\Middleware\AuthenticateApiKey::class,
         ]);
     })
 
