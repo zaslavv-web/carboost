@@ -230,8 +230,16 @@ jobs:
           $ARTISAN config:clear || true
           $ARTISAN cache:clear || true
 
+          # Преднастроечная проверка БД: при пустом или неверном backend/.env
+          # даёт внятное сообщение с именами переменных вместо невнятного
+          # отказа миграции. Перенесено из workflow «Deploy to server».
+          php scripts/db-preflight.php
+
           if [ "$RUN_MIGRATIONS" = "true" ]; then
             $ARTISAN migrate --force
+            # Базовые роли: сидер идемпотентен (updateOrInsert), поэтому
+            # безопасен на каждой выкатке и обязателен на свежей базе.
+            $ARTISAN db:seed --class=RoleSeeder --force
           else
             echo "ℹ️  migrations skipped"
           fi
