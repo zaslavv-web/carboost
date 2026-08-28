@@ -22,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
+import ApiKeysCard from "@/components/integrations/ApiKeysCard";
 
 type Subscription = {
   id: string;
@@ -109,9 +110,12 @@ export default function Integrations() {
       <header className="space-y-1">
         <h1 className="text-3xl font-serif">Интеграции</h1>
         <p className="text-sm text-muted-foreground">
-          Вебхуки для внешних систем и подписка на календарь отсутствий.
+          Ключи API для обмена данными с внешними системами, вебхуки и подписка
+          на календарь отсутствий.
         </p>
       </header>
+
+      <ApiKeysCard />
 
       {/* iCal calendar subscription */}
       <Card>
