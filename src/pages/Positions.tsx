@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { laravelDb } from "@/integrations/laravel/db";
@@ -1013,7 +1013,7 @@ const Positions = () => {
   const [hasUnsavedPaths, setHasUnsavedPaths] = useState(false);
   const [editingEdge, setEditingEdge] = useState<{ id: string; source: string; target: string; estimated_months: number | null; strategy_description: string | null } | null>(null);
 
-  const { data: positions = [], isLoading: posLoading } = useQuery({
+  const { data: positionsData, isLoading: posLoading } = useQuery({
     queryKey: ["positions"],
     queryFn: async () => {
       const { data, error } = await laravelDb.from("positions").select("*").order("created_at");
@@ -1022,7 +1022,7 @@ const Positions = () => {
     },
   });
 
-  const { data: careerPaths = [], isLoading: pathsLoading } = useQuery({
+  const { data: careerPathsData, isLoading: pathsLoading } = useQuery({
     queryKey: ["career_paths"],
     queryFn: async () => {
       const { data, error } = await laravelDb.from("position_career_paths").select("*");
@@ -1030,6 +1030,12 @@ const Positions = () => {
       return data as CareerPath[];
     },
   });
+
+  // Ссылки должны быть стабильными: значение по умолчанию прямо в деструктуризации
+  // давало бы новый [] на каждый рендер, и перестроение графа зациклилось бы,
+  // если запрос завершился ошибкой (data === undefined, isLoading === false).
+  const positions = useMemo(() => positionsData ?? [], [positionsData]);
+  const careerPaths = useMemo(() => careerPathsData ?? [], [careerPathsData]);
 
   const { data: departments = [] } = useQuery({
     queryKey: ["departments"],
@@ -1088,7 +1094,9 @@ const Positions = () => {
     },
   });
 
-  useMemo(() => {
+  // Граф перестраивается из данных — это побочный эффект, а не вычисление
+  // значения: useMemo здесь обновлял бы состояние прямо во время рендера.
+  useEffect(() => {
     if (posLoading || pathsLoading) return;
     const cols = 3;
     setNodes(positions.map((p, i) => ({
@@ -1114,7 +1122,7 @@ const Positions = () => {
       style: { stroke: "hsl(var(--primary))" },
       labelStyle: { fontSize: 11, fill: "hsl(var(--muted-foreground))" },
     })));
-  }, [positions, careerPaths, posLoading, pathsLoading]);
+  }, [positions, careerPaths, posLoading, pathsLoading, t, setNodes, setEdges]);
 
   const onConnect = useCallback((params: Connection) => {
     setEdges((eds) => addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: "hsl(var(--primary))" }, id: `temp-${Date.now()}` }, eds));
@@ -1152,15 +1160,18 @@ const Positions = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Мутация пересоздаёт все career paths, поэтому набор рёбер передаётся
+  // аргументом mutate(): замыкание на состояние здесь означало бы удаление
+  // связей по устаревшему списку.
   const savePathsMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (currentEdges: Edge[]) => {
       const { data: existing } = await laravelDb.from("position_career_paths").select("id");
       if (existing?.length) {
         for (const row of existing) {
           await laravelDb.from("position_career_paths").delete().eq("id", row.id);
         }
       }
-      const pathsToInsert = edges.filter((e) => e.source && e.target).map((e) => {
+      const pathsToInsert = currentEdges.filter((e) => e.source && e.target).map((e) => {
         const orig = careerPaths.find((cp) => cp.id === e.id);
         return {
           from_position_id: e.source,
@@ -1289,7 +1300,7 @@ const Positions = () => {
               <Background /><Controls />
               <Panel position="top-right">
                 {hasUnsavedPaths && (
-                  <Button size="sm" onClick={() => savePathsMutation.mutate()} disabled={savePathsMutation.isPending}>
+                  <Button size="sm" onClick={() => savePathsMutation.mutate(edges)} disabled={savePathsMutation.isPending}>
                     <Save className="w-4 h-4" /> {t("positions.savePathsBtn")}
                   </Button>
                 )}

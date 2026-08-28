@@ -14,11 +14,14 @@ class WebhookDelivery extends Model
 
     protected $table = 'webhook_deliveries';
     protected $fillable = [
-        'subscription_id', 'company_id', 'event', 'payload',
+        'subscription_id', 'company_id', 'event', 'event_id', 'payload',
         'http_status', 'response_snippet', 'delivered_at',
+        'attempt', 'status', 'next_attempt_at',
     ];
     protected $casts = [
-        'payload'      => 'array',
-        'delivered_at' => 'datetime',
+        'payload'         => 'array',
+        'delivered_at'    => 'datetime',
+        'next_attempt_at' => 'datetime',
+        'attempt'         => 'integer',
     ];
 }

@@ -18,7 +18,13 @@ use Illuminate\Support\Str;
  */
 class WebhookDispatcher
 {
-    /** Известные события платформы (для UI-подсказок). */
+    /**
+     * Доменные события, которые эмитируют контроллеры вручную.
+     *
+     * Полный перечень для UI собирается в events(): к этим добавляются
+     * ресурсные события реестра ({resource}.created/updated/deleted), которые
+     * пишет наблюдатель моделей.
+     */
     public const EVENTS = [
         'leave.requested',
         'leave.approved',
@@ -32,6 +38,18 @@ class WebhookDispatcher
         'employee.departed',
         'risk.high_detected',
     ];
+
+    /** Все события, доступные для подписки: доменные + ресурсные из реестра. */
+    public static function events(): array
+    {
+        $events = array_values(array_unique([
+            ...self::EVENTS,
+            ...\App\Integration\ResourceRegistry::events(),
+        ]));
+        sort($events);
+
+        return $events;
+    }
 
     public function dispatch(string $event, array $payload, ?string $companyId = null): void
     {

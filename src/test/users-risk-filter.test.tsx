@@ -34,6 +34,10 @@ vi.mock("@/contexts/ImpersonationContext", () => ({
   useImpersonation: () => ({ startImpersonation: vi.fn() }),
 }));
 
+vi.mock("@/contexts/ChatContext", () => ({
+  useChat: () => ({ openOrCreateDirect: vi.fn(async () => null) }),
+}));
+
 vi.mock("@/hooks/useUserProfile", () => ({
   usePrimaryRole: () => "hrd",
   useRealPrimaryRole: () => "hrd",
