@@ -45,16 +45,17 @@ const ManagerDashboard = () => {
     enabled: !!user,
   });
 
-  // Get team profiles + goals + competencies
+  // Get team profiles + goals.
+  // Компетенции здесь не запрашиваются: для радара есть отдельный запрос
+  // manager_team_competencies ниже, а дубль только добавлял лишний round-trip.
   const { data: teamMembers = [], isLoading } = useQuery({
     queryKey: ["manager_team_data", teamIds],
     queryFn: async () => {
       if (teamIds.length === 0) return [];
 
-      const [profilesRes, goalsRes, compsRes] = await Promise.all([
+      const [profilesRes, goalsRes] = await Promise.all([
         laravelDb.from("profiles").select("user_id, full_name, position, department, overall_score, role_readiness").in("user_id", teamIds),
         laravelDb.from("career_goals").select("user_id, progress, status").in("user_id", teamIds),
-        laravelDb.from("competencies").select("user_id, skill_name, skill_value").in("user_id", teamIds),
       ]);
 
       if (profilesRes.error) throw profilesRes.error;

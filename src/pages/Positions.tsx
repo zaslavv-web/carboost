@@ -1160,15 +1160,18 @@ const Positions = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Мутация пересоздаёт все career paths, поэтому набор рёбер передаётся
+  // аргументом mutate(): замыкание на состояние здесь означало бы удаление
+  // связей по устаревшему списку.
   const savePathsMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (currentEdges: Edge[]) => {
       const { data: existing } = await laravelDb.from("position_career_paths").select("id");
       if (existing?.length) {
         for (const row of existing) {
           await laravelDb.from("position_career_paths").delete().eq("id", row.id);
         }
       }
-      const pathsToInsert = edges.filter((e) => e.source && e.target).map((e) => {
+      const pathsToInsert = currentEdges.filter((e) => e.source && e.target).map((e) => {
         const orig = careerPaths.find((cp) => cp.id === e.id);
         return {
           from_position_id: e.source,
@@ -1297,7 +1300,7 @@ const Positions = () => {
               <Background /><Controls />
               <Panel position="top-right">
                 {hasUnsavedPaths && (
-                  <Button size="sm" onClick={() => savePathsMutation.mutate()} disabled={savePathsMutation.isPending}>
+                  <Button size="sm" onClick={() => savePathsMutation.mutate(edges)} disabled={savePathsMutation.isPending}>
                     <Save className="w-4 h-4" /> {t("positions.savePathsBtn")}
                   </Button>
                 )}
