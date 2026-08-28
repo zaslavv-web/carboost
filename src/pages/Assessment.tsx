@@ -1,5 +1,5 @@
 import { laravelDb } from "@/integrations/laravel/db";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -24,7 +24,7 @@ const Assessment = () => {
     queryKey: ["available_hrd_tests", profile?.company_id, profile?.position_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
-      let q = laravelDb
+      const q = laravelDb
         .from("closed_question_tests")
         .select("id, title, description, position_id, audience_rules, questions")
         .eq("company_id", profile.company_id)
@@ -97,10 +97,6 @@ const Assessment = () => {
     }
     setGenerating(false);
   };
-
-  useEffect(() => {
-    if (mode !== "choose" || isLoading) return;
-  }, [hrdTests, isLoading, profile?.company_id, mode, generating]);
 
   if (mode === "running" && activeTest) {
     return <ClosedQuestionTestRunner test={activeTest} onRetake={() => { setActiveTest(null); setMode("choose"); }} />;
