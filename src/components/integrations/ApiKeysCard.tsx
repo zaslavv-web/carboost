@@ -25,17 +25,25 @@ type ApiKey = {
   name: string;
   prefix: string;
   scopes: string[];
+  company_id: string;
+  company_name: string | null;
   expires_at: string | null;
   last_used_at: string | null;
   revoked_at: string | null;
   created_at: string;
 };
 
-const emptyForm = { name: "", scopes: [] as string[], expires_at: "" };
+type Company = { id: string; name: string };
+
+const emptyForm = { name: "", scopes: [] as string[], expires_at: "", company_id: "" };
 
 export default function ApiKeysCard() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [scopes, setScopes] = useState<string[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  // Выбор компании нужен только суперадмину: у остальных она одна, и
+  // показывать поле с единственным вариантом — лишний шум.
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState(false);
@@ -44,12 +52,15 @@ export default function ApiKeysCard() {
 
   const load = async () => {
     setLoading(true);
-    const [list, meta] = await Promise.all([
+    const [list, meta, orgs] = await Promise.all([
       laravel.get<ApiKey[]>("/integrations/api-keys"),
       laravel.get<{ scopes: string[] }>("/integrations/api-keys/scopes"),
+      laravel.get<{ is_superadmin: boolean; companies: Company[] }>("/integrations/api-keys/companies"),
     ]);
     setKeys(list.data ?? []);
     setScopes(meta.data?.scopes ?? []);
+    setCompanies(orgs.data?.companies ?? []);
+    setIsSuperadmin(!!orgs.data?.is_superadmin);
     setLoading(false);
   };
 
@@ -79,11 +90,17 @@ export default function ApiKeysCard() {
       toast.error("Укажите название и хотя бы один скоуп");
       return;
     }
+    if (isSuperadmin && !form.company_id) {
+      toast.error("Выберите компанию, для которой выпускается ключ");
+      return;
+    }
     setCreating(true);
     const { data, error } = await laravel.post<ApiKey & { token: string }>("/integrations/api-keys", {
       name: form.name.trim(),
       scopes: form.scopes,
       expires_at: form.expires_at || null,
+      // Своя компания подставляется на сервере; передаём только явный выбор.
+      company_id: form.company_id || null,
     });
     setCreating(false);
     if (error) return toast.error(error.message);
@@ -159,6 +176,11 @@ export default function ApiKeysCard() {
                       <code className="text-xs text-muted-foreground">gp_{key.prefix}_…</code>
                       {revoked && <Badge variant="destructive">Отозван</Badge>}
                       {!revoked && expired && <Badge variant="secondary">Истёк</Badge>}
+                      {/* Суперадмин видит ключи всех компаний — без названия
+                          список превращается в набор одинаковых строк. */}
+                      {isSuperadmin && key.company_name && (
+                        <Badge variant="secondary">{key.company_name}</Badge>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {key.scopes.map((scope) => (
@@ -192,9 +214,31 @@ export default function ApiKeysCard() {
           </DialogHeader>
 
           <div className="space-y-4">
+            {isSuperadmin && (
+              <div className="space-y-2">
+                <Label htmlFor="key-company">Компания</Label>
+                <select
+                  id="key-company"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={form.company_id}
+                  onChange={(e) => setForm({ ...form, company_id: e.target.value })}
+                >
+                  <option value="">— выберите компанию —</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Ключ увидит данные только этой компании. Изменить привязку после выпуска нельзя —
+                  для другой компании выпускается отдельный ключ.
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label>Название</Label>
+              <Label htmlFor="key-name">Название</Label>
               <Input
+                id="key-name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Обмен с 1С:ЗУП"
@@ -202,8 +246,9 @@ export default function ApiKeysCard() {
             </div>
 
             <div className="space-y-2">
-              <Label>Действует до (необязательно)</Label>
+              <Label htmlFor="key-expires">Действует до (необязательно)</Label>
               <Input
+                id="key-expires"
                 type="date"
                 value={form.expires_at}
                 onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
