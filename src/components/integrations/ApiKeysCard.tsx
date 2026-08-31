@@ -44,6 +44,7 @@ export default function ApiKeysCard() {
   // Выбор компании нужен только суперадмину: у остальных она одна, и
   // показывать поле с единственным вариантом — лишний шум.
   const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [companiesError, setCompaniesError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState(false);
@@ -61,6 +62,10 @@ export default function ApiKeysCard() {
     setScopes(meta.data?.scopes ?? []);
     setCompanies(orgs.data?.companies ?? []);
     setIsSuperadmin(!!orgs.data?.is_superadmin);
+    // Если список компаний не пришёл, форма выглядит так же, как у обычного
+    // администратора, — поле просто исчезает. Молча это скрывать нельзя:
+    // человек ищет отсутствующий выбор вместо того, чтобы видеть ошибку.
+    setCompaniesError(orgs.error ? orgs.error.message : null);
     setLoading(false);
   };
 
@@ -75,6 +80,9 @@ export default function ApiKeysCard() {
     }
     return Object.entries(byDomain).sort(([a], [b]) => a.localeCompare(b));
   }, [scopes]);
+
+  // У не-суперадмина сервер возвращает ровно одну компанию — его собственную.
+  const ownCompanyName = !isSuperadmin ? companies[0]?.name ?? null : null;
 
   const toggleScope = (scope: string) => {
     setForm((prev) => ({
@@ -214,7 +222,13 @@ export default function ApiKeysCard() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {isSuperadmin && (
+            {companiesError && (
+              <p className="text-sm text-destructive">
+                Не удалось получить список компаний: {companiesError}. Ключ будет выпущен для вашей компании.
+              </p>
+            )}
+
+            {isSuperadmin ? (
               <div className="space-y-2">
                 <Label htmlFor="key-company">Компания</Label>
                 <select
@@ -233,6 +247,12 @@ export default function ApiKeysCard() {
                   для другой компании выпускается отдельный ключ.
                 </p>
               </div>
+            ) : (
+              /* У администратора компании выбора нет, но знать, чьи данные
+                 откроет ключ, он должен — иначе привязка остаётся догадкой. */
+              <p className="text-sm text-muted-foreground">
+                Компания ключа: <span className="font-medium text-foreground">{ownCompanyName ?? "ваша компания"}</span>
+              </p>
             )}
 
             <div className="space-y-2">
