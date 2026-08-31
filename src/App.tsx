@@ -49,6 +49,9 @@ import IndividualDevelopmentPlans from "@/pages/IndividualDevelopmentPlans";
 import KnowledgeBase from "@/pages/KnowledgeBase";
 import Invitations from "@/pages/Invitations";
 import Landing from "@/pages/Landing";
+import ConsoleRoot from "@/pages/integration/ConsoleRoot";
+import InboundConsole from "@/pages/integration/InboundConsole";
+import OutboundConsole from "@/pages/integration/OutboundConsole";
 import Pricing from "@/pages/Pricing";
 import PricingInquiries from "@/pages/PricingInquiries";
 import EmailSettingsManagement from "@/pages/EmailSettingsManagement";
@@ -156,7 +159,11 @@ const App = () => (
             <ScrollToTop />
             <AnalyticsBootstrap />
             <Routes>
-              <Route path="/" element={<Landing />} />
+              {/* Корень отдаёт лендинг либо интеграционную консоль — по поддомену. */}
+              <Route path="/" element={<ConsoleRoot />} />
+              {/* Прямые адреса: работают и на основном домене, и на поддоменах. */}
+              <Route path="/integration/outbound" element={<OutboundConsole />} />
+              <Route path="/integration/inbound" element={<InboundConsole />} />
               <Route path="/investor-deck" element={<InvestorDeck />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/feature/:slug" element={<FeaturePage />} />

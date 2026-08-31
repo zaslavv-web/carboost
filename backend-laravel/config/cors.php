@@ -16,6 +16,11 @@ return [
         'https://growth-peak.pro',
         'https://www.growth-peak.pro',
         'https://carboost.lovable.app',
+        // Интеграционные консоли. При штатной раскладке (поддомены смотрят в тот
+        // же докрут) запросы идут same-origin и CORS не нужен; записи здесь —
+        // страховка на случай отдельного докрута или своего хостинга консолей.
+        'https://api-out.growth-peak.pro',
+        'https://api-in.growth-peak.pro',
     ],
 
     'allowed_origins_patterns' => [
