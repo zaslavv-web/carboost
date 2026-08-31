@@ -776,7 +776,8 @@ Route::middleware(['auth:sanctum', 'effective.user'])->group(function () {
         Route::get   ('/webhooks/events',              [\App\Http\Controllers\Api\WebhookController::class, 'events']);
 
         // ---- Ключи интеграционного API (машинный доступ внешних систем) ----
-        Route::get   ('/integrations/api-keys/scopes', [\App\Http\Controllers\Api\ApiKeyController::class, 'scopes']);
+        Route::get   ('/integrations/api-keys/scopes',    [\App\Http\Controllers\Api\ApiKeyController::class, 'scopes']);
+        Route::get   ('/integrations/api-keys/companies', [\App\Http\Controllers\Api\ApiKeyController::class, 'companies']);
         Route::get   ('/integrations/api-keys',        [\App\Http\Controllers\Api\ApiKeyController::class, 'index']);
         Route::post  ('/integrations/api-keys',        [\App\Http\Controllers\Api\ApiKeyController::class, 'store']);
         Route::delete('/integrations/api-keys/{id}',   [\App\Http\Controllers\Api\ApiKeyController::class, 'revoke']);
