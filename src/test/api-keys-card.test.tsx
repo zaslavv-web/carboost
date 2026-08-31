@@ -11,8 +11,8 @@ import ApiKeysCard from "@/components/integrations/ApiKeysCard";
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
-  post: vi.fn(async () => ({ data: { token: "gp_x_y" }, error: null })),
-  delete: vi.fn(async () => ({ data: null, error: null })),
+  post: vi.fn(async (_url: string, _body?: unknown) => ({ data: { token: "gp_x_y" }, error: null })),
+  delete: vi.fn(async (_url: string) => ({ data: null, error: null })),
   toastError: vi.fn(),
 }));
 
@@ -28,9 +28,10 @@ const COMPANIES = [
   { id: "c2", name: "Вторая" },
 ];
 
-const setup = (isSuperadmin: boolean, keys: unknown[] = []) => {
+const setup = (isSuperadmin: boolean, keys: unknown[] = [], companiesError: string | null = null) => {
   mocks.get.mockImplementation(async (url: string) => {
     if (url.includes("/companies")) {
+      if (companiesError) return { data: null, error: { message: companiesError } };
       return { data: { is_superadmin: isSuperadmin, companies: isSuperadmin ? COMPANIES : [COMPANIES[0]] }, error: null };
     }
     if (url.includes("/scopes")) {
@@ -55,6 +56,25 @@ describe("карточка ключей API", () => {
     await openDialog();
 
     expect(screen.queryByLabelText("Компания")).not.toBeInTheDocument();
+  });
+
+  it("администратору компании видно, чьей компании будет ключ", async () => {
+    setup(false);
+    await openDialog();
+
+    expect(screen.getByText("Первая")).toBeInTheDocument();
+  });
+
+  /**
+   * Отказ /companies выглядит на экране ровно как «я не суперадмин»: поле
+   * просто исчезает. Без явного сообщения человек ищет несуществующий выбор.
+   */
+  it("сбой загрузки компаний показывается, а не скрывает поле молча", async () => {
+    setup(true, [], "503 db_busy");
+    await openDialog();
+
+    expect(screen.queryByLabelText("Компания")).not.toBeInTheDocument();
+    expect(screen.getByText(/Не удалось получить список компаний/)).toBeInTheDocument();
   });
 
   it("суперадмину показывается выбор со списком компаний", async () => {
