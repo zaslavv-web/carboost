@@ -11,8 +11,6 @@ import ModuleDetailDialog from "@/components/landing/ModuleDetailDialog";
 import RolePreview from "@/components/landing/RolePreview";
 
 import CountUp from "@/components/landing/CountUp";
-// ВРЕМЕННО: маркер проверки доставки на прод. Удалить вместе с <DeployCheckCat /> ниже.
-import DeployCheckCat from "@/components/landing/DeployCheckCat";
 import { useAuth } from "@/contexts/AuthContext";
 import type { FeatureSlug } from "@/data/features";
 
@@ -189,9 +187,6 @@ const Landing = () => {
           </div>
         </div>
       </footer>
-
-      {/* ВРЕМЕННО: проверка, доезжают ли коммиты до прода. Удалить после проверки. */}
-      <DeployCheckCat />
 
       <ModuleDetailDialog
         slug={activeModule}
