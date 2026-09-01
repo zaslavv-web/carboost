@@ -105,62 +105,97 @@ class SeedDemoExtras extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Компания, которую наполняем.
+     *
+     * Профиль может ссылаться на компанию, которой уже нет: стенд пересоздавали,
+     * а профили остались. Такой «осиротевший» company_id — самый населённый в
+     * таблице profiles — раньше побеждал в подборе, после чего запрос компании
+     * возвращал ничего, и команда отвечала «Компания не найдена», не показав
+     * ни одной подсказки. Поэтому кандидатов берём только из существующих
+     * компаний, а при неудаче всегда объясняем, что именно не нашлось.
+     */
     private function resolveCompany(): ?object
     {
         $explicit = trim((string) $this->option('company'));
         if ($explicit !== '') {
-            return DB::table('companies')->where('id', $explicit)->orWhere('name', $explicit)->first();
+            $company = DB::table('companies')->where('id', $explicit)->orWhere('name', $explicit)->first();
+            if (! $company) {
+                $this->line("Компания «{$explicit}» не найдена ни по id, ни по названию.");
+                $this->listCompanies();
+            }
+            return $company;
         }
 
-        $email = (string) $this->option('email');
-        $companyId = DB::table('users')
-            ->join('profiles', 'profiles.user_id', '=', 'users.id')
-            ->where('users.email', $email)
-            ->value('profiles.company_id');
+        $email = trim((string) $this->option('email'));
+        $company = $this->companyByEmail($email);
+        if ($company) return $company;
+        if ($email !== '') $this->line("Учётка {$email} не найдена или не привязана к существующей компании.");
 
-        if (! $companyId) {
-            $companyId = DB::table('users')
-                ->join('profiles', 'profiles.user_id', '=', 'users.id')
-                ->where('users.email', 'like', '%@demo.%')
-                ->whereNotNull('profiles.company_id')
-                ->value('profiles.company_id');
+        // Любая демо-учётка стенда.
+        $demoEmail = DB::table('users')
+            ->join('profiles', 'profiles.user_id', '=', 'users.id')
+            ->join('companies', 'companies.id', '=', 'profiles.company_id')
+            ->where('users.email', 'like', '%@demo.%')
+            ->value('users.email');
+        if ($demoEmail && $company = $this->companyByEmail((string) $demoEmail)) {
+            $this->warn("Беру компанию демо-учётки {$demoEmail}. Для другой укажите --company=<id|название>.");
+            return $company;
         }
 
         // Финальный фолбэк: самая населённая компания стенда. Без него команда
         // падала на любом окружении, где демо-учётки называются иначе
         // (например, demo_doom), хотя данные для наполнения есть.
-        if (! $companyId) {
-            $rankedCompanies = DB::table('profiles')
+        $ranked = DB::table('profiles')
+            ->join('companies', 'companies.id', '=', 'profiles.company_id')
+            ->select('profiles.company_id', 'companies.name', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('profiles.company_id', 'companies.name')
+            ->orderByDesc('cnt')
+            ->limit(10)
+            ->get();
+
+        if ($ranked->isEmpty()) {
+            $orphans = DB::table('profiles')
                 ->whereNotNull('company_id')
-                ->select('company_id', DB::raw('COUNT(*) as cnt'))
-                ->groupBy('company_id')
-                ->orderByDesc('cnt')
-                ->limit(10)
-                ->get();
-
-            if ($rankedCompanies->count() > 1) {
-                $names = DB::table('companies')
-                    ->whereIn('id', $rankedCompanies->pluck('company_id')->all())
-                    ->pluck('name', 'id');
-                $available = $rankedCompanies
-                    ->map(fn ($row) => sprintf('%s (%d)', $names[$row->company_id] ?? $row->company_id, $row->cnt))
-                    ->implode(', ');
-                $this->line('Найдено несколько компаний с сотрудниками: ' . $available);
-            }
-
-            $companyId = $rankedCompanies->first()->company_id ?? null;
-            if ($companyId) {
-                $name = DB::table('companies')->where('id', $companyId)->value('name');
-                $this->warn("Компания не задана — беру самую населённую: «{$name}». Для другой укажите --company=<id|название>.");
-            }
+                ->whereNotIn('company_id', DB::table('companies')->select('id'))
+                ->count();
+            $this->line($orphans > 0
+                ? "Ни один профиль не ссылается на существующую компанию ({$orphans} профилей указывают на удалённые)."
+                : 'На стенде нет профилей с привязкой к компании.');
+            $this->listCompanies();
+            return null;
         }
 
-        if (! $companyId) {
-            $available = DB::table('companies')->orderBy('name')->limit(20)->pluck('name')->all();
-            if ($available) $this->line('Доступные компании: ' . implode(', ', $available));
+        if ($ranked->count() > 1) {
+            $this->line('Найдено несколько компаний с сотрудниками: ' . $ranked
+                ->map(fn ($row) => sprintf('%s (%d)', $row->name ?? $row->company_id, $row->cnt))
+                ->implode(', '));
         }
 
-        return $companyId ? DB::table('companies')->where('id', $companyId)->first() : null;
+        $top = $ranked->first();
+        $this->warn("Компания не задана — беру самую населённую: «{$top->name}». Для другой укажите --company=<id|название>.");
+
+        return DB::table('companies')->where('id', $top->company_id)->first();
+    }
+
+    /** Компания учётки; профили с ссылкой на удалённую компанию не в счёт. */
+    private function companyByEmail(string $email): ?object
+    {
+        if ($email === '') return null;
+
+        return DB::table('companies')
+            ->join('profiles', 'profiles.company_id', '=', 'companies.id')
+            ->join('users', 'users.id', '=', 'profiles.user_id')
+            ->whereRaw('LOWER(users.email) = ?', [mb_strtolower($email)])
+            ->select('companies.*')
+            ->first();
+    }
+
+    private function listCompanies(): void
+    {
+        $available = DB::table('companies')->orderBy('name')->limit(20)->pluck('name')->all();
+        if ($available) $this->line('Доступные компании: ' . implode(', ', $available));
+        else $this->line('В таблице companies нет ни одной записи.');
     }
 
 
@@ -1330,8 +1365,22 @@ HTML;
         $admin = $this->adminUserId();
         if (! $admin) return 0;
 
+        // Нужен именно ОТКРЫТЫЙ цикл: на стенде, где полугодие уже закрыто,
+        // самый свежий цикл имеет статус completed/closed, и раньше команда
+        // молча оставляла его как есть — а собственная проверка падала на
+        // «нет активного performance-цикла». Закрытый цикл не переписываем:
+        // это история ревью. Открываем черновик, иначе заводим новый.
         $cycle = DB::table('performance_cycles')->where('company_id', $this->companyId)
-            ->orderByDesc('created_at')->first();
+            ->where('status', 'active')->orderByDesc('created_at')->first();
+        if (! $cycle) {
+            $draft = DB::table('performance_cycles')->where('company_id', $this->companyId)
+                ->where('status', 'draft')->orderByDesc('created_at')->first();
+            if ($draft) {
+                DB::table('performance_cycles')->where('id', $draft->id)
+                    ->update(['status' => 'active', 'updated_at' => now()]);
+                $cycle = $draft;
+            }
+        }
         if (! $cycle) {
             $cycleId = (string) Str::uuid();
             DB::table('performance_cycles')->insert([
@@ -1349,9 +1398,6 @@ HTML;
             ]);
         } else {
             $cycleId = (string) $cycle->id;
-            if (($cycle->status ?? '') === 'draft') {
-                DB::table('performance_cycles')->where('id', $cycleId)->update(['status' => 'active', 'updated_at' => now()]);
-            }
         }
 
         $profiles = DB::table('profiles')->where('company_id', $this->companyId)

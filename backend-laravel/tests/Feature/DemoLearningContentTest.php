@@ -99,6 +99,55 @@ class DemoLearningContentTest extends TestCase
         $this->assertNotNull($hrd->id);
     }
 
+    /**
+     * На стенде с закрытым полугодием самый свежий цикл имеет статус
+     * completed — команда обязана открыть новый, а не падать на собственной
+     * проверке «нет активного performance-цикла», уже наполнив всё остальное.
+     */
+    public function test_closed_performance_cycle_does_not_block_seeding(): void
+    {
+        $company = $this->makeCompany(['name' => 'Демо']);
+        $this->makeUser('hrd', $company->id);
+        $employee = $this->makeUser('employee', $company->id);
+        for ($i = 0; $i < 10; $i++) $this->makeUser('employee', $company->id);
+        $email = DB::table('users')->where('id', $employee->id)->value('email');
+
+        DB::table('performance_cycles')->insert([
+            'id' => (string) Str::uuid(), 'company_id' => $company->id,
+            'title' => 'Закрытое полугодие', 'status' => 'completed',
+            'period_start' => now()->subMonths(9)->toDateString(),
+            'period_end' => now()->subMonths(3)->toDateString(),
+            'created_at' => now()->subMonths(9), 'updated_at' => now()->subMonths(3),
+        ]);
+
+        $this->prepareStand($company->id, $email);
+        $this->seedDemo($company->id, $email);
+
+        $this->assertSame(1, DB::table('performance_cycles')
+            ->where('company_id', $company->id)->where('status', 'active')->count());
+        // Закрытый цикл — история ревью, его статус трогать нельзя.
+        $this->assertSame(1, DB::table('performance_cycles')
+            ->where('company_id', $company->id)->where('status', 'completed')->count());
+    }
+
+    /**
+     * Неудачный подбор компании должен быть диагностируемым.
+     *
+     * На стенде команда отвечала одной строкой «Компания не найдена. Укажите
+     * --company=<id|название>» — и всё: ни что именно не нашлось, ни какие
+     * компании есть. Подсказка здесь и есть предмет проверки.
+     */
+    public function test_unknown_company_is_explained(): void
+    {
+        $company = $this->makeCompany(['name' => 'Живая компания']);
+        $this->makeUser('employee', $company->id);
+
+        $this->artisan('demo:seed-extras', ['--company' => 'Компания-которой-нет'])
+            ->expectsOutputToContain('Компания «Компания-которой-нет» не найдена')
+            ->expectsOutputToContain('Доступные компании: Живая компания')
+            ->assertExitCode(1);
+    }
+
     public function test_second_run_does_not_duplicate(): void
     {
         $company = $this->makeCompany(['name' => 'Демо']);
