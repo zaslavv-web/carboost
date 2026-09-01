@@ -22,7 +22,7 @@ class SeedDemoExtras extends Command
 {
     protected $signature = 'demo:seed-extras
         {--company= : ID или название компании}
-        {--email=employee.76@demo.pikrosta.ru : Учётка, профиль которой обязательно должен быть заполнен}';
+        {--email=employee.04@demo-doom.demo.pikrosta.ru : Учётка, профиль которой обязательно должен быть заполнен}';
 
     protected $description = 'Заполняет профили, OKR, воркфлоу трекера, обучение, ИПР, показательную новость и сообщества демо-компании';
 
@@ -143,11 +143,13 @@ class SeedDemoExtras extends Command
         if ($company) return $company;
         if ($email !== '') $this->line("Учётка {$email} не найдена или не привязана к существующей компании.");
 
-        // Любая демо-учётка стенда.
+        // Любая демо-учётка стенда. Шаблон намеренно без точки после «demo»:
+        // домен demo-doom.demo.pikrosta.ru под «%@demo.%» не подходил, и на
+        // этой компании подбор проваливался.
         $demoEmail = DB::table('users')
             ->join('profiles', 'profiles.user_id', '=', 'users.id')
             ->join('companies', 'companies.id', '=', 'profiles.company_id')
-            ->where('users.email', 'like', '%@demo.%')
+            ->where('users.email', 'like', '%@demo%')
             ->value('users.email');
         if ($demoEmail && $company = $this->companyByEmail((string) $demoEmail)) {
             $this->warn("Беру компанию демо-учётки {$demoEmail}. Для другой укажите --company=<id|название>.");

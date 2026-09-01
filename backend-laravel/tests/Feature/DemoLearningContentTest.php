@@ -167,6 +167,9 @@ class DemoLearningContentTest extends TestCase
      * Учётки из --email на стенде может не быть: команда наполняет найденную
      * компанию и проверяет по её сотруднику, а не падает на чужом email,
      * уже сделав всю работу.
+     *
+     * Вызов идёт без --email, поэтому заодно проверяется учётка по умолчанию:
+     * именно её называют, когда запускают команду без аргументов.
      */
     public function test_unknown_email_falls_back_to_company_profile(): void
     {
@@ -176,11 +179,8 @@ class DemoLearningContentTest extends TestCase
 
         $this->prepareStand($company->id);
 
-        $this->artisan('demo:seed-extras', [
-            '--company' => $company->id,
-            '--email' => 'employee.76@demo.pikrosta.ru',
-        ])
-            ->expectsOutputToContain('Учётки employee.76@demo.pikrosta.ru в этой компании нет')
+        $this->artisan('demo:seed-extras', ['--company' => $company->id])
+            ->expectsOutputToContain('Учётки employee.04@demo-doom.demo.pikrosta.ru в этой компании нет')
             ->assertExitCode(0);
 
         $this->assertGreaterThan(0, DB::table('courses')->where('company_id', $company->id)->count());
