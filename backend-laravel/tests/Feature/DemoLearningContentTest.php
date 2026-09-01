@@ -21,18 +21,11 @@ class DemoLearningContentTest extends TestCase
     use RefreshDatabase, WithDomainUsers;
 
     /**
-     * Предпосылки, которые создаёт не эта команда, а `demo:seed`:
-     * без задач трекера и хотя бы одного сообщества сидер считает стенд
-     * ненаполненным и падает собственной проверкой.
+     * Предпосылка, которую создаёт не эта команда, а `demo:seed`: без задач
+     * трекера сидер считает стенд ненаполненным и падает своей проверкой.
      */
-    private function prepareStand(string $companyId, string $ownerEmail): void
+    private function prepareStand(string $companyId): void
     {
-        DB::table('portal_communities')->insert([
-            'id' => (string) Str::uuid(), 'company_id' => $companyId,
-            'title' => 'Клуб бегунов', 'slug' => 'runners', 'privacy' => 'open',
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
-
         $this->artisan('tracker:seed-tasks', [
             '--company-id' => $companyId, '--count' => 40,
             '--projects' => 2, '--sprints' => 1, '--per-user' => 1,
@@ -53,7 +46,7 @@ class DemoLearningContentTest extends TestCase
         for ($i = 0; $i < 10; $i++) $this->makeUser('employee', $company->id);
         $email = DB::table('users')->where('id', $employee->id)->value('email');
 
-        $this->prepareStand($company->id, $email);
+        $this->prepareStand($company->id);
         $this->seedDemo($company->id, $email);
 
         // Каталог: сотрудник видит только опубликованные курсы.
@@ -120,7 +113,7 @@ class DemoLearningContentTest extends TestCase
             'created_at' => now()->subMonths(9), 'updated_at' => now()->subMonths(3),
         ]);
 
-        $this->prepareStand($company->id, $email);
+        $this->prepareStand($company->id);
         $this->seedDemo($company->id, $email);
 
         $this->assertSame(1, DB::table('performance_cycles')
@@ -148,6 +141,51 @@ class DemoLearningContentTest extends TestCase
             ->assertExitCode(1);
     }
 
+    /**
+     * Компания без сообществ: наполнять было нечего, а проверка требовала
+     * записей — команда падала на «в сообществах нет записей».
+     */
+    public function test_communities_are_created_when_absent(): void
+    {
+        $company = $this->makeCompany(['name' => 'Демо']);
+        $this->makeUser('hrd', $company->id);
+        $employee = $this->makeUser('employee', $company->id);
+        for ($i = 0; $i < 10; $i++) $this->makeUser('employee', $company->id);
+        $email = DB::table('users')->where('id', $employee->id)->value('email');
+
+        $this->assertSame(0, DB::table('portal_communities')->where('company_id', $company->id)->count());
+
+        $this->prepareStand($company->id);
+        $this->seedDemo($company->id, $email);
+
+        $this->assertGreaterThanOrEqual(3, DB::table('portal_communities')->where('company_id', $company->id)->count());
+        $this->assertGreaterThan(0, DB::table('portal_posts')
+            ->where('company_id', $company->id)->whereNotNull('community_id')->count());
+    }
+
+    /**
+     * Учётки из --email на стенде может не быть: команда наполняет найденную
+     * компанию и проверяет по её сотруднику, а не падает на чужом email,
+     * уже сделав всю работу.
+     */
+    public function test_unknown_email_falls_back_to_company_profile(): void
+    {
+        $company = $this->makeCompany(['name' => 'Демо']);
+        $this->makeUser('hrd', $company->id);
+        for ($i = 0; $i < 10; $i++) $this->makeUser('employee', $company->id);
+
+        $this->prepareStand($company->id);
+
+        $this->artisan('demo:seed-extras', [
+            '--company' => $company->id,
+            '--email' => 'employee.76@demo.pikrosta.ru',
+        ])
+            ->expectsOutputToContain('Учётки employee.76@demo.pikrosta.ru в этой компании нет')
+            ->assertExitCode(0);
+
+        $this->assertGreaterThan(0, DB::table('courses')->where('company_id', $company->id)->count());
+    }
+
     public function test_second_run_does_not_duplicate(): void
     {
         $company = $this->makeCompany(['name' => 'Демо']);
@@ -156,7 +194,7 @@ class DemoLearningContentTest extends TestCase
         for ($i = 0; $i < 10; $i++) $this->makeUser('employee', $company->id);
         $email = DB::table('users')->where('id', $employee->id)->value('email');
 
-        $this->prepareStand($company->id, $email);
+        $this->prepareStand($company->id);
         $this->seedDemo($company->id, $email);
         $before = [
             'courses'      => DB::table('courses')->count(),

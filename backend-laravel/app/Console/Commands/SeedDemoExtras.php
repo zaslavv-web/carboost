@@ -28,6 +28,16 @@ class SeedDemoExtras extends Command
 
     private string $companyId = '';
 
+    /**
+     * Учётка, по которой проверяем результат.
+     *
+     * Это не всегда та, что передали в --email: на стенде её может не быть
+     * вовсе. Тогда наполняем компанию, которую нашли, а проверяем по любому
+     * её сотруднику — падать на чужом email после того, как всё наполнено,
+     * бессмысленно.
+     */
+    private ?string $targetEmail = null;
+
     private const DEPARTMENTS = ['Продукт', 'Разработка', 'Маркетинг', 'Продажи', 'Поддержка', 'HR', 'Финансы', 'Операции'];
     private const GRADES = ['junior', 'middle', 'middle+', 'senior', 'lead'];
     private const SKILLS = [
@@ -44,6 +54,7 @@ class SeedDemoExtras extends Command
         }
         $this->companyId = (string) $company->id;
         $this->info("→ Наполняю компанию «{$company->name}» ({$this->companyId})");
+        $this->targetEmail = $this->resolveTargetEmail();
 
         $filled = $this->fillProfiles();
         $this->line("  профили дозаполнены: {$filled}");
@@ -176,6 +187,36 @@ class SeedDemoExtras extends Command
         $this->warn("Компания не задана — беру самую населённую: «{$top->name}». Для другой укажите --company=<id|название>.");
 
         return DB::table('companies')->where('id', $top->company_id)->first();
+    }
+
+    /** Учётка для проверки: запрошенная, если она в этой компании, иначе любая. */
+    private function resolveTargetEmail(): ?string
+    {
+        $requested = trim((string) $this->option('email'));
+        if ($requested !== '' && $this->emailBelongsToCompany($requested)) return $requested;
+
+        $fallback = DB::table('users')
+            ->join('profiles', 'profiles.user_id', '=', 'users.id')
+            ->where('profiles.company_id', $this->companyId)
+            ->orderBy('profiles.created_at')
+            ->value('users.email');
+
+        if ($requested !== '') {
+            $this->warn($fallback
+                ? "Учётки {$requested} в этой компании нет — проверяю по {$fallback}."
+                : "Учётки {$requested} в этой компании нет, и других профилей тоже.");
+        }
+
+        return $fallback ? (string) $fallback : null;
+    }
+
+    private function emailBelongsToCompany(string $email): bool
+    {
+        return DB::table('users')
+            ->join('profiles', 'profiles.user_id', '=', 'users.id')
+            ->where('profiles.company_id', $this->companyId)
+            ->whereRaw('LOWER(users.email) = ?', [mb_strtolower($email)])
+            ->exists();
     }
 
     /** Компания учётки; профили с ссылкой на удалённую компанию не в счёт. */
@@ -761,13 +802,50 @@ HTML;
     }
 
     /** В каждом сообществе — участники и минимум три записи. */
+    /** Базовые сообщества компании — без них наполнять нечего. */
+    private function ensureCommunities(string $ownerId): void
+    {
+        $defaults = [
+            ['runners', 'Клуб бегунов', 'Совместные пробежки, забеги и обмен маршрутами.'],
+            ['it-talks', 'IT-посиделки', 'Разборы задач, инструменты и внутренние доклады.'],
+            ['newcomers', 'Новичкам', 'Вопросы первых недель: доступы, процессы, кто за что отвечает.'],
+        ];
+
+        foreach ($defaults as [$slug, $title, $description]) {
+            $exists = DB::table('portal_communities')
+                ->where('company_id', $this->companyId)->where('slug', $slug)->exists();
+            if ($exists) continue;
+
+            DB::table('portal_communities')->insert([
+                'id' => (string) Str::uuid(),
+                'company_id' => $this->companyId,
+                'title' => $title,
+                'slug' => $slug,
+                'description' => $description,
+                'privacy' => 'open',
+                'owner_id' => $ownerId,
+                'members_count' => 0,
+                'created_at' => now()->subDays(90),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
     private function ensureCommunityContent(): int
     {
         if (! Schema::hasTable('portal_communities')) return 0;
 
-        $communities = DB::table('portal_communities')->where('company_id', $this->companyId)->get();
         $userIds = DB::table('profiles')->where('company_id', $this->companyId)->pluck('user_id')->all();
-        if ($communities->isEmpty() || ! $userIds) return 0;
+        if (! $userIds) return 0;
+
+        // Шаг умел наполнять только уже существующие сообщества, поэтому на
+        // компании без них не делал ничего — а проверка требовала записей и
+        // роняла команду. Пустое сообщество тоже смысла не имеет, так что
+        // заводим их здесь же, перед наполнением.
+        $this->ensureCommunities($userIds[0]);
+
+        $communities = DB::table('portal_communities')->where('company_id', $this->companyId)->get();
+        if ($communities->isEmpty()) return 0;
 
         $created = 0;
         foreach ($communities as $ci => $community) {
@@ -1618,7 +1696,7 @@ HTML;
         if ($people->isEmpty()) return 0;
 
         // Целевой сотрудник должен увидеть все три состояния сразу.
-        $targetId = DB::table('users')->where('email', (string) $this->option('email'))->value('id');
+        $targetId = DB::table('users')->where('email', (string) $this->targetEmail)->value('id');
 
         $lessonsByCourse = [];
         foreach ($courseIds as $slug => $courseId) {
@@ -1878,7 +1956,7 @@ HTML;
 
         $people = DB::table('profiles')->where('company_id', $this->companyId)
             ->orderBy('created_at')->limit(12)->get(['user_id', 'full_name']);
-        $targetId = DB::table('users')->where('email', (string) $this->option('email'))->value('id');
+        $targetId = DB::table('users')->where('email', (string) $this->targetEmail)->value('id');
         if ($targetId && $people->every(fn ($p) => (string) $p->user_id !== (string) $targetId)) {
             $target = DB::table('profiles')->where('user_id', $targetId)->first(['user_id', 'full_name']);
             if ($target) $people->push($target);
@@ -2010,7 +2088,7 @@ HTML;
     {
         $problems = [];
 
-        $email = (string) $this->option('email');
+        $email = (string) $this->targetEmail;
         $target = DB::table('profiles')->join('users', 'users.id', '=', 'profiles.user_id')
             ->where('users.email', $email)->where('profiles.company_id', $this->companyId)
             ->select('profiles.*')->first();
