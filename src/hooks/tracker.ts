@@ -514,13 +514,21 @@ export function useProjects(filter?: { status?: "active" | "archived" }) {
   });
 }
 
+/**
+ * Проект по идентификатору.
+ *
+ * `maybeSingle`, а не `single`: id приезжает из localStorage и вполне может
+ * указывать на удалённый или чужой проект. Для `single` сервер отвечает 404 —
+ * это ошибка запроса, с тостом и тремя повторами, хотя «такого проекта нет» —
+ * нормальный ответ, который вызывающий код должен уметь обработать.
+ */
 export function useProject(projectId?: string) {
   return useQuery({
     queryKey: ["tracker.project", projectId],
     enabled: !!projectId,
     queryFn: async () => {
-      const res = await laravelDb.from("tracker_projects").select("*").eq("id", projectId!).single();
-      return handle<TrackerProject>(res as any);
+      const res = await laravelDb.from("tracker_projects").select("*").eq("id", projectId!).maybeSingle();
+      return handle<TrackerProject | null>(res as any);
     },
   });
 }
