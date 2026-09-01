@@ -12,7 +12,9 @@ use Illuminate\Support\Str;
  *   - заполненные профили (ФИО, отдел, должность, грейд, аватар для чатов, компетенции);
  *   - воркфлоу трекера и иерархия OKR (компания → отдел → сотрудник) с key results;
  *   - показательный пост в ленте, где задействованы все возможности редактора;
- *   - записи и участники в каждом сообществе.
+ *   - записи и участники в каждом сообществе;
+ *   - каталог Университета с записями, прогрессом и сертификатами;
+ *   - индивидуальные планы развития и лестницу уровней геймификации.
  *
  * Команда идемпотентна: повторный запуск не создаёт дубликаты.
  */
@@ -22,7 +24,7 @@ class SeedDemoExtras extends Command
         {--company= : ID или название компании}
         {--email=employee.76@demo.pikrosta.ru : Учётка, профиль которой обязательно должен быть заполнен}';
 
-    protected $description = 'Заполняет профили, OKR, воркфлоу трекера, показательную новость и сообщества демо-компании';
+    protected $description = 'Заполняет профили, OKR, воркфлоу трекера, обучение, ИПР, показательную новость и сообщества демо-компании';
 
     private string $companyId = '';
 
@@ -84,6 +86,15 @@ class SeedDemoExtras extends Command
 
         $docs = $this->ensurePersonalDocuments();
         $this->line("  персональных документов: {$docs}");
+
+        $university = $this->ensureUniversity();
+        $this->line("  курсов, записей и сертификатов: {$university}");
+
+        $idp = $this->ensureIdp();
+        $this->line("  планов развития и пунктов ИПР: {$idp}");
+
+        $levels = $this->ensureGamificationLevels();
+        $this->line("  уровней геймификации: {$levels}");
 
 
 
@@ -1457,6 +1468,487 @@ HTML;
     }
 
     /** Автор демо-контента: HRD/админ компании, иначе любой сотрудник. */
+    /**
+     * Университет: каталог курсов, записи сотрудников, прогресс и сертификаты.
+     *
+     * Модуль обучения — единственный крупный раздел, который демо-компания не
+     * наполняла вовсе: и HRD, и сотрудник открывали «Университет» с пустым
+     * каталогом. Курсы делаем опубликованными (неавтор видит только такие),
+     * а прогресс — разным, иначе аналитика обучения показывает одни нули.
+     */
+    private function ensureUniversity(): int
+    {
+        foreach (['courses', 'course_modules', 'lessons', 'enrollments'] as $table) {
+            if (! Schema::hasTable($table)) return 0;
+        }
+        $admin = $this->adminUserId();
+        if (! $admin) return 0;
+
+        $created = 0;
+        $courseIds = [];
+
+        foreach ($this->courseCatalog() as $course) {
+            $existing = DB::table('courses')
+                ->where('company_id', $this->companyId)->where('slug', $course['slug'])->first();
+            $courseId = $existing->id ?? (string) Str::uuid();
+            $payload = [
+                'company_id'   => $this->companyId,
+                'title'        => $course['title'],
+                'slug'         => $course['slug'],
+                'description'  => $course['description'],
+                'level'        => $course['level'],
+                'duration_min' => $course['duration_min'],
+                'tags'         => json_encode($course['tags'], JSON_UNESCAPED_UNICODE),
+                'competencies' => json_encode($course['competencies'], JSON_UNESCAPED_UNICODE),
+                'status'       => 'published',
+                'mandatory'    => $course['mandatory'],
+                'author_id'    => $admin,
+                'updated_at'   => now(),
+            ];
+            if ($existing) DB::table('courses')->where('id', $courseId)->update($payload);
+            else {
+                DB::table('courses')->insert($payload + ['id' => $courseId, 'created_at' => now()->subDays(60)]);
+                $created++;
+            }
+            $courseIds[$course['slug']] = $courseId;
+
+            foreach ($course['modules'] as $mi => $module) {
+                $existingModule = DB::table('course_modules')
+                    ->where('course_id', $courseId)->where('order_index', $mi)->first();
+                $moduleId = $existingModule->id ?? (string) Str::uuid();
+                $modulePayload = [
+                    'course_id'   => $courseId,
+                    'order_index' => $mi,
+                    'title'       => $module['title'],
+                    'updated_at'  => now(),
+                ];
+                if ($existingModule) DB::table('course_modules')->where('id', $moduleId)->update($modulePayload);
+                else {
+                    DB::table('course_modules')->insert($modulePayload + ['id' => $moduleId, 'created_at' => now()->subDays(60)]);
+                    $created++;
+                }
+
+                foreach ($module['lessons'] as $li => $lesson) {
+                    $existingLesson = DB::table('lessons')
+                        ->where('module_id', $moduleId)->where('order_index', $li)->first();
+                    $lessonId = $existingLesson->id ?? (string) Str::uuid();
+                    $lessonPayload = [
+                        'module_id'    => $moduleId,
+                        'order_index'  => $li,
+                        'type'         => $lesson['type'],
+                        'title'        => $lesson['title'],
+                        'content'      => $lesson['content'],
+                        'video_url'    => $lesson['video_url'] ?? null,
+                        'duration_min' => $lesson['duration_min'],
+                        'pass_score'   => 70,
+                        'updated_at'   => now(),
+                    ];
+                    if ($existingLesson) DB::table('lessons')->where('id', $lessonId)->update($lessonPayload);
+                    else {
+                        DB::table('lessons')->insert($lessonPayload + ['id' => $lessonId, 'created_at' => now()->subDays(60)]);
+                        $created++;
+                    }
+                }
+            }
+        }
+
+        return $created + $this->ensureEnrollments($courseIds, $admin);
+    }
+
+    /**
+     * Записи на курсы с разным прогрессом.
+     *
+     * Статус выводим из индекса сотрудника, а не из random: повторный запуск
+     * не должен переставлять людей между «прошёл» и «не начинал» — иначе
+     * демо-стенд каждый раз выглядит по-новому.
+     */
+    private function ensureEnrollments(array $courseIds, string $admin): int
+    {
+        $slugs = array_keys($courseIds);
+        if ($slugs === []) return 0;
+
+        $people = DB::table('profiles')->where('company_id', $this->companyId)
+            ->orderBy('created_at')->limit(40)->get(['user_id', 'full_name']);
+        if ($people->isEmpty()) return 0;
+
+        // Целевой сотрудник должен увидеть все три состояния сразу.
+        $targetId = DB::table('users')->where('email', (string) $this->option('email'))->value('id');
+
+        $lessonsByCourse = [];
+        foreach ($courseIds as $slug => $courseId) {
+            $lessonsByCourse[$slug] = DB::table('lessons as l')
+                ->join('course_modules as m', 'm.id', '=', 'l.module_id')
+                ->where('m.course_id', $courseId)
+                ->orderBy('m.order_index')->orderBy('l.order_index')
+                ->pluck('l.id')->all();
+        }
+
+        $created = 0;
+        foreach ($people as $i => $person) {
+            $isTarget = $targetId && (string) $person->user_id === (string) $targetId;
+            // Каждому — обязательный курс плюс два по «сдвигу», чтобы каталог
+            // не выглядел так, будто вся компания учится одному и тому же.
+            $assigned = $isTarget
+                ? [$slugs[0], $slugs[1 % count($slugs)], $slugs[2 % count($slugs)]]
+                : array_unique([$slugs[0], $slugs[($i + 1) % count($slugs)], $slugs[($i + 3) % count($slugs)]]);
+
+            foreach (array_values($assigned) as $pos => $slug) {
+                $status = $isTarget
+                    ? ['completed', 'in_progress', 'not_started'][$pos] ?? 'not_started'
+                    : ['completed', 'in_progress', 'not_started', 'in_progress'][($i + $pos) % 4];
+
+                $created += $this->ensureEnrollment(
+                    $courseIds[$slug], (string) $person->user_id, (string) ($person->full_name ?? ''),
+                    $slug, $status, $lessonsByCourse[$slug] ?? [], $admin, $pos === 0,
+                );
+            }
+        }
+
+        return $created;
+    }
+
+    private function ensureEnrollment(
+        string $courseId, string $userId, string $userName, string $slug,
+        string $status, array $lessonIds, string $admin, bool $mandatory,
+    ): int {
+        $existing = DB::table('enrollments')->where('course_id', $courseId)->where('user_id', $userId)->first();
+        $enrollmentId = $existing->id ?? (string) Str::uuid();
+        $startedAt = $status === 'not_started' ? null : now()->subDays(21);
+        $completedAt = $status === 'completed' ? now()->subDays(4) : null;
+
+        $payload = [
+            'course_id'   => $courseId,
+            'user_id'     => $userId,
+            'assigned_by' => $admin,
+            'mandatory'   => $mandatory,
+            'due_at'      => now()->addDays(30),
+            'status'      => $status,
+            'started_at'  => $startedAt,
+            'completed_at' => $completedAt,
+            'updated_at'  => now(),
+        ];
+
+        $created = 0;
+        if ($existing) DB::table('enrollments')->where('id', $enrollmentId)->update($payload);
+        else {
+            DB::table('enrollments')->insert($payload + ['id' => $enrollmentId, 'created_at' => now()->subDays(28)]);
+            $created++;
+        }
+
+        if ($lessonIds === []) return $created;
+
+        // Прогресс: пройден весь курс, половина или ничего.
+        $doneCount = match ($status) {
+            'completed'   => count($lessonIds),
+            'in_progress' => max(1, (int) floor(count($lessonIds) / 2)),
+            default       => 0,
+        };
+        foreach ($lessonIds as $index => $lessonId) {
+            $done = $index < $doneCount;
+            if (! $done && $status !== 'in_progress') continue;
+
+            $row = DB::table('lesson_progress')
+                ->where('enrollment_id', $enrollmentId)->where('lesson_id', $lessonId)->first();
+            $progress = [
+                'enrollment_id' => $enrollmentId,
+                'lesson_id'     => $lessonId,
+                'completed'     => $done,
+                'score'         => $done ? 80 + ($index % 3) * 5 : null,
+                'attempts'      => $done ? 1 : 0,
+                'updated_at'    => now(),
+            ];
+            if ($row) DB::table('lesson_progress')->where('id', $row->id)->update($progress);
+            else {
+                DB::table('lesson_progress')->insert($progress + ['created_at' => now()->subDays(10)]);
+                $created++;
+            }
+        }
+
+        if ($status === 'completed' && Schema::hasTable('certificates')) {
+            $created += $this->ensureCertificate($enrollmentId, $courseId, $userId, $userName, $slug);
+        }
+
+        return $created;
+    }
+
+    private function ensureCertificate(
+        string $enrollmentId, string $courseId, string $userId, string $userName, string $slug,
+    ): int {
+        // Серийный номер уникален глобально, поэтому он и служит ключом
+        // идемпотентности: повторный запуск не выпустит второй сертификат.
+        $serial = 'GP-' . strtoupper(substr(md5($courseId . $userId), 0, 10));
+        $existing = DB::table('certificates')->where('serial', $serial)->first();
+        $certId = $existing->id ?? (string) Str::uuid();
+        $payload = [
+            'company_id'   => $this->companyId,
+            'user_id'      => $userId,
+            'course_id'    => $courseId,
+            'serial'       => $serial,
+            'user_name'    => $userName !== '' ? $userName : null,
+            'course_title' => DB::table('courses')->where('id', $courseId)->value('title'),
+            'issued_at'    => now()->subDays(4),
+            'updated_at'   => now(),
+        ];
+
+        $created = 0;
+        if ($existing) DB::table('certificates')->where('id', $certId)->update($payload);
+        else {
+            DB::table('certificates')->insert($payload + ['id' => $certId, 'created_at' => now()->subDays(4)]);
+            $created++;
+        }
+
+        DB::table('enrollments')->where('id', $enrollmentId)->update(['certificate_id' => $certId]);
+        return $created;
+    }
+
+    /** Каталог демо-курсов: то, что реально проходят в первые месяцы работы. */
+    private function courseCatalog(): array
+    {
+        return [
+            [
+                'slug' => 'welcome-onboard', 'title' => 'Добро пожаловать в компанию',
+                'description' => 'Вводный курс для новичка: как устроена компания, кто за что отвечает и что сделать в первую неделю.',
+                'level' => 'beginner', 'duration_min' => 90, 'mandatory' => true,
+                'tags' => ['адаптация', 'обязательный'],
+                'competencies' => [['skill_name' => 'Адаптивность', 'target_value' => 3]],
+                'modules' => [
+                    ['title' => 'Компания и продукт', 'lessons' => [
+                        ['type' => 'markdown', 'title' => 'Зачем мы существуем', 'duration_min' => 10,
+                         'content' => "## Наша задача\n\nМы помогаем компаниям управлять данными о людях, целях и развитии — в одном месте.\n\n**За первую неделю вы:**\n\n- познакомитесь с командой и руководителем;\n- получите доступы к рабочим системам;\n- поставите первые цели на испытательный срок."],
+                        ['type' => 'video', 'title' => 'Экскурсия по платформе', 'duration_min' => 15,
+                         'content' => 'Пятнадцать минут: разделы, навигация, где что искать.',
+                         'video_url' => 'https://rutube.ru/play/embed/demo-welcome'],
+                    ]],
+                    ['title' => 'Правила и договорённости', 'lessons' => [
+                        ['type' => 'markdown', 'title' => 'Как мы работаем', 'duration_min' => 20,
+                         'content' => "### Рабочие договорённости\n\n1. Планы и результаты — в трекере, а не в переписке.\n2. Отсутствия оформляем заранее в разделе «Отсутствия».\n3. Обратную связь даём по фактам и вовремя, а не раз в год на ревью.\n\n> Если что-то непонятно — спросите бадди. Это его работа."],
+                        ['type' => 'test', 'title' => 'Проверка: базовые правила', 'duration_min' => 10,
+                         'content' => 'Короткий тест по материалам модуля. Проходной балл — 70%.'],
+                    ]],
+                ],
+            ],
+            [
+                'slug' => 'security-basics', 'title' => 'Основы информационной безопасности',
+                'description' => 'Пароли, фишинг, персональные данные и что делать, если письмо выглядит подозрительно.',
+                'level' => 'beginner', 'duration_min' => 60, 'mandatory' => true,
+                'tags' => ['безопасность', 'обязательный'],
+                'competencies' => [['skill_name' => 'Ответственность', 'target_value' => 4]],
+                'modules' => [
+                    ['title' => 'Личная гигиена доступа', 'lessons' => [
+                        ['type' => 'markdown', 'title' => 'Пароли и двухфакторная аутентификация', 'duration_min' => 15,
+                         'content' => "## Правила без исключений\n\n- Уникальный пароль на каждый сервис — менеджер паролей это делает за вас.\n- Второй фактор включён везде, где он есть.\n- Рабочие доступы не передаются коллеге «на пять минут».\n\nУтёкший пароль — это не ошибка одного человека, а инцидент компании."],
+                        ['type' => 'markdown', 'title' => 'Фишинг: как отличить', 'duration_min' => 15,
+                         'content' => "### Три признака письма, на которое не надо нажимать\n\n1. Требует срочности: «доступ будет заблокирован сегодня».\n2. Адрес отправителя похож на настоящий, но не совпадает.\n3. Просит ввести пароль по ссылке.\n\nСомневаетесь — перешлите письмо в поддержку, это быстрее, чем разбирать последствия."],
+                    ]],
+                    ['title' => 'Персональные данные', 'lessons' => [
+                        ['type' => 'markdown', 'title' => 'Что считается персональными данными', 'duration_min' => 20,
+                         'content' => "Персональные данные — это не только паспорт. ФИО вместе с должностью и зарплатой уже образуют охраняемый набор.\n\n**Практика:** выгрузки с сотрудниками не пересылаем в личные мессенджеры и не храним на личных дисках."],
+                        ['type' => 'test', 'title' => 'Итоговый тест по безопасности', 'duration_min' => 10,
+                         'content' => 'Десять вопросов по материалам курса. Проходной балл — 70%.'],
+                    ]],
+                ],
+            ],
+            [
+                'slug' => 'okr-goal-setting', 'title' => 'Постановка целей по OKR',
+                'description' => 'Как сформулировать цель, которую можно проверить, и не превратить OKR в список задач.',
+                'level' => 'intermediate', 'duration_min' => 120, 'mandatory' => false,
+                'tags' => ['цели', 'управление'],
+                'competencies' => [['skill_name' => 'Планирование', 'target_value' => 4], ['skill_name' => 'Аналитика', 'target_value' => 3]],
+                'modules' => [
+                    ['title' => 'Цель и ключевые результаты', 'lessons' => [
+                        ['type' => 'markdown', 'title' => 'Чем цель отличается от задачи', 'duration_min' => 25,
+                         'content' => "## Признак хорошего Key Result\n\nЕго нельзя закрыть словом «сделал». У него есть начальное значение, целевое и способ измерения.\n\n| Плохо | Хорошо |\n|---|---|\n| Улучшить онбординг | Довести долю прошедших испытательный срок с 74% до 85% |\n| Запустить обучение | 8 из 10 новичков проходят вводный курс за первую неделю |"],
+                        ['type' => 'markdown', 'title' => 'Каскад целей', 'duration_min' => 25,
+                         'content' => "Цель отдела — не копия цели компании с другим словом. Она отвечает на вопрос «что именно мы сделаем, чтобы компания достигла своей».\n\nПроверка: если цель отдела выполнена, а цель компании не сдвинулась — каскад собран неправильно."],
+                    ]],
+                    ['title' => 'Чек-ины и пересмотр', 'lessons' => [
+                        ['type' => 'markdown', 'title' => 'Ритм чек-инов', 'duration_min' => 20,
+                         'content' => "Раз в две недели: что изменилось в цифрах, что мешает, что меняем. Пятнадцать минут, а не час.\n\n**Красный флаг:** цель весь квартал стоит на 0% и обсуждается только в последнюю неделю."],
+                        ['type' => 'test', 'title' => 'Практикум: разберите цель', 'duration_min' => 15,
+                         'content' => 'Определите, какие из предложенных формулировок являются измеримыми ключевыми результатами.'],
+                    ]],
+                ],
+            ],
+            [
+                'slug' => 'feedback-hard-talks', 'title' => 'Обратная связь и сложные разговоры',
+                'description' => 'Как говорить о проблемах так, чтобы человек услышал, а отношения сохранились.',
+                'level' => 'intermediate', 'duration_min' => 100, 'mandatory' => false,
+                'tags' => ['коммуникация', 'руководителю'],
+                'competencies' => [['skill_name' => 'Коммуникация', 'target_value' => 4], ['skill_name' => 'Наставничество', 'target_value' => 3]],
+                'modules' => [
+                    ['title' => 'Разговор о результате', 'lessons' => [
+                        ['type' => 'markdown', 'title' => 'Факт, эффект, просьба', 'duration_min' => 20,
+                         'content' => "## Схема, которая работает\n\n1. **Факт.** Что произошло — без оценок и обобщений.\n2. **Эффект.** Что из-за этого изменилось для команды или клиента.\n3. **Просьба.** Что нужно делать иначе в следующий раз.\n\n«Ты всегда срываешь сроки» — это не факт, а ярлык. «Отчёт ушёл клиенту на два дня позже» — факт."],
+                        ['type' => 'video', 'title' => 'Разбор диалога', 'duration_min' => 20,
+                         'content' => 'Два варианта одного разговора: что слышит сотрудник в каждом.',
+                         'video_url' => 'https://rutube.ru/play/embed/demo-feedback'],
+                    ]],
+                    ['title' => 'Когда разговор тяжёлый', 'lessons' => [
+                        ['type' => 'markdown', 'title' => 'Несогласие и эмоции', 'duration_min' => 25,
+                         'content' => "Если собеседник не согласен — это не саботаж, а информация. Сначала уточняющий вопрос, потом аргумент.\n\nЕсли эмоции зашкаливают, разговор переносится, а не «дожимается». Решение, принятое на повышенных тонах, всё равно не выполняется."],
+                        ['type' => 'test', 'title' => 'Проверка: разберите реплики', 'duration_min' => 15,
+                         'content' => 'Определите, где обратная связь описывает факт, а где — оценку личности.'],
+                    ]],
+                ],
+            ],
+            [
+                'slug' => 'mentorship', 'title' => 'Наставничество: как вести за собой',
+                'description' => 'Курс для тех, кто берёт бадди или новичка: как передать опыт и не сделать работу за него.',
+                'level' => 'advanced', 'duration_min' => 80, 'mandatory' => false,
+                'tags' => ['наставничество', 'развитие'],
+                'competencies' => [['skill_name' => 'Наставничество', 'target_value' => 5]],
+                'modules' => [
+                    ['title' => 'Роль наставника', 'lessons' => [
+                        ['type' => 'markdown', 'title' => 'Показать, а не сделать', 'duration_min' => 20,
+                         'content' => "Наставник, который делает работу за подопечного, экономит день и теряет месяц: человек не научился.\n\n**Формула:** сначала вместе, потом рядом, потом сам с разбором результата."],
+                        ['type' => 'markdown', 'title' => 'План первых 90 дней', 'duration_min' => 20,
+                         'content' => "- **Неделя 1** — контекст, доступы, знакомства.\n- **Месяц 1** — первая самостоятельная задача целиком.\n- **Месяц 3** — работа без ежедневной поддержки и честный разговор об итогах."],
+                    ]],
+                    ['title' => 'Разбор ситуаций', 'lessons' => [
+                        ['type' => 'test', 'title' => 'Кейсы наставника', 'duration_min' => 20,
+                         'content' => 'Четыре ситуации из практики: выберите действие наставника и обоснуйте.'],
+                    ]],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Индивидуальные планы развития.
+     *
+     * Раздел «Планы развития (ИПР)» есть в меню HRD, но таблицы никогда не
+     * наполнялись: список открывался пустым, а у сотрудника в профиле не было
+     * ни одного пункта развития. Пункты связываем с реальными курсами — иначе
+     * связка ИПР → обучение на демо-стенде не видна.
+     */
+    private function ensureIdp(): int
+    {
+        if (! Schema::hasTable('individual_development_plans') || ! Schema::hasTable('idp_items')) return 0;
+        $admin = $this->adminUserId();
+        if (! $admin) return 0;
+
+        $courses = DB::table('courses')->where('company_id', $this->companyId)
+            ->pluck('id', 'slug')->all();
+
+        $people = DB::table('profiles')->where('company_id', $this->companyId)
+            ->orderBy('created_at')->limit(12)->get(['user_id', 'full_name']);
+        $targetId = DB::table('users')->where('email', (string) $this->option('email'))->value('id');
+        if ($targetId && $people->every(fn ($p) => (string) $p->user_id !== (string) $targetId)) {
+            $target = DB::table('profiles')->where('user_id', $targetId)->first(['user_id', 'full_name']);
+            if ($target) $people->push($target);
+        }
+        if ($people->isEmpty()) return 0;
+
+        $title = 'План развития на 2026 H1';
+        $created = 0;
+
+        foreach ($people as $i => $person) {
+            $existing = DB::table('individual_development_plans')
+                ->where('company_id', $this->companyId)->where('user_id', $person->user_id)
+                ->where('title', $title)->first();
+            $planId = $existing->id ?? (string) Str::uuid();
+            $payload = [
+                'company_id' => $this->companyId,
+                'user_id'    => $person->user_id,
+                'created_by' => $admin,
+                'title'      => $title,
+                'summary'    => 'Полугодовой план: обучение, практика и наставничество под цели должности.',
+                'period'     => 'H1 2026',
+                'starts_at'  => now()->startOfYear()->toDateString(),
+                'ends_at'    => now()->startOfYear()->addMonths(6)->toDateString(),
+                'status'     => $i % 5 === 0 ? 'completed' : 'active',
+                'updated_at' => now(),
+            ];
+            if ($existing) DB::table('individual_development_plans')->where('id', $planId)->update($payload);
+            else {
+                DB::table('individual_development_plans')->insert($payload + ['id' => $planId, 'created_at' => now()->subDays(45)]);
+                $created++;
+            }
+
+            $items = [
+                ['course', 'Пройти курс «Постановка целей по OKR»', $courses['okr-goal-setting'] ?? null,
+                 'Цель — самостоятельно сформулировать OKR на следующий квартал.', 'done'],
+                ['course', 'Пройти курс «Обратная связь и сложные разговоры»', $courses['feedback-hard-talks'] ?? null,
+                 'Отработать схему «факт — эффект — просьба» на реальных разговорах.', $i % 2 === 0 ? 'in_progress' : 'planned'],
+                ['book', 'Прочитать «Пять пороков команды»', null,
+                 'Разобрать на встрече 1:1, что из описанного узнаётся в своей команде.', 'planned'],
+                ['project', 'Взять на себя внутренний проект', null,
+                 'Довести до результата задачу вне зоны текущих обязанностей.', $i % 3 === 0 ? 'in_progress' : 'planned'],
+                ['mentorship', 'Быть бадди для новичка', null,
+                 'Сопроводить одного нового сотрудника в течение испытательного срока.', 'planned'],
+            ];
+
+            foreach ($items as $order => [$kind, $itemTitle, $courseId, $description, $status]) {
+                $existingItem = DB::table('idp_items')->where('idp_id', $planId)->where('order_index', $order)->first();
+                $itemId = $existingItem->id ?? (string) Str::uuid();
+                $itemPayload = [
+                    'company_id'  => $this->companyId,
+                    'idp_id'      => $planId,
+                    'order_index' => $order,
+                    'kind'        => $kind,
+                    'title'       => $itemTitle,
+                    'description' => $description,
+                    'course_id'   => $courseId,
+                    'due_date'    => now()->addDays(30 + $order * 20)->toDateString(),
+                    'status'      => $status,
+                    'result_note' => $status === 'done' ? 'Курс пройден, цели на квартал поставлены.' : null,
+                    'updated_at'  => now(),
+                ];
+                if ($existingItem) DB::table('idp_items')->where('id', $itemId)->update($itemPayload);
+                else {
+                    DB::table('idp_items')->insert($itemPayload + ['id' => $itemId, 'created_at' => now()->subDays(45)]);
+                    $created++;
+                }
+            }
+        }
+
+        return $created;
+    }
+
+    /**
+     * Лестница уровней геймификации.
+     *
+     * Баллы, достижения и магазин уже наполнялись, а уровней не было ни одного:
+     * виджет уровня в профиле сотрудника показывал пустоту при живом балансе.
+     */
+    private function ensureGamificationLevels(): int
+    {
+        if (! Schema::hasTable('gamification_levels')) return 0;
+
+        $levels = [
+            [1, 'Новичок',    'sprout',  '#94a3b8', 0,    0,  0],
+            [2, 'Участник',   'star',    '#22c55e', 300,  3,  2],
+            [3, 'Опора',      'shield',  '#0ea5e9', 900,  6,  5],
+            [4, 'Наставник',  'award',   '#a855f7', 2000, 12, 10],
+            [5, 'Легенда',    'crown',   '#f59e0b', 4000, 24, 18],
+        ];
+
+        $created = 0;
+        foreach ($levels as [$order, $title, $icon, $color, $points, $tenure, $achievements]) {
+            $existing = DB::table('gamification_levels')
+                ->where('company_id', $this->companyId)->where('order', $order)->first();
+            $payload = [
+                'company_id'        => $this->companyId,
+                'order'             => $order,
+                'title'             => $title,
+                'icon'              => $icon,
+                'color'             => $color,
+                'min_points'        => $points,
+                'min_tenure_months' => $tenure,
+                'min_achievements'  => $achievements,
+                'description'       => "Уровень {$order}: от {$points} баллов, {$tenure} мес. в компании и {$achievements} достижений.",
+                'updated_at'        => now(),
+            ];
+            if ($existing) DB::table('gamification_levels')->where('id', $existing->id)->update($payload);
+            else {
+                DB::table('gamification_levels')->insert($payload + ['id' => (string) Str::uuid(), 'created_at' => now()->subDays(60)]);
+                $created++;
+            }
+        }
+
+        return $created;
+    }
+
     private function adminUserId(): ?string
     {
         $id = DB::table('profiles')->where('company_id', $this->companyId)
@@ -1487,6 +1979,14 @@ HTML;
                 && DB::table('tracker_tasks')->where('assignee_id', $target->user_id)->doesntExist()) {
                 $problems[] = "у {$email} пустой бэклог задач";
             }
+            if (Schema::hasTable('enrollments')
+                && DB::table('enrollments')->where('user_id', $target->user_id)->doesntExist()) {
+                $problems[] = "у {$email} нет записей на курсы";
+            }
+            if (Schema::hasTable('individual_development_plans')
+                && DB::table('individual_development_plans')->where('user_id', $target->user_id)->doesntExist()) {
+                $problems[] = "у {$email} нет плана развития";
+            }
         } else {
             $problems[] = "профиль {$email} не найден";
         }
@@ -1498,6 +1998,11 @@ HTML;
         if (Schema::hasTable('portal_posts')
             && DB::table('portal_posts')->where('company_id', $this->companyId)->whereNotNull('community_id')->doesntExist()) {
             $problems[] = 'в сообществах нет записей';
+        }
+        if (Schema::hasTable('courses')
+            && DB::table('courses')->where('company_id', $this->companyId)->where('status', 'published')->doesntExist()) {
+            // Черновики видит только автор — для сотрудника каталог остаётся пустым.
+            $problems[] = 'в Университете нет опубликованных курсов';
         }
         if (Schema::hasTable('portal_posts')) {
             $showcase = DB::table('portal_posts')->where('company_id', $this->companyId)
