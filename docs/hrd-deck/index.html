@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Пик Роста — презентация для HR-директора</title>
+
+<style>
+/* ─── Шрифты лежат рядом: презентация открывается и собирается без интернета ─── */
+@font-face{font-family:Literata;font-style:normal;font-weight:600;font-display:block;src:url(fonts/literata-cyrillic-600-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:Literata;font-style:normal;font-weight:600;font-display:block;src:url(fonts/literata-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215}
+@font-face{font-family:Literata;font-style:normal;font-weight:700;font-display:block;src:url(fonts/literata-cyrillic-700-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:Literata;font-style:normal;font-weight:700;font-display:block;src:url(fonts/literata-latin-700-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215}
+@font-face{font-family:'Golos Text';font-style:normal;font-weight:400;font-display:block;src:url(fonts/golos-text-cyrillic-400-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Golos Text';font-style:normal;font-weight:400;font-display:block;src:url(fonts/golos-text-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215}
+@font-face{font-family:'Golos Text';font-style:normal;font-weight:500;font-display:block;src:url(fonts/golos-text-cyrillic-500-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Golos Text';font-style:normal;font-weight:500;font-display:block;src:url(fonts/golos-text-latin-500-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215}
+@font-face{font-family:'Golos Text';font-style:normal;font-weight:600;font-display:block;src:url(fonts/golos-text-cyrillic-600-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Golos Text';font-style:normal;font-weight:600;font-display:block;src:url(fonts/golos-text-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:block;src:url(fonts/ibm-plex-mono-cyrillic-500-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:block;src:url(fonts/ibm-plex-mono-latin-500-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215}
+
+/* ─── Палитра и типографика — те же, что на странице материала для HRD ─── */
+:root{
+  --ink:#0F1A20;
+  --ink-2:#41565F;
+  --ink-3:#6D828B;
+  --paper:#EDF1F3;
+  --surface:#FFFFFF;
+  --surface-2:#F6F9FA;
+  --line:#D3DCE0;
+  --line-soft:#E4EAED;
+  --accent:#14607F;
+  --accent-ink:#0C4459;
+  --accent-soft:#E0EDF2;
+  --crit:#A8382A;
+
+  --f-display:Literata,Georgia,"Times New Roman",serif;
+  --f-body:"Golos Text",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono","Courier New",monospace;
+
+  --W:1600px;
+  --H:900px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#8D9BA2}
+body{font-family:var(--f-body);color:var(--ink);-webkit-font-smoothing:antialiased}
+
+.slide{
+  position:relative;width:var(--W);height:var(--H);overflow:hidden;
+  background:var(--surface);margin:0 auto 24px;
+  padding:48px 56px 62px;display:flex;flex-direction:column;
+  break-after:page;page-break-after:always;
+}
+.slide:last-child{break-after:auto;page-break-after:auto;margin-bottom:0}
+
+h1,h2,h3{font-family:var(--f-display);margin:0;line-height:1.1;letter-spacing:-.01em;text-wrap:balance}
+p{margin:0}
+
+.kicker{
+  font-family:var(--f-mono);font-size:12px;font-weight:500;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--accent);
+}
+.eyebrow{
+  font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);
+}
+
+/* ─── Шапка и подвал слайда ─── */
+.top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px}
+.top .num{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;color:var(--ink-3)}
+.foot{
+  position:absolute;left:56px;right:56px;bottom:20px;display:flex;justify-content:space-between;
+  font-size:12px;color:var(--ink-3);font-family:var(--f-mono);letter-spacing:.08em;
+}
+
+/* ─── Титул и финал: тёмная заливка акцентом ─── */
+.slide.dark{background:var(--accent-ink);color:#EAF3F7}
+.dark .kicker{color:#7FC4DE}
+.dark .eyebrow{color:#8FB6C6}
+.dark .foot{color:#5E93A8}
+.badge{
+  display:inline-block;border:1px solid rgba(234,243,247,.45);border-radius:3px;
+  padding:7px 14px;font-family:var(--f-mono);font-size:12px;letter-spacing:.18em;
+  text-transform:uppercase;color:#EAF3F7;
+}
+
+.title-h1{font-size:70px;font-weight:700;max-width:19ch;margin-top:44px}
+.title-lead{font-size:22px;line-height:1.5;color:#BBD6E1;max-width:62ch;margin-top:28px}
+.meta{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:auto;
+  border-top:1px solid rgba(234,243,247,.22);padding-top:24px;
+}
+.meta b{display:block;font-family:var(--f-display);font-weight:600;font-size:17.5px;line-height:1.35;margin-top:8px;color:#fff}
+
+/* ─── Слайд-оглавление ─── */
+.agenda-h2{font-size:40px;font-weight:700;max-width:36ch}
+.agenda-lead{font-size:18px;line-height:1.5;color:var(--ink-2);margin-top:16px;max-width:84ch}
+.agenda{display:grid;grid-template-columns:repeat(5,1fr);gap:20px;margin-top:auto;margin-bottom:auto}
+.agenda .card{
+  background:var(--surface-2);border:1px solid var(--line-soft);border-top:3px solid var(--accent);
+  border-radius:6px;padding:26px 22px 30px;min-height:238px;
+}
+.agenda .n{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;color:var(--accent)}
+.agenda .t{font-family:var(--f-display);font-weight:600;font-size:21px;line-height:1.25;margin-top:14px}
+.agenda .d{font-size:14.5px;line-height:1.5;color:var(--ink-2);margin-top:12px}
+
+/* ─── Содержательный слайд: слева текст, справа экран системы ─── */
+.h2{font-size:34px;font-weight:700;max-width:27ch;line-height:1.14}
+.body{display:grid;grid-template-columns:470px 1fr;gap:40px;margin-top:22px;align-items:start}
+
+.now{background:var(--paper);border-radius:6px;padding:16px 20px 18px}
+.now h3{font-size:17.5px;font-weight:600;margin-top:7px}
+.now ul{list-style:none;margin:11px 0 0;padding:0}
+.now li{position:relative;padding-left:17px;font-size:14px;line-height:1.4;color:var(--ink-2);margin-bottom:7px}
+.now li::before{content:"—";position:absolute;left:0;color:var(--ink-3)}
+.now li:last-child{margin-bottom:0}
+
+.sol{margin-top:20px}
+.sol h3{font-size:17.5px;font-weight:600;margin-top:7px}
+.sol ul{list-style:none;margin:12px 0 0;padding:0}
+.sol li{position:relative;padding-left:17px;font-size:14px;line-height:1.45;color:var(--ink-2);margin-bottom:9px}
+.sol li::before{
+  content:"";position:absolute;left:0;top:8px;width:6px;height:6px;border-radius:50%;background:var(--accent);
+}
+.sol li b{color:var(--ink);font-weight:600}
+.sol li:last-child{margin-bottom:0}
+
+.shot{
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface);
+  box-shadow:0 1px 2px rgba(15,26,32,.06),0 18px 36px -24px rgba(15,26,32,.45);
+}
+.shot .bar{
+  height:26px;background:var(--surface-2);border-bottom:1px solid var(--line-soft);
+  display:flex;align-items:center;gap:6px;padding:0 12px;
+}
+.shot .bar i{width:8px;height:8px;border-radius:50%;background:#CBD6DB;display:block}
+.shot img{display:block;width:100%;height:500px;object-fit:cover;object-position:left top}
+.shot-cap{font-size:12.5px;line-height:1.45;color:var(--ink-3);margin-top:11px}
+
+.gain{
+  margin-top:auto;display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start;
+  background:var(--accent-soft);border-radius:6px;padding:15px 22px;
+}
+.gain p{font-family:var(--f-display);font-weight:600;font-size:16px;line-height:1.42;color:var(--ink)}
+
+/* ─── Слайд запуска ─── */
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-top:auto}
+.steps .step{background:var(--surface);padding:32px 24px 42px;min-height:210px}
+.steps .n{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;color:var(--accent)}
+.steps b{display:block;font-family:var(--f-display);font-weight:600;font-size:20px;margin-top:14px}
+.steps p{font-size:14.5px;line-height:1.5;color:var(--ink-2);margin-top:10px}
+.rollout-note{
+  margin-top:32px;margin-bottom:auto;font-size:15px;line-height:1.55;color:var(--ink-2);max-width:88ch;
+  border-left:2px solid var(--accent);padding-left:18px;
+}
+
+/* ─── Финальный слайд ─── */
+.close-h2{font-size:46px;font-weight:700;max-width:29ch;margin-top:34px}
+.close-lead{font-size:20px;line-height:1.5;color:#BBD6E1;max-width:64ch;margin-top:22px}
+.asks{display:grid;grid-template-columns:repeat(2,1fr);gap:20px 48px;margin-top:auto;margin-bottom:auto;list-style:none;padding:0}
+.asks li{position:relative;padding-left:26px;font-size:18px;line-height:1.45;color:#EAF3F7}
+.asks li::before{content:"";position:absolute;left:0;top:9px;width:7px;height:7px;border-radius:50%;background:#7FC4DE}
+.disclaimer{border-top:1px solid rgba(234,243,247,.22);padding-top:18px;font-size:13px;line-height:1.5;color:#8FB6C6;max-width:96ch}
+
+@media print{
+  @page{size:1600px 900px;margin:0}
+  html,body{background:#fff}
+  .slide{margin:0;box-shadow:none}
+}
+</style>
+</head>
+<body>
+
+<!-- 01 · Титул -->
+<section class="slide dark">
+  <div><span class="badge">Пик Роста · материал для HR-директора</span></div>
+  <h1 class="title-h1">Один контур управления людьми вместо пяти вкладок</h1>
+  <p class="title-lead">Платформа собирает карьерное развитие, оценку компетенций, кадровый резерв и удержание в одной системе — и отдаёт руководству готовые цифры, а не выгрузки, которые ещё надо свести вручную.</p>
+  <div class="meta">
+    <div><span class="eyebrow">Кто работает в системе</span><b>Сотрудник · Руководитель · HRD · Админ компании</b></div>
+    <div><span class="eyebrow">Разрезы аналитики</span><b>Компания → отдел → сотрудник</b></div>
+    <div><span class="eyebrow">Выгрузки</span><b>Дашборд в PNG, таблицы в XLSX</b></div>
+  </div>
+  <div class="foot"><span>Пик Роста</span><span>01 / 09</span></div>
+</section>
+
+<!-- 02 · Оглавление -->
+<section class="slide">
+  <div class="top"><span class="kicker">Содержание</span><span class="num">02 / 09</span></div>
+  <h2 class="agenda-h2">Пять задач HR-директора — и что с ними делает платформа</h2>
+  <p class="agenda-lead">Каждая задача разобрана одинаково: как процесс устроен сегодня, что предлагает система и что меняется в работе HR-команды. Экраны на слайдах — рабочий интерфейс на демо-данных.</p>
+  <div class="agenda">
+    <div class="card"><span class="n">01</span><div class="t">Единое рабочее место</div><p class="d">Один профиль сотрудника вместо пяти несвязанных систем.</p></div>
+    <div class="card"><span class="n">02</span><div class="t">Отчётность для руководства</div><p class="d">Дашборд, который уже является отчётом, с выгрузкой в один клик.</p></div>
+    <div class="card"><span class="n">03</span><div class="t">Аналитика по людям</div><p class="d">Путь от компании до конкретного сотрудника без новых выгрузок.</p></div>
+    <div class="card"><span class="n">04</span><div class="t">Кадровый резерв</div><p class="d">Эталон должности, измеренный разрыв и маршрут к нему.</p></div>
+    <div class="card"><span class="n">05</span><div class="t">Удержание</div><p class="d">Риск-модель и признание вместо разбора причин после ухода.</p></div>
+  </div>
+  <div class="foot"><span>Пик Роста · материал для HR-директора</span><span></span></div>
+</section>
+
+<!-- 03 · Единое рабочее место -->
+<section class="slide">
+  <div class="top"><span class="kicker">01 · Единое рабочее место</span><span class="num">03 / 09</span></div>
+  <h2 class="h2">Единое рабочее место вместо нескольких систем</h2>
+  <div class="body">
+    <div>
+      <div class="now">
+        <span class="eyebrow">Как это устроено сегодня</span>
+        <h3>Данные о человеке живут в разных местах</h3>
+        <ul>
+          <li>Онбординг — в чек-листах и почте</li>
+          <li>Оценка и тесты — в отдельном сервисе</li>
+          <li>Цели и развитие — в таблицах</li>
+          <li>Признание и мотивация — в мессенджере</li>
+          <li>Документы и политики — в общей папке</li>
+        </ul>
+      </div>
+      <div class="sol">
+        <span class="eyebrow">Решение</span>
+        <h3>Один профиль сотрудника, к которому подключены все процессы</h3>
+        <ul>
+          <li><b>Онбординг компании по шагам</b> — должности, тесты, карьерные треки, валюта и магазин, приглашения сотрудников.</li>
+          <li><b>Роли и права</b> — сотрудник, руководитель, админ компании, суперадмин; каждый видит свой срез.</li>
+          <li><b>Карьерный паспорт</b> — должность, отдел, достижения, анкета с файлами.</li>
+          <li><b>HR-задачи, документы и политики</b> — в том же контуре, с уведомлениями.</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="shots/dashboard.jpg" alt="Панель HRD в системе «Пик Роста»"></div>
+      <p class="shot-cap">Панель HRD: численность, средний балл, распределение ролей и уровень компетенций по отделам — на одном экране, без сборки отчёта.</p>
+    </div>
+  </div>
+  <div class="gain"><span class="eyebrow">Выгода</span><p>HR-команда перестаёт быть интегратором между системами. Один источник данных о человеке — значит, нет расхождений между тем, что видит сотрудник, его руководитель и вы.</p></div>
+  <div class="foot"><span>Пик Роста · материал для HR-директора</span><span></span></div>
+</section>
+
+<!-- 04 · Отчётность -->
+<section class="slide">
+  <div class="top"><span class="kicker">02 · Отчётность для руководства</span><span class="num">04 / 09</span></div>
+  <h2 class="h2">Отчётность для руководства готовится за минуты</h2>
+  <div class="body">
+    <div>
+      <div class="now">
+        <span class="eyebrow">Как это устроено сегодня</span>
+        <h3>Каждый запрос сверху — это отдельный проект</h3>
+        <ul>
+          <li>Выгрузки из разных источников сводятся руками</li>
+          <li>Слайды пересобираются под каждую встречу</li>
+          <li>К моменту доклада цифры уже устарели</li>
+          <li>Методика расчёта живёт в голове аналитика</li>
+        </ul>
+      </div>
+      <div class="sol">
+        <span class="eyebrow">Решение</span>
+        <h3>Дашборд, который уже является отчётом</h3>
+        <ul>
+          <li><b>Сводка компании</b> — средний балл, готовность к роли, число проведённых оценок, достигнутые цели.</li>
+          <li><b>Экспорт в один клик</b> — дашборд сохраняется в PNG для слайда, таблицы выгружаются в XLSX для расчётов.</li>
+          <li><b>Выгрузка подписана</b> — дата формирования и число сотрудников в срезе указаны прямо в файле.</li>
+          <li><b>Динамика, а не только статика</b> — как менялись оценки и распределение ролей за период.</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="shots/analytics.jpg" alt="Раздел «Аналитика» с выгрузкой в PNG и XLSX"></div>
+      <p class="shot-cap">Аналитика: сводные показатели, динамика оценок и сравнение отделов. Кнопки выгрузки в PNG и XLSX — прямо на странице.</p>
+    </div>
+  </div>
+  <div class="gain"><span class="eyebrow">Выгода</span><p>Подготовка к встрече с руководством занимает минуты вместо дней, а цифры актуальны на момент открытия. Методика расчёта одна и та же от квартала к кварталу — значит, динамику можно сравнивать.</p></div>
+  <div class="foot"><span>Пик Роста · материал для HR-директора</span><span></span></div>
+</section>
+
+<!-- 05 · Аналитика по людям -->
+<section class="slide">
+  <div class="top"><span class="kicker">03 · Аналитика по людям</span><span class="num">05 / 09</span></div>
+  <h2 class="h2">Сначала отдел, затем конкретный сотрудник</h2>
+  <div class="body">
+    <div>
+      <div class="now">
+        <span class="eyebrow">Как это устроено сегодня</span>
+        <h3>Между вопросом и ответом — несколько дней</h3>
+        <ul>
+          <li>Данные по отделам собираются под конкретный запрос</li>
+          <li>Провал в отделе видно только постфактум</li>
+          <li>Чтобы дойти до сотрудника, нужна ещё одна выгрузка</li>
+          <li>Разговор с руководителем идёт без общей фактуры</li>
+        </ul>
+      </div>
+      <div class="sol">
+        <span class="eyebrow">Решение</span>
+        <h3>Один путь: компания → отдел → компетенция → человек</h3>
+        <ul>
+          <li><b>Срез по отделам</b> — численность, средний уровень и профиль компетенций подразделений рядом друг с другом.</li>
+          <li><b>Провал вглубь</b> — из отдела сразу в карту сотрудников с поиском по имени и отделу.</li>
+          <li><b>Карточка человека</b> — оценки, готовность к роли, цели, карьерный трек, история ревью.</li>
+          <li><b>Актуальность без запроса</b> — данные обновляются по мере прохождения оценок.</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="shots/people-analytics.jpg" alt="People Analytics: численность, когорты, воронка найма"></div>
+      <p class="shot-cap">People Analytics: численность, стажевые когорты, воронка найма и доля отсутствий — с переходом вглубь до сотрудника.</p>
+    </div>
+  </div>
+  <div class="gain"><span class="eyebrow">Выгода</span><p>На вопрос «что происходит в отделе и кто там тянет команду вниз» вы отвечаете в момент, когда его задали. Разговор с линейным руководителем идёт по одним и тем же измеримым данным, а не по взаимным впечатлениям.</p></div>
+  <div class="foot"><span>Пик Роста · материал для HR-директора</span><span></span></div>
+</section>
+
+<!-- 06 · Кадровый резерв -->
+<section class="slide">
+  <div class="top"><span class="kicker">04 · Кадровый резерв</span><span class="num">06 / 09</span></div>
+  <h2 class="h2">Кадровый резерв как процесс, а не список фамилий</h2>
+  <div class="body">
+    <div>
+      <div class="now">
+        <span class="eyebrow">Как это устроено сегодня</span>
+        <h3>Резерв существует в виде файла</h3>
+        <ul>
+          <li>Список составляется раз в год и быстро устаревает</li>
+          <li>Критерии готовности у каждого руководителя свои</li>
+          <li>Между «в резерве» и «готов занять должность» нет измеримой дистанции</li>
+          <li>Когда позиция освобождается, всё равно идёт внешний поиск</li>
+        </ul>
+      </div>
+      <div class="sol">
+        <span class="eyebrow">Решение</span>
+        <h3>Эталон должности, измеренный разрыв и маршрут к нему</h3>
+        <ul>
+          <li><b>Эталон должности</b> — набор компетенций и требуемых уровней, единый для всех претендентов.</li>
+          <li><b>Готовность к роли в процентах</b> — насколько человек уже соответствует эталону следующей должности.</li>
+          <li><b>Карьерные треки</b> — шаблоны маршрутов, шаги, сценарии и задания с проверяемыми результатами.</li>
+          <li><b>Ревью и заявки на должность</b> — движение по резерву фиксируется в системе, а не в переписке.</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="shots/talent.jpg" alt="Talent Review: матрица 9-box и кадровый резерв"></div>
+      <p class="shot-cap">Talent Review: калибровка 9-box, протокол сессии, преемственность и кадровый резерв — вместо файла со списком фамилий.</p>
+    </div>
+  </div>
+  <div class="gain"><span class="eyebrow">Выгода</span><p>Резерв становится живым: в любой момент видно, кто и на сколько процентов готов к конкретной должности и что осталось закрыть. Часть внешнего подбора заменяется внутренним продвижением.</p></div>
+  <div class="foot"><span>Пик Роста · материал для HR-директора</span><span></span></div>
+</section>
+
+<!-- 07 · Удержание -->
+<section class="slide">
+  <div class="top"><span class="kicker">05 · Удержание</span><span class="num">07 / 09</span></div>
+  <h2 class="h2">Удержание: сигнал до заявления, а не после</h2>
+  <div class="body">
+    <div>
+      <div class="now">
+        <span class="eyebrow">Как это устроено сегодня</span>
+        <h3>Об уходе узнают последними</h3>
+        <ul>
+          <li>Риск ухода виден только на выходном интервью</li>
+          <li>Перегрузку замечают, когда она уже стала выгоранием</li>
+          <li>Вклад сотрудника фиксируется раз в год на оценке</li>
+          <li>Программы лояльности не связаны с реальным поведением</li>
+        </ul>
+      </div>
+      <div class="sol">
+        <span class="eyebrow">Решение</span>
+        <h3>Риск-модель плюс постоянная петля признания</h3>
+        <ul>
+          <li><b>Риск-скоринг по каждому сотруднику</b> — риск оттока, риск выгорания и уровень вовлечённости.</li>
+          <li><b>Факторы, а не просто балл</b> — что именно повлияло: нагрузка, темп продвижения, вовлечённость.</li>
+          <li><b>Готовые действия</b> — снизить нагрузку, запланировать ревью, подключить ментора.</li>
+          <li><b>Признание от коллег</b> — вклад виден в моменте, а не раз в год.</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="shots/risk.jpg" alt="Риски и удержание: heatmap по отделам и карточка риска"></div>
+      <p class="shot-cap">Риски и удержание: heatmap риска по отделам, сотрудники в зоне высокого риска и карточка человека с факторами и рекомендациями.</p>
+    </div>
+  </div>
+  <div class="gain"><span class="eyebrow">Выгода</span><p>Вы вмешиваетесь до того, как человек принял решение уйти, и делаете это адресно — с конкретной причиной и конкретным действием. Признание становится регулярным механизмом лояльности.</p></div>
+  <div class="foot"><span>Пик Роста · материал для HR-директора</span><span></span></div>
+</section>
+
+<!-- 08 · Запуск -->
+<section class="slide">
+  <div class="top"><span class="kicker">Внедрение</span><span class="num">08 / 09</span></div>
+  <h2 class="h2">Как выглядит запуск</h2>
+  <p class="agenda-lead">Настройка идёт последовательно: каждый следующий шаг опирается на данные предыдущего. Это реальный порядок мастера настройки компании в системе.</p>
+  <div class="steps">
+    <div class="step"><span class="n">Шаг 1</span><b>Должности</b><p>Структура должностей и отделов компании.</p></div>
+    <div class="step"><span class="n">Шаг 2</span><b>Компетенции и тесты</b><p>Эталоны должностей и материалы для оценки.</p></div>
+    <div class="step"><span class="n">Шаг 3</span><b>Карьерные треки</b><p>Маршруты развития между должностями.</p></div>
+    <div class="step"><span class="n">Шаг 4</span><b>Валюта и магазин</b><p>Механика признания и вознаграждения.</p></div>
+    <div class="step"><span class="n">Шаг 5</span><b>Приглашение сотрудников</b><p>Запуск на пилотный отдел, затем на компанию.</p></div>
+  </div>
+  <p class="rollout-note">Пилотный отдел проходит полный цикл: эталоны должностей → оценка → карьерные треки → ревью. После этого метрики «до» и «после» сравниваются на одних и тех же данных.</p>
+  <div class="foot"><span>Пик Роста · материал для HR-директора</span><span></span></div>
+</section>
+
+<!-- 09 · Следующий шаг -->
+<section class="slide dark">
+  <div><span class="badge">Следующий шаг</span></div>
+  <h2 class="close-h2">Пилот на одном отделе — и решение по цифрам, а не по презентации</h2>
+  <p class="close-lead">Предлагаю запустить платформу на одном подразделении и через полный цикл оценки сравнить результат с тем, как этот же процесс идёт сегодня.</p>
+  <ul class="asks">
+    <li>Выбрать пилотный отдел и ответственного руководителя с вашей стороны.</li>
+    <li>Зафиксировать эталоны для 3–5 ключевых должностей.</li>
+    <li>Согласовать, какие метрики попадут в отчёт для руководства.</li>
+    <li>Назначить дату разбора результатов пилота.</li>
+  </ul>
+  <p class="disclaimer">Экраны в презентации — рабочий интерфейс системы на демонстрационной компании. Числовые значения приведены как пример представления данных и не являются реальными показателями компании.</p>
+  <div class="foot"><span>Пик Роста</span><span>09 / 09</span></div>
+</section>
+
+</body>
+</html>
