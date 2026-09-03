@@ -64,6 +64,7 @@ export default function DeckNav({
 
   return (
     <div
+      data-deck-nav
       className={`fixed right-4 bottom-4 z-50 flex flex-col items-center gap-2 rounded-2xl border border-[#D5A52A]/40 bg-white/90 px-2 py-2 backdrop-blur shadow-lg transition-opacity duration-500 print:hidden ${
         visible || editMode ? "opacity-100" : "opacity-0 pointer-events-none"
       }`}

@@ -16,6 +16,7 @@
     "test:e2e:ui": "playwright test --project=ui-desktop --project=ui-mobile",
     "test:visual": "playwright test --project=mobile-375 --project=tablet-768",
     "test:load": "node scripts/loadtest/load-test.mjs",
+    "deck:pdf": "node scripts/export-deck-pdf.mjs",
     "test:all": "npm run test && npm run test:e2e"
   },
   "dependencies": {
