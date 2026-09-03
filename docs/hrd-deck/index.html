@@ -93,6 +93,14 @@ p{margin:0}
 }
 .meta b{display:block;font-family:var(--f-display);font-weight:600;font-size:17.5px;line-height:1.35;margin-top:8px;color:#fff}
 
+/* ─── Титул: заголовок слева, короткая справка о системе справа ─── */
+.title-grid{display:grid;grid-template-columns:1fr 430px;gap:64px;align-items:start;margin-top:40px}
+.facts{border:1px solid rgba(234,243,247,.28);border-radius:8px;padding:6px 24px 8px;background:rgba(255,255,255,.04)}
+.facts .row{padding:16px 0;border-bottom:1px solid rgba(234,243,247,.16)}
+.facts .row:last-child{border-bottom:0}
+.facts b{display:block;font-family:var(--f-display);font-weight:600;font-size:17px;line-height:1.35;color:#fff;margin-top:7px}
+.facts p{font-size:13.5px;line-height:1.45;color:#9FC2D0;margin-top:5px}
+
 /* ─── Слайд-оглавление ─── */
 .agenda-h2{font-size:40px;font-weight:700;max-width:36ch}
 .agenda-lead{font-size:18px;line-height:1.5;color:var(--ink-2);margin-top:16px;max-width:84ch}
@@ -104,6 +112,26 @@ p{margin:0}
 .agenda .n{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;color:var(--accent)}
 .agenda .t{font-family:var(--f-display);font-weight:600;font-size:21px;line-height:1.25;margin-top:14px}
 .agenda .d{font-size:14.5px;line-height:1.5;color:var(--ink-2);margin-top:12px}
+
+
+/* ─── Таблица оглавления: задача, как сейчас, что даёт платформа ─── */
+.map{width:100%;border-collapse:collapse;margin-top:auto;margin-bottom:auto;table-layout:fixed}
+.map th{
+  font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);text-align:left;padding:0 18px 12px;border-bottom:1px solid var(--line);
+}
+.map td{padding:18px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+.map tr:last-child td{border-bottom:0}
+.map tbody tr:nth-child(even){background:var(--surface-2)}
+.map .task{font-family:var(--f-display);font-weight:600;font-size:19px;line-height:1.25}
+.map .task span{
+  display:block;font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.14em;
+  color:var(--accent);margin-bottom:8px;
+}
+.map .txt{font-size:14.5px;line-height:1.45;color:var(--ink-2)}
+.map .txt.sol{color:var(--ink)}
+.map .ref{font-family:var(--f-mono);font-size:12px;letter-spacing:.1em;color:var(--ink-3);text-align:right}
+.map-note{font-size:14px;line-height:1.5;color:var(--ink-3);border-left:2px solid var(--accent);padding-left:16px;margin-bottom:6px}
 
 /* ─── Содержательный слайд: слева текст, справа экран системы ─── */
 .h2{font-size:34px;font-weight:700;max-width:27ch;line-height:1.14}
@@ -175,8 +203,29 @@ p{margin:0}
 <!-- 01 · Титул -->
 <section class="slide dark">
   <div><span class="badge">Пик Роста · материал для HR-директора</span></div>
-  <h1 class="title-h1">Один контур управления людьми вместо пяти вкладок</h1>
-  <p class="title-lead">Платформа собирает карьерное развитие, оценку компетенций, кадровый резерв и удержание в одной системе — и отдаёт руководству готовые цифры, а не выгрузки, которые ещё надо свести вручную.</p>
+  <div class="title-grid">
+    <div>
+      <h1 class="title-h1">Один контур управления людьми вместо пяти вкладок</h1>
+      <p class="title-lead">Платформа собирает карьерное развитие, оценку компетенций, кадровый резерв и удержание в одной системе — и отдаёт руководству готовые цифры, а не выгрузки, которые ещё надо свести вручную.</p>
+    </div>
+    <div class="facts">
+      <div class="row">
+        <span class="eyebrow">Что это</span>
+        <b>Кадровая платформа полного цикла</b>
+        <p>Онбординг, оценка компетенций, карьерные треки, обучение, признание и кадровые документы — 16 модулей в одном контуре.</p>
+      </div>
+      <div class="row">
+        <span class="eyebrow">Для кого</span>
+        <b>Компании от 100 сотрудников</b>
+        <p>Четыре роли с разными правами: сотрудник, руководитель, HRD и админ компании — каждый видит свой срез.</p>
+      </div>
+      <div class="row">
+        <span class="eyebrow">Где работает</span>
+        <b>Облако или контур компании</b>
+        <p>Разворачивается в облаке или на инфраструктуре заказчика: Docker, nginx, Kubernetes. Российская разработка.</p>
+      </div>
+    </div>
+  </div>
   <div class="meta">
     <div><span class="eyebrow">Кто работает в системе</span><b>Сотрудник · Руководитель · HRD · Админ компании</b></div>
     <div><span class="eyebrow">Разрезы аналитики</span><b>Компания → отдел → сотрудник</b></div>
@@ -189,14 +238,50 @@ p{margin:0}
 <section class="slide">
   <div class="top"><span class="kicker">Содержание</span><span class="num">02 / 09</span></div>
   <h2 class="agenda-h2">Пять задач HR-директора — и что с ними делает платформа</h2>
-  <p class="agenda-lead">Каждая задача разобрана одинаково: как процесс устроен сегодня, что предлагает система и что меняется в работе HR-команды. Экраны на слайдах — рабочий интерфейс на демо-данных.</p>
-  <div class="agenda">
-    <div class="card"><span class="n">01</span><div class="t">Единое рабочее место</div><p class="d">Один профиль сотрудника вместо пяти несвязанных систем.</p></div>
-    <div class="card"><span class="n">02</span><div class="t">Отчётность для руководства</div><p class="d">Дашборд, который уже является отчётом, с выгрузкой в один клик.</p></div>
-    <div class="card"><span class="n">03</span><div class="t">Аналитика по людям</div><p class="d">Путь от компании до конкретного сотрудника без новых выгрузок.</p></div>
-    <div class="card"><span class="n">04</span><div class="t">Кадровый резерв</div><p class="d">Эталон должности, измеренный разрыв и маршрут к нему.</p></div>
-    <div class="card"><span class="n">05</span><div class="t">Удержание</div><p class="d">Риск-модель и признание вместо разбора причин после ухода.</p></div>
-  </div>
+  <p class="agenda-lead">Каждая задача разобрана на своём слайде одинаково: как процесс устроен сегодня, что предлагает система и что меняется в работе HR-команды. Экраны на слайдах — рабочий интерфейс на демонстрационных данных.</p>
+  <table class="map">
+    <thead>
+      <tr>
+        <th style="width:270px">Задача</th>
+        <th>Как это устроено сегодня</th>
+        <th>Что даёт платформа</th>
+        <th style="width:86px;text-align:right">Слайд</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="task"><span>01</span>Единое рабочее место</td>
+        <td class="txt">Данные о человеке живут в пяти местах: онбординг, оценка, цели, признание, документы.</td>
+        <td class="txt sol">Один профиль сотрудника, к которому подключены все процессы, роли и права.</td>
+        <td class="ref">03</td>
+      </tr>
+      <tr>
+        <td class="task"><span>02</span>Отчётность для руководства</td>
+        <td class="txt">Каждый запрос сверху — отдельный проект: выгрузки сводятся руками, цифры устаревают.</td>
+        <td class="txt sol">Дашборд, который уже является отчётом, с экспортом в PNG и XLSX и подписанной выгрузкой.</td>
+        <td class="ref">04</td>
+      </tr>
+      <tr>
+        <td class="task"><span>03</span>Аналитика по людям</td>
+        <td class="txt">Между вопросом и ответом несколько дней, а чтобы дойти до сотрудника — ещё одна выгрузка.</td>
+        <td class="txt sol">Один путь: компания → отдел → компетенция → человек, без отдельной сборки данных.</td>
+        <td class="ref">05</td>
+      </tr>
+      <tr>
+        <td class="task"><span>04</span>Кадровый резерв</td>
+        <td class="txt">Резерв живёт в файле, критерии готовности у каждого руководителя свои.</td>
+        <td class="txt sol">Эталон должности, готовность к роли в процентах и карьерный трек как маршрут к ней.</td>
+        <td class="ref">06</td>
+      </tr>
+      <tr>
+        <td class="task"><span>05</span>Удержание</td>
+        <td class="txt">Об уходе узнают на выходном интервью, а вклад фиксируется раз в год на оценке.</td>
+        <td class="txt sol">Риск-скоринг с факторами, готовые действия по каждому сотруднику и признание от коллег.</td>
+        <td class="ref">07</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="map-note">Слайды 08 и 09 — порядок запуска в компании и предложение по пилоту на одном отделе.</p>
   <div class="foot"><span>Пик Роста · материал для HR-директора</span><span></span></div>
 </section>
 
